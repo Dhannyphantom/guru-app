@@ -12,7 +12,6 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { Formik } from "formik";
 import uuid from "react-native-uuid";
-import { useNavigation } from "@react-navigation/native";
 
 import AppText from "../components/AppText";
 import LottieAnimator from "../components/LottieAnimator";
@@ -30,10 +29,11 @@ import { RenderSocials } from "./LoginScreen";
 import AnimatedPressable from "../components/AnimatedPressable";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import AppModal from "../components/AppModal";
-const { registerInitials, validationSchemaRegister } = yupSchemas;
 import ReferralSvg from "../../assets/svgs/undraw_referral_re_0aji.svg";
 import PopMessage from "../components/PopMessage";
 import WebLayout from "../components/WebLayout";
+import { useLocalSearchParams, useRouter } from "expo-router";
+const { registerInitials, validationSchemaRegister } = yupSchemas;
 
 const { width } = Dimensions.get("screen");
 
@@ -91,14 +91,14 @@ const AccountType = ({ item, onPress }) => {
         size="xxlarge"
         fontWeight={"bold"}
       >
-        {item.text}
+        {item?.text}
       </AppText>
     </AnimatedPressable>
   );
 };
 
 const SelectAccountType = () => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const [accountType, setAccountType] = useState(accountTypes);
 
@@ -107,12 +107,12 @@ const SelectAccountType = () => {
   const handleSelectType = (type) => {
     setAccountType(
       accountType.map((obj) => {
-        if (obj.text == type && !obj.isSelected) {
+        if (obj?.text === type && !obj.isSelected) {
           return {
             ...obj,
             isSelected: true,
           };
-        } else if (obj.text != type && obj.isSelected) {
+        } else if (obj?.text !== type && obj.isSelected) {
           return {
             ...obj,
             isSelected: false,
@@ -125,9 +125,12 @@ const SelectAccountType = () => {
   };
 
   const handleNavigation = () => {
-    navigation.replace("Register", {
-      isSelectAccountType: false,
-      accountType: selectedAccount.text,
+    router.replace({
+      pathname: "/register",
+      params: {
+        isSelectAccountType: false,
+        accountType: selectedAccount?.text,
+      },
     });
   };
 
@@ -210,10 +213,12 @@ const Referral = ({ closeModal, updateReferral }) => {
   );
 };
 
-const RegisterScreen = ({ navigation, route }) => {
+const RegisterScreen = () => {
+  const route = useLocalSearchParams();
   const [registerUser, { isLoading, isError, error }] = useCreateUserMutation();
-  const isSelectAccountType = route.params?.isSelectAccountType;
-  const accountType = route.params?.accountType;
+  const isSelectAccountType =
+    route?.isSelectAccountType && route?.isSelectAccountType === "true";
+  const accountType = route?.accountType;
   const [referModal, setReferModal] = useState({ vis: false, username: "" });
   const [errMsg, setErrMsg] = useState(null);
 
@@ -222,7 +227,7 @@ const RegisterScreen = ({ navigation, route }) => {
   let formInitials = registerInitials,
     formSchema = validationSchemaRegister;
 
-  const isPro = accountType == "professional";
+  const isPro = accountType === "professional";
 
   if (isPro) {
     formInitials = registerInitialsPro;
@@ -258,11 +263,11 @@ const RegisterScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
-    if (!isSelectAccountType && accountType == "student") {
+    if (!isSelectAccountType && accountType === "student") {
       lottieRef?.current?.pause();
       setReferModal({ vis: true, username: "" });
     }
-  }, [isSelectAccountType]);
+  }, [isSelectAccountType, accountType]);
 
   return (
     <>
@@ -488,7 +493,7 @@ const styles = StyleSheet.create({
   },
   formSection: {
     marginTop: 15,
-    ...(Platform.OS == "web"
+    ...(Platform.OS === "web"
       ? {
           backgroundColor: colors.white,
           borderRadius: 20,
@@ -572,7 +577,7 @@ const styles = StyleSheet.create({
     lineHeight: 46,
   },
   webCont: {
-    ...(Platform.OS == "web"
+    ...(Platform.OS === "web"
       ? {
           width: 500,
           alignSelf: "center",

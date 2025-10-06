@@ -1,6 +1,5 @@
 import {
   View,
-  Text,
   StyleSheet,
   Dimensions,
   ScrollView,
@@ -25,16 +24,16 @@ import { FormikInput } from "../components/FormInput";
 import { Formik } from "formik";
 import yupSchemas from "../helpers/yupSchemas";
 import { useSignInUserMutation } from "../context/usersSlice";
-import { useNavigation } from "@react-navigation/native";
-import { useDispatch } from "react-redux";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// import { useDispatch } from "react-redux";
+// import AsyncStorage from "@react-native-async-storage/async-storage";
 import AnimatedPressable from "../components/AnimatedPressable";
 import WebLayout from "../components/WebLayout";
+import { useRouter } from "expo-router";
 const { loginInitials, validationSchemaLogin } = yupSchemas;
 const { width } = Dimensions.get("screen");
 
 export const RenderSocials = ({ isLogin = true }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const msg = isLogin ? "in" : "up";
   const msgReversed = isLogin ? "up" : "in";
@@ -66,7 +65,10 @@ export const RenderSocials = ({ isLogin = true }) => {
         <AppText style={styles.navText}>{message}</AppText>
         <TouchableOpacity
           onPress={() =>
-            navigation.navigate(nav, { isSelectAccountType: true })
+            router.replace({
+              pathname: `/${nav.toLowerCase()}`,
+              params: { isSelectAccountType: true },
+            })
           }
           activeOpacity={0.8}
           style={styles.navBtn}
@@ -81,11 +83,11 @@ export const RenderSocials = ({ isLogin = true }) => {
   );
 };
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = () => {
   const [loginUser, { isLoading, isError, error }] = useSignInUserMutation();
   const [errMsg, setErrMsg] = useState(null);
 
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
   const handleFormSubmit = async (formValues) => {
     setErrMsg(null);
     Keyboard.dismiss();
@@ -94,7 +96,7 @@ const LoginScreen = ({ navigation }) => {
       .unwrap()
       .catch((err) => {
         const networkErr =
-          typeof err?.status == "string" && err?.status?.includes(FETCH_ERROR)
+          typeof err?.status == "string" && err?.status?.includes("FETCH_ERROR")
             ? "Network request failed, Poor internet connection"
             : null;
         console.log(err);
@@ -105,7 +107,7 @@ const LoginScreen = ({ navigation }) => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingBottom: 20 }}
+      contentContainerStyle={{ paddingBottom: 200 }}
       keyboardShouldPersistTaps="handled"
     >
       {Platform.OS === "web" ? (
@@ -246,7 +248,7 @@ const styles = StyleSheet.create({
   },
   formSection: {
     marginTop: 15,
-    ...(Platform.OS == "web"
+    ...(Platform.OS === "web"
       ? {
           backgroundColor: colors.white,
           borderRadius: 20,

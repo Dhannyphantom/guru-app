@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import {
   View,
   StyleSheet,
@@ -13,15 +14,17 @@ import LottieAnimator from "../components/LottieAnimator";
 import colors from "../helpers/colors";
 import AppButton from "../components/AppButton";
 import WebLayout from "../components/WebLayout";
+import { useRouter } from "expo-router";
 const { width, height } = Dimensions.get("screen");
 
 const isWeb = Platform.OS === "web";
 
-const WelcomeScreen = ({ navigation }) => {
+const WelcomeScreen = () => {
+  const router = useRouter();
   return (
     <ScrollView contentContainerStyle={{ minHeight: height * 0.9 }}>
       <View style={styles.container}>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         {isWeb ? (
           <>
             <WebLayout style={{ flexDirection: "row" }}>
@@ -45,14 +48,17 @@ const WelcomeScreen = ({ navigation }) => {
                 <View style={styles.btnSection}>
                   <AppButton
                     title="Sign In"
-                    onPress={() => navigation.navigate("Login")}
+                    onPress={() => router.push("/login")}
                     contStyle={styles.btns}
                   />
                   <AppButton
                     title="Sign Up"
                     onPress={() =>
-                      navigation.navigate("Register", {
-                        isSelectAccountType: true,
+                      router.push({
+                        pathname: "/register",
+                        params: {
+                          isSelectAccountType: true,
+                        },
                       })
                     }
                     type="accent"
@@ -88,13 +94,18 @@ const WelcomeScreen = ({ navigation }) => {
             <View style={styles.btnSection}>
               <AppButton
                 title="Sign In"
-                onPress={() => navigation.navigate("Login")}
+                onPress={() => router.push("/login")}
                 contStyle={styles.btns}
               />
               <AppButton
                 title="Sign Up"
                 onPress={() =>
-                  navigation.navigate("Register", { isSelectAccountType: true })
+                  router.push({
+                    pathname: "/register",
+                    params: {
+                      isSelectAccountType: true,
+                    },
+                  })
                 }
                 type="accent"
                 contStyle={styles.btns}
@@ -141,7 +152,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 25,
     marginTop: 10,
-    ...(Platform.OS == "web"
+    ...(Platform.OS === "web"
       ? {
           maxWidth: "60%",
           alignSelf: "center",

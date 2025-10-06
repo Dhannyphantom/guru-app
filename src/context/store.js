@@ -4,7 +4,7 @@ import usersReducer from "./usersSlice";
 import instanceReducer from "./instanceSlice";
 import schoolReducer from "./schoolSlice";
 
-export default store = configureStore({
+const store = configureStore({
   reducer: {
     users: usersReducer,
     instance: instanceReducer,
@@ -14,3 +14,5 @@ export default store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(apiSlice.middleware),
 });
+
+export default store;
