@@ -19,7 +19,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "package": "com.phantom.guru"
     },
     "web": {
       "output": "static",
@@ -38,8 +43,20 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Guru App to access your contacts."
+        }
+      ],
+      "expo-font"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "affb8479-1bf1-4481-b621-b87fa89236a0"
+      }
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

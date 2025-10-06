@@ -1,0 +1,427 @@
+import {
+  Dimensions,
+  FlatList,
+  Animated as RNAnimated,
+  StyleSheet,
+  View,
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
+import LottieView from "lottie-react-native";
+
+import AppText from "../components/AppText";
+import PromptModal from "./PromptModal";
+import { useEffect, useRef, useState } from "react";
+import FinishedQuiz from "./FinishedQuiz";
+import AppButton from "./AppButton";
+import QuestionDisplay from "./QuestionDisplay";
+import AppLogo from "./AppLogo";
+import LottieAnimator from "./LottieAnimator";
+import ProgressBar from "./ProgressBar";
+import RenderStudySubjectTopic from "./RenderStudySubjectTopic";
+import RenderCategories from "./RenderCategories";
+import {
+  dummyQuestionsView,
+  enterAnimOther,
+  exitingAnim,
+} from "../helpers/dataStore";
+import colors from "../helpers/colors";
+import Screen from "./Screen";
+import Animated, {
+  runOnJS,
+  useAnimatedProps,
+  useAnimatedRef,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import ModeSelection from "./ModeSelection";
+import { useGetQuizQuestionsMutation } from "../context/schoolSlice";
+import {
+  useFetchCategoriesQuery,
+  useFetchPremiumQuizMutation,
+  useFetchSubjectCategoriesQuery,
+  useFetchSubjectsTopicsMutation,
+} from "../context/instanceSlice";
+
+const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
+import progressAnim from "../../assets/animations/progress.json";
+
+const { width, height } = Dimensions.get("screen");
+
+const QUIT_PROMPT = {
+  title: "Exit Quiz",
+  msg: "Are you sure you want to cancel this quiz session and miss out in earning points?",
+  btn: "Quit",
+  type: "quit",
+};
+
+const RenderQuiz = ({ setVisible, data }) => {
+  const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
+
+  const [prompt, setPrompt] = useState({ vis: false, data: null });
+  const [quizInfo, setQuizInfo] = useState({
+    category: null,
+    subjects: [],
+    // view: "quiz",
+    view: "mode",
+    mode: null,
+    invites: [],
+    bar: 1,
+  });
+  const [session, setSession] = useState({
+    totalQuestions: 1,
+    questions: [],
+  });
+
+  const { data: subjects, isLoading: subjLoad } =
+    useFetchSubjectCategoriesQuery(quizInfo?.category?._id);
+
+  const [getQuizQuestions, { isLoading, data: quizzes }] =
+    useGetQuizQuestionsMutation();
+  const [fetchPremiumQuiz, { isLoading: quizLoad, data: quizData }] =
+    useFetchPremiumQuizMutation();
+
+  // const lottieRef = useRef();
+  // const animProgress = useRef(new RNAnimated.Value(0)).current;
+  const animProgress = useSharedValue(0);
+
+  const animatedProps = useAnimatedProps(() => {
+    return {
+      progress: animProgress.value,
+    };
+  });
+
+  const isCategory = quizInfo.view === "category";
+  const isSelection = quizInfo.view === "mode";
+  const isStudy = quizInfo.view === "study";
+  const isQuiz = quizInfo.view === "quiz";
+  const isSubjects = quizInfo.view === "subjects";
+  const isStart = quizInfo.view === "start";
+  const isFinished = quizInfo.view === "finished";
+  const hasStudiedAllTopics = quizInfo?.subjects
+    ?.map((obj) => {
+      if (
+        obj?.topics
+          ?.filter((topic) => topic.visible)
+          ?.every((topic) => topic.hasStudied == true)
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    })
+    .every((item) => item === true);
+
+  const shouldShowNextBtn =
+    (isCategory && Boolean(quizInfo.category)) ||
+    (isSelection && Boolean(quizInfo.invites[0])) ||
+    (isSubjects && Boolean(quizInfo.subjects[0]));
+
+  const handlePrompt = (type) => {
+    switch (type) {
+      case "quit":
+        setVisible(false);
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  const handleNext = async () => {
+    if (quizInfo.category && isCategory) {
+      setQuizInfo({ ...quizInfo, view: "subjects", bar: 3 });
+    } else if (quizInfo.category && quizInfo.subjects && isSubjects) {
+      // show quiz
+      setQuizInfo({ ...quizInfo, view: "study", bar: 4 });
+      // setSubjectArr(
+      //   dummySubjects.filter((obj) => quizInfo.subjects.includes(obj.name))
+      // );
+    } else if (
+      quizInfo.category &&
+      quizInfo.subjects &&
+      hasStudiedAllTopics &&
+      isStudy
+    ) {
+      setQuizInfo({ ...quizInfo, view: "quiz" });
+      // fetch Quiz Question;
+      await fetchQuiz();
+    } else if (isSelection) {
+      setQuizInfo({ ...quizInfo, view: "category", bar: 2 });
+    }
+  };
+
+  const handleGoBack = () => {
+    switch (quizInfo.view) {
+      case "subjects":
+        setQuizInfo({ ...quizInfo, view: "category", bar: 2 });
+        break;
+      case "study":
+        setQuizInfo({ ...quizInfo, view: "subjects", bar: 3 });
+        break;
+      case "category":
+        setQuizInfo({ ...quizInfo, view: "mode", bar: 1 });
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  const fetchQuiz = async () => {
+    if (data?.type === "school") {
+      try {
+        await getQuizQuestions({
+          quizId: data?.quizId,
+          type: data?.type,
+          schoolId: data?.schoolId,
+        }).unwrap();
+      } catch (error) {
+        console.log(error);
+      }
+    } else {
+      animProgress.value = withTiming(0, { duration: 1 });
+      // Student Premium Quiz
+
+      animProgress.value = withTiming(0.6, { duration: 15000 }, (finished) => {
+        if (finished) {
+          animProgress.value = withTiming(0.85, { duration: 15000 });
+        }
+      });
+
+      // fetch Quiz
+
+      const sendData = {
+        categoryId: quizInfo?.category?._id,
+        subjects: quizInfo?.subjects?.map((item) => ({
+          _id: item._id,
+          topics: item?.topics
+            ?.filter((topic) => topic?.hasStudied)
+            ?.map((topic) => topic?._id),
+        })),
+        invites: quizInfo.invites,
+        mode: quizInfo.mode,
+      };
+      try {
+        const res = await fetchPremiumQuiz(sendData).unwrap();
+        animProgress.value = withTiming(1, { duration: 3500 }, (finished) => {
+          if (finished && Boolean(res?.data)) {
+            //
+            runOnJS(setQuizInfo)({ ...quizInfo, view: "start" });
+          }
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (data?.view) {
+      setQuizInfo({ ...quizInfo, view: data?.view });
+      fetchQuiz();
+    }
+  }, [data]);
+
+  return (
+    <View style={styles.container}>
+      {isFinished ? (
+        <Screen>
+          <FinishedQuiz
+            session={session}
+            data={data ?? { type: "premium", mode: quizInfo?.mode }}
+            retry={() => setQuizInfo({ ...quizInfo, view: "start" })}
+            hideModal={() => setVisible(false)}
+          />
+        </Screen>
+      ) : isStart ? (
+        <QuestionDisplay
+          handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+          setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
+          setQuizSession={setSession}
+          questionBank={quizzes?.data ?? quizData?.data ?? []}
+        />
+      ) : isQuiz ? (
+        <Screen>
+          <Animated.View entering={enterAnimOther} style={styles.quiz}>
+            <AppLogo hideName size={width * 0.3} />
+            <AppText
+              fontWeight="heavy"
+              style={{ color: colors.primary, marginTop: 50 }}
+              size={"xxlarge"}
+            >
+              Get Ready...
+            </AppText>
+
+            <AnimatedLottie
+              // ref={lottieRef}
+              animatedProps={animatedProps}
+              source={progressAnim}
+              // progress={animProgress}
+              progress={animProgress}
+              autoPlay={false}
+              loop={false}
+              onAnimationFinish={() => {
+                setQuizInfo({ ...quizInfo, view: "" });
+                setQuizInfo({ ...quizInfo, view: "quiz" });
+              }}
+              style={{ width: width * 0.99, height: 100 }}
+            />
+            <AppButton
+              title={"Cancel"}
+              type="warn"
+              // onPress={async () => await fetchQuiz()}
+              onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+            />
+          </Animated.View>
+        </Screen>
+      ) : (
+        <Screen>
+          <AppText fontWeight="heavy" style={styles.title} size={"xlarge"}>
+            {isStudy ? "Subject Topics" : `Select ${quizInfo.view}`}
+          </AppText>
+          <ProgressBar numberOfBars={4} currentBar={quizInfo.bar} />
+          <View style={styles.main}>
+            {isStudy ? (
+              <RenderStudySubjectTopic
+                quizInfo={quizInfo}
+                setQuizInfo={(valObj) =>
+                  setQuizInfo({ ...quizInfo, ...valObj })
+                }
+              />
+            ) : (
+              <>
+                {isSelection && (
+                  <ModeSelection
+                    setState={(data) => setQuizInfo({ ...quizInfo, ...data })}
+                  />
+                )}
+                {isCategory && (
+                  <Animated.View
+                    style={{ flex: 1 }}
+                    entering={enterAnimOther}
+                    exiting={exitingAnim}
+                  >
+                    <FlatList
+                      data={categories?.data}
+                      numColumns={2}
+                      keyExtractor={(item) => item._id}
+                      renderItem={({ item }) => (
+                        <RenderCategories
+                          item={item}
+                          quizInfo={quizInfo}
+                          setQuizInfo={(valObj) =>
+                            setQuizInfo({ ...quizInfo, ...valObj })
+                          }
+                        />
+                      )}
+                    />
+                    <LottieAnimator visible={catLoad} absolute wTransparent />
+                  </Animated.View>
+                )}
+
+                {isSubjects && (
+                  <Animated.View
+                    style={{ width }}
+                    entering={enterAnimOther}
+                    exiting={exitingAnim}
+                  >
+                    <FlatList
+                      data={subjects?.data}
+                      numColumns={2}
+                      keyExtractor={(item) => item._id}
+                      contentContainerStyle={{ alignItems: "center" }}
+                      renderItem={({ item }) => (
+                        <RenderCategories
+                          item={item}
+                          quizInfo={quizInfo}
+                          setQuizInfo={(valObj) => setQuizInfo(valObj)}
+                        />
+                      )}
+                    />
+
+                    <LottieAnimator visible={subjLoad} absolute wTransparent />
+                  </Animated.View>
+                )}
+              </>
+            )}
+          </View>
+
+          <View style={styles.btns}>
+            {!isStudy && (
+              <AppButton
+                title={isSelection ? "Quit Quiz Session" : "Quit"}
+                type="warn"
+                onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+              />
+            )}
+            {(isSubjects || isStudy || isCategory) && (
+              <AppButton
+                title={"Go Back"}
+                type="white"
+                onPress={handleGoBack}
+              />
+            )}
+            {shouldShowNextBtn && (
+              <AppButton title={"Next"} onPress={handleNext} />
+            )}
+            {isStudy && (
+              <AppButton
+                title={"I've studied, Start Quiz"}
+                disabled={!hasStudiedAllTopics}
+                onPress={handleNext}
+              />
+            )}
+          </View>
+        </Screen>
+      )}
+      <PromptModal
+        prompt={prompt}
+        setPrompt={(data) => setPrompt(data)}
+        onPress={handlePrompt}
+      />
+      <StatusBar style="dark" />
+    </View>
+  );
+};
+
+export default RenderQuiz;
+
+const styles = StyleSheet.create({
+  btns: {
+    width,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  container: {
+    paddingTop: 15,
+    paddingBottom: 15,
+    width: width,
+    height,
+    backgroundColor: colors.lightly,
+    overflow: "hidden",
+  },
+  main: {
+    flex: 1,
+    justifyContent: "center",
+    paddingTop: 20,
+    alignItems: "center",
+    // backgroundColor: "red",
+  },
+  selectSubjects: {
+    alignSelf: "center",
+    textTransform: "capitalize",
+    marginBottom: 15,
+  },
+  title: {
+    textTransform: "capitalize",
+    marginTop: 15,
+    marginLeft: 15,
+  },
+  quiz: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
