@@ -19,6 +19,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       transformResponse: async (res) => {
         await AsyncStorage.setItem("token", res.token);
+        await AsyncStorage.setItem("user", JSON.stringify(res.user));
         return res;
       },
     }),
@@ -54,6 +55,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       transformResponse: async (res) => {
         await AsyncStorage.setItem("token", res.token);
+        await AsyncStorage.setItem("user", JSON.stringify(res.user));
         return res;
       },
     }),
@@ -123,6 +125,10 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           "x-auth-token": token,
         },
       }),
+      transformResponse: async (res) => {
+        await AsyncStorage.setItem("user", JSON.stringify(res.user));
+        return res;
+      },
     }),
     fetchAppInfo: builder.query({
       query: () => ({
@@ -145,6 +151,9 @@ export const usersSlice = createSlice({
   reducers: {
     updateToken: (state, action) => {
       state.token = action.payload;
+    },
+    updateUser: (state, action) => {
+      state.user = action.payload;
     },
     simulateLogIn: (state, action) => {
       state.user = action.payload.user;
@@ -194,7 +203,7 @@ export const usersSlice = createSlice({
   },
 });
 
-export const { updateToken, simulateLogIn } = usersSlice.actions;
+export const { updateToken, updateUser, simulateLogIn } = usersSlice.actions;
 // SELECTORS
 export const selectToken = (state) => state.users.token;
 export const selectUser = (state) => state.users.user;
@@ -210,6 +219,7 @@ export const {
   useUpdateUserProfileMutation,
   useFetchUserInfoQuery,
   useLazyFetchUserInfoQuery,
+  useFetchUserQuery,
   useLazyFetchUserQuery,
   useFetchProsQuery,
   useProVerifyMutation,

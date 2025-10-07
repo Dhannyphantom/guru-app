@@ -102,7 +102,7 @@ export const DailyTask = () => {
           size={"xlarge"}
           style={{ marginTop: 15, color: colors.medium }}
         >
-          Streaks: {user.streak}
+          Streaks: {user?.streak || 0}
         </AppText>
       </BlurView>
       <View
@@ -142,7 +142,7 @@ export const DailyTask = () => {
               style={{ marginTop: 4, color: colors.medium }}
               size={"xsmall"}
             >
-              {formatPoints(user.points)}
+              {formatPoints(user?.points || 0)}
             </AppText>
           </View>
         </View>

@@ -18,12 +18,12 @@ const AnimatedPressable = ({ children, onPress, style, ...otherProps }) => {
   });
 
   const handlePressIn = () => {
-    scaler.value = withSpring(0.85, { damping: 10, stiffness: 100 });
+    scaler.value = withSpring(0.85);
   };
 
   // Function to handle press out (spring back up)
   const handlePressOut = () => {
-    scaler.value = withSpring(1, { damping: 10, stiffness: 100 });
+    scaler.value = withSpring(1);
   };
 
   return (

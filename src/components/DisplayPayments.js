@@ -317,7 +317,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                   </Animated.View>
                 )}
                 <Animated.View
-                  layout={LinearTransition.springify().damping(20)}
+                  layout={LinearTransition.springify()}
                   style={styles.formBtn}
                 >
                   {!isSuccess && (

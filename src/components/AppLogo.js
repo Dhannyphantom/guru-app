@@ -1,7 +1,7 @@
 import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
 
-import logo from "../../assets/icon.png";
+import logo from "../../assets/images/icon.png";
 import AppText from "./AppText";
 
 const { width, height } = Dimensions.get("screen");

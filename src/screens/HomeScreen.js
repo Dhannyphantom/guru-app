@@ -3,33 +3,29 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-
-const { width, height } = Dimensions.get("screen");
 
 import Screen from "../components/Screen";
 import AppLogo from "../components/AppLogo";
 import { DailyTask, Subjects, SubjectCategory } from "../components/AppDetails";
 import colors from "../helpers/colors";
 import { StatusBar } from "expo-status-bar";
-import PopUpModal from "../components/PopUpModal";
-import AppText from "../components/AppText";
 import FindFriendsBoard from "../components/FindFriendsBoard";
-import AppButton from "../components/AppButton";
-import AnimatedPressable from "../components/AnimatedPressable";
 import SubStatus from "../components/SubStatus";
 import PopFriends from "../components/PopFriends";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
-import { hasCompletedProfile } from "../helpers/helperFunctions";
+import { selectUser, useFetchUserQuery } from "../context/usersSlice";
+// import { hasCompletedProfile } from "../helpers/helperFunctions";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
 import WebLayout from "../components/WebLayout";
+import getRefresher from "@/src/components/Refresher";
+
+const { width, height } = Dimensions.get("screen");
 
 const HomeBlurView = () => {
   return null;
@@ -61,15 +57,23 @@ const HomeBlurView = () => {
   );
 };
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreen = () => {
   const [bools, setBools] = useState({ friendsModal: false });
-  const {} = useFetchSchoolQuery();
+  const [refreshing, setRefreshing] = useState(false);
+  useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
+  const { refetch, isError, error } = useFetchUserQuery();
 
   const user = useSelector(selectUser);
 
   const toggleFriendsModal = (bool) => {
     setBools({ ...bools, friendsModal: bool });
+  };
+
+  console.log({ isError, error });
+
+  const onRefresh = async () => {
+    await refetch();
   };
 
   return (
@@ -92,6 +96,7 @@ const HomeScreen = ({ navigation }) => {
         data={["HOME"]}
         contentContainerStyle={{ paddingBottom: height * 0.1 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={getRefresher({ refreshing, onRefresh })}
         renderItem={() => (
           <WebLayout style={{ flex: 1 }}>
             <WebLayout

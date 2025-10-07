@@ -1,6 +1,5 @@
-import { RefreshControl, StyleSheet, View } from "react-native";
+import { RefreshControl } from "react-native";
 
-import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 
 const getRefresher = ({ refreshing, onRefresh }) => {
@@ -21,10 +20,3 @@ const getRefresher = ({ refreshing, onRefresh }) => {
 };
 
 export default getRefresher;
-
-const styles = StyleSheet.create({
-  container: {
-    // justifyContent: "center",
-    // alignItems: "center",
-  },
-});
