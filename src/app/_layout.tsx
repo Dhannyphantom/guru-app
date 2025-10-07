@@ -57,7 +57,7 @@ const Main = () => {
   return (
     <Stack>
       <Stack.Protected guard={isLoggedIn}>
-        <Stack.Screen name="(protected)" />
+        <Stack.Screen name="(protected)" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!isLoggedIn}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
