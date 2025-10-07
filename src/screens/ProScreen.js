@@ -125,7 +125,7 @@ const ProItem = ({ item, index }) => {
   );
 };
 
-const ProScreen = ({ navigation }) => {
+const ProScreen = () => {
   const user = useSelector(selectUser);
   const isManager = user?.accountType === "manager";
 

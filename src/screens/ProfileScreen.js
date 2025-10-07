@@ -34,6 +34,7 @@ import getRefresher from "../components/Refresher";
 import PopMessage from "../components/PopMessage";
 import { selectSchool } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -65,15 +66,16 @@ export const ProfileLink = ({
   );
 };
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = () => {
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
 
   const dispatch = useDispatch();
+  const router = useRouter();
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
-  const [fetchUser, { isLoading, isError, error }] = useLazyFetchUserQuery();
+  const [fetchUser] = useLazyFetchUserQuery();
   // const token = useSelector(selectToken);
   const profile = hasCompletedProfile(user);
   const isProVerified =
@@ -101,7 +103,7 @@ const ProfileScreen = ({ navigation }) => {
     if (!profile.bool) {
       return setPopper(profile.pop);
     } else {
-      navigation.navigate("Pro");
+      router.push("/pro");
     }
   };
 
@@ -113,7 +115,7 @@ const ProfileScreen = ({ navigation }) => {
         type: "failed",
       });
     } else {
-      navigation.navigate(screen);
+      router.push(screen);
     }
   };
 
@@ -221,20 +223,22 @@ const ProfileScreen = ({ navigation }) => {
           )}
           <ProfileLink
             title={`${profile.bool ? "Edit" : "Complete"} Profile`}
-            onPress={() => navigation.navigate("EditProfile")}
+            onPress={() => router.push("/profile/edit")}
             icon="options"
           />
           <ProfileLink
             title={"Subscription"}
             icon="wallet"
-            onPress={() => handleNav("Subscription")}
+            onPress={() => handleNav("/profile/subscription")}
           />
-          <ProfileLink
-            title={`My ${isPro ? "Friends" : "Colleaques"}`}
-            icon="people"
-            onPress={() => navigation.navigate("FriendList")}
-            // iconColor={colors.medium}
-          />
+          {!isPro && (
+            <ProfileLink
+              title={"My Friends"}
+              icon="people"
+              onPress={() => navigation.navigate("FriendList")}
+              // iconColor={colors.medium}
+            />
+          )}
           <View style={styles.separator} />
 
           <ProfileLink

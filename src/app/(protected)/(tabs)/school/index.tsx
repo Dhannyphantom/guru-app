@@ -1,12 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
-import React from "react";
+import SchoolScreen from "@/src/screens/SchoolScreen";
+import { useLocalSearchParams } from "expo-router";
 
 export default function SchoolPage() {
-  return (
-    <View>
-      <Text>SchoolPage</Text>
-    </View>
-  );
+  const route = useLocalSearchParams();
+  return <SchoolScreen route={route} />;
 }
-
-const styles = StyleSheet.create({});

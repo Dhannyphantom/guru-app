@@ -470,7 +470,9 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
 
 const SchoolScreen = ({ route }) => {
   const user = useSelector(selectUser);
-  const shouldRefresh = route?.params?.refresh;
+  const params = JSON.parse(JSON.stringify(route));
+
+  const shouldRefresh = params?.refresh;
 
   const [bools, setBools] = useState({ loading: true });
   const [fetchSchool, { data: school, isLoading }] = useLazyFetchSchoolQuery();
@@ -479,13 +481,13 @@ const SchoolScreen = ({ route }) => {
     school?.data && school?.isVerified && school?.data?.subscription?.isActive
   );
 
-  const isStudent = user?.accountType == "student";
-  const isTeacher = user?.accountType == "teacher";
+  const isStudent = user?.accountType === "student";
+  const isTeacher = user?.accountType === "teacher";
   const isPro = ["professional", "manager"].includes(user?.accountType);
 
   const getSchoolData = async () => {
     try {
-      const res = await fetchSchool().unwrap();
+      await fetchSchool().unwrap();
     } catch (err) {
       console.log(err);
     } finally {

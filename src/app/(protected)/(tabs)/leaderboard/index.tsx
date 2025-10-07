@@ -1,12 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
-import React from "react";
+import LeaderboardScreen from "@/src/screens/LeaderboardScreen";
 
 export default function LeaderboardPage() {
-  return (
-    <View>
-      <Text>LeaderboardPage</Text>
-    </View>
-  );
+  return <LeaderboardScreen />;
 }
-
-const styles = StyleSheet.create({});

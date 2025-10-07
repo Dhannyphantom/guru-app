@@ -31,6 +31,7 @@ import {
 } from "../helpers/dataStore";
 import { nanoid } from "@reduxjs/toolkit";
 import AppText from "../components/AppText";
+import { useRouter } from "expo-router";
 
 const bithYears = Array(45)
   .fill(0)
@@ -41,7 +42,7 @@ const bithYears = Array(45)
 
 const { width, height } = Dimensions.get("screen");
 
-const EditProfileScreen = ({ navigation }) => {
+const EditProfileScreen = () => {
   const user = useSelector(selectUser);
 
   const [updateUserProfile, { isLoading, isError, error, isSuccess }] =
@@ -52,6 +53,7 @@ const EditProfileScreen = ({ navigation }) => {
 
   const isTeacher = user?.accountType === "teacher";
   const isStudent = user?.accountType === "student";
+  const router = useRouter();
 
   const editProfileInitials = {
     address: user?.address ?? "",
@@ -98,10 +100,10 @@ const EditProfileScreen = ({ navigation }) => {
         msg: "Your profile has been updated successfully",
         timer: 3000,
         type: "success",
-        cb: () => navigation.goBack(),
+        cb: () => router.back(),
       });
     }
-  }, [isSuccess]);
+  }, [isSuccess, router]);
 
   return (
     <>
