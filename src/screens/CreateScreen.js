@@ -7,10 +7,10 @@ import NewCategory from "../components/NewCategory";
 import NewQuestions from "../components/NewQuestions";
 import { addInstanceActions } from "../helpers/helperFunctions";
 
-const CreateScreen = ({ navigation, route }) => {
-  const screenKey = route?.params?.name;
-  const screenType = route?.params?.type;
-  const screenData = route?.params?.data;
+const CreateScreen = ({ route }) => {
+  const screenKey = route?.name;
+  const screenType = route?.type;
+  const screenData = route?.data;
   let ScreenComponent;
 
   switch (screenKey) {

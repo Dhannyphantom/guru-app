@@ -86,20 +86,10 @@ const FindFriendsModal = ({ closeModal }) => {
             <AppText
               fontWeight="bold"
               size={"large"}
-              style={{ marginLeft: 20 }}
+              style={{ marginLeft: 20, marginBottom: 10 }}
             >
               My Friends
             </AppText>
-            <AnimatedPressable
-              style={{ padding: 15 }}
-              onPress={() => closeModal()}
-            >
-              <Ionicons
-                name="close-circle-outline"
-                size={25}
-                color={colors.medium}
-              />
-            </AnimatedPressable>
           </View>
           <SearchBar placeholder="Search name, username or email" />
           <View style={styles.action}>
@@ -132,7 +122,7 @@ const FindFriendsModal = ({ closeModal }) => {
                   _id: item._id,
                 }))}
                 keyExtractor={(item) => item._id}
-                contentContainerStyle={{ paddingBottom: 15 }}
+                contentContainerStyle={{ paddingBottom: 55 }}
                 renderItem={({ item }) => <FriendCard data={item} />}
               />
             </View>
@@ -211,8 +201,8 @@ const styles = StyleSheet.create({
     marginLeft: 15,
   },
   list: {
-    // flex: 1,
-    width: 500,
+    flex: 1,
+    width: Platform.OS === "web" ? 500 : width,
   },
   main: {
     // borderTopStartRadius: 25,

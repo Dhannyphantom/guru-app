@@ -8,8 +8,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const { width, height } = Dimensions.get("screen");
-
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import { notificationsArr } from "../helpers/dataStore";
@@ -30,6 +28,9 @@ import LottieAnimator from "../components/LottieAnimator";
 import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
+import { useLocalSearchParams } from "expo-router";
+
+const { width, height } = Dimensions.get("screen");
 
 export const Header = ({
   title = "Notifications",
@@ -119,8 +120,9 @@ const NotiItems = ({ item, index }) => {
   );
 };
 
-const NotificationsScreen = ({ route }) => {
-  const screen = route?.params?.screen;
+const NotificationsScreen = () => {
+  const route = useLocalSearchParams();
+  const screen = route?.screen;
   const fromSchool = screen === "School";
   const school = useSelector(selectSchool);
   const [modal, setModal] = useState({ vis: false, data: null });

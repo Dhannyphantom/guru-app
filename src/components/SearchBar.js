@@ -52,6 +52,7 @@ const SearchBar = ({
         placeholder={placeholder}
         onFocus={onInputFocus}
         keyboardType="web-search"
+        placeholderTextColor={colors.medium}
         onBlur={onInputBlur}
         onChangeText={(val) => {
           setText(val);

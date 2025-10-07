@@ -13,20 +13,15 @@ import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 import AppText from "./AppText";
 import colors from "../helpers/colors";
 import Avatar from "./Avatar";
-import AppButton from "./AppButton";
 
-import {
-  dummyLeaderboards,
-  dummySubjects,
-  subjectCategories,
-} from "../helpers/dataStore";
+import { dummySubjects, subjectCategories } from "../helpers/dataStore";
 import { BlurView } from "expo-blur";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import AnimatedPressable from "./AnimatedPressable";
-import { useNavigation } from "@react-navigation/native";
 import { formatPoints, getImageObj } from "../helpers/helperFunctions";
 import WebLayout from "./WebLayout";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -182,7 +177,7 @@ export const DetailHeader = ({
 };
 
 export const SubjectItem = ({ data, isEdit }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   let imgSrc = getImageObj(data?.image);
 
@@ -190,9 +185,15 @@ export const SubjectItem = ({ data, isEdit }) => {
 
   const handleNav = () => {
     if (isEdit) {
-      navigation.navigate("Create", { name: "subjects", type: "edit", data });
+      router.push({
+        pathname: "/create",
+        params: { name: "subjects", type: "edit", data: JSON.stringify(data) },
+      });
     } else {
-      navigation.navigate("Topics", { item: data });
+      router.push({
+        pathname: "/topics",
+        params: { item: JSON.stringify(data) },
+      });
     }
   };
 
@@ -267,13 +268,14 @@ export const Subjects = ({
     </View>
   );
 };
+//  onPress={() => router.push("SubjectList", { item })}
 
 export const SubjectCategory = () => {
-  const navigation = useNavigation();
+  const router = useRouter();
   const renderCategories = ({ item }) => {
     return (
       <AnimatedPressable
-        onPress={() => navigation.navigate("SubjectList", { item })}
+        onPress={() => router.push({ params: { item }, pathname: "/subjects" })}
         style={{
           width: Platform.OS == "web" ? 200 : width * 0.33,
           alignItems: "center",

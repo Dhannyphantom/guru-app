@@ -7,7 +7,7 @@ import SearchBar from "../components/SearchBar";
 const { width, height } = Dimensions.get("screen");
 
 const SubjectListScreen = ({ route }) => {
-  const data = route.params?.item;
+  const data = route?.item;
   return (
     <View style={styles.container}>
       <AppHeader title={data?.name} />

@@ -24,6 +24,7 @@ import { selectUser, useFetchUserQuery } from "../context/usersSlice";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
 import WebLayout from "../components/WebLayout";
 import getRefresher from "@/src/components/Refresher";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -65,6 +66,7 @@ const HomeScreen = () => {
   const { refetch, isError, error } = useFetchUserQuery();
 
   const user = useSelector(selectUser);
+  const router = useRouter();
 
   const toggleFriendsModal = (bool) => {
     setBools({ ...bools, friendsModal: bool });
@@ -73,7 +75,13 @@ const HomeScreen = () => {
   console.log({ isError, error });
 
   const onRefresh = async () => {
-    await refetch();
+    setRefreshing(true);
+    try {
+      await refetch();
+    } catch (_errr) {
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -84,7 +92,10 @@ const HomeScreen = () => {
           <SubStatus isSubscribed={user?.subscription?.isActive} />
           <Pressable
             onPress={() =>
-              navigation.navigate("Notifications", { screen: "Home" })
+              router.push({
+                pathname: "/notifications",
+                params: { screen: "Home" },
+              })
             }
             style={styles.headerIcon}
           >
