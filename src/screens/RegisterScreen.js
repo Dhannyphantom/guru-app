@@ -177,17 +177,15 @@ const Referral = ({ closeModal, updateReferral }) => {
     }
     updateReferral(formatted);
   };
-
+  // return null;
   return (
     <KeyboardAvoidingView style={styles.avoidingViewRefer} behavior="padding">
-      <Animated.View
-        layout={LinearTransition.springify().damping(18)}
-        style={styles.refer}
-      >
+      <Animated.View layout={LinearTransition.springify()} style={styles.refer}>
         <AppText fontWeight="bold" size={"xlarge"} style={styles.referTitle}>
           Referral Prompt
         </AppText>
-        <ReferralSvg width={width * 0.5} height={200} />
+        {/* <ReferralSvg /> */}
+        {/* <ReferralSvg width={width * 0.5} height={200} /> */}
         <View style={{ marginTop: 15 }}>
           <FormInput
             placeholder="Enter @username"
@@ -514,6 +512,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 30,
     alignItems: "center",
+    boxShadow: "0 2px 18px rgba(0,0,0,0.1)",
+    padding: 25,
     elevation: 2,
     ...(isWeb
       ? {

@@ -724,6 +724,7 @@ const styles = StyleSheet.create({
     fontFamily: "sf-medium",
     fontSize: 17,
     outlineStyle: "none",
+    color: "black",
   },
   loading: {},
   separator: {

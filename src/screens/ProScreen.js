@@ -15,8 +15,8 @@ import Avatar from "../components/Avatar";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import { proActions } from "../helpers/dataStore";
-import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -38,14 +38,20 @@ const bgMain = [
 ];
 
 const Header = ({ user }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
+
+  const handleNav = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(protected)/(tabs)/(home)");
+    }
+  };
+
   return (
     <Screen style={styles.header}>
       <View style={styles.headerRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.headerBack}
-        >
+        <Pressable onPress={handleNav} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={26} color={colors.medium} />
         </Pressable>
         <View style={styles.headerMain}>
@@ -83,17 +89,22 @@ const Header = ({ user }) => {
 };
 
 const ProItem = ({ item, index }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const isAnalytics = item.key === "panel";
 
   const handleActionItem = (item) => {
     if (isAnalytics) {
-      navigation.navigate("Panel");
+      router.navigate("/pros/panel");
     } else if (item?.key === "library") {
-      navigation.navigate("InstanceEdit");
+      router.navigate("/pros/edit");
+      // router.navigate("InstanceEdit");
     } else {
-      navigation.navigate("Create", { name: item.key });
+      router.push({
+        pathname: "/pros/create",
+        params: { name: item.key },
+      });
+      // router.navigate("Create", { name: item.key });
     }
   };
 
@@ -191,7 +202,6 @@ const styles = StyleSheet.create({
   },
   actionMain: {
     flex: 1,
-    backgroundColor: "red",
     justifyContent: "center",
     alignItems: "center",
     margin: 20,

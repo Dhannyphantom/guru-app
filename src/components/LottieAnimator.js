@@ -41,7 +41,7 @@ const LottieAnimator = ({
 
   let SIZE = size,
     styleObj = { ...style };
-  if (Platform.OS === "web" && name == "loading") {
+  if (Platform.OS === "web" && name === "loading") {
     SIZE = 60;
     styleObj.width = 60;
     styleObj.height = 60;

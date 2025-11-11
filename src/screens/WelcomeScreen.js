@@ -39,10 +39,10 @@ const WelcomeScreen = () => {
                     Welcome
                   </AppText>
                   <AppText style={styles.titleInfo}>
-                    Welcome to Guru. {"\n"}An app for Nigerian secondary school
-                    students, Learn and solve quiz questions, Boosting your
-                    chance at passing National Exams and earn real money while
-                    you're at it!
+                    Welcome to Guru. {"\n"}A platform for Nigerian secondary
+                    school students, Learn and solve quiz questions, Boosting
+                    your chance at passing National Exams and earn real money
+                    while you're at it!
                   </AppText>
                 </View>
                 <View style={styles.btnSection}>

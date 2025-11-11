@@ -294,6 +294,7 @@ const TabRouter = () => {
   const isPro = ["manager", "professional"].includes(user?.accountType);
 
   const startQuizSession = (navigate) => {
+    console.log("Heyy");
     const profileCompleted = hasCompletedProfile(user);
     if (!profileCompleted.bool) {
       setPopper(profileCompleted.pop);

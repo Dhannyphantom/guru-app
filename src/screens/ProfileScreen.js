@@ -103,7 +103,7 @@ const ProfileScreen = () => {
     if (!profile.bool) {
       return setPopper(profile.pop);
     } else {
-      router.push("/pro");
+      router.push("/pros/pro");
     }
   };
 
