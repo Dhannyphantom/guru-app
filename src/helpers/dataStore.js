@@ -1331,7 +1331,7 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "New Quiz Session",
     icon: "rocket",
-    nav: { screen: "NewQuiz", data: {} },
+    nav: { screen: "/school/new_quiz", data: {} },
   },
   {
     _id: nanoid(),
@@ -1355,13 +1355,14 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "Verify Students",
     icon: "people",
-    nav: { screen: "VerifyStudent", data: { type: "student" } },
+    nav: { screen: "/school/verify", data: { type: "student" } },
   },
   {
     _id: nanoid(),
     name: "Verify Teachers",
     icon: "people",
-    nav: { screen: "VerifyStudent", data: { type: "teacher" } },
+    nav: { screen: "/school/verify", data: { type: "teacher" } },
+    // nav: { screen: "VerifyStudent", data: { type: "teacher" } },
   },
   // {
   //   _id: nanoid(),
@@ -1373,7 +1374,7 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "Manage School Subscription",
     icon: "card",
-    nav: { screen: "Subscription", data: { screen: "School" } },
+    nav: { screen: "/school/subscription", data: { screen: "School" } },
   },
 ];
 

@@ -24,12 +24,14 @@ import {
   useChangeSchoolQuizMutation,
 } from "../context/schoolSlice";
 import { useSelector } from "react-redux";
+import { useLocalSearchParams } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
-const NewQuizScreen = ({ route, navigation }) => {
+const NewQuizScreen = () => {
   const school = useSelector(selectSchool);
-  const params = route?.params;
+
+  const params = useLocalSearchParams();
   const screenType = params?.type;
   const isStart = screenType === "start";
   const isEdit = screenType === "edit";
@@ -111,7 +113,7 @@ const NewQuizScreen = ({ route, navigation }) => {
         setBools({ ...bools, screen: "form", header: "Start Quiz" });
         break;
     }
-  }, [route]);
+  }, [params]);
 
   return (
     <View style={styles.container}>

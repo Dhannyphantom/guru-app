@@ -84,6 +84,11 @@ const NewAnnouncement = ({ closeModal }) => {
                   name={"title"}
                   headerText={"Announcement Message"}
                   placeholder="Enter Announcement"
+                  style={{
+                    minHeight: 150,
+                    alignItems: "flex-start",
+                    paddingTop: 12,
+                  }}
                   multiline
                   numberOfLines={5}
                 />

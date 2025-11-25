@@ -15,11 +15,15 @@ import LottieAnimator from "../components/LottieAnimator";
 import { selectUser } from "../context/usersSlice";
 import { ProfileModal } from "../components/Avatar";
 import getRefresher from "../components/Refresher";
+import { useLocalSearchParams } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
-const VerifyStudentScreen = ({ route }) => {
-  const screenType = route?.params?.type;
+const VerifyStudentScreen = () => {
+  const params = useLocalSearchParams();
+  const paramsData = JSON.parse(params.data);
+  const screenType = paramsData?.type;
+
   const school = useSelector(selectSchool);
   const isSchoolVerified = useSelector(selectSchoolVerified);
   const user = useSelector(selectUser);

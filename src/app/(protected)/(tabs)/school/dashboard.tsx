@@ -1,10 +1,5 @@
-import { Text, View } from "react-native";
-import React from "react";
+import SchoolDashboardScreen from "@/src/screens/SchoolDashboardScreen";
 
 export default function SchoolDashboardPage() {
-  return (
-    <View>
-      <Text>SchoolDashboardPage</Text>
-    </View>
-  );
+  return <SchoolDashboardScreen />;
 }

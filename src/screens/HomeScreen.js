@@ -72,8 +72,6 @@ const HomeScreen = () => {
     setBools({ ...bools, friendsModal: bool });
   };
 
-  console.log({ isError, error });
-
   const onRefresh = async () => {
     setRefreshing(true);
     try {

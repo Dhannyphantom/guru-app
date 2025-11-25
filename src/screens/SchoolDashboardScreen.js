@@ -41,6 +41,7 @@ import {
 import LottieAnimator from "../components/LottieAnimator";
 import PopMessage from "../components/PopMessage";
 import { useFetchSubjectsQuery } from "../context/instanceSlice";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 const layoutTrans = LinearTransition.springify().damping(18);
@@ -278,10 +279,11 @@ export const NewAssignment = ({ closeModal, data }) => {
   );
 };
 
-const SchoolDashboardScreen = ({ navigation }) => {
+const SchoolDashboardScreen = () => {
   const [modal, setModal] = useState({ vis: false, type: null });
 
   const school = useSelector(selectSchool);
+  const router = useRouter();
 
   let ModalComponent = null;
   switch (modal?.type) {
@@ -300,7 +302,12 @@ const SchoolDashboardScreen = ({ navigation }) => {
     if (item?.modal) {
       setModal({ vis: true, type: item.modal });
     } else if (item?.nav) {
-      navigation?.navigate(item.nav?.screen, item?.nav?.data);
+      console.log(item.nav);
+      router.push({
+        pathname: item?.nav?.screen,
+        params: { data: JSON.stringify(item?.nav?.data) },
+      });
+      // navigation?.navigate(item.nav?.screen, item?.nav?.data);
     }
   };
 
