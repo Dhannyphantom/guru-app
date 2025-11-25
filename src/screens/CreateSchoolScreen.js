@@ -74,7 +74,7 @@ const CreationModal = ({ hideModal, data }) => {
   );
 };
 
-const CreateSchoolScreen = ({}) => {
+const CreateSchoolScreen = () => {
   const [bools, setBools] = useState({ subModal: false, data: null });
   const [createSchool, { isLoading }] = useCreateSchoolMutation();
   const [popper, setPopper] = useState({ vis: false });

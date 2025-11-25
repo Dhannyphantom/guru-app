@@ -195,14 +195,14 @@ const validationSchemaLogin = Yup.object().shape({
 });
 
 export const subInitials = {
-  card_number: "",
-  // card_number: "5531886652142950",
-  card_cvv: "",
-  // card_cvv: "564",
-  card_exp_month: "",
-  // card_exp_month: "09",
-  card_exp_year: "",
-  // card_exp_year: "31",
+  // card_number: "",
+  card_number: "5531886652142950",
+  // card_cvv: "",
+  card_cvv: "564",
+  // card_exp_month: "",
+  card_exp_month: "09",
+  // card_exp_year: "",
+  card_exp_year: "31",
   otp: "",
   pin: "",
   sub_amount: "",

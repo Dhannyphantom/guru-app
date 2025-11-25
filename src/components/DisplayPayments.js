@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import {
   Dimensions,
   KeyboardAvoidingView,
@@ -36,7 +37,7 @@ const { width, height } = Dimensions.get("screen");
 const DisplayPayments = ({ hideModal, data }) => {
   const [subscribeUser, { isLoading }] = useSubscribeUserMutation();
 
-  const isSchool = data?.type == "school";
+  const isSchool = data?.type === "school";
   const user = useSelector(selectUser);
 
   const [bools, setBools] = useState({
@@ -50,10 +51,10 @@ const DisplayPayments = ({ hideModal, data }) => {
   const [acctDetail, setAcctDetail] = useState(null);
 
   // const webViewRef = useRef();
-  const isSuccess = bools.status == "success";
-  const isVerify = bools.status == "verify";
-  const isPin = bools.status == "pin";
-  const isPending = bools.status == "pending";
+  const isSuccess = bools.status === "success";
+  const isVerify = bools.status === "verify";
+  const isPin = bools.status === "pin";
+  const isPending = bools.status === "pending";
   const profile = hasCompletedProfile(user);
 
   const handleSubscription = async (formValues) => {

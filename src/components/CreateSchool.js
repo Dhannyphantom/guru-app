@@ -17,7 +17,6 @@ import {
 } from "../helpers/helperFunctions";
 import { useEffect, useState } from "react";
 import { SchoolList, SearchSchool } from "./JoinSchool";
-import { useNavigation } from "@react-navigation/native";
 import AppModal from "./AppModal";
 import {
   useJoinSchoolMutation,
@@ -26,13 +25,14 @@ import {
 import PopMessage from "./PopMessage";
 import getRefresher from "./Refresher";
 import DisplayPayments from "./DisplayPayments";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
 const CreateSchool = ({ schoolData, fetchSchoolData }) => {
   const user = useSelector(selectUser);
   const profile = hasCompletedProfile(user);
-  const navigation = useNavigation();
+  const router = useRouter();
   const [searchSchool, { data, isLoading }] = useLazySearchSchoolsQuery();
   const [joinSchool, { isLoading: joinLoading }] = useJoinSchoolMutation();
 
@@ -113,7 +113,7 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
 
   const onModalClose = (refresh) => {
     setBools({ ...bools, subModal: false });
-    navigation.replace("Learn", { refresh });
+    // navigation.replace("Learn", { refresh });
   };
 
   const handleSchoolSub = (item) => {
@@ -127,7 +127,7 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
     }
     switch (type) {
       case "create":
-        navigation.navigate("CreateSchool");
+        router.push("/school/create");
         break;
       case "join":
         setBools({ ...bools, search: true });

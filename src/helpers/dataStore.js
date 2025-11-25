@@ -631,19 +631,17 @@ export const subDropdown = Array(12)
     };
   });
 
-export const subSchoolDrop = Array(3)
+export const subSchoolDrop = Array(10)
   .fill("1")
   .map((_i, idx) => {
     const nextIdx = idx + 1;
     const cost = nextIdx * appData.SCHOOL_SUB_PER_TERM;
     const isYear = idx >= 11;
-    const prefix = `${idx == 0 ? "" : nextIdx} term${idx == 0 ? "" : "s"} - (${
-      nextIdx * 3
-    } months)`;
+    const prefix = `for ${nextIdx * 3} months`;
 
     return {
       _id: nanoid(),
-      name: `₦${Number(cost).toLocaleString()} per ${isYear ? "year" : prefix}`,
+      name: `₦${Number(cost).toLocaleString()} ${isYear ? "year" : prefix}`,
       value: cost,
       title: `+${nextIdx} term${nextIdx > 1 ? "s" : ""}`,
     };
