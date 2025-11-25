@@ -378,6 +378,8 @@ export const NewQuestions = ({
         }
 
         await createQuestion(questions).unwrap();
+
+        return console.log({ questions });
         setPopper({
           vis: true,
           msg: "Questions created successfully",

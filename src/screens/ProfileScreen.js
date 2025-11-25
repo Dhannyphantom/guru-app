@@ -250,7 +250,7 @@ const ProfileScreen = () => {
           <ProfileLink
             title={"Settings & More"}
             icon="chatbubble-ellipses"
-            onPress={() => navigation.navigate("Settings")}
+            onPress={() => router.push("/profile/settings")}
             iconColor={colors.medium}
           />
           <View style={styles.separator} />

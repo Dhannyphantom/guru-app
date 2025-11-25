@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultSettings } from "../helpers/dataStore";
 import { ProfileLink } from "./ProfileScreen";
 
-const SettingsScreen = ({ navigation }) => {
+const SettingsScreen = () => {
   const [settingsData, setSettingsData] = useState([]);
 
   const fetchSettings = async () => {

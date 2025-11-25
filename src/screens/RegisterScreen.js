@@ -29,13 +29,13 @@ import { RenderSocials } from "./LoginScreen";
 import AnimatedPressable from "../components/AnimatedPressable";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import AppModal from "../components/AppModal";
-import ReferralSvg from "../../assets/svgs/undraw_referral_re_0aji.svg";
+// import ReferralSvg from "../../assets/svgs/undraw_referral_re_0aji.svg";
 import PopMessage from "../components/PopMessage";
 import WebLayout from "../components/WebLayout";
 import { useLocalSearchParams, useRouter } from "expo-router";
 const { registerInitials, validationSchemaRegister } = yupSchemas;
 
-const { width } = Dimensions.get("screen");
+const { width, height } = Dimensions.get("screen");
 
 const accountTypes = [
   {
@@ -280,7 +280,9 @@ const RegisterScreen = () => {
           <ScrollView
             style={styles.container}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{
+              paddingBottom: Platform.OS === "web" ? null : height * 0.4,
+            }}
           >
             {isWeb ? (
               <>

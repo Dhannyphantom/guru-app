@@ -101,7 +101,7 @@ export const SearchSchool = ({
 }) => {
   return (
     <Animated.View
-      layout={LinearTransition.springify().damping(15)}
+      layout={LinearTransition.springify()}
       style={[styles.searchView, searchStyle]}
     >
       <SearchBar

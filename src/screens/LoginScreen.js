@@ -30,7 +30,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import WebLayout from "../components/WebLayout";
 import { useRouter } from "expo-router";
 const { loginInitials, validationSchemaLogin } = yupSchemas;
-const { width } = Dimensions.get("screen");
+const { width, height } = Dimensions.get("screen");
 
 export const RenderSocials = ({ isLogin = true }) => {
   const router = useRouter();
@@ -107,7 +107,9 @@ const LoginScreen = () => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingBottom: 200 }}
+      contentContainerStyle={{
+        paddingBottom: Platform.OS === "web" ? null : height * 0.4,
+      }}
       keyboardShouldPersistTaps="handled"
     >
       {Platform.OS === "web" ? (
