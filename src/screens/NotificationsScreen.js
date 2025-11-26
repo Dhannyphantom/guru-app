@@ -122,7 +122,8 @@ const NotiItems = ({ item, index }) => {
 
 const NotificationsScreen = () => {
   const route = useLocalSearchParams();
-  const screen = route?.screen;
+  const routeData = Boolean(route?.data) ? JSON.parse(route?.data) : {};
+  const screen = routeData?.screen;
   const fromSchool = screen === "School";
   const school = useSelector(selectSchool);
   const [modal, setModal] = useState({ vis: false, data: null });

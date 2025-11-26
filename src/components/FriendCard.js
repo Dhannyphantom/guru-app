@@ -109,7 +109,9 @@ const FriendCard = ({
       <View style={styles.textView}>
         <AppText fontWeight="bold" style={styles.nameTxt}>
           {data?.user?.preffix ? data?.user?.preffix + " " : ""}
-          {data?.user?.firstName} {data?.user?.lastName}
+          {data?.user
+            ? `${data?.user?.firstName} ${data?.user?.lastName}`
+            : data?.name}
         </AppText>
         <AppText
           fontWeight="medium"

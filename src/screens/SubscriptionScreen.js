@@ -322,7 +322,7 @@ const SubscriptionScreen = () => {
 
   const searchParams = useLocalSearchParams();
 
-  const params = JSON.parse(searchParams?.data);
+  const params = Boolean(params?.data) ? JSON.parse(searchParams?.data) : {};
   const fromSchool = params?.screen === "School";
 
   const { isActive, expiry, current } = user.subscription;

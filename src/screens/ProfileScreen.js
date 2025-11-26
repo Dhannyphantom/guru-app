@@ -235,7 +235,7 @@ const ProfileScreen = () => {
             <ProfileLink
               title={"My Friends"}
               icon="people"
-              onPress={() => navigation.navigate("FriendList")}
+              onPress={() => handleNav("/profile/friends")}
               // iconColor={colors.medium}
             />
           )}
@@ -244,7 +244,7 @@ const ProfileScreen = () => {
           <ProfileLink
             title={"Invite a classmate"}
             icon="person-add"
-            onPress={() => handleNav("Invite")}
+            onPress={() => handleNav("/profile/invite")}
             iconColor={colors.medium}
           />
           <ProfileLink

@@ -108,6 +108,7 @@ export const SearchSchool = ({
         style={styles.search}
         // onInputBlur={() => onSearch("blur")}
         loading={loading?.search}
+        placeholder="Enter your school name..."
         onInputFocus={() => onSearch("focus")}
         onClose={showSearch ? () => onSearch("blur") : null}
         onClickSearch={(val) => onSearch("callback", val)}

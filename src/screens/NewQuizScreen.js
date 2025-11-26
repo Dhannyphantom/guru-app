@@ -34,7 +34,7 @@ const NewQuizScreen = () => {
 
   const isStart = screenType === "start";
   const isEdit = screenType === "edit";
-  const routeData = JSON.parse(params?.data);
+  const routeData = Boolean(params?.data) ? JSON.parse(params?.data) : {};
 
   const { data: subjects, isLoading: subjLoading } = useFetchSubjectsQuery();
   const [changeSchoolQuiz, { isLoading }] = useChangeSchoolQuizMutation();
