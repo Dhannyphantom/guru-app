@@ -8,10 +8,8 @@ import {
 } from "react-native";
 
 import AppText from "../components/AppText";
-import AppHeader from "../components/AppHeader";
 import {
   DashboardActions,
-  dummySubjects,
   enterAnimOther,
   exitingAnim,
   schoolClasses,
@@ -21,7 +19,7 @@ import colors from "../helpers/colors";
 import { Header } from "./NotificationsScreen";
 import AppModal from "../components/AppModal";
 import { useState } from "react";
-import FormInput, { FormikInput } from "../components/FormInput";
+import { FormikInput } from "../components/FormInput";
 import AppButton, { FormikButton } from "../components/AppButton";
 import { Formik } from "formik";
 import {
@@ -63,7 +61,7 @@ export const NewClass = ({ closeModal, data }) => {
           vis: true,
           timer: 2000,
           msg: `${formData?.name} class${
-            formData?.type == "all" ? "es" : ""
+            formData?.type === "all" ? "es" : ""
           } created successfully`,
           type: "success",
           cb: () => cb && cb(),
@@ -302,7 +300,6 @@ const SchoolDashboardScreen = () => {
     if (item?.modal) {
       setModal({ vis: true, type: item.modal });
     } else if (item?.nav) {
-      console.log(item.nav);
       router.push({
         pathname: item?.nav?.screen,
         params: { data: JSON.stringify(item?.nav?.data) },

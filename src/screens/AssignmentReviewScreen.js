@@ -102,10 +102,11 @@ const Grades = ({ closeModal, getGrade }) => {
   );
 };
 
-const AssignmentReviewScreen = ({ route }) => {
+const AssignmentReviewScreen = () => {
   const editorRef = useRef();
   const [modal, setModal] = useState({ vis: false });
   const [grade, setGrade] = useState(null);
+  const route = {};
   const routeData = route?.params?.item;
 
   const hasUploaded = route?.params?.uploaded === true;

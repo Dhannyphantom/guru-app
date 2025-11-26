@@ -754,7 +754,7 @@ export const schoolActions = [
     image: goldMedalImg,
     bgColor: colors.heartLight,
     total: "O",
-    nav: { screen: "SchoolDashboard", data: { screen: "School" } },
+    nav: { screen: "/school/dashboard", data: { screen: "School" } },
   },
   {
     _id: nanoid(),
@@ -769,7 +769,7 @@ export const schoolActions = [
     image: bellImg,
     bgColor: colors.accentLighter,
     total: 2,
-    nav: { screen: "Notifications", data: { screen: "School" } },
+    nav: { screen: "/school/notifications", data: { screen: "School" } },
   },
   {
     _id: nanoid(),
@@ -777,7 +777,7 @@ export const schoolActions = [
     image: homeworkImg,
     bgColor: colors.heartLighter,
     total: 2,
-    nav: { screen: "Assignment", data: {} },
+    nav: { screen: "/school/assignment/", data: {} },
   },
   {
     _id: nanoid(),
@@ -785,7 +785,7 @@ export const schoolActions = [
     bgColor: colors.greenLighter,
     image: trophyImg,
     total: 14,
-    nav: { screen: "Leaderboard", data: { screen: "School" } },
+    nav: { screen: "/school/leaderboard", data: { screen: "School" } },
   },
   {
     _id: nanoid(),

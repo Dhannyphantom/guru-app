@@ -80,9 +80,11 @@ export const TQuizItem = ({ item, isAssignment }) => {
   );
 };
 
-const TeacherQuizScreen = ({ navigation, route }) => {
+const TeacherQuizScreen = () => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
+  const navigation = {};
+  const route = {};
   const routeData = route?.params?.item;
   const refresh = route?.params.refresh;
 

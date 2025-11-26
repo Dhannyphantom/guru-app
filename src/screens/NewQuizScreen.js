@@ -1,17 +1,15 @@
 import { Dimensions, StyleSheet, View } from "react-native";
 
-import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
 import { Formik } from "formik";
 import { FormikInput } from "../components/FormInput";
 import {
-  dummySubjects,
   enterAnimOther,
   exitingAnim,
   schoolClasses,
 } from "../helpers/dataStore";
 import { newQuizInitials, newQuizSchema } from "../helpers/yupSchemas";
-import AppButton, { FormikButton } from "../components/AppButton";
+import { FormikButton } from "../components/AppButton";
 import { useEffect, useState } from "react";
 import Animated from "react-native-reanimated";
 import NewQuestions from "../components/NewQuestions";
@@ -33,9 +31,10 @@ const NewQuizScreen = () => {
 
   const params = useLocalSearchParams();
   const screenType = params?.type;
+
   const isStart = screenType === "start";
   const isEdit = screenType === "edit";
-  const routeData = params?.data;
+  const routeData = JSON.parse(params?.data);
 
   const { data: subjects, isLoading: subjLoading } = useFetchSubjectsQuery();
   const [changeSchoolQuiz, { isLoading }] = useChangeSchoolQuizMutation();

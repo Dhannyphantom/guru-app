@@ -73,7 +73,7 @@ const ProfileScreen = () => {
 
   const dispatch = useDispatch();
   const router = useRouter();
-  const user = useSelector(selectUser);
+  const user = useSelector(selectUser) ?? {};
   const school = useSelector(selectSchool);
   const [fetchUser] = useLazyFetchUserQuery();
   // const token = useSelector(selectToken);
@@ -161,7 +161,7 @@ const ProfileScreen = () => {
           >
             @{user?.username}
           </AppText>
-          {Boolean(school.name) && (
+          {Boolean(school?.name) && (
             <AppText
               style={{
                 width: "90%",

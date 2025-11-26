@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   headerTxt: {
     color: colors.white,
     marginLeft: 8,
-    // maxWidth: "60%",
+    maxWidth: "70%",
     textTransform: "capitalize",
     // marginHorizontal: width * 0.3,
     // backgroundColor: "red",

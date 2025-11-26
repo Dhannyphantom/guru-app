@@ -30,7 +30,7 @@ import {
   hasCompletedProfile,
 } from "../helpers/helperFunctions";
 import FormInput, { FormikInput } from "../components/FormInput";
-import Animated, { LinearTransition } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import PopMessage from "../components/PopMessage";
 import { useSelector } from "react-redux";
 import { Formik } from "formik";
@@ -39,6 +39,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import getRefresher from "../components/Refresher";
 import DisplayPayments from "../components/DisplayPayments";
 import { selectSchool } from "../context/schoolSlice";
+import { useLocalSearchParams } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -73,7 +74,7 @@ const WithdrawModal = ({ closeModal, setPopData }) => {
     if (!profile.bool) {
       return setPopData(profile.pop);
     }
-    if (state.status == "pending") {
+    if (state.status === "pending") {
       const cachedBanks = await AsyncStorage.getItem("banks");
       if (cachedBanks) {
         setState({
@@ -93,7 +94,7 @@ const WithdrawModal = ({ closeModal, setPopData }) => {
         amount,
         ...formValues,
       }).unwrap();
-      if (res.status == "success") {
+      if (res.status === "success") {
         setState({ ...state, status: res.status });
       }
     } catch (err) {
@@ -120,7 +121,7 @@ const WithdrawModal = ({ closeModal, setPopData }) => {
     } else {
       try {
         const res = await verifyAcct(formValues);
-        if (res?.data?.status == "success") {
+        if (res?.data?.status === "success") {
           setState({ ...state, bankName: res?.data?.data?.account_name });
         } else {
           console.log(res);
@@ -315,11 +316,13 @@ const SubHistory = ({ item }) => {
   );
 };
 
-const SubscriptionScreen = ({ route }) => {
+const SubscriptionScreen = () => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
 
-  const params = route?.params;
+  const searchParams = useLocalSearchParams();
+
+  const params = JSON.parse(searchParams?.data);
   const fromSchool = params?.screen === "School";
 
   const { isActive, expiry, current } = user.subscription;
@@ -386,7 +389,7 @@ const SubscriptionScreen = ({ route }) => {
     }
 
     lottieRef.current?.play(0, animFrame);
-  }, []);
+  }, [sub, total]);
 
   return (
     <Screen style={styles.container}>

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Dimensions,
   FlatList,
@@ -14,12 +15,7 @@ import Screen from "../components/Screen";
 import colors from "../helpers/colors";
 import AppText from "../components/AppText";
 import { Authors } from "../components/AppDetails";
-import {
-  dummyLeaderboards,
-  schoolActions,
-  schoolQuiz,
-  teacherQuiz,
-} from "../helpers/dataStore";
+import { schoolActions } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
 import AppButton from "../components/AppButton";
 
@@ -31,7 +27,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
-import { useNavigation } from "@react-navigation/native";
 import AppModal from "../components/AppModal";
 import ClassModal from "../components/ClassModal";
 import { selectUser } from "../context/usersSlice";
@@ -51,6 +46,7 @@ import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
 import Quiz from "../components/Quiz";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -119,7 +115,7 @@ const ClassMates = ({ data = [] }) => {
 };
 
 const TeacherQuiz = ({ item, closeModal, index }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
   let txtColor, txtBg;
   switch (item?.status) {
     case "active":
@@ -135,7 +131,11 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
 
   const handlePress = () => {
     closeModal && closeModal();
-    navigation.navigate("TeacherQuiz", { item });
+    router.push({
+      pathname: "/school/teacher_quiz",
+      params: { item: JSON.stringify(item) },
+    });
+    //  ("TeacherQuiz", { item });
   };
 
   return (
@@ -242,8 +242,8 @@ const SchoolQuiz = ({ item, onPress }) => {
 const SchoolModal = ({ data, closeModal }) => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
-  const isTeacher = user?.accountType == "teacher";
-  const navigation = useNavigation();
+  const isTeacher = user?.accountType === "teacher";
+  const router = useRouter();
 
   const [quizModal, setQuizModal] = useState({ vis: false, data: null });
   const [refreshing, setRefreshing] = useState(false);
@@ -253,9 +253,11 @@ const SchoolModal = ({ data, closeModal }) => {
 
   const navigateHistory = () => {
     if (isTeacher) {
-      navigation.navigate("NewQuiz");
+      //  ("NewQuiz");
+      router.push("/school/new_quiz");
     } else {
-      navigation.navigate("QuizHistory");
+      //  ("QuizHistory");
+      router.push("/school/quiz_history");
     }
     closeModal();
   };
@@ -342,19 +344,22 @@ const SchoolModal = ({ data, closeModal }) => {
 };
 
 const SchoolActions = ({ data }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
   const user = useSelector(selectUser);
 
   const [modal, setModal] = useState({ visible: false, data: null });
 
   const renderSchoolActions = ({ item }) => {
     const itemCount = data[item?.name?.toLowerCase()] ?? "X";
-    if (item.name == "Dashboard" && user?.accountType != "teacher") {
+    if (item.name === "Dashboard" && user?.accountType !== "teacher") {
       return null;
     }
     const handleActionPress = () => {
       if (Boolean(item.nav)) {
-        navigation.navigate(item.nav.screen, item.nav.data);
+        router.push({
+          pathname: item?.nav?.screen,
+          params: { data: JSON.stringify(item?.nav?.data) },
+        });
       } else {
         // open modal
         setModal({ ...modal, visible: true, data: { name: item.name } });

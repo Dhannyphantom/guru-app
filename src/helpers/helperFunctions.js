@@ -217,15 +217,15 @@ export const getImageObj = (source) => {
 
 export const hasCompletedProfile = (user) => {
   if (
-    !user.email ||
-    !user.address ||
-    !user.birthday ||
-    !user.contact ||
-    !user.country ||
-    !user.firstName ||
-    !user.lastName ||
-    !user.gender ||
-    !user.state ||
+    !user?.email ||
+    !user?.address ||
+    !user?.birthday ||
+    !user?.contact ||
+    !user?.country ||
+    !user?.firstName ||
+    !user?.lastName ||
+    !user?.gender ||
+    !user?.state ||
     !Boolean(user?.avatar?.image?.hasOwnProperty("uri"))
   ) {
     return {
