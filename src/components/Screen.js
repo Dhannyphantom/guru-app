@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { StyleSheet, Animated, Dimensions, Platform, View } from "react-native";
+import React from "react";
+import { StyleSheet, Animated, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // import ThemeContext from "../config/ThemeContext";
 //
