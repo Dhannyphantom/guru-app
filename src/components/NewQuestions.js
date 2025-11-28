@@ -346,7 +346,10 @@ export const NewQuestions = ({
 
         if (schoolQuiz) {
           const payload = {
-            questions,
+            questions: questions.map((item) => {
+              const { _id, ...rest } = item;
+              return rest;
+            }),
             ...schoolQuiz,
             schoolId: school?._id,
             save: saveForLater,
@@ -379,7 +382,6 @@ export const NewQuestions = ({
 
         await createQuestion(questions).unwrap();
 
-        return console.log({ questions });
         setPopper({
           vis: true,
           msg: "Questions created successfully",
@@ -388,6 +390,7 @@ export const NewQuestions = ({
           cb: () => navigation.goBack(),
         });
       } catch (err) {
+        console.log({ err });
         setPopper({
           vis: true,
           msg: err?.data?.message || err?.message || "Something went wrong",
