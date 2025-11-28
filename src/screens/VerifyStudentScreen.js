@@ -16,6 +16,7 @@ import { selectUser } from "../context/usersSlice";
 import { ProfileModal } from "../components/Avatar";
 import getRefresher from "../components/Refresher";
 import { useLocalSearchParams } from "expo-router";
+import ListEmpty from "../components/ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -81,6 +82,12 @@ const VerifyStudentScreen = () => {
         data={data?.data}
         keyExtractor={(item) => item._id}
         refreshControl={getRefresher({ refreshing, onRefresh })}
+        ListEmptyComponent={
+          <ListEmpty
+            vis={!isLoading}
+            message={`No ${screenType} record found`}
+          />
+        }
         contentContainerStyle={{ paddingBottom: height * 0.12, paddingTop: 20 }}
         renderItem={({ item }) => (
           <FriendCard

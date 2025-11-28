@@ -300,6 +300,7 @@ const SchoolDashboardScreen = () => {
     if (item?.modal) {
       setModal({ vis: true, type: item.modal });
     } else if (item?.nav) {
+      // router.push("/(protected)/quiz/new_quiz")
       router.push({
         pathname: item?.nav?.screen,
         params: { data: JSON.stringify(item?.nav?.data) },
@@ -310,7 +311,7 @@ const SchoolDashboardScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Header title={school?.name} icon="disc" />
+      <Header title={school?.name} icon="school" />
       <View style={styles.main}>
         <FlatList
           data={DashboardActions}

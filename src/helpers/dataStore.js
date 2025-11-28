@@ -1331,7 +1331,7 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "New Quiz Session",
     icon: "rocket",
-    nav: { screen: "/school/new_quiz", data: {} },
+    nav: { screen: "/(protected)/quiz/new_quiz", data: {} },
   },
   {
     _id: nanoid(),
