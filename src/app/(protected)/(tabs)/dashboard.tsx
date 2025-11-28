@@ -3,20 +3,22 @@ import { Redirect } from "expo-router";
 import { hasCompletedProfile } from "@/src/helpers/helperFunctions";
 import { useSelector } from "react-redux";
 import { selectUser } from "@/src/context/usersSlice";
-import { selectSchool } from "@/src/context/schoolSlice";
+import { selectSchool, selectSchoolVerified } from "@/src/context/schoolSlice";
 
 export default function DashboardPage() {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
+  const isSchoolVerified = useSelector(selectSchoolVerified);
 
   const profileCompleted = hasCompletedProfile(user);
   const isPro = ["manager", "professional"].includes(user?.accountType);
   const hasJoined = Boolean(
-    school?.data && school?.isVerified && school?.data?.subscription?.isActive
+    school && isSchoolVerified && school?.subscription?.isActive
   );
 
   if (!profileCompleted.bool) {
     // setPopper(profileCompleted.pop);
+    return <Redirect href={"/profile"} />;
   } else {
     if (user?.accountType === "student") {
       // setStartQuiz(true);
@@ -36,9 +38,11 @@ export default function DashboardPage() {
       //   msg: "Please join or create your school profile",
       //   timer: 2000,
       // });
+      return <Redirect href={"/school"} />;
     } else if (isPro && user?.verified) {
       return <Redirect href={"/pros/pro"} />;
     } else if (isPro && !user?.verified) {
+      return <Redirect href={"/profile"} />;
       // setPopper({
       //   vis: true,
       //   type: "failed",

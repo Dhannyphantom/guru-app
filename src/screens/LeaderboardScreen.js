@@ -187,7 +187,12 @@ const LeaderboardScreen = () => {
     dummyLeaderboards.sort((a, b) => b.points - a.points);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isPro ? colors.greenDark : colors.accent },
+      ]}
+    >
       <AppHeader
         title="Leaderboard"
         Component={() => (
@@ -248,7 +253,6 @@ export default LeaderboardScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.accent,
   },
   footer: {
     height: height * 0.2,
