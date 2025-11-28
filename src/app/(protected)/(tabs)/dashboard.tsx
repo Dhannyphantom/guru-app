@@ -11,13 +11,22 @@ export default function DashboardPage() {
 
   const profileCompleted = hasCompletedProfile(user);
   const isPro = ["manager", "professional"].includes(user?.accountType);
+  const hasJoined = Boolean(
+    school?.data && school?.isVerified && school?.data?.subscription?.isActive
+  );
 
   if (!profileCompleted.bool) {
     // setPopper(profileCompleted.pop);
   } else {
     if (user?.accountType === "student") {
       // setStartQuiz(true);
-    } else if (user?.accountType === "teacher" && Boolean(school)) {
+    } else if (user?.accountType === "teacher" && !hasJoined) {
+      return <Redirect href={"/school"} />;
+    } else if (
+      user?.accountType === "teacher" &&
+      Boolean(school) &&
+      hasJoined
+    ) {
       // ("Dashboard");
       return <Redirect href={"/school/dashboard"} />;
     } else if (user?.accountType === "teacher" && !Boolean(school)) {

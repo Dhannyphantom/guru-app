@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   LinearTransition,
   SlideInDown,
+  SlideInUp,
 } from "react-native-reanimated";
 
 import colors from "../helpers/colors";
@@ -328,7 +329,7 @@ const AppSideUpModal = ({ visible, setter, title = "", ContentComponent }) => {
         experimentalBlurMethod="dimezisBlurView"
       >
         <Animated.View
-          entering={SlideInDown.springify().damping(25)}
+          entering={SlideInDown.springify()}
           // exiting={SlideOutDown.springify().damping(20)}
           style={styles.slideModalContent}
         >

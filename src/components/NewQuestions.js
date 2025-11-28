@@ -605,11 +605,12 @@ export const NewQuestions = ({
                       <AppButton
                         title={`${
                           type === "edit"
-                            ? "Update"
+                            ? `Update Question${type === "edit" ? "" : "s"}`
                             : noHeader
-                            ? secBtn?.primary || "Create"
-                            : "Create"
-                        } Question${type === "edit" ? "" : "s"}`}
+                            ? secBtn?.primary ||
+                              `Create Question${type === "edit" ? "" : "s"}`
+                            : `Create Question${type === "edit" ? "" : "s"}`
+                        }`}
                         type={type === "edit" ? "accent" : "primary"}
                         onPress={() => uploadData()}
                         icon={{

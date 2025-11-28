@@ -315,7 +315,13 @@ const SchoolModal = ({ data, closeModal }) => {
               onRefresh: getQuizData,
             })}
             keyExtractor={(item) => item._id}
-            ListEmptyComponent={() => <ListEmpty message="No quiz" />}
+            ListEmptyComponent={() => (
+              <ListEmpty
+                message={
+                  "You don't have any quiz yet.\nCreate one now for your students"
+                }
+              />
+            )}
             contentContainerStyle={{ paddingVertical: 15 }}
             renderItem={({ item, index }) => (
               <TeacherQuiz item={item} closeModal={closeModal} index={index} />
@@ -328,6 +334,13 @@ const SchoolModal = ({ data, closeModal }) => {
           refreshControl={getRefresher({ refreshing, onRefresh: getQuizData })}
           // data={schoolQuiz}
           keyExtractor={(item) => item._id}
+          ListEmptyComponent={() => (
+            <ListEmpty
+              message={
+                "There are not quiz for you yet.\nWait for your teachers to start one"
+              }
+            />
+          )}
           renderItem={({ item }) => (
             <SchoolQuiz item={item} onPress={onQuizAction} />
           )}
@@ -376,12 +389,14 @@ const SchoolActions = ({ data }) => {
             {" "}
             {item.name}{" "}
           </AppText>
-          <AppText
-            style={{ ...styles.actionCount, backgroundColor: colors.light }}
-            fontWeight="black"
-          >
-            {itemCount}
-          </AppText>
+          {itemCount !== "X" && (
+            <AppText
+              style={{ ...styles.actionCount, backgroundColor: colors.light }}
+              fontWeight="black"
+            >
+              {itemCount}
+            </AppText>
+          )}
         </View>
       </Pressable>
     );
@@ -636,6 +651,8 @@ const styles = StyleSheet.create({
     width,
     alignItems: "center",
     marginTop: 10,
+    minHeight: height * 0.5,
+    backgroundColor: "white",
   },
   modalQuizItem: {
     width: width * 0.94,

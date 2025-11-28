@@ -374,6 +374,7 @@ export const QuizQuestion = React.memo(
               onChangeText={handleQuestionChange}
               placeholder="Write your question"
               multiline
+              placeholderTextColor={colors.medium}
               value={questionVal}
             />
           </View>

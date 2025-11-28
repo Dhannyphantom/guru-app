@@ -42,7 +42,7 @@ import { useFetchSubjectsQuery } from "../context/instanceSlice";
 import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
-const layoutTrans = LinearTransition.springify().damping(18);
+const layoutTrans = LinearTransition.springify().damping(50);
 
 export const NewClass = ({ closeModal, data }) => {
   const [bools, setBools] = useState({ screen: "create" });
