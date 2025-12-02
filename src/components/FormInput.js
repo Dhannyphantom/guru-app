@@ -20,7 +20,7 @@ import Animated, {
 
 import colors from "../helpers/colors";
 import AppText from "./AppText";
-import { calenderMonths } from "../helpers/dataStore";
+import { calenderMonths, PAD_BOTTOM } from "../helpers/dataStore";
 import SearchBar from "./SearchBar";
 import { capFirstLetter } from "../helpers/helperFunctions";
 import { BlurView } from "expo-blur";
@@ -34,7 +34,7 @@ import PopUpModal from "./PopUpModal";
 import ListEmpty from "./ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
-const RENDER_NUMBER = 11;
+const RENDER_NUMBER = 15;
 const yearsList = Array(25)
   .fill(0)
   .map((_num, idx) => {
@@ -106,7 +106,7 @@ const DropComponent = ({
       });
       setSearch({ data });
       const setData = getId ? dropData : dropData?.value ?? dropData?.name;
-      if (name == "bank")
+      if (name === "bank")
         setData = { code: dropData.code, name: dropData.name };
       setFieldValue(name, setData);
       onValueSelected?.(setData);
@@ -124,9 +124,9 @@ const DropComponent = ({
   };
 
   return (
-    <Animated.View style={[styles.dropdown]}>
+    <View style={[styles.dropdown]}>
       {showSearch && (
-        <View style={{ marginTop: 10, flex: Platform.OS == "web" ? 1 : 0 }}>
+        <View style={{ marginTop: 10, flex: Platform.OS === "web" ? 1 : 0 }}>
           <SearchBar
             placeholder={`Search your ${headerText}...`}
             onChangeCallback={handleSearchCallback}
@@ -138,7 +138,10 @@ const DropComponent = ({
         style={styles.empty}
         vis={!Boolean(renderList[0])}
       />
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+        keyboardShouldPersistTaps="handled"
+      >
         <View>
           {search?.data?.slice(0, RENDER_NUMBER).map((data, idx) => {
             return (
@@ -171,7 +174,7 @@ const DropComponent = ({
           })}
         </View>
       </ScrollView>
-    </Animated.View>
+    </View>
   );
 };
 
@@ -284,6 +287,7 @@ const DropdownInput = ({
             wTransparent
           />
         </Pressable>
+        {/* {console.log({ renderList })} */}
         <PopUpModal
           useDefaultHeight={useDefaultModalHeight}
           mainStyle={{ maxHeight: maxModalHeight ?? null }}
@@ -670,7 +674,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   dropdown: {
-    width: Platform.OS == "web" ? "100%" : null,
+    width: Platform.OS === "web" ? "100%" : null,
     overflow: "hidden",
   },
   dropdownContainer: {

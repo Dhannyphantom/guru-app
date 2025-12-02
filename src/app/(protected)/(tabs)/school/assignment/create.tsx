@@ -1,12 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
-import React from "react";
+import NewAssignment from "@/src/components/NewAssignment";
 
-export default function NewAssignment() {
-  return (
-    <View>
-      <Text>NewAssignment</Text>
-    </View>
-  );
+export default function NewAssignmentPage() {
+  return <NewAssignment />;
 }
-
-const styles = StyleSheet.create({});

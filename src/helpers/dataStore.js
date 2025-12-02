@@ -28,6 +28,9 @@ import {
   ZoomIn,
 } from "react-native-reanimated";
 import { nanoid } from "@reduxjs/toolkit";
+import { Dimensions } from "react-native";
+
+const { height } = Dimensions.get("screen");
 
 export const A_DAY = 60 * 60 * 24 * 1000; // 1 day in milli
 
@@ -1343,7 +1346,7 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "New Assignmet",
     icon: "book",
-    modal: "assignment",
+    nav: { screen: "/school/assignment/create", data: {} },
   },
   {
     _id: nanoid(),
@@ -1634,6 +1637,7 @@ shared characteristics. It provides a structured framework to identify, describe
            <span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><h3><span style=\"font-size: 16px;\">The Five-Kingdom Classification (Proposed by Robert Whittaker):</span></h3><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">1. <b>Monera</b>: Prokaryotic, unicellular organisms (e.g., bacteria).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">2. <b>Protista</b>: Eukaryotic, mostly unicellular organisms (e.g., amoeba, algae).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">3. <b>Fungi</b>: Eukaryotic, heterotrophic organisms with chitin cell walls (e.g., mushrooms, yeast).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">4. <b>Plantae</b>: Eukaryotic, autotrophic organisms with cellulose cell walls (e.g., trees, grasses).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">5. <b>Animalia</b>: Eukaryotic, heterotrophic organisms without cell walls (e.g., humans, insects).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><h1><span style=\"font-size: 16px;\">Conclusion</span></h1><div><span style=\"font-size: 16px;\">This classification helps in understanding the diversity of life and the relationships among different organisms.</span></div><div><br></div>`;
 
 export const layoutTransit = LinearTransition.springify().damping(8);
+export const PAD_BOTTOM = height * 0.18;
 
 export const callback_url =
   "https://guru-server.onrender.com/payments/subscription_callback";

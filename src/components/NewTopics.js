@@ -199,7 +199,7 @@ const NewTopics = ({ addInstanceActions, type, data }) => {
                     }
                     type="dropdown"
                     data={subjects?.data}
-                    maxModalHeight={height * 0.75}
+                    maxModalHeight={height * 0.9}
                     getId
                     isLoading={subLoading}
                     // value={values["subject"]}

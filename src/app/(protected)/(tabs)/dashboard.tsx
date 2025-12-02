@@ -30,7 +30,7 @@ export default function DashboardPage() {
       hasJoined
     ) {
       // ("Dashboard");
-      return <Redirect href={"/school/dashboard"} />;
+      return <Redirect href={"/main/dashboard"} />;
     } else if (user?.accountType === "teacher" && !Boolean(school)) {
       // setPopper({
       //   vis: true,
