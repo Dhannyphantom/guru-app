@@ -9,6 +9,7 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import { useState } from "react";
 import PopMessage from "../components/PopMessage";
+import { useRouter } from "expo-router";
 
 const editInstances = [
   {
@@ -54,12 +55,13 @@ export const EditItem = ({ data, onPress }) => {
   );
 };
 
-const InstanceEditScreen = ({ navigation }) => {
+const InstanceEditScreen = () => {
   const user = useSelector(selectUser);
+  const router = useRouter();
 
   const [popper, setPopper] = useState({ vis: false });
 
-  const isManager = user?.accountType == "manager";
+  const isManager = user?.accountType === "manager";
 
   const handleItemPress = (item) => {
     if (
@@ -72,7 +74,10 @@ const InstanceEditScreen = ({ navigation }) => {
         type: "failed",
       });
     }
-    navigation.navigate("InstanceList", { item });
+    router.push({
+      pathname: "/pros/instances",
+      params: { item: JSON.stringify(item) },
+    });
   };
 
   return (

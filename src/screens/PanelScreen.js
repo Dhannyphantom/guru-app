@@ -13,8 +13,9 @@ import { EditItem } from "./InstanceEditScreen";
 import AppHeader from "../components/AppHeader";
 import PopMessage from "../components/PopMessage";
 import LottieAnimator from "../components/LottieAnimator";
+import { useRouter } from "expo-router";
 
-const PanelScreen = ({ navigation }) => {
+const PanelScreen = () => {
   const user = useSelector(selectUser);
   const isManager = user?.accountType === "manager";
   const [popper, setPopper] = useState({ vis: false });
@@ -22,30 +23,29 @@ const PanelScreen = ({ navigation }) => {
   const [fetchAppInfo, { isLoading }] = useLazyFetchAppInfoQuery();
 
   const appInfo = useSelector(selectAppInfo);
+  const router = useRouter();
 
   const handleItemPress = async (item) => {
     if (item?.screen) {
-      navigation.navigate(item?.screen);
+      router.push(item?.screen);
     } else {
-      const { data } = await fetchAppInfo();
-      await Clipboard.setStringAsync(appInfo?.PRO_TOKEN);
-      await Share.share({
-        message: `Your Guru pro token is\n\n${
-          data?.PRO_TOKEN ?? appInfo.PRO_TOKEN
-        }`,
-        title: "Get Pro Token",
-      });
-      // setPopper({
-      //   vis: true,
-      //   msg: "Pro Token copied to clipboard successfully",
-      //   type: "success",
-      // });
+      try {
+        const { data } = await fetchAppInfo();
+        const USER_TOKEN = data?.PRO_TOKEN ?? appInfo?.PRO_TOKEN;
+        await Clipboard.setStringAsync(USER_TOKEN);
+        await Share.share({
+          message: `Your Guru pro token is\n\n${USER_TOKEN}`,
+          title: "Get Pro Token",
+        });
+      } catch (errr) {
+        console.log(errr);
+      }
     }
   };
 
   useEffect(() => {
     if (!isManager) {
-      navigation?.goBack();
+      router?.back();
     }
   }, []);
 

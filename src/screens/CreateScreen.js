@@ -10,7 +10,7 @@ import { addInstanceActions } from "../helpers/helperFunctions";
 const CreateScreen = ({ route }) => {
   const screenKey = route?.name;
   const screenType = route?.type;
-  const screenData = route?.data;
+  const screenData = route?.data ? JSON.parse(route?.data) : {};
   let ScreenComponent;
 
   switch (screenKey) {

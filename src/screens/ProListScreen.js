@@ -277,7 +277,9 @@ const ProListScreen = () => {
           paddingTop: 10,
         }}
         scrollEventThrottle={16}
-        ListEmptyComponent={() => <ListEmpty message="No pro accounts found" />}
+        ListEmptyComponent={() => (
+          <ListEmpty vis={!isLoading} message="No pro accounts found" />
+        )}
         // pagingEnabled
         renderItem={({ item, index }) => (
           <ProfileCard

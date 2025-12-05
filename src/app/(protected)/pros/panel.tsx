@@ -1,12 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
-import React from "react";
+import PanelScreen from "@/src/screens/PanelScreen";
 
 export default function panel() {
-  return (
-    <View>
-      <Text>panel</Text>
-    </View>
-  );
+  return <PanelScreen />;
 }
-
-const styles = StyleSheet.create({});

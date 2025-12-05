@@ -1425,13 +1425,13 @@ export const panelItems = [
     id: nanoid(),
     name: "Professionals",
     icon: "person",
-    screen: "ProList",
+    screen: "/pros/list",
   },
   {
     id: nanoid(),
     name: "Analytics",
     icon: "analytics",
-    screen: "Analytics",
+    screen: "/pros/analytics",
   },
   {
     id: nanoid(),
@@ -1443,7 +1443,7 @@ export const panelItems = [
     id: nanoid(),
     name: "Library",
     icon: "book",
-    screen: "InstanceEdit",
+    screen: "/pros/edit",
   },
 ];
 

@@ -34,17 +34,21 @@ import Animated, {
 } from "react-native-reanimated";
 import ListEmpty from "../components/ListEmpty";
 import { RenderQuestion } from "../components/QuizCorrections";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
 const grids = ["category", "subjects"];
 
 const RenderCategories = ({ data }) => {
-  const navigation = useNavigation();
+  const navigation = useRouter();
   const img = getImageObj(data?.image);
 
   const onPress = () => {
-    navigation.navigate("Create", { name: "category", type: "edit", data });
+    navigation.push({
+      pathname: "/pros/create",
+      params: { name: "category", type: "edit", data: JSON.stringify(data) },
+    });
   };
 
   return (
@@ -106,8 +110,9 @@ const QuestionRender = ({ data, index, extra = {} }) => {
   );
 };
 
-const InstanceListScreen = ({ route }) => {
-  const screenData = route?.params?.item;
+const InstanceListScreen = () => {
+  const routeParams = useLocalSearchParams();
+  const screenData = routeParams?.item ? JSON.parse(routeParams?.item) : {};
 
   // const fetchParams = { route: screenData?.route };
 
@@ -271,8 +276,8 @@ const InstanceListScreen = ({ route }) => {
       )}
       {(isTopic || isQuest) && form.show && (
         <Animated.View
-          exiting={FadeOutUp.springify().damping(20)}
-          entering={FadeInDown.springify().damping(20)}
+          exiting={FadeOutUp.springify()}
+          entering={FadeInDown.springify()}
         >
           <Formik
             validationSchema={formSchema}
