@@ -4,6 +4,7 @@ import { hasCompletedProfile } from "@/src/helpers/helperFunctions";
 import { useSelector } from "react-redux";
 import { selectUser } from "@/src/context/usersSlice";
 import { selectSchool, selectSchoolVerified } from "@/src/context/schoolSlice";
+import RenderQuiz from "@/src/components/RenderQuiz";
 
 export default function DashboardPage() {
   const user = useSelector(selectUser);
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   } else {
     if (user?.accountType === "student") {
       // setStartQuiz(true);
+      return <Redirect href={"/main/session"} />;
     } else if (user?.accountType === "teacher" && !hasJoined) {
       return <Redirect href={"/school"} />;
     } else if (

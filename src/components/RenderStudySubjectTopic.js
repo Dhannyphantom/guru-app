@@ -268,8 +268,8 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
       style={styles.topic}
     >
       <AppText style={styles.title} fontWeight="medium" size={"small"}>
-        Pick topics you've revised or take a minute to revise selected topics,
-        confirm each topic and start your quiz session
+        Pick topics you&apos;ve revised or take a minute to revise selected
+        topics, confirm each topic and start your quiz session
       </AppText>
       <View>
         <FlatList

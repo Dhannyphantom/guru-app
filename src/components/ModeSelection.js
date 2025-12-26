@@ -35,7 +35,7 @@ const ICON_SIZE = width * 0.35;
 const EmptyFriends = () => {
   return (
     <View style={styles.modeEmpty}>
-      <AppText>You haven't sent any invite yet</AppText>
+      <AppText>You haven&apos;t sent any invite yet</AppText>
     </View>
   );
 };

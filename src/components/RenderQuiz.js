@@ -44,6 +44,7 @@ import {
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 import progressAnim from "../../assets/animations/progress.json";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -55,6 +56,7 @@ const QUIT_PROMPT = {
 };
 
 const RenderQuiz = ({ setVisible, data }) => {
+  // data = {view, type}
   const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
@@ -77,12 +79,13 @@ const RenderQuiz = ({ setVisible, data }) => {
 
   const [getQuizQuestions, { isLoading, data: quizzes }] =
     useGetQuizQuestionsMutation();
-  const [fetchPremiumQuiz, { isLoading: quizLoad, data: quizData }] =
+  const [fetchPremiumQuiz, { isLoading: quizLoading, data: quizData }] =
     useFetchPremiumQuizMutation();
 
   // const lottieRef = useRef();
   // const animProgress = useRef(new RNAnimated.Value(0)).current;
   const animProgress = useSharedValue(0);
+  const insets = useSafeAreaInsets();
 
   const animatedProps = useAnimatedProps(() => {
     return {
@@ -179,6 +182,7 @@ const RenderQuiz = ({ setVisible, data }) => {
         console.log(error);
       }
     } else {
+      console.log("Yesss");
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
 
@@ -223,7 +227,7 @@ const RenderQuiz = ({ setVisible, data }) => {
   }, [data]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom + 10 }]}>
       {isFinished ? (
         <Screen>
           <FinishedQuiz
@@ -267,7 +271,7 @@ const RenderQuiz = ({ setVisible, data }) => {
               style={{ width: width * 0.99, height: 100 }}
             />
             <AppButton
-              title={"Cancel"}
+              title={"Cancel Session"}
               type="warn"
               // onPress={async () => await fetchQuiz()}
               onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
@@ -289,7 +293,7 @@ const RenderQuiz = ({ setVisible, data }) => {
                 }
               />
             ) : (
-              <>
+              <View style={{ flex: 1 }}>
                 {isSelection && (
                   <ModeSelection
                     setState={(data) => setQuizInfo({ ...quizInfo, ...data })}
@@ -342,7 +346,7 @@ const RenderQuiz = ({ setVisible, data }) => {
                     <LottieAnimator visible={subjLoad} absolute wTransparent />
                   </Animated.View>
                 )}
-              </>
+              </View>
             )}
           </View>
 
@@ -394,15 +398,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
   },
   container: {
-    paddingTop: 15,
-    paddingBottom: 15,
-    width: width,
-    height,
-    backgroundColor: colors.lightly,
-    overflow: "hidden",
+    flex: 1,
+    // backgroundColor: colors.lightly,
+    // overflow: "hidden",
   },
   main: {
     flex: 1,
+    // height: 500,
     justifyContent: "center",
     paddingTop: 20,
     alignItems: "center",

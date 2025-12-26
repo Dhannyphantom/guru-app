@@ -23,7 +23,7 @@ const Screen = ({ children, panHandlers = {}, style, ...otherProps }) => {
 };
 const styles = StyleSheet.create({
   container: {
-    // flex: 1,
+    flex: 1,
   },
 });
 export default Screen;
