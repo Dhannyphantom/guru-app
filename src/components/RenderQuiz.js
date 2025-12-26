@@ -182,7 +182,6 @@ const RenderQuiz = ({ setVisible, data }) => {
         console.log(error);
       }
     } else {
-      console.log("Yesss");
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
 
@@ -206,7 +205,9 @@ const RenderQuiz = ({ setVisible, data }) => {
         mode: quizInfo.mode,
       };
       try {
+        // return console.log({ sendData });
         const res = await fetchPremiumQuiz(sendData).unwrap();
+        // return console.log({ res });
         animProgress.value = withTiming(1, { duration: 3500 }, (finished) => {
           if (finished && Boolean(res?.data)) {
             //
@@ -214,7 +215,7 @@ const RenderQuiz = ({ setVisible, data }) => {
           }
         });
       } catch (error) {
-        console.log(error);
+        console.log({ error, what: "Moo" });
       }
     }
   };
@@ -265,7 +266,7 @@ const RenderQuiz = ({ setVisible, data }) => {
               autoPlay={false}
               loop={false}
               onAnimationFinish={() => {
-                setQuizInfo({ ...quizInfo, view: "" });
+                // setQuizInfo({ ...quizInfo, view: "" });
                 setQuizInfo({ ...quizInfo, view: "quiz" });
               }}
               style={{ width: width * 0.99, height: 100 }}

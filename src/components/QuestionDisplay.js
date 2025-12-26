@@ -296,133 +296,129 @@ const createDefaultAnswers = () =>
     .fill(null)
     .map(() => ({ _id: nanoid(), name: "", correct: false }));
 
-export const QuizQuestion = React.memo(
-  ({
-    questionVal = "",
-    answersVal = createDefaultAnswers(),
-    onUpdateQuestion,
-    onLayout,
-    image,
-    onTouch,
-  }) => {
-    const [showImagePicker, setShowImagePicker] = useState(false);
+export const QuizQuestion = ({
+  questionVal = "",
+  answersVal = createDefaultAnswers(),
+  onUpdateQuestion,
+  onLayout,
+  image,
+  onTouch,
+}) => {
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
-    // Ensure we have valid answers array
-    const answers = useMemo(() => {
-      if (Array.isArray(answersVal) && answersVal.length === 4) {
-        return answersVal;
-      }
-      return createDefaultAnswers();
-    }, [answersVal]);
+  // Ensure we have valid answers array
+  const answers = useMemo(() => {
+    if (Array.isArray(answersVal) && answersVal.length === 4) {
+      return answersVal;
+    }
+    return createDefaultAnswers();
+  }, [answersVal]);
 
-    // Handle question text change
-    const handleQuestionChange = useCallback(
-      (text) => {
-        onUpdateQuestion?.({ question: text });
-        onTouch?.("question");
-      },
-      [onUpdateQuestion, onTouch]
-    );
+  // Handle question text change
+  const handleQuestionChange = useCallback(
+    (text) => {
+      onUpdateQuestion?.({ question: text });
+      onTouch?.("question");
+    },
+    [onUpdateQuestion, onTouch]
+  );
 
-    // Handle answer updates
-    const handleUpdateAnswer = useCallback(
-      (updatedAnswer) => {
-        const newAnswers = answers.map((answer) => {
-          if (answer._id === updatedAnswer._id) {
-            return updatedAnswer;
-          }
-          // If setting this answer as correct, unset others
-          if (updatedAnswer.correct && answer.correct) {
-            return { ...answer, correct: false };
-          }
-          return answer;
-        });
+  // Handle answer updates
+  const handleUpdateAnswer = useCallback(
+    (updatedAnswer) => {
+      const newAnswers = answers.map((answer) => {
+        if (answer._id === updatedAnswer._id) {
+          return updatedAnswer;
+        }
+        // If setting this answer as correct, unset others
+        if (updatedAnswer.correct && answer.correct) {
+          return { ...answer, correct: false };
+        }
+        return answer;
+      });
 
-        onUpdateQuestion?.({ answers: newAnswers });
-        onTouch?.("answers");
-      },
-      [answers, onUpdateQuestion, onTouch]
-    );
+      onUpdateQuestion?.({ answers: newAnswers });
+      onTouch?.("answers");
+    },
+    [answers, onUpdateQuestion, onTouch]
+  );
 
-    // Handle image toggle
-    const handleImagePress = useCallback(() => {
-      if (showImagePicker) {
-        // Remove image
-        onUpdateQuestion?.({ image: {} });
-        setShowImagePicker(false);
-      } else {
-        // Show image picker
-        setShowImagePicker(true);
-      }
-    }, [showImagePicker, onUpdateQuestion]);
+  // Handle image toggle
+  const handleImagePress = useCallback(() => {
+    if (showImagePicker) {
+      // Remove image
+      onUpdateQuestion?.({ image: {} });
+      setShowImagePicker(false);
+    } else {
+      // Show image picker
+      setShowImagePicker(true);
+    }
+  }, [showImagePicker, onUpdateQuestion]);
 
-    // Handle image update
-    const handleImageUpdate = useCallback(
-      (imageData) => {
-        onUpdateQuestion?.({ image: imageData });
-      },
-      [onUpdateQuestion]
-    );
+  // Handle image update
+  const handleImageUpdate = useCallback(
+    (imageData) => {
+      onUpdateQuestion?.({ image: imageData });
+    },
+    [onUpdateQuestion]
+  );
 
-    return (
-      <View onLayout={onLayout}>
-        {/* Question Input */}
-        <View style={styles.question}>
-          <View style={styles.main}>
-            <TextInput
-              style={styles.questionInput}
-              onChangeText={handleQuestionChange}
-              placeholder="Write your question"
-              multiline
-              placeholderTextColor={colors.medium}
-              value={questionVal}
-            />
-          </View>
-        </View>
-
-        {/* Image Toggle Button */}
-        <AnimatedPressable
-          onPress={handleImagePress}
-          style={styles.coverImgBtn}
-        >
-          <AppText style={{ color: colors.primaryDeep }} fontWeight="bold">
-            {showImagePicker ? "Remove" : "Add"} Image
-          </AppText>
-        </AnimatedPressable>
-
-        {/* Image Picker */}
-        {showImagePicker && (
-          <View style={styles.cover}>
-            <FormikCover
-              name="image"
-              style={styles.coverImage}
-              value={image}
-              onImageUpdate={handleImageUpdate}
-            />
-          </View>
-        )}
-
-        {/* Answer Options */}
-        <View style={styles.container}>
-          {answers.map((answer, idx) => (
-            <Options
-              key={answer._id}
-              value={answer.name}
-              idx={idx}
-              handleSelectAnswer={() => {}}
-              data={answer}
-              handleUpdateAnswer={handleUpdateAnswer}
-              editable={true}
-              isSelected={answer.correct}
-            />
-          ))}
+  return (
+    <View onLayout={onLayout}>
+      {/* Question Input */}
+      <View style={styles.question}>
+        <View style={styles.main}>
+          <TextInput
+            style={styles.questionInput}
+            onChangeText={handleQuestionChange}
+            placeholder="Write your question"
+            multiline
+            placeholderTextColor={colors.medium}
+            value={questionVal}
+          />
         </View>
       </View>
-    );
-  }
-);
 
-QuizQuestion.displayName = "QuizQuestion";
+      {/* Image Toggle Button */}
+      <AnimatedPressable onPress={handleImagePress} style={styles.coverImgBtn}>
+        <AppText style={{ color: colors.primaryDeep }} fontWeight="bold">
+          {showImagePicker ? "Remove" : "Add"} Image
+        </AppText>
+      </AnimatedPressable>
+
+      {/* Image Picker */}
+      {showImagePicker && (
+        <View style={styles.cover}>
+          <FormikCover
+            name="image"
+            style={styles.coverImage}
+            value={image}
+            onImageUpdate={handleImageUpdate}
+          />
+        </View>
+      )}
+
+      {/* Answer Options */}
+      <View style={styles.container}>
+        {answers.map((answer, idx) => (
+          <Options
+            key={answer._id}
+            value={answer.name}
+            idx={idx}
+            handleSelectAnswer={() => {}}
+            data={answer}
+            handleUpdateAnswer={handleUpdateAnswer}
+            editable={true}
+            isSelected={answer.correct}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+export default QuestionDisplay;
+// QuizQuestion.displayName = "QuizQuestion";
 
 // const styles = StyleSheet.create({
 //   container: {
