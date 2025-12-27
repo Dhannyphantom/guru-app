@@ -258,8 +258,8 @@ const QuestionDisplay = ({
             {currentQuestion?.answers.map((obj, idx) => (
               <Options
                 key={nanoid()}
-                value={obj?.name}
                 idx={idx}
+                data={obj}
                 handleSelectAnswer={handleSelectAnswer}
                 isSelected={currentQuestion?.answered?._id === obj._id}
               />
@@ -398,7 +398,6 @@ export const QuizQuestion = ({
         {answers.map((answer, idx) => (
           <Options
             key={answer._id}
-            value={answer.name}
             idx={idx}
             handleSelectAnswer={() => {}}
             data={answer}

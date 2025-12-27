@@ -11,13 +11,12 @@ import AnimatedCheckBox from "./AnimatedCheckbox";
 const Options = ({
   idx = 0,
   isSelected = false,
-  value = "",
   editable = false,
   handleSelectAnswer,
   data = {},
   handleUpdateAnswer,
 }) => {
-  const [text, setText] = useState(value);
+  const [text, setText] = useState(data?.name || "");
 
   // Color scheme based on index
   const colorScheme = useMemo(() => {
@@ -49,10 +48,10 @@ const Options = ({
     }
   }, [idx]);
 
-  // Update local text when prop value changes
+  // Update local text when prop data changes
   useEffect(() => {
-    setText(value || "");
-  }, [value]);
+    setText(data?.name || "");
+  }, [data]);
 
   // Handle text change with debouncing
   const handleTextChange = useCallback(
@@ -109,16 +108,24 @@ const Options = ({
   return (
     <AnimatedPressable
       onPress={handleNonEditableSelection}
-      style={[styles.container, { backgroundColor: colorScheme.bg }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colorScheme.bg,
+          borderWidth: isSelected ? 3 : 0,
+          borderColor: isSelected ? colors.white : null,
+          boxShadow: isSelected ? `2px 8px 18px ${colors.primary}40` : null,
+        },
+      ]}
     >
       <View style={[styles.main, { backgroundColor: colorScheme.overlay }]}>
         <AppText fontWeight="semibold" style={styles.nonEditableText}>
-          {colorScheme.prefix + (capFirstLetter(value) || "______")}
+          {colorScheme.prefix + (capFirstLetter(data?.name) || "______")}
         </AppText>
         {isSelected && (
           <MaterialCommunityIcons
             name="check-bold"
-            size={20}
+            size={26}
             color={colors.white}
           />
         )}
