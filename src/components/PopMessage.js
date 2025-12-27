@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useCallback } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -22,8 +22,6 @@ const POP_HEIGHT = height * 0.18;
 
 const PopMessage = ({ popData = { vis: true }, setPopData }) => {
   const { vis, msg, type, timer, point, cb } = popData;
-
-  // if (!vis) return null;
 
   const translateY = useSharedValue(-POP_HEIGHT);
 
@@ -60,33 +58,45 @@ const PopMessage = ({ popData = { vis: true }, setPopData }) => {
   }, [type]);
 
   // ------------------------------------------
-  // ANIMATION
+  // SAFE JS CALLBACKS (VERY IMPORTANT)
+  // ------------------------------------------
+  const handleCallback = useCallback(() => {
+    if (typeof cb === "function") {
+      cb();
+    }
+  }, [cb]);
+
+  const hidePop = useCallback(() => {
+    setPopData({ vis: false });
+  }, [setPopData]);
+
+  // ------------------------------------------
+  // ANIMATION STYLE
   // ------------------------------------------
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
 
+  // ------------------------------------------
+  // ANIMATION LOGIC
+  // ------------------------------------------
   useEffect(() => {
-    if (vis) {
-      translateY.value = withSequence(
-        withSpring(0, { damping: 14 }),
-        withDelay(
-          timer ?? 400,
-          withTiming(
-            -POP_HEIGHT,
-            { duration: 700, easing: Easing.quad },
-            () => {
-              runOnJS(cb?.bind(null))?.();
-              runOnJS(setPopData)({ vis: false });
-            }
-          )
-        )
-      );
-    }
-  }, [vis]);
+    if (!vis) return;
+
+    translateY.value = withSequence(
+      withSpring(0, { damping: 60 }),
+      withDelay(
+        timer ?? 400,
+        withTiming(-POP_HEIGHT, { duration: 700, easing: Easing.quad }, () => {
+          runOnJS(handleCallback)();
+          runOnJS(hidePop)();
+        })
+      )
+    );
+  }, [vis, timer, handleCallback, hidePop]);
 
   // ------------------------------------------
-  // PRE-GENERATED RANDOM ICON POSITIONS
+  // RANDOM ICON POSITIONS (STATIC)
   // ------------------------------------------
   const icons = useMemo(
     () =>
@@ -159,7 +169,7 @@ const PopMessage = ({ popData = { vis: true }, setPopData }) => {
         },
       ].map((i) => ({
         ...i,
-        rotate: `${Math.random() * 180}deg`, // generated once
+        rotate: `${Math.random() * 180}deg`,
       })),
     []
   );
@@ -206,6 +216,9 @@ const PopMessage = ({ popData = { vis: true }, setPopData }) => {
 
 export default PopMessage;
 
+// ------------------------------------------
+// STYLES
+// ------------------------------------------
 const styles = StyleSheet.create({
   container: {
     position: "absolute",

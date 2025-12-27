@@ -1,6 +1,5 @@
 import {
   Dimensions,
-  FlatList,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,10 +12,10 @@ import { nanoid } from "@reduxjs/toolkit";
 import AppText from "../components/AppText";
 import React, {
   useEffect,
-  useMemo,
   useCallback,
   useRef,
   useState,
+  useMemo,
 } from "react";
 // import { dummyQuestions } from "../helpers/dataStore";
 import colors from "../helpers/colors";
@@ -25,15 +24,15 @@ import { capFirstLetter, formatPoints } from "../helpers/helperFunctions";
 import Options from "./Options";
 import AppButton from "./AppButton";
 import PopMessage from "./PopMessage";
-import { useFormikContext } from "formik";
+// import { useFormikContext } from "formik";
 import { FormikCover } from "./CoverImage";
 import AnimatedPressable from "./AnimatedPressable";
 
 const { width, height } = Dimensions.get("screen");
 
-const defaultAnswers = Array(4)
-  .fill("")
-  .map((_n) => ({ _id: nanoid(), name: "", correct: false }));
+// const defaultAnswers = Array(4)
+//   .fill("")
+//   .map((_n) => ({ _id: nanoid(), name: "", correct: false }));
 
 const QuestionDisplay = ({
   handleQuit,
@@ -43,7 +42,6 @@ const QuestionDisplay = ({
   questionBank = [],
 }) => {
   const [questionStore, setQuestionStore] = useState(questionBank);
-  // const [questionStore, setQuestionStore] = useState(dummyQuestions);
   const [active, setActive] = useState({
     subject: 0,
     question: 0,
@@ -58,7 +56,7 @@ const QuestionDisplay = ({
   });
 
   const timerRef = useRef();
-  const timeoutRef = useRef();
+  // const timeoutRef = useRef();
 
   const currentQuestion =
     questionStore[active.subject]?.questions[active.question];
@@ -76,11 +74,11 @@ const QuestionDisplay = ({
 
   const handleSelectAnswer = (value) => {
     const copier = [...questionStore].map((obj, idx) => {
-      if (idx == active.subject) {
+      if (idx === active.subject) {
         return {
           ...obj,
           questions: obj.questions?.map((item, idxer) => {
-            if (idxer == active.question) {
+            if (idxer === active.question) {
               return {
                 ...item,
                 answered: value,
@@ -204,22 +202,22 @@ const QuestionDisplay = ({
     handleProceed();
   }, [active.canProceed]);
 
-  useEffect(() => {
-    // startTimer(currentQuestion?.timer);
-    // setQuestionStore((prev) =>
-    //   prev.map((item) => {
-    //     return {
-    //       ...item,
-    //       questions: item.questions.map((quest) => {
-    //         return {
-    //           ...quest,
-    //           answered: "",
-    //         };
-    //       }),
-    //     };
-    //   })
-    // );
-  }, []);
+  // useEffect(() => {
+  // startTimer(currentQuestion?.timer);
+  // setQuestionStore((prev) =>
+  //   prev.map((item) => {
+  //     return {
+  //       ...item,
+  //       questions: item.questions.map((quest) => {
+  //         return {
+  //           ...quest,
+  //           answered: "",
+  //         };
+  //       }),
+  //     };
+  //   })
+  // );
+  // }, []);
 
   return (
     <>
@@ -251,21 +249,16 @@ const QuestionDisplay = ({
               style={{ textAlign: "center", lineHeight: 35 }}
               fontWeight="bold"
             >
-              {capFirstLetter(
-                questionStore[active.subject].questions[active.question]
-                  .question
-              )}
+              {capFirstLetter(currentQuestion?.question)}
             </AppText>
           </ScrollView>
         </View>
         <ScrollView style={{ flex: 1, marginTop: 25 }}>
           <View style={styles.container}>
-            {questionStore[active.subject].questions[
-              active.question
-            ].answers.map((obj, idx) => (
+            {currentQuestion?.answers.map((obj, idx) => (
               <Options
                 key={nanoid()}
-                value={obj}
+                value={obj?.name}
                 idx={idx}
                 handleSelectAnswer={handleSelectAnswer}
                 isSelected={currentQuestion?.answered?._id === obj._id}
@@ -296,9 +289,11 @@ const createDefaultAnswers = () =>
     .fill(null)
     .map(() => ({ _id: nanoid(), name: "", correct: false }));
 
+let defaultAns = createDefaultAnswers();
+
 export const QuizQuestion = ({
   questionVal = "",
-  answersVal = createDefaultAnswers(),
+  answersVal = defaultAns,
   onUpdateQuestion,
   onLayout,
   image,

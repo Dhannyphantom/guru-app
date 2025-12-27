@@ -178,16 +178,14 @@ const RenderQuiz = ({ setVisible, data }) => {
           type: data?.type,
           schoolId: data?.schoolId,
         }).unwrap();
-      } catch (error) {
-        console.log(error);
-      }
+      } catch (error) {}
     } else {
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
 
-      animProgress.value = withTiming(0.6, { duration: 15000 }, (finished) => {
+      animProgress.value = withTiming(0.6, { duration: 20000 }, (finished) => {
         if (finished) {
-          animProgress.value = withTiming(0.85, { duration: 15000 });
+          animProgress.value = withTiming(0.85, { duration: 35000 });
         }
       });
 
@@ -204,19 +202,17 @@ const RenderQuiz = ({ setVisible, data }) => {
         invites: quizInfo.invites,
         mode: quizInfo.mode,
       };
+
       try {
-        // return console.log({ sendData });
         const res = await fetchPremiumQuiz(sendData).unwrap();
-        // return console.log({ res });
-        animProgress.value = withTiming(1, { duration: 3500 }, (finished) => {
+
+        animProgress.value = withTiming(1, { duration: 1000 }, (finished) => {
           if (finished && Boolean(res?.data)) {
             //
             runOnJS(setQuizInfo)({ ...quizInfo, view: "start" });
           }
         });
-      } catch (error) {
-        console.log({ error, what: "Moo" });
-      }
+      } catch (error) {}
     }
   };
 
@@ -239,12 +235,14 @@ const RenderQuiz = ({ setVisible, data }) => {
           />
         </Screen>
       ) : isStart ? (
-        <QuestionDisplay
-          handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
-          setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
-          setQuizSession={setSession}
-          questionBank={quizzes?.data ?? quizData?.data ?? []}
-        />
+        <Screen>
+          <QuestionDisplay
+            handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+            setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
+            setQuizSession={setSession}
+            questionBank={quizzes?.data ?? quizData?.data ?? []}
+          />
+        </Screen>
       ) : isQuiz ? (
         <Screen>
           <Animated.View entering={enterAnimOther} style={styles.quiz}>
@@ -265,17 +263,17 @@ const RenderQuiz = ({ setVisible, data }) => {
               progress={animProgress}
               autoPlay={false}
               loop={false}
-              onAnimationFinish={() => {
-                // setQuizInfo({ ...quizInfo, view: "" });
-                setQuizInfo({ ...quizInfo, view: "quiz" });
-              }}
+              // onAnimationFinish={() => {
+              //   setQuizInfo({ ...quizInfo, view: "" });
+              //   setQuizInfo({ ...quizInfo, view: "quiz" });
+              // }}
               style={{ width: width * 0.99, height: 100 }}
             />
             <AppButton
               title={"Cancel Session"}
               type="warn"
-              // onPress={async () => await fetchQuiz()}
-              onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+              onPress={async () => await fetchQuiz()}
+              // onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             />
           </Animated.View>
         </Screen>
