@@ -215,7 +215,11 @@ const RenderQuiz = ({ setVisible, data }) => {
         <Screen>
           <FinishedQuiz
             session={session}
-            data={data ?? { type: "premium", mode: quizInfo?.mode }}
+            data={
+              data?.type === "school"
+                ? { type: "school", mode: quizInfo?.mode }
+                : { type: "premium", mode: quizInfo?.mode }
+            }
             retry={() => setQuizInfo({ ...quizInfo, view: "start" })}
             hideModal={() => setVisible(false)}
           />

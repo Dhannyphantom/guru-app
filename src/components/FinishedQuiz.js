@@ -20,6 +20,8 @@ const FinishedQuiz = ({ hideModal, data, retry, session }) => {
     total: 0,
   });
 
+  console.log({ data });
+
   const [submitQuiz, { isLoading, isError, error }] = useSubmitQuizMutation();
   const [submitPremiumQuiz, { isLoading: premLoading }] =
     useSubmitPremiumQuizMutation();

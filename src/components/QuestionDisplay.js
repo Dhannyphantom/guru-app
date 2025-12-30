@@ -36,248 +36,232 @@ const { width, height } = Dimensions.get("screen");
 
 const QuestionDisplay = ({
   handleQuit,
-  // session,
   setQuizSession,
   setQuizInfoView,
   questionBank = [],
 }) => {
-  const [questionStore, setQuestionStore] = useState(questionBank);
+  const timerRef = useRef(null);
+
+  /* ---------- normalize question bank ---------- */
+  const normalizedBank = useMemo(() => {
+    if (!Array.isArray(questionBank) || questionBank.length === 0) return [];
+    return questionBank.map((subject) => ({
+      ...subject,
+      questions: Array.isArray(subject.questions)
+        ? subject.questions.map((q) => ({
+            ...q,
+            answers: Array.isArray(q.answers) ? q.answers : [],
+          }))
+        : [],
+    }));
+  }, [questionBank]);
+
+  const [questionStore, setQuestionStore] = useState(normalizedBank);
+
+  useEffect(() => {
+    setQuestionStore(normalizedBank);
+  }, [normalizedBank]);
+
   const [active, setActive] = useState({
     subject: 0,
     question: 0,
     current: 1,
     canProceed: false,
   });
+
   const [popData, setPopData] = useState({ vis: false });
+
   const [session, setSession] = useState({
-    totalQuestions: 1,
+    totalQuestions: 0,
     questions: [],
     row: 0,
   });
 
-  const timerRef = useRef();
-  // const timeoutRef = useRef();
-
+  /* ---------- derived state ---------- */
   const currentQuestion =
-    questionStore[active.subject]?.questions[active.question];
-  let totalQuestions =
-    questionStore[0] &&
-    questionStore
-      .map((obj) => obj?.questions?.length || 0)
-      .reduce((prev, curr) => prev + curr);
+    questionStore?.[active.subject]?.questions?.[active.question] ?? null;
+
+  const totalQuestions = useMemo(() => {
+    return questionStore.reduce(
+      (sum, s) => sum + (s.questions?.length || 0),
+      0
+    );
+  }, [questionStore]);
 
   const hasAnswered = Boolean(currentQuestion?.answered);
-  const noNextQuestion =
-    !Boolean(questionStore[active.subject]?.questions[active.question + 1]) &&
-    !Boolean(questionStore[active.subject + 1]);
-  const correctAnswer = currentQuestion?.answers?.find((item) => item.correct);
 
+  const correctAnswer = useMemo(() => {
+    return currentQuestion?.answers?.find((a) => a.correct);
+  }, [currentQuestion]);
+
+  const noNextQuestion = useMemo(() => {
+    const sameSubjectNext =
+      questionStore?.[active.subject]?.questions?.[active.question + 1];
+    const nextSubject = questionStore?.[active.subject + 1];
+    return !sameSubjectNext && !nextSubject;
+  }, [questionStore, active]);
+
+  /* ---------- answer select ---------- */
   const handleSelectAnswer = (value) => {
-    const copier = [...questionStore].map((obj, idx) => {
-      if (idx === active.subject) {
-        return {
-          ...obj,
-          questions: obj.questions?.map((item, idxer) => {
-            if (idxer === active.question) {
-              return {
-                ...item,
-                answered: value,
-              };
-            } else {
-              return item;
-            }
-          }),
-        };
-      } else {
-        return obj;
-      }
-    });
+    if (!currentQuestion) return;
 
-    setQuestionStore(copier);
+    setQuestionStore((prev) =>
+      prev.map((subj, sIdx) =>
+        sIdx !== active.subject
+          ? subj
+          : {
+              ...subj,
+              questions: subj.questions.map((q, qIdx) =>
+                qIdx !== active.question ? q : { ...q, answered: value }
+              ),
+            }
+      )
+    );
   };
 
-  // const clearTimer = () => {
-  //   if (timeoutRef?.current) {
-  //     clearTimeout(timeoutRef?.current);
-  //     timeoutRef.current = null;
-  //   }
-  // };
-
-  // const startTimer = (timer) => {
-  //   timeoutRef.current = setTimeout(() => {
-  //     // handleNextQuestion();
-  //     // timerRef?.current?.stop();
-  //     timerRef?.current?.play(150);
-  //   }, (timer ?? 30) * 1000);
-  // };
-
+  /* ---------- navigation ---------- */
   const handleNavQuestion = () => {
-    // clearTimer();
-    const nextIndex = active.question + 1;
-    if (questionStore[active.subject].questions[nextIndex]) {
-      setActive({
-        ...active,
-        question: nextIndex,
-        current: active.current + 1,
+    const nextQ = active.question + 1;
+
+    if (questionStore?.[active.subject]?.questions?.[nextQ]) {
+      setActive((p) => ({
+        ...p,
+        question: nextQ,
+        current: p.current + 1,
         canProceed: false,
-      });
-      timerRef?.current?.play();
-
-      // const timer = questionStore[active?.subject]?.questions[nextIndex]?.timer;
-      // startTimer(timer);
-    } else {
-      if (questionStore[active.subject + 1]) {
-        setActive({
-          ...active,
-          subject: active.subject + 1,
-          question: 0,
-          current: active.current + 1,
-          canProceed: false,
-        });
-        timerRef?.current?.play();
-        // const timer = questionStore[active.subject + 1]?.questions[0]?.timer;
-
-        // startTimer(timer);
-      }
+      }));
+      timerRef.current?.play();
+      return;
     }
-    !Boolean(session?.totalQuestions) &&
-      setSession({
+
+    if (questionStore?.[active.subject + 1]) {
+      setActive((p) => ({
+        subject: p.subject + 1,
+        question: 0,
+        current: p.current + 1,
+        canProceed: false,
+      }));
+      timerRef.current?.play();
+      return;
+    }
+
+    setTimeout(() => {
+      setQuizSession({
         ...session,
         totalQuestions,
+        questions: questionStore,
       });
-    if (noNextQuestion) {
-      setTimeout(() => {
-        setQuizSession({ ...session, questions: questionStore });
-        return setQuizInfoView("finished");
-      }, 2000);
-    }
+      setQuizInfoView("finished");
+    }, 1200);
   };
 
+  /* ---------- next ---------- */
   const handleNextQuestion = () => {
-    // check if answered picked is correct
-    // clearTimer();
+    if (!currentQuestion) return;
 
-    if (hasAnswered && currentQuestion?.answered?._id === correctAnswer?._id) {
-      const addRow = session.row + 1;
-      setSession((prev) => ({
-        ...prev,
-        totalQuestions: totalQuestions,
-        row: addRow,
-      }));
-      setPopData({
-        vis: true,
-        msg: `Correct!${addRow > 1 ? "\n" + addRow + " in a row" : ""}`,
-        timer: 2000,
-        type: "success",
-        point: formatPoints("+" + currentQuestion.point),
-        popId: nanoid(),
+    if (hasAnswered && currentQuestion.answered?._id === correctAnswer?._id) {
+      setSession((p) => {
+        const row = p.row + 1;
+        setPopData({
+          vis: true,
+          msg: `Correct!${row > 1 ? `\n${row} in a row` : ""}`,
+          type: "success",
+          timer: 2000,
+          point: formatPoints("+" + currentQuestion.point),
+          popId: nanoid(),
+        });
+        return { ...p, row, totalQuestions };
       });
     } else {
-      setSession((prev) => ({
-        ...prev,
-        row: 0,
-      }));
+      setSession((p) => ({ ...p, row: 0 }));
       setPopData({
         vis: true,
-        msg: `Incorrect!\nBetter luck next time`,
+        msg: "Incorrect!\nBetter luck next time",
         type: "failed",
         point: formatPoints(-15),
         popId: nanoid(),
       });
     }
+
     handleNavQuestion();
   };
 
-  const handleAnimationFinish = () => {
-    handleNextQuestion();
-  };
-
-  const handleProceed = () => {
-    setTimeout(() => {
-      !active.canProceed && setActive({ ...active, canProceed: true });
-    }, 3000);
-  };
-
+  /* ---------- proceed delay ---------- */
   useEffect(() => {
-    handleProceed();
-  }, [active.canProceed]);
+    const t = setTimeout(() => {
+      setActive((p) => ({ ...p, canProceed: true }));
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [active.subject, active.question]);
 
-  // useEffect(() => {
-  // startTimer(currentQuestion?.timer);
-  // setQuestionStore((prev) =>
-  //   prev.map((item) => {
-  //     return {
-  //       ...item,
-  //       questions: item.questions.map((quest) => {
-  //         return {
-  //           ...quest,
-  //           answered: "",
-  //         };
-  //       }),
-  //     };
-  //   })
-  // );
-  // }, []);
+  /* ---------- HARD GUARD ---------- */
+  if (!currentQuestion) {
+    return (
+      <View style={styles.avoidingView}>
+        <AppText>Loading question…</AppText>
+      </View>
+    );
+  }
 
   return (
     <>
       <View style={styles.questions}>
         <View style={styles.header}>
-          <AppText size={"large"} fontWeight="heavy">
+          <AppText size="large" fontWeight="heavy">
             {active.current}/{totalQuestions}
           </AppText>
-          <AppText
-            style={styles.subjectTxt}
-            size={"xxlarge"}
-            fontWeight="black"
-          >
-            {questionStore[active.subject].subject?.name}
+
+          <AppText style={styles.subjectTxt} size="xxlarge" fontWeight="black">
+            {questionStore?.[active.subject]?.subject?.name}
           </AppText>
+
           <LottieAnimator
             name="timer"
             animRef={timerRef}
-            speed={10 / currentQuestion.timer}
+            speed={10 / (currentQuestion.timer || 10)}
             style={{ width: 50, height: 50 }}
             loop={false}
-            onAnimationFinish={handleAnimationFinish}
+            onAnimationFinish={handleNextQuestion}
           />
         </View>
+
         <View style={styles.question}>
           <ScrollView contentContainerStyle={styles.scroll}>
             <AppText
-              size={"xlarge"}
-              style={{ textAlign: "center", lineHeight: 35 }}
+              size="xlarge"
               fontWeight="bold"
+              style={{ textAlign: "center", lineHeight: 35 }}
             >
-              {capFirstLetter(currentQuestion?.question)}
+              {capFirstLetter(currentQuestion.question)}
             </AppText>
           </ScrollView>
         </View>
+
         <ScrollView style={{ flex: 1, marginTop: 25 }}>
           <View style={styles.container}>
-            {currentQuestion?.answers.map((obj, idx) => (
+            {currentQuestion.answers.map((obj, idx) => (
               <Options
-                key={nanoid()}
+                key={obj._id}
                 idx={idx}
                 data={obj}
                 handleSelectAnswer={handleSelectAnswer}
-                isSelected={currentQuestion?.answered?._id === obj._id}
+                isSelected={currentQuestion.answered?._id === obj._id}
               />
             ))}
           </View>
         </ScrollView>
-        <View style={[styles.btnContainer, { flex: 0 }]}>
-          <View style={styles.btns}>
-            <AppButton title={"Quit"} onPress={handleQuit} type="warn" />
-            <AppButton
-              title={noNextQuestion ? "Finish Quiz" : "Next Question"}
-              onPress={handleNextQuestion}
-              type={noNextQuestion ? "accent" : "primary"}
-              disabled={!hasAnswered || !active.canProceed}
-            />
-          </View>
+
+        <View style={styles.btns}>
+          <AppButton title="Quit" onPress={handleQuit} type="warn" />
+          <AppButton
+            title={noNextQuestion ? "Finish Quiz" : "Next Question"}
+            onPress={handleNextQuestion}
+            disabled={!hasAnswered || !active.canProceed}
+            type={noNextQuestion ? "accent" : "primary"}
+          />
         </View>
       </View>
+
       <PopMessage popData={popData} setPopData={setPopData} />
     </>
   );
