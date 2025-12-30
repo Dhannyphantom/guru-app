@@ -52,13 +52,14 @@ const FriendCard = ({
   hideBtn = false,
   onPress,
 }) => {
-  const isFollow = type == "follow";
-  const isInvite = type == "invite";
+  const isFollow = type === "follow";
+  const isInvite = type === "invite";
   const isStudent = type === "student";
-  const isMine = Boolean(userID) && userID == data?.user?._id;
+  const isMine = Boolean(userID) && userID === data?._id;
   let btnTxt, btnType;
+  const shouldHideBtn = isFollow && !data?.school?.verified;
 
-  switch (data.status) {
+  switch (data?.status) {
     case "pending":
       btnTxt = isFollow ? "Following" : isInvite ? "Invite" : "Pending";
       btnType = isStudent ? "primary" : "white";
@@ -79,39 +80,39 @@ const FriendCard = ({
       break;
 
     default:
-      btnTxt = type == "follow" ? "Follow" : "Invite";
+      btnTxt = isFollow ? "Follow" : "Invite";
       btnType = "primary";
       break;
   }
 
-  switch (data.verified) {
-    case false:
-      btnTxt = isStudent
-        ? "Verify"
-        : isFollow
-        ? "Following"
-        : isInvite
-        ? "Invite"
-        : "Pending";
-      btnType = isStudent ? "primary" : "white";
+  if (isStudent) {
+    switch (data?.verified) {
+      case false:
+        btnTxt = isStudent
+          ? "Verify"
+          : isFollow
+          ? "Following"
+          : isInvite
+          ? "Invite"
+          : "Pending";
+        btnType = isStudent ? "primary" : "white";
 
-      break;
+        break;
 
-    case true:
-      btnTxt = isStudent ? "Verified" : isFollow ? "Mutual" : "Accepted";
-      btnType = isStudent ? "white" : "accent";
-      break;
+      case true:
+        btnTxt = isStudent ? "Verified" : isFollow ? "Mutual" : "Accepted";
+        btnType = isStudent ? "white" : "accent";
+        break;
+    }
   }
 
   return (
     <View style={styles.container}>
-      <Avatar source={data?.user?.avatar?.image} size={width * 0.13} />
+      <Avatar source={data?.avatar?.image} size={width * 0.13} />
       <View style={styles.textView}>
         <AppText fontWeight="bold" style={styles.nameTxt}>
-          {data?.user?.preffix ? data?.user?.preffix + " " : ""}
-          {data?.user
-            ? `${data?.user?.firstName} ${data?.user?.lastName}`
-            : data?.name}
+          {data?.preffix ? data?.preffix + " " : ""}
+          {data?.user ? `${data?.firstName} ${data?.lastName}` : data?.username}
         </AppText>
         <AppText
           fontWeight="medium"
@@ -120,11 +121,11 @@ const FriendCard = ({
           ellipsizeMode="tail"
           style={styles.school}
         >
-          {data?.school ?? data?.user?.username}
+          {data?.school?.verified ? data?.school?.name : "Not Affiliated"}
         </AppText>
       </View>
 
-      {!hideBtn && !isMine && (
+      {!hideBtn && !isMine && !shouldHideBtn && (
         <View style={styles.btnStyle}>
           <AppButton
             title={btnTxt}
@@ -133,7 +134,7 @@ const FriendCard = ({
             onPress={() => onPress && onPress(data, btnTxt)}
             // contStyle={styles.btnStyle}
           />
-          {isStudent && data?.status == "pending" && (
+          {isStudent && data?.status === "pending" && (
             <AppButton
               title={"X"}
               type={"warn"}

@@ -11,24 +11,25 @@ import AppText from "../components/AppText";
 import { useEffect, useState } from "react";
 import {
   dummyLeaderboards,
-  enterAnim,
   enterAnimOther,
   exitingAnim,
 } from "../helpers/dataStore";
 import Animated, {
-  FadeInDown,
+  BounceIn,
+  CurvedTransition,
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
+  ZoomOut,
 } from "react-native-reanimated";
 import SearchBar from "./SearchBar";
 import FriendCard, { ProfileCard } from "./FriendCard";
 import AnimatedPressable from "./AnimatedPressable";
 import colors from "../helpers/colors";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const ICON_SIZE = width * 0.35;
 
@@ -56,14 +57,15 @@ const ModeSelection = ({ setState }) => {
   const acceptedInvites = friends.filter(
     (item) => item.selected && item.status === "accepted"
   );
-  const pendingInvite = friends.find((item) => item?.status == "pending");
+  const pendingInvite = friends.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
   const sortedInvites = sortInvites(selectedFriends);
   let simulationInterval;
-  const onInviteFriend = (friendId) => {
+
+  const onInviteFriend = (friend) => {
     setFriends((prevFriends) =>
       prevFriends.map((item) => {
-        if (item._id == friendId) {
+        if (item._id == friend?._id) {
           if (item.status === "pending") {
             return {
               ...item,
@@ -112,9 +114,9 @@ const ModeSelection = ({ setState }) => {
             return {
               ...item,
               status:
-                randInt == 0
+                randInt === 0
                   ? "pending"
-                  : randInt == 1
+                  : randInt === 1
                   ? "accepted"
                   : "rejected",
             };
@@ -176,13 +178,19 @@ const ModeSelection = ({ setState }) => {
               keyExtractor={(item) => item._id}
               contentContainerStyle={{ padding: 15 }}
               renderItem={({ item }) => (
-                <ProfileCard data={item} onPress={onInviteFriend} />
+                <Animated.View
+                  layout={CurvedTransition}
+                  entering={BounceIn}
+                  exiting={ZoomOut}
+                >
+                  <ProfileCard data={item} onPress={onInviteFriend} />
+                </Animated.View>
               )}
             />
             {isWaiting && (
               <Animated.View onLayout={startAnimation} style={waitingStyle}>
                 <AppText style={styles.waitTxt}>
-                  Waiting for player response...
+                  Waiting for student response...
                 </AppText>
               </Animated.View>
             )}

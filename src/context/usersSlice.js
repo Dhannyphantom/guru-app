@@ -103,6 +103,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_PROS"],
     }),
+    searchStudents: builder.query({
+      query: (q) => ({
+        url: `/users/search_students?q=${q}`,
+        timeout: 15000,
+      }),
+      // providesTags: ["FETCH_PROS"],
+    }),
     fetchProLeaderboard: builder.query({
       query: () => ({
         url: "/users/pro_leaderboard",
@@ -217,6 +224,7 @@ export const {
   useFetchAppInfoQuery,
   useLazyFetchAppInfoQuery,
   useUpdateUserProfileMutation,
+  useLazySearchStudentsQuery,
   useFetchUserInfoQuery,
   useLazyFetchUserInfoQuery,
   useFetchUserQuery,

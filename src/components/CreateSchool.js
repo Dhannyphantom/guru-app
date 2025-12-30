@@ -113,7 +113,6 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
 
   const onModalClose = (refresh) => {
     setBools({ ...bools, subModal: false });
-    // navigation.replace("Learn", { refresh });
   };
 
   const handleSchoolSub = (item) => {

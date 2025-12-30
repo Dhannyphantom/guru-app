@@ -15,6 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import colors from "@/src/helpers/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_HEIGHT = 65;
@@ -48,9 +49,10 @@ export default function TabLayout() {
 function CurvedTabBar({ state, descriptors, navigation }: any) {
   const tabWidth = width / 5;
   const centerIndex = 2;
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.tabBarContainer}>
+    <View style={[styles.tabBarContainer, { bottom: insets.bottom }]}>
       {/* SVG Curved Shape */}
       <Svg
         width={width}

@@ -100,9 +100,13 @@ const RenderQuiz = ({ setVisible, data }) => {
     })
     .every((item) => item === true);
 
+  const hasAcceptedInvites = quizInfo.invites?.some(
+    (inv) => inv?.status === "accepted" && inv?.selected
+  );
+
   const shouldShowNextBtn =
     (isCategory && Boolean(quizInfo.category)) ||
-    (isSelection && Boolean(quizInfo.invites[0])) ||
+    (isSelection && Boolean(quizInfo.invites[0]) && hasAcceptedInvites) ||
     (isSubjects && Boolean(quizInfo.subjects[0]));
 
   const handlePrompt = (type) => {

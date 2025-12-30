@@ -273,8 +273,8 @@ const RegisterScreen = () => {
         <SelectAccountType />
       ) : (
         <KeyboardAvoidingView
-          behavior="height"
-          keyboardVerticalOffset={30}
+          behavior="padding"
+          // keyboardVerticalOffset={30}
           style={styles.avoidingView}
         >
           <ScrollView

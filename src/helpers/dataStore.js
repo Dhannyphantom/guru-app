@@ -35,9 +35,9 @@ const { height } = Dimensions.get("screen");
 export const A_DAY = 60 * 60 * 24 * 1000; // 1 day in milli
 
 export const appData = {
-  SUB_PER_MONTH: 2000,
+  SUB_PER_MONTH: 1000,
   SCHOOL_SUB_PER_TERM: 10000,
-  GT_VALUE: 100,
+  GT_VALUE: 10,
 };
 
 export const ngLocale = nigeriaLocale;

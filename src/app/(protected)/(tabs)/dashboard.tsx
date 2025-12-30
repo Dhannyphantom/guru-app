@@ -4,7 +4,6 @@ import { hasCompletedProfile } from "@/src/helpers/helperFunctions";
 import { useSelector } from "react-redux";
 import { selectUser } from "@/src/context/usersSlice";
 import { selectSchool, selectSchoolVerified } from "@/src/context/schoolSlice";
-import RenderQuiz from "@/src/components/RenderQuiz";
 
 export default function DashboardPage() {
   const user = useSelector(selectUser);
@@ -12,18 +11,21 @@ export default function DashboardPage() {
   const isSchoolVerified = useSelector(selectSchoolVerified);
 
   const profileCompleted = hasCompletedProfile(user);
+  const schoolSub = school?.subscription?.isActive;
   const isPro = ["manager", "professional"].includes(user?.accountType);
-  const hasJoined = Boolean(
-    school && isSchoolVerified && school?.subscription?.isActive
-  );
+  const hasJoined = Boolean(school && isSchoolVerified && schoolSub);
 
   if (!profileCompleted.bool) {
     // setPopper(profileCompleted.pop);
     return <Redirect href={"/profile"} />;
   } else {
     if (user?.accountType === "student") {
-      // setStartQuiz(true);
-      return <Redirect href={"/main/session"} />;
+      // Check if school has active sub
+      if (Boolean(school) && schoolSub && isSchoolVerified) {
+        return <Redirect href={"/main/session"} />;
+      } else {
+        return <Redirect href={"/school"} />;
+      }
     } else if (user?.accountType === "teacher" && !hasJoined) {
       return <Redirect href={"/school"} />;
     } else if (
