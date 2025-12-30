@@ -89,6 +89,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: data,
       }),
     }),
+    studentAction: builder.mutation({
+      query: (data) => ({
+        url: "/users/students",
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["SEARCH_STUDENTS"],
+    }),
     updateUserProfile: builder.mutation({
       query: (user) => ({
         url: "/users/updateProfile",
@@ -108,7 +116,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: `/users/search_students?q=${q}`,
         timeout: 15000,
       }),
-      // providesTags: ["FETCH_PROS"],
+      providesTags: ["SEARCH_STUDENTS"],
     }),
     fetchProLeaderboard: builder.query({
       query: () => ({
@@ -224,6 +232,7 @@ export const {
   useFetchAppInfoQuery,
   useLazyFetchAppInfoQuery,
   useUpdateUserProfileMutation,
+  useStudentActionMutation,
   useLazySearchStudentsQuery,
   useFetchUserInfoQuery,
   useLazyFetchUserInfoQuery,

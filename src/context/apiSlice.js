@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-export const baseUrl = "http://192.168.43.9:3800";
+export const baseUrl = "http://192.168.197.9:3800";
 // export const baseUrl = "http://10.255.11.44:3800";
 // export const baseUrl = "https://guru-server-0muf.onrender.com";
 // export const baseUrl = "http://10.255.174.69:3800";
@@ -19,6 +19,12 @@ export const apiSlice = createApi({
     },
     timeout: 15000,
   }),
-  tagTypes: ["FETCH_QUIZ", "FETCH_INSTANCE", "FETCH_PROS", "PRO_LEADERBORAD"],
+  tagTypes: [
+    "FETCH_QUIZ",
+    "FETCH_INSTANCE",
+    "FETCH_PROS",
+    "SEARCH_STUDENTS",
+    "PRO_LEADERBORAD",
+  ],
   endpoints: (builder) => ({}),
 });

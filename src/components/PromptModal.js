@@ -9,7 +9,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 const { width, height } = Dimensions.get("screen");
 
 const PromptModal = ({ prompt, setPrompt, onPress }) => {
-  // prompt = {vis, data: title, msg, btn, type}
+  // prompt = {vis, data: title, msg, btn,cb, type}
   const { vis, data } = prompt;
   if (!vis) return null;
 
@@ -19,6 +19,7 @@ const PromptModal = ({ prompt, setPrompt, onPress }) => {
 
   const handlePress = () => {
     onPress && onPress(data.type);
+    prompt?.cb(data?.type);
     handleCloseModal();
   };
 

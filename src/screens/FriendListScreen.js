@@ -14,7 +14,11 @@ import colors from "../helpers/colors";
 import { Ionicons } from "@expo/vector-icons";
 import SearchModal from "../components/SearchModal";
 import { useState } from "react";
-import { useLazySearchStudentsQuery } from "../context/usersSlice";
+import {
+  useLazySearchStudentsQuery,
+  useStudentActionMutation,
+} from "../context/usersSlice";
+import PromptModal from "../components/PromptModal";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -47,16 +51,47 @@ const FollowStat = ({ head, sub }) => {
 
 const FriendListScreen = () => {
   const [searcher, setSearcher] = useState({ vis: false });
+  const [prompt, setPrompt] = useState({ vis: false });
 
   const [searchStudents, { isLoading, data: res }] =
     useLazySearchStudentsQuery();
+
+  const [studentActions] = useStudentActionMutation();
 
   const onSearch = async (q) => {
     if (q?.length < 3) return;
     try {
       await searchStudents(q).unwrap();
-    } catch (errr) {
-      console.log(errr);
+    } catch (_errr) {}
+  };
+
+  const handleStudentAction = async (student, type) => {
+    if (["Follow"].includes(type)) {
+      try {
+        await studentActions({
+          type: "follow",
+          user: student?._id,
+        }).unwrap();
+      } catch (_errr) {}
+    } else if (["Following"].includes(type)) {
+      setPrompt({
+        vis: true,
+        data: {
+          title: "Unfollow Student",
+          msg: `Are you sure you want to unfollow ${student?.username}?`,
+          btn: "Unfollow",
+          type: "unfollow",
+        },
+        cb: async () => {
+          try {
+            await studentActions({
+              type: "unfollow",
+              user: student?._id,
+            }).unwrap();
+          } catch (_errr) {}
+        },
+      });
+      return;
     }
   };
 
@@ -91,9 +126,12 @@ const FriendListScreen = () => {
         setState={(obj) => setSearcher({ ...searcher, ...obj })}
         onSearch={onSearch}
         data={res?.data ?? []}
-        ItemComponent={({ item }) => <FriendCard data={item} />}
+        ItemComponent={({ item }) => (
+          <FriendCard data={item} onPress={handleStudentAction} />
+        )}
         placeholder="Search fellow classmates..."
       />
+      <PromptModal prompt={prompt} setPrompt={setPrompt} />
     </View>
   );
 };

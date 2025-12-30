@@ -34,6 +34,7 @@ export default function SearchModal({
           <FlatList
             data={data}
             keyExtractor={(item) => item?._id ?? item?.id ?? nanoid()}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => <ItemComponent item={item} />}
           />
         </View>

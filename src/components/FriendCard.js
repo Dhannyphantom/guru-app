@@ -73,6 +73,10 @@ const FriendCard = ({
       btnTxt = isFollow ? "Mutual" : "Accepted";
       btnType = isStudent ? "white" : "accent";
       break;
+    case "following":
+      btnTxt = "Following";
+      btnType = "white";
+      break;
 
     case "invite":
       btnTxt = "Follow";
