@@ -72,11 +72,13 @@ const FinishedQuiz = ({ hideModal, data, retry, session }) => {
       }
     } else {
       // upload premium
+      const sendData = {
+        ...data,
+        ...session,
+      };
+      console.log({ sendData });
       try {
-        await submitPremiumQuiz({
-          ...data,
-          ...session,
-        }).unwrap();
+        await submitPremiumQuiz(sendData).unwrap();
       } catch (error) {
         console.log("Premium error", error);
       }

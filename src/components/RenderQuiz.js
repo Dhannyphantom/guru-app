@@ -1,16 +1,10 @@
-import {
-  Dimensions,
-  FlatList,
-  Animated as RNAnimated,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Dimensions, FlatList, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
 
 import AppText from "../components/AppText";
 import PromptModal from "./PromptModal";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import FinishedQuiz from "./FinishedQuiz";
 import AppButton from "./AppButton";
 import QuestionDisplay from "./QuestionDisplay";
@@ -19,34 +13,28 @@ import LottieAnimator from "./LottieAnimator";
 import ProgressBar from "./ProgressBar";
 import RenderStudySubjectTopic from "./RenderStudySubjectTopic";
 import RenderCategories from "./RenderCategories";
-import {
-  dummyQuestionsView,
-  enterAnimOther,
-  exitingAnim,
-} from "../helpers/dataStore";
+import { enterAnimOther, exitingAnim } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import Screen from "./Screen";
 import Animated, {
   runOnJS,
   useAnimatedProps,
-  useAnimatedRef,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
 import ModeSelection from "./ModeSelection";
 import { useGetQuizQuestionsMutation } from "../context/schoolSlice";
+import progressAnim from "../../assets/animations/progress.json";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useFetchCategoriesQuery,
   useFetchPremiumQuizMutation,
   useFetchSubjectCategoriesQuery,
-  useFetchSubjectsTopicsMutation,
 } from "../context/instanceSlice";
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
-import progressAnim from "../../assets/animations/progress.json";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const QUIT_PROMPT = {
   title: "Exit Quiz",
@@ -77,10 +65,8 @@ const RenderQuiz = ({ setVisible, data }) => {
   const { data: subjects, isLoading: subjLoad } =
     useFetchSubjectCategoriesQuery(quizInfo?.category?._id);
 
-  const [getQuizQuestions, { isLoading, data: quizzes }] =
-    useGetQuizQuestionsMutation();
-  const [fetchPremiumQuiz, { isLoading: quizLoading, data: quizData }] =
-    useFetchPremiumQuizMutation();
+  const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation();
+  const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
 
   // const lottieRef = useRef();
   // const animProgress = useRef(new RNAnimated.Value(0)).current;
@@ -105,7 +91,7 @@ const RenderQuiz = ({ setVisible, data }) => {
       if (
         obj?.topics
           ?.filter((topic) => topic.visible)
-          ?.every((topic) => topic.hasStudied == true)
+          ?.every((topic) => topic.hasStudied === true)
       ) {
         return true;
       } else {
@@ -178,7 +164,7 @@ const RenderQuiz = ({ setVisible, data }) => {
           type: data?.type,
           schoolId: data?.schoolId,
         }).unwrap();
-      } catch (error) {}
+      } catch (_err) {}
     } else {
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
@@ -212,7 +198,7 @@ const RenderQuiz = ({ setVisible, data }) => {
             runOnJS(setQuizInfo)({ ...quizInfo, view: "start" });
           }
         });
-      } catch (error) {}
+      } catch (_error) {}
     }
   };
 
@@ -256,17 +242,11 @@ const RenderQuiz = ({ setVisible, data }) => {
             </AppText>
 
             <AnimatedLottie
-              // ref={lottieRef}
               animatedProps={animatedProps}
               source={progressAnim}
-              // progress={animProgress}
               progress={animProgress}
               autoPlay={false}
               loop={false}
-              // onAnimationFinish={() => {
-              //   setQuizInfo({ ...quizInfo, view: "" });
-              //   setQuizInfo({ ...quizInfo, view: "quiz" });
-              // }}
               style={{ width: width * 0.99, height: 100 }}
             />
             <AppButton

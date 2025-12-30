@@ -321,7 +321,7 @@ export const QuizQuestion = ({
   // Handle answer updates
   const handleUpdateAnswer = useCallback(
     (updatedAnswer) => {
-      const newAnswers = answers.map((answer) => {
+      const newAnswers = answers?.map((answer) => {
         if (answer._id === updatedAnswer._id) {
           return updatedAnswer;
         }
@@ -395,7 +395,7 @@ export const QuizQuestion = ({
 
       {/* Answer Options */}
       <View style={styles.container}>
-        {answers.map((answer, idx) => (
+        {answers?.map((answer, idx) => (
           <Options
             key={answer._id}
             idx={idx}

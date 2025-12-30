@@ -20,19 +20,24 @@ import LottieAnimator from "./LottieAnimator";
 import { useFetchSubjectsTopicsMutation } from "../context/instanceSlice";
 import { capFirstLetter } from "../helpers/helperFunctions";
 import AnimatedPressable from "./AnimatedPressable";
+import ListEmpty from "./ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
 const TopicList = ({ data, onPress, closeModal }) => {
+  const hasTopic = Boolean(data?.topics[0]);
   return (
     <View style={styles.topicModal}>
       <AppText fontWeight="heavy" size={"large"}>
-        {data?.name} Topics
+        {capFirstLetter(data?.name)} Topics
       </AppText>
       <View>
         <FlatList
           data={data?.topics}
           keyExtractor={(item) => item._id}
+          ListEmptyComponent={
+            <ListEmpty style={{ width: null }} vis message="No Topics Found!" />
+          }
           renderItem={({ item }) => {
             return (
               <Pressable
@@ -61,6 +66,7 @@ const TopicList = ({ data, onPress, closeModal }) => {
                       barHeight={11}
                       // value={item?.answeredNum}
                       // max={item?.questionsNum}
+                      tint={item?.visible ? colors.primary : colors.medium}
                       hideProgressText
                       // style={{ marginTop: 10 }}
                     />
@@ -72,8 +78,9 @@ const TopicList = ({ data, onPress, closeModal }) => {
         />
       </View>
       <AppButton
-        title={"Update Quiz Topic"}
+        title={hasTopic ? "Update Quiz Topic" : "Close"}
         contStyle={{ marginTop: 30 }}
+        type={hasTopic ? "primary" : "warn"}
         onPress={closeModal}
       />
     </View>
@@ -113,31 +120,39 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
         return obj;
       }
     });
-    setQuizInfo({ subjects: newSubjectArr });
+    setQuizInfo({ ...quizInfo, subjects: newSubjectArr });
   };
 
   const updateTopics = (item, subject) => {
     const copier = [...subjects];
+
     const subjectIdx = copier.findIndex((subj) => subj.name === subject);
+
     if (subjectIdx >= 0) {
-      const itemIdx = copier[subjectIdx]?.topics?.findIndex(
-        (topic) => topic._id == item._id
+      copier[subjectIdx].topics = copier[subjectIdx]?.topics?.map(
+        (currTopic) => {
+          if (currTopic?._id === item?._id) {
+            return {
+              ...currTopic,
+              visible: true,
+            };
+          } else {
+            return {
+              ...currTopic,
+              visible: false,
+            };
+          }
+        }
       );
 
-      if (itemIdx >= 0) {
-        const itemData = copier[subjectIdx].topics[itemIdx];
+      setBools({ ...bools, data: copier[subjectIdx] });
 
-        copier[subjectIdx].topics[itemIdx] = {
-          ...itemData,
-          visible: !itemData.visible,
-        };
-      }
-      const checkIdx = copier[subjectIdx]?.topics?.findIndex(
-        (topic) => topic?.visible
-      );
-      if (checkIdx < 0) {
-        return;
-      }
+      // const checkIdx = copier[subjectIdx]?.topics?.findIndex(
+      //   (topic) => topic?.visible
+      // );
+      // if (checkIdx < 0) {
+      //   return;
+      // }
     }
 
     // setQuiz
@@ -180,7 +195,7 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
                 style={{ marginLeft: 6, color: colors.medium }}
                 fontWeight="bold"
               >
-                Change topics
+                Change topic
               </AppText>
             </TouchableOpacity>
           </View>
@@ -242,7 +257,7 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
       const res = await fetchTopics({ subjects: subjectList }).unwrap();
       const newSubjects = subjects?.map((subject) => {
         const subjectData = res?.data?.find(
-          (resSubject) => resSubject?._id == subject?._id
+          (resSubject) => resSubject?._id === subject?._id
         );
         if (subjectData) {
           return {
@@ -251,10 +266,8 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
           };
         }
       });
-      setQuizInfo({ subjects: newSubjects });
-    } catch (error) {
-      console.log(error);
-    }
+      setQuizInfo({ ...quizInfo, subjects: newSubjects });
+    } catch (_error) {}
   };
 
   useEffect(() => {
@@ -268,7 +281,7 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
       style={styles.topic}
     >
       <AppText style={styles.title} fontWeight="medium" size={"small"}>
-        Pick topics you&apos;ve revised or take a minute to revise selected
+        Pick topics you&apos;ve revised or take few minutes to revise selected
         topics, confirm each topic and start your quiz session
       </AppText>
       <View>

@@ -48,6 +48,7 @@ export const ProgressBar = ({
   max = 40,
   hideProgressText = false,
   barHeight = 25,
+  tint = colors.primary,
   style,
 }) => {
   let barWidth = "99%";
@@ -62,7 +63,12 @@ export const ProgressBar = ({
         style={styles.progress}
       /> */}
       <View style={[styles.progressBarContainer, { height: barHeight }]}>
-        <View style={[styles.progressBar, { width: barWidth }]} />
+        <View
+          style={[
+            styles.progressBar,
+            { backgroundColor: tint, width: barWidth },
+          ]}
+        />
       </View>
       {!hideProgressText && (
         <View style={styles.progressMain}>
@@ -429,7 +435,6 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: "100%",
-    backgroundColor: colors.primary,
     borderRadius: 100,
     elevation: 2,
   },
