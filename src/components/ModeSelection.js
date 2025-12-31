@@ -9,11 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
 import { useEffect, useState } from "react";
-import {
-  dummyLeaderboards,
-  enterAnimOther,
-  exitingAnim,
-} from "../helpers/dataStore";
+import { enterAnimOther, exitingAnim } from "../helpers/dataStore";
 import Animated, {
   BounceIn,
   CurvedTransition,
@@ -28,15 +24,22 @@ import SearchBar from "./SearchBar";
 import FriendCard, { ProfileCard } from "./FriendCard";
 import AnimatedPressable from "./AnimatedPressable";
 import colors from "../helpers/colors";
+import { useFetchFriendsQuery } from "../context/usersSlice";
+import PopMessage from "./PopMessage";
+import { capCapitalize, getFullName } from "../helpers/helperFunctions";
 
 const { width } = Dimensions.get("screen");
 
 const ICON_SIZE = width * 0.35;
 
-const EmptyFriends = () => {
+const EmptyFriends = ({ friendsLength }) => {
   return (
     <View style={styles.modeEmpty}>
-      <AppText>You haven&apos;t sent any invite yet</AppText>
+      {friendsLength > 0 ? (
+        <AppText>You haven&apos;t sent any invite yet</AppText>
+      ) : (
+        <AppText>You don&apos;t have any mutual friends yet</AppText>
+      )}
     </View>
   );
 };
@@ -49,41 +52,35 @@ const sortInvites = (arr) => {
 
 const ModeSelection = ({ setState }) => {
   const [showFriendList, setShowFriendList] = useState(false);
-  const [friends, setFriends] = useState(dummyLeaderboards);
+  const { data: res, isLoading: friending } = useFetchFriendsQuery();
+  const [popper, setPopper] = useState({ vis: false });
+  const [invites, setInvites] = useState([]);
+
+  const friends = res?.data?.mutuals || [];
 
   const waitingAnim = useSharedValue(1);
 
-  const selectedFriends = friends.filter((item) => item.selected);
   const acceptedInvites = friends.filter(
     (item) => item.selected && item.status === "accepted"
   );
   const pendingInvite = friends.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
-  const sortedInvites = sortInvites(selectedFriends);
+  const sortedInvites = sortInvites(invites);
   let simulationInterval;
 
   const onInviteFriend = (friend) => {
-    setFriends((prevFriends) =>
-      prevFriends.map((item) => {
-        if (item._id == friend?._id) {
-          if (item.status === "pending") {
-            return {
-              ...item,
-              status: "active",
-              selected: false,
-            };
-          } else {
-            return {
-              ...item,
-              status: "pending",
-              selected: true,
-            };
-          }
-        } else {
-          return item;
-        }
-      })
-    );
+    const copier = [...invites];
+    const checker = copier.some((item) => item?._id === friend._id);
+    if (!checker) {
+      copier.push({ ...friend, status: "pending" });
+      setInvites(copier);
+    }
+    setPopper({
+      vis: true,
+      msg: `Invite sent to ${capCapitalize(getFullName(friend, true))}`,
+      timer: 600,
+      type: "success",
+    });
   };
 
   const waitingStyle = useAnimatedStyle(() => {
@@ -107,27 +104,28 @@ const ModeSelection = ({ setState }) => {
   // TODO: DELETE THIS FUNCTION BEFORE PROD BUILD
   const simulateInvitesReaction = () => {
     simulationInterval = setInterval(() => {
-      setFriends((prevFriends) =>
-        prevFriends.map((item) => {
-          const randInt = Math.floor(Math.random() * 3);
-          if (item.selected && item?.status != "rejected") {
-            return {
-              ...item,
-              status:
-                randInt === 0
-                  ? "pending"
-                  : randInt === 1
-                  ? "accepted"
-                  : "rejected",
-            };
-          } else {
-            return item;
-          }
-        })
-      );
+      console.log("Interval Fired!!");
+      // setFriends((prevFriends) =>
+      //   prevFriends.map((item) => {
+      //     const randInt = Math.floor(Math.random() * 3);
+      //     if (item.selected && item?.status != "rejected") {
+      //       return {
+      //         ...item,
+      //         status:
+      //           randInt === 0
+      //             ? "pending"
+      //             : randInt === 1
+      //             ? "accepted"
+      //             : "rejected",
+      //       };
+      //     } else {
+      //       return item;
+      //     }
+      //   })
+      // );
     }, 15000);
 
-    if (selectedFriends?.length <= 0 || !Boolean(pendingInvite)) {
+    if (invites?.length <= 0 || !Boolean(pendingInvite)) {
       clearInterval(simulationInterval);
     }
   };
@@ -174,7 +172,9 @@ const ModeSelection = ({ setState }) => {
             <FlatList
               data={sortedInvites}
               horizontal
-              ListEmptyComponent={EmptyFriends}
+              ListEmptyComponent={() => (
+                <EmptyFriends friendsLength={friends?.length} />
+              )}
               keyExtractor={(item) => item._id}
               contentContainerStyle={{ padding: 15 }}
               renderItem={({ item }) => (
@@ -204,11 +204,13 @@ const ModeSelection = ({ setState }) => {
                 <FriendCard
                   data={item}
                   type="invite"
+                  btnStyle={{ text: "Invite" }}
                   onPress={onInviteFriend}
                 />
               )}
             />
           </View>
+          <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : (
         <Animated.View

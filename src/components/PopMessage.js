@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
+  interpolate,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome, Feather, Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,7 @@ const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);
 const { width, height } = Dimensions.get("screen");
 const POP_HEIGHT = height * 0.18;
 
-const PopMessage = ({ popData = { vis: true }, setPopData }) => {
+const PopMessage = ({ popData = { vis: false }, setPopData }) => {
   const { vis, msg, type, timer, point, cb } = popData;
 
   const translateY = useSharedValue(-POP_HEIGHT);
@@ -75,6 +76,7 @@ const PopMessage = ({ popData = { vis: true }, setPopData }) => {
   // ------------------------------------------
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
+    opacity: interpolate(translateY.value, [-POP_HEIGHT, 0], [0, 1]),
   }));
 
   // ------------------------------------------

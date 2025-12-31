@@ -4,6 +4,7 @@ import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import Avatar from "./Avatar";
 import AppButton from "./AppButton";
+import { getFullName } from "../helpers/helperFunctions";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -30,7 +31,12 @@ export const ProfileCard = ({ data }) => {
   }
   return (
     <View style={styles.profile}>
-      <Avatar name={data?.name} textFontsize="small" size={width * 0.15} />
+      <Avatar
+        name={getFullName(data, true)}
+        textFontsize="small"
+        source={data?.avatar?.image}
+        size={width * 0.15}
+      />
       <View
         style={[
           styles.profileStatus,
@@ -48,6 +54,7 @@ export const ProfileCard = ({ data }) => {
 const FriendCard = ({
   data,
   type = "follow",
+  btnStyle,
   userID,
   hideBtn = false,
   onPress,
@@ -143,8 +150,8 @@ const FriendCard = ({
       {!hideBtn && !isMine && !shouldHideBtn && (
         <View style={styles.btnStyle}>
           <AppButton
-            title={btnTxt}
-            type={btnType}
+            title={btnStyle?.text ?? btnTxt}
+            type={btnStyle?.type ?? btnType}
             style={styles.btn}
             onPress={() => onPress && onPress(data, btnTxt)}
             // contStyle={styles.btnStyle}

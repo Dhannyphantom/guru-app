@@ -33,9 +33,11 @@ export const getName = (user) => {
   }`;
 };
 
-export const getFullName = (user) => {
+export const getFullName = (user, usernameFallback) => {
   if (user?.firstName && user?.lastName) {
     return `${user?.firstName} ${user?.lastName}`;
+  } else if (usernameFallback) {
+    return user?.username;
   } else {
     return null;
   }
