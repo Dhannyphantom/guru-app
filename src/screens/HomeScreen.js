@@ -19,7 +19,11 @@ import FindFriendsBoard from "../components/FindFriendsBoard";
 import SubStatus from "../components/SubStatus";
 import PopFriends from "../components/PopFriends";
 import { useSelector } from "react-redux";
-import { selectUser, useFetchUserQuery } from "../context/usersSlice";
+import {
+  selectUser,
+  useFetchFriendsQuery,
+  useFetchUserQuery,
+} from "../context/usersSlice";
 // import { hasCompletedProfile } from "../helpers/helperFunctions";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
 import WebLayout from "../components/WebLayout";
@@ -64,6 +68,8 @@ const HomeScreen = () => {
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
   const { refetch, isError, error } = useFetchUserQuery();
+  const { data } = useFetchFriendsQuery();
+  console.log(data?.data);
 
   const user = useSelector(selectUser);
   const router = useRouter();

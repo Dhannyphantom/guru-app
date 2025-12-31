@@ -114,9 +114,20 @@ const FriendCard = ({
     <View style={styles.container}>
       <Avatar source={data?.avatar?.image} size={width * 0.13} />
       <View style={styles.textView}>
+        {Boolean(data?.firstName && data?.lastName) && (
+          <AppText
+            fontWeight="medium"
+            size="xsmall"
+            style={[styles.nameTxt, { color: colors.medium }]}
+          >
+            @{data?.username}
+          </AppText>
+        )}
         <AppText fontWeight="bold" style={styles.nameTxt}>
           {data?.preffix ? data?.preffix + " " : ""}
-          {data?.user ? `${data?.firstName} ${data?.lastName}` : data?.username}
+          {Boolean(data?.firstName && data?.lastName)
+            ? `${data?.firstName} ${data?.lastName}`
+            : data?.username}
         </AppText>
         <AppText
           fontWeight="medium"

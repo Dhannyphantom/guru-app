@@ -19,7 +19,7 @@ const PromptModal = ({ prompt, setPrompt, onPress }) => {
 
   const handlePress = () => {
     onPress && onPress(data.type);
-    prompt?.cb(data?.type);
+    Boolean(prompt?.cb) && prompt?.cb(data?.type);
     handleCloseModal();
   };
 

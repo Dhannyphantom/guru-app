@@ -70,7 +70,7 @@ const SearchBar = ({
       )}
       {onClose && text.length < 1 && !loading && (
         <Pressable onPress={onCloseSearch} style={styles.search}>
-          <Ionicons name="close-circle" size={20} color={colors.medium} />
+          <Ionicons name="close-circle" size={24} color={colors.medium} />
         </Pressable>
       )}
       <LottieAnimator visible={loading} size={60} />
