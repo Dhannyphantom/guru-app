@@ -1,23 +1,25 @@
 import { Dimensions, FlatList, StyleSheet, Share, View } from "react-native";
-import { Ionicons, Feather, AntDesign } from "@expo/vector-icons";
+import { Ionicons, AntDesign } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
-import Screen from "../components/Screen";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Points from "../components/Points";
 import { formatPoints } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
+import { selectUser, useFetchRewardsQuery } from "../context/usersSlice";
 import AppButton from "../components/AppButton";
-import { rewards } from "../helpers/dataStore";
+// import { rewards } from "../helpers/dataStore";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { StatusBar } from "expo-status-bar";
 import { NavBack } from "../components/AppIcons";
 import { baseUrl } from "../context/apiSlice";
 import { useState } from "react";
 import PopMessage from "../components/PopMessage";
+import LottieAnimator from "../components/LottieAnimator";
+import ListEmpty from "../components/ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -57,7 +59,12 @@ const InviteScreen = () => {
   const user = useSelector(selectUser);
   const [popper, setPopper] = useState({ vis: false });
 
-  const referalCode = `${user?.username}034`;
+  const { data: refer, isLoading } = useFetchRewardsQuery();
+
+  const newRewards =
+    refer?.data?.history?.filter((hist) => hist.status === "pending") || [];
+  const history =
+    refer?.data?.history?.filter((hist) => hist.status === "rewarded") || [];
 
   const startSharing = async () => {
     // await Clipboard.setStringAsync(appInfo?.PRO_TOKEN);
@@ -72,13 +79,10 @@ const InviteScreen = () => {
       Let the games begin! 🚀✨`,
       title: "Invite your Friends",
     });
-    // await Sharing.shareAsync(referalCode, {
-    //   dialogTitle: "Invite your friends",
-    // });
   };
 
   const onCopy = async () => {
-    await Clipboard.setStringAsync(referalCode);
+    await Clipboard.setStringAsync(refer?.data?.code);
     setPopper({
       vis: true,
       msg: "Referral code copied to clipboard successfully",
@@ -90,13 +94,19 @@ const InviteScreen = () => {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: topper + 20 }]}>
-        <AppText style={styles.headerTitle} fontWeight="heavy" size={"xlarge"}>
-          Invite Friends
-        </AppText>
-
-        <AppText style={styles.headerMsg} fontWeight="bold" size={"xxlarge"}>
-          Earn and redeem rewards
-        </AppText>
+        <NavBack style={{ padding: 15 }} />
+        <View>
+          <AppText
+            style={styles.headerTitle}
+            fontWeight="heavy"
+            size={"xlarge"}
+          >
+            Invite Friends
+          </AppText>
+          <AppText style={styles.headerMsg} fontWeight="bold" size={"xxlarge"}>
+            Earn and redeem rewards
+          </AppText>
+        </View>
       </View>
       <View style={styles.main}>
         <View style={[styles.content, { paddingBottom: 0 }]}>
@@ -104,7 +114,7 @@ const InviteScreen = () => {
             <Points type="logo" size={50} />
             <View style={styles.rowContent}>
               <AppText fontWeight="black" size={"xxxlarge"}>
-                {formatPoints(1203)}
+                {formatPoints(refer?.data?.point || 0)}
               </AppText>
               <AppText style={styles.rowContMsg} fontWeight="medium">
                 Total Guru Tokens earned
@@ -117,7 +127,7 @@ const InviteScreen = () => {
               }}
               onPress={startSharing}
             >
-              <AntDesign name="sharealt" size={35} color={colors.primary} />
+              <AntDesign name="share-alt" size={35} color={colors.primary} />
             </AnimatedPressable>
           </View>
           <View style={[styles.separator, { marginVertical: 10 }]} />
@@ -130,7 +140,7 @@ const InviteScreen = () => {
           <View style={styles.referal}>
             <View style={styles.codeView}>
               <AppText style={styles.codeTxt} fontWeight="light">
-                {referalCode}
+                {refer?.data?.code}
               </AppText>
               <AnimatedPressable onPress={onCopy} style={styles.row}>
                 <AppText>Copy</AppText>
@@ -148,6 +158,7 @@ const InviteScreen = () => {
               contStyle={styles.shareBtn}
             /> */}
           </View>
+          <LottieAnimator visible={isLoading} absolute wTransparent />
         </View>
         <View style={styles.list}>
           <FlatList
@@ -162,16 +173,22 @@ const InviteScreen = () => {
                     size={"xlarge"}
                     fontWeight="bold"
                   >
-                    Rewards
+                    Claim Rewards
                   </AppText>
 
                   <View>
                     <FlatList
-                      data={rewards}
+                      data={newRewards}
                       keyExtractor={(item) => item._id}
                       ItemSeparatorComponent={() => (
                         <View style={styles.separator} />
                       )}
+                      ListEmptyComponent={
+                        <ListEmpty
+                          vis={!isLoading}
+                          message="No unclaimed rewards"
+                        />
+                      }
                       renderItem={({ item, index }) => (
                         <RewardItem item={item} index={index} />
                       )}
@@ -184,12 +201,12 @@ const InviteScreen = () => {
                     size={"xlarge"}
                     fontWeight="bold"
                   >
-                    Rewards History
+                    History
                   </AppText>
 
                   {/* <View style={{ flex: 1 }}> */}
                   <FlatList
-                    data={rewards}
+                    data={history}
                     keyExtractor={(item) => item._id}
                     ItemSeparatorComponent={() => (
                       <View style={styles.separator} />
@@ -197,6 +214,12 @@ const InviteScreen = () => {
                     renderItem={({ item, index }) => (
                       <RewardItem item={item} index={index} hideBtn />
                     )}
+                    ListEmptyComponent={
+                      <ListEmpty
+                        vis={!isLoading}
+                        message="No rewards history data"
+                      />
+                    }
                   />
                   {/* </View> */}
                 </View>
@@ -255,8 +278,8 @@ const styles = StyleSheet.create({
     width,
     height: height * 0.22,
     backgroundColor: colors.primaryDeep,
-    padding: 20,
-    paddingLeft: 25,
+    flexDirection: "row",
+    alignItems: "baseline",
   },
   headerTitle: {
     color: colors.white,
@@ -266,12 +289,10 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-    // bottom: 60,
-    // bottom: (height * 0.22) / 2.5,
   },
   main: {
     flex: 1,
-    bottom: (height * 0.22) / 2.5,
+    bottom: (height * 0.22) / 3,
   },
   referal: {
     paddingHorizontal: 10,

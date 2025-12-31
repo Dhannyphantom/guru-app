@@ -67,9 +67,8 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
-  const { refetch, isError, error } = useFetchUserQuery();
-  const { data } = useFetchFriendsQuery();
-  console.log(data?.data);
+  const { refetch } = useFetchUserQuery();
+  useFetchFriendsQuery();
 
   const user = useSelector(selectUser);
   const router = useRouter();

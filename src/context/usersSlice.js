@@ -104,6 +104,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: user,
       }),
     }),
+    fetchRewards: builder.query({
+      query: () => ({
+        url: "/users/rewards",
+        timeout: 15000,
+      }),
+      providesTags: ["FETCH_REWARDS"],
+    }),
     fetchPros: builder.query({
       query: () => ({
         url: "/users/professionals",
@@ -244,6 +251,7 @@ export const {
   useFetchUserInfoQuery,
   useLazyFetchUserInfoQuery,
   useFetchUserQuery,
+  useFetchRewardsQuery,
   useLazyFetchUserQuery,
   useFetchProsQuery,
   useFetchFriendsQuery,

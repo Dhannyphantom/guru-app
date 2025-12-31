@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons, Fontisto, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
-import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import { useNavigation } from "@react-navigation/native";
 

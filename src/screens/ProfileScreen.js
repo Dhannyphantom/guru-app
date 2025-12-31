@@ -242,7 +242,7 @@ const ProfileScreen = () => {
           <View style={styles.separator} />
 
           <ProfileLink
-            title={"Invite a classmate"}
+            title={"Rewards & Invites"}
             icon="person-add"
             onPress={() => handleNav("/profile/invite")}
             iconColor={colors.medium}
