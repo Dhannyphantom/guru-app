@@ -77,9 +77,7 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
         try {
           await searchSchool(data).unwrap();
           !bools.searched && setBools({ ...bools, searched: true });
-        } catch (err) {
-          console.log({ err });
-        }
+        } catch (err) {}
 
         break;
     }

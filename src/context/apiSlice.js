@@ -20,6 +20,7 @@ export const apiSlice = createApi({
     timeout: 15000,
   }),
   tagTypes: [
+    "USER",
     "FETCH_QUIZ",
     "FETCH_INSTANCE",
     "FETCH_PROS",

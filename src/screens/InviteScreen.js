@@ -9,21 +9,25 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Points from "../components/Points";
 import { formatPoints } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
-import { selectUser, useFetchRewardsQuery } from "../context/usersSlice";
+import {
+  selectUser,
+  useFetchRewardsQuery,
+  useUpdateRewardMutation,
+} from "../context/usersSlice";
 import AppButton from "../components/AppButton";
 // import { rewards } from "../helpers/dataStore";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { StatusBar } from "expo-status-bar";
 import { NavBack } from "../components/AppIcons";
-import { baseUrl } from "../context/apiSlice";
-import { useState } from "react";
+// /
+import { useEffect, useState } from "react";
 import PopMessage from "../components/PopMessage";
 import LottieAnimator from "../components/LottieAnimator";
 import ListEmpty from "../components/ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
-const RewardItem = ({ item, hideBtn }) => {
+const RewardItem = ({ item, onPress, hideBtn }) => {
   return (
     <View style={styles.reward}>
       <View style={styles.rewardIcon}>
@@ -47,7 +51,11 @@ const RewardItem = ({ item, hideBtn }) => {
       </View>
       {!hideBtn && (
         <View style={styles.rewardBtnView}>
-          <AppButton title={"Claim"} style={styles.rewardBtn} />
+          <AppButton
+            title={"Claim"}
+            onPress={() => onPress?.(item)}
+            style={styles.rewardBtn}
+          />
         </View>
       )}
     </View>
@@ -60,6 +68,8 @@ const InviteScreen = () => {
   const [popper, setPopper] = useState({ vis: false });
 
   const { data: refer, isLoading } = useFetchRewardsQuery();
+  const [updateReward, { isLoading: claiming, isError, error }] =
+    useUpdateRewardMutation();
 
   const newRewards =
     refer?.data?.history?.filter((hist) => hist.status === "pending") || [];
@@ -74,7 +84,7 @@ const InviteScreen = () => {
       
       👉 Download now and let’s ace these quizzes and national exams!
       
-      🔗 ${baseUrl}/users/referral?id=${user?._id}
+      🔗 wwww.guru.ed.tech/api/referral?id=${user?._id}
       
       Let the games begin! 🚀✨`,
       title: "Invite your Friends",
@@ -90,6 +100,25 @@ const InviteScreen = () => {
       timer: 2500,
     });
   };
+
+  const onClaimReward = async (data) => {
+    try {
+      await updateReward({ rewardId: data?._id, point: data?.point }).unwrap();
+    } catch (errr) {
+      console.log(errr);
+    }
+  };
+
+  useEffect(() => {
+    if (isError) {
+      setPopper({
+        vis: true,
+        msg: "Could not update reward data",
+        type: "failed",
+        timer: 500,
+      });
+    }
+  }, [isError, error]);
 
   return (
     <View style={styles.container}>
@@ -190,7 +219,11 @@ const InviteScreen = () => {
                         />
                       }
                       renderItem={({ item, index }) => (
-                        <RewardItem item={item} index={index} />
+                        <RewardItem
+                          item={item}
+                          onPress={onClaimReward}
+                          index={index}
+                        />
                       )}
                     />
                   </View>
@@ -212,7 +245,12 @@ const InviteScreen = () => {
                       <View style={styles.separator} />
                     )}
                     renderItem={({ item, index }) => (
-                      <RewardItem item={item} index={index} hideBtn />
+                      <RewardItem
+                        item={item}
+                        onPress={onClaimReward}
+                        index={index}
+                        hideBtn
+                      />
                     )}
                     ListEmptyComponent={
                       <ListEmpty
@@ -319,7 +357,7 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   rewardBtn: {
-    paddingHorizontal: 11,
+    paddingHorizontal: 14,
     paddingVertical: 7,
   },
   rewardIcon: {

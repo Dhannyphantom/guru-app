@@ -51,9 +51,7 @@ const ClassModal = ({ closeModal, type = "display" }) => {
   const getClasses = async () => {
     try {
       await fetchClasses(school?._id).unwrap();
-    } catch (error) {
-      console.log({ error });
-    }
+    } catch (error) {}
   };
 
   useEffect(() => {

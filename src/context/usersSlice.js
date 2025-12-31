@@ -104,6 +104,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: user,
       }),
     }),
+    updateReward: builder.mutation({
+      query: (data) => ({
+        url: "/users/rewards",
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["FETCH_REWARDS", "USER"],
+    }),
     fetchRewards: builder.query({
       query: () => ({
         url: "/users/rewards",
@@ -154,6 +162,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           "x-auth-token": token,
         },
       }),
+      providesTags: ["USER"],
       transformResponse: async (res) => {
         await AsyncStorage.setItem("user", JSON.stringify(res.user));
         return res;
@@ -256,6 +265,7 @@ export const {
   useFetchProsQuery,
   useFetchFriendsQuery,
   useProVerifyMutation,
+  useUpdateRewardMutation,
   useSubscribeUserMutation,
   useFetchProLeaderboardQuery,
   useWithdrawFromWalletMutation,
