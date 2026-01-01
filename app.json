@@ -24,6 +24,7 @@
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS"
       ],
+      "googleServicesFile": "./google-services.json",
       "package": "com.phantom.guru"
     },
     "web": {
