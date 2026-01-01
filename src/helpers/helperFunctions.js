@@ -4,6 +4,12 @@ import AppText from "../components/AppText";
 import { baseUrl } from "../context/apiSlice";
 import { Platform } from "react-native";
 import { nanoid } from "@reduxjs/toolkit";
+import { io } from "socket.io-client";
+
+export const socket = io(baseUrl, {
+  transports: ["websocket"],
+  autoConnect: false,
+});
 
 export const DAY_MILLI = 1000 * 60 * 60 * 24;
 const { GT_VALUE } = appData;
@@ -42,6 +48,14 @@ export const getFullName = (user, usernameFallback) => {
     return null;
   }
 };
+
+export const getUserProfile = (user) => ({
+  _id: user?._id,
+  username: user?.username,
+  firstName: user?.firstName,
+  lastName: user?.lastName,
+  avatar: user?.avatar,
+});
 
 export const launchGallery = async (
   aspect = [4, 4],

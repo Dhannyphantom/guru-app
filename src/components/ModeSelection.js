@@ -24,9 +24,16 @@ import SearchBar from "./SearchBar";
 import FriendCard, { ProfileCard } from "./FriendCard";
 import AnimatedPressable from "./AnimatedPressable";
 import colors from "../helpers/colors";
-import { useFetchFriendsQuery } from "../context/usersSlice";
+import { selectUser, useFetchFriendsQuery } from "../context/usersSlice";
 import PopMessage from "./PopMessage";
-import { capCapitalize, getFullName } from "../helpers/helperFunctions";
+import {
+  capCapitalize,
+  getFullName,
+  getUserProfile,
+  socket,
+} from "../helpers/helperFunctions";
+import { useSelector } from "react-redux";
+import { nanoid } from "@reduxjs/toolkit";
 
 const { width } = Dimensions.get("screen");
 
@@ -50,13 +57,17 @@ const sortInvites = (arr) => {
   return arr.sort((a, b) => order[a.status] - order[b.status]);
 };
 
-const ModeSelection = ({ setState }) => {
+const sessionId = nanoid();
+
+const ModeSelection = ({ setState, lobby, isLobby }) => {
   const [showFriendList, setShowFriendList] = useState(false);
-  const { data: res, isLoading: friending } = useFetchFriendsQuery();
+  const { data: res } = useFetchFriendsQuery();
   const [popper, setPopper] = useState({ vis: false });
   const [invites, setInvites] = useState([]);
 
   const friends = res?.data?.mutuals || [];
+  const user = useSelector(selectUser);
+  const player = getUserProfile(user);
 
   const waitingAnim = useSharedValue(1);
 
@@ -66,7 +77,10 @@ const ModeSelection = ({ setState }) => {
   const pendingInvite = friends.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
   const sortedInvites = sortInvites(invites);
-  let simulationInterval;
+
+  if (isLobby) console.log(invites);
+
+  console.log(lobby?.host);
 
   const onInviteFriend = (friend) => {
     const copier = [...invites];
@@ -75,6 +89,15 @@ const ModeSelection = ({ setState }) => {
       copier.push({ ...friend, status: "pending" });
       setInvites(copier);
     }
+    socket.emit("send_invite", {
+      toUserId: friend?._id,
+      session: {
+        sessionId,
+        host: player,
+        mode: "friends",
+      },
+    });
+
     setPopper({
       vis: true,
       msg: `Invite sent to ${capCapitalize(getFullName(friend, true))}`,
@@ -99,45 +122,56 @@ const ModeSelection = ({ setState }) => {
     } else {
       setState({ mode: "friends" });
       setShowFriendList(true);
-    }
-  };
-  // TODO: DELETE THIS FUNCTION BEFORE PROD BUILD
-  const simulateInvitesReaction = () => {
-    simulationInterval = setInterval(() => {
-      console.log("Interval Fired!!");
-      // setFriends((prevFriends) =>
-      //   prevFriends.map((item) => {
-      //     const randInt = Math.floor(Math.random() * 3);
-      //     if (item.selected && item?.status != "rejected") {
-      //       return {
-      //         ...item,
-      //         status:
-      //           randInt === 0
-      //             ? "pending"
-      //             : randInt === 1
-      //             ? "accepted"
-      //             : "rejected",
-      //       };
-      //     } else {
-      //       return item;
-      //     }
-      //   })
-      // );
-    }, 15000);
-
-    if (invites?.length <= 0 || !Boolean(pendingInvite)) {
-      clearInterval(simulationInterval);
+      socket.emit("join_session", {
+        sessionId,
+        user: player,
+      });
     }
   };
 
   useEffect(() => {
-    simulateInvitesReaction();
-    if (acceptedInvites[0]) {
-      setState({ invites: acceptedInvites });
-    }
+    socket.on("invite_status_update", ({ user, status }) => {
+      // update invites list
+      console.log({ user, status });
+      const copier = [...invites];
+      const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
+      if (checkerIdx >= 0) {
+        console.log("Checker Found!");
+        copier[checkerIdx] = {
+          ...copier[checkerIdx],
+          status,
+        };
+      } else {
+        console.log("Checker Not Found!");
+        copier.push({ ...user, status });
+      }
 
-    return () => clearInterval(simulationInterval);
-  }, [friends]);
+      setInvites(copier);
+    });
+
+    return () => socket.off("invite_status_update");
+  }, []);
+
+  useEffect(() => {
+    socket.on("user_joined", (user) => {
+      // update invites list
+      console.log("New User::", user);
+      const copier = [...invites];
+      const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
+      if (checkerIdx >= 0) {
+        console.log("Checker Found!");
+        copier[checkerIdx] = user;
+      } else {
+        console.log("Checker Not Found!");
+        copier.push(user);
+      }
+
+      setInvites(copier);
+    });
+
+    return () => socket.off("user_joined");
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       {showFriendList ? (
@@ -210,6 +244,63 @@ const ModeSelection = ({ setState }) => {
               )}
             />
           </View>
+          <PopMessage popData={popper} setPopData={setPopper} />
+        </Animated.View>
+      ) : isLobby ? (
+        <Animated.View
+          style={styles.modeFriends}
+          entering={enterAnimOther}
+          exiting={exitingAnim}
+        >
+          <View style={styles.modeSelected}>
+            <View style={styles.modeSelectedHeader}>
+              <AppText style={styles.modeAcceptTxt} fontWeight="bold">
+                Accepted Invites: {acceptedInvites?.length}
+              </AppText>
+              <Pressable
+                onPress={() => setShowFriendList(false)}
+                style={styles.modeNav}
+              >
+                <Ionicons
+                  name="chevron-back"
+                  size={15}
+                  color={colors.primaryDeeper}
+                />
+                <AppText
+                  style={{ color: colors.primaryDeeper }}
+                  fontWeight="bold"
+                >
+                  Go Back
+                </AppText>
+              </Pressable>
+            </View>
+            <FlatList
+              data={sortedInvites}
+              horizontal
+              ListEmptyComponent={() => (
+                <EmptyFriends friendsLength={friends?.length} />
+              )}
+              keyExtractor={(item) => item._id}
+              contentContainerStyle={{ padding: 15 }}
+              renderItem={({ item }) => (
+                <Animated.View
+                  layout={CurvedTransition}
+                  entering={BounceIn}
+                  exiting={ZoomOut}
+                >
+                  <ProfileCard data={item} onPress={onInviteFriend} />
+                </Animated.View>
+              )}
+            />
+            {isWaiting && (
+              <Animated.View onLayout={startAnimation} style={waitingStyle}>
+                <AppText style={styles.waitTxt}>
+                  Waiting for student response...
+                </AppText>
+              </Animated.View>
+            )}
+          </View>
+          <View style={styles.list}></View>
           <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : (

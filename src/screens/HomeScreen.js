@@ -6,7 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 
@@ -27,8 +27,10 @@ import {
 // import { hasCompletedProfile } from "../helpers/helperFunctions";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
 import WebLayout from "../components/WebLayout";
+import Invited from "../components/Invited";
 import getRefresher from "@/src/components/Refresher";
 import { useRouter } from "expo-router";
+import { getUserProfile, socket } from "../helpers/helperFunctions";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -64,6 +66,7 @@ const HomeBlurView = () => {
 
 const HomeScreen = () => {
   const [bools, setBools] = useState({ friendsModal: false });
+  const [invite, setInvite] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
@@ -86,6 +89,48 @@ const HomeScreen = () => {
       setRefreshing(false);
     }
   };
+
+  const joinQuizSession = () => {
+    socket.connect();
+    socket.emit("register_user", user?._id);
+  };
+
+  const handleInvite = (type) => {
+    if (type === "accept") {
+      socket.emit("join_session", {
+        sessionId: invite?.sessionId,
+        user: getUserProfile(user),
+      });
+      socket.emit("invite_response", {
+        sessionId: invite?.sessionId,
+        user: getUserProfile(user),
+        status: "accepted",
+      });
+      router.push({
+        pathname: "/main/session",
+        params: { isLobby: true, status: "accepted", host: invite?.host },
+      });
+    } else if (type === "reject") {
+      socket.emit("invite_response", {
+        sessionId: invite?.sessionId,
+        user: getUserProfile(user),
+        status: "rejected",
+      });
+    }
+  };
+
+  useEffect(() => {
+    joinQuizSession();
+  }, [user]);
+
+  useEffect(() => {
+    socket.on("receive_invite", (session) => {
+      // update invites list
+      setInvite(session);
+    });
+
+    return () => socket.off("receive_invite");
+  }, []);
 
   return (
     <Screen style={styles.container}>
@@ -121,6 +166,7 @@ const HomeScreen = () => {
               }}
             >
               <DailyTask />
+              <Invited data={invite} onPress={handleInvite} />
               <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />
             </WebLayout>
 

@@ -31,6 +31,7 @@ import {
   useFetchPremiumQuizMutation,
   useFetchSubjectCategoriesQuery,
 } from "../context/instanceSlice";
+import { useLocalSearchParams } from "expo-router";
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 
@@ -64,6 +65,8 @@ const RenderQuiz = ({ setVisible, data }) => {
 
   const { data: subjects, isLoading: subjLoad } =
     useFetchSubjectCategoriesQuery(quizInfo?.category?._id);
+
+  const { isLobby, host } = useLocalSearchParams();
 
   const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation();
   const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
@@ -283,6 +286,8 @@ const RenderQuiz = ({ setVisible, data }) => {
               <View style={{ flex: 1 }}>
                 {isSelection && (
                   <ModeSelection
+                    isLobby={Boolean(isLobby)}
+                    lobby={{ host }}
                     setState={(data) => setQuizInfo({ ...quizInfo, ...data })}
                   />
                 )}
