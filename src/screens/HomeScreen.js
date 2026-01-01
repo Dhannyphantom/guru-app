@@ -108,7 +108,11 @@ const HomeScreen = () => {
       });
       router.push({
         pathname: "/main/session",
-        params: { isLobby: true, status: "accepted", host: invite?.host },
+        params: {
+          isLobby: true,
+          status: "accepted",
+          host: JSON.stringify(invite?.host),
+        },
       });
     } else if (type === "reject") {
       socket.emit("invite_response", {

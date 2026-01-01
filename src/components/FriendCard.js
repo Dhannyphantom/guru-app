@@ -18,6 +18,12 @@ export const ProfileCard = ({ data }) => {
       txtColor = colors.medium;
 
       break;
+    case "host":
+      bgColor = colors.warningLight;
+      borderColor = colors.warning;
+      txtColor = colors.medium;
+
+      break;
     case "rejected":
       bgColor = colors.heart;
       borderColor = colors.heartDark;

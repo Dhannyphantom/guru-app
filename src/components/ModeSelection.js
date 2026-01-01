@@ -57,9 +57,7 @@ const sortInvites = (arr) => {
   return arr.sort((a, b) => order[a.status] - order[b.status]);
 };
 
-const sessionId = nanoid();
-
-const ModeSelection = ({ setState, lobby, isLobby }) => {
+const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   const [showFriendList, setShowFriendList] = useState(false);
   const { data: res } = useFetchFriendsQuery();
   const [popper, setPopper] = useState({ vis: false });
@@ -67,7 +65,8 @@ const ModeSelection = ({ setState, lobby, isLobby }) => {
 
   const friends = res?.data?.mutuals || [];
   const user = useSelector(selectUser);
-  const player = getUserProfile(user);
+  let player = getUserProfile(user);
+  player = { ...player, status: "host" };
 
   const waitingAnim = useSharedValue(1);
 
@@ -77,10 +76,6 @@ const ModeSelection = ({ setState, lobby, isLobby }) => {
   const pendingInvite = friends.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
   const sortedInvites = sortInvites(invites);
-
-  if (isLobby) console.log(invites);
-
-  console.log(lobby?.host);
 
   const onInviteFriend = (friend) => {
     const copier = [...invites];
@@ -134,6 +129,7 @@ const ModeSelection = ({ setState, lobby, isLobby }) => {
       // update invites list
       console.log({ user, status });
       const copier = [...invites];
+      console.log({ copier });
       const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
       if (checkerIdx >= 0) {
         console.log("Checker Found!");
@@ -203,24 +199,35 @@ const ModeSelection = ({ setState, lobby, isLobby }) => {
                 </AppText>
               </Pressable>
             </View>
-            <FlatList
-              data={sortedInvites}
-              horizontal
-              ListEmptyComponent={() => (
-                <EmptyFriends friendsLength={friends?.length} />
-              )}
-              keyExtractor={(item) => item._id}
-              contentContainerStyle={{ padding: 15 }}
-              renderItem={({ item }) => (
-                <Animated.View
-                  layout={CurvedTransition}
-                  entering={BounceIn}
-                  exiting={ZoomOut}
-                >
-                  <ProfileCard data={item} onPress={onInviteFriend} />
-                </Animated.View>
-              )}
-            />
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FlatList
+                data={sortedInvites}
+                horizontal
+                ListHeaderComponent={
+                  <Animated.View
+                    layout={CurvedTransition}
+                    entering={BounceIn}
+                    exiting={ZoomOut}
+                  >
+                    <ProfileCard data={player} />
+                  </Animated.View>
+                }
+                ListEmptyComponent={() => (
+                  <EmptyFriends friendsLength={friends?.length} />
+                )}
+                keyExtractor={(item) => item._id}
+                contentContainerStyle={{ padding: 15 }}
+                renderItem={({ item }) => (
+                  <Animated.View
+                    layout={CurvedTransition}
+                    entering={BounceIn}
+                    exiting={ZoomOut}
+                  >
+                    <ProfileCard data={item} onPress={onInviteFriend} />
+                  </Animated.View>
+                )}
+              />
+            </View>
             {isWaiting && (
               <Animated.View onLayout={startAnimation} style={waitingStyle}>
                 <AppText style={styles.waitTxt}>
@@ -257,41 +264,36 @@ const ModeSelection = ({ setState, lobby, isLobby }) => {
               <AppText style={styles.modeAcceptTxt} fontWeight="bold">
                 Accepted Invites: {acceptedInvites?.length}
               </AppText>
-              <Pressable
-                onPress={() => setShowFriendList(false)}
-                style={styles.modeNav}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={15}
-                  color={colors.primaryDeeper}
-                />
-                <AppText
-                  style={{ color: colors.primaryDeeper }}
-                  fontWeight="bold"
-                >
-                  Go Back
-                </AppText>
-              </Pressable>
             </View>
-            <FlatList
-              data={sortedInvites}
-              horizontal
-              ListEmptyComponent={() => (
-                <EmptyFriends friendsLength={friends?.length} />
-              )}
-              keyExtractor={(item) => item._id}
-              contentContainerStyle={{ padding: 15 }}
-              renderItem={({ item }) => (
-                <Animated.View
-                  layout={CurvedTransition}
-                  entering={BounceIn}
-                  exiting={ZoomOut}
-                >
-                  <ProfileCard data={item} onPress={onInviteFriend} />
-                </Animated.View>
-              )}
-            />
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FlatList
+                data={sortedInvites}
+                horizontal
+                ListHeaderComponent={
+                  <Animated.View
+                    layout={CurvedTransition}
+                    entering={BounceIn}
+                    exiting={ZoomOut}
+                  >
+                    <ProfileCard data={lobby?.host} />
+                  </Animated.View>
+                }
+                ListEmptyComponent={() => (
+                  <EmptyFriends friendsLength={friends?.length} />
+                )}
+                keyExtractor={(item) => item._id}
+                contentContainerStyle={{ padding: 15 }}
+                renderItem={({ item }) => (
+                  <Animated.View
+                    layout={CurvedTransition}
+                    entering={BounceIn}
+                    exiting={ZoomOut}
+                  >
+                    <ProfileCard data={item} onPress={onInviteFriend} />
+                  </Animated.View>
+                )}
+              />
+            </View>
             {isWaiting && (
               <Animated.View onLayout={startAnimation} style={waitingStyle}>
                 <AppText style={styles.waitTxt}>

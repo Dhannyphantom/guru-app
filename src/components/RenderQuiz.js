@@ -32,6 +32,10 @@ import {
   useFetchSubjectCategoriesQuery,
 } from "../context/instanceSlice";
 import { useLocalSearchParams } from "expo-router";
+import { getUserProfile, socket } from "../helpers/helperFunctions";
+import { nanoid } from "@reduxjs/toolkit";
+import { useSelector } from "react-redux";
+import { selectUser } from "../context/usersSlice";
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 
@@ -49,10 +53,12 @@ const RenderQuiz = ({ setVisible, data }) => {
   const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
+  const sessionId = nanoid();
   const [quizInfo, setQuizInfo] = useState({
     category: null,
     subjects: [],
     // view: "quiz",
+    sessionId,
     view: "mode",
     mode: null,
     invites: [],
@@ -75,6 +81,7 @@ const RenderQuiz = ({ setVisible, data }) => {
   // const animProgress = useRef(new RNAnimated.Value(0)).current;
   const animProgress = useSharedValue(0);
   const insets = useSafeAreaInsets();
+  const user = useSelector(selectUser);
 
   const animatedProps = useAnimatedProps(() => {
     return {
@@ -115,7 +122,15 @@ const RenderQuiz = ({ setVisible, data }) => {
   const handlePrompt = (type) => {
     switch (type) {
       case "quit":
+        if (isLobby) {
+          socket.emit("invite_response", {
+            sessionId: quizInfo?.sessionId,
+            user: getUserProfile(user),
+            status: "rejected",
+          });
+        }
         setVisible(false);
+
         break;
 
       default:
@@ -287,7 +302,8 @@ const RenderQuiz = ({ setVisible, data }) => {
                 {isSelection && (
                   <ModeSelection
                     isLobby={Boolean(isLobby)}
-                    lobby={{ host }}
+                    lobby={{ host: host ? JSON.parse(host) : null }}
+                    sessionId={quizInfo.sessionId}
                     setState={(data) => setQuizInfo({ ...quizInfo, ...data })}
                   />
                 )}
