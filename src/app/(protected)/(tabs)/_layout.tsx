@@ -52,105 +52,120 @@ function CurvedTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.tabBarContainer, { bottom: insets.bottom }]}>
+    <View style={[styles.tabBarContainer]}>
       {/* SVG Curved Shape */}
-      <Svg
-        width={width}
-        height={TAB_BAR_HEIGHT + CURVE_HEIGHT}
-        style={styles.svgContainer}
-      >
-        <Path
-          d={`
+      <View style={[{ marginBottom: insets.bottom + 5 }]}>
+        <Svg
+          width={width}
+          height={TAB_BAR_HEIGHT + CURVE_HEIGHT}
+          style={styles.svgContainer}
+        >
+          <Path
+            d={`
             M 0 ${CURVE_HEIGHT}
             L ${tabWidth * 1.8} ${CURVE_HEIGHT}
             Q ${tabWidth * 2} ${CURVE_HEIGHT} ${tabWidth * 2.1} ${
-            CURVE_HEIGHT - 10
-          }
+              CURVE_HEIGHT - 10
+            }
             Q ${tabWidth * 2.2} ${CURVE_HEIGHT - 20} ${tabWidth * 2.3} ${
-            CURVE_HEIGHT - 25
-          }
+              CURVE_HEIGHT - 25
+            }
             Q ${tabWidth * 2.5} ${CURVE_HEIGHT - 30} ${tabWidth * 2.7} ${
-            CURVE_HEIGHT - 25
-          }
+              CURVE_HEIGHT - 25
+            }
             Q ${tabWidth * 2.8} ${CURVE_HEIGHT - 20} ${tabWidth * 2.9} ${
-            CURVE_HEIGHT - 10
-          }
+              CURVE_HEIGHT - 10
+            }
             Q ${tabWidth * 3} ${CURVE_HEIGHT} ${tabWidth * 3.2} ${CURVE_HEIGHT}
             L ${width} ${CURVE_HEIGHT}
             L ${width} ${TAB_BAR_HEIGHT + CURVE_HEIGHT}
             L 0 ${TAB_BAR_HEIGHT + CURVE_HEIGHT}
             Z
           `}
-          fill="white"
-        />
-      </Svg>
+            fill="white"
+          />
+        </Svg>
 
-      {/* Tab Items */}
-      <View style={styles.tabItemsContainer}>
-        {state.routes.map((route: any, index: number) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-          const isCenter = index === centerIndex;
+        {/* Tab Items */}
+        <View style={styles.tabItemsContainer}>
+          {state.routes.map((route: any, index: number) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
+            const isCenter = index === centerIndex;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
+            const onPress = () => {
+              const event = navigation.emit({
+                type: "tabPress",
+                target: route.key,
+                canPreventDefault: true,
+              });
 
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name);
+              }
+            };
+
+            let iconName = "";
+            switch (route.name) {
+              case "(home)":
+                iconName = isFocused ? "book" : "book-outline";
+                break;
+              case "leaderboard":
+                iconName = isFocused ? "trophy" : "trophy-outline";
+                break;
+              case "dashboard":
+                iconName = "rocket-sharp";
+                break;
+              case "profile":
+                iconName = isFocused ? "person" : "person-outline";
+                break;
+              case "school":
+                iconName = isFocused ? "school" : "school-outline";
+                break;
             }
-          };
 
-          let iconName = "";
-          switch (route.name) {
-            case "(home)":
-              iconName = isFocused ? "book" : "book-outline";
-              break;
-            case "leaderboard":
-              iconName = isFocused ? "trophy" : "trophy-outline";
-              break;
-            case "dashboard":
-              iconName = "rocket-sharp";
-              break;
-            case "profile":
-              iconName = isFocused ? "person" : "person-outline";
-              break;
-            case "school":
-              iconName = isFocused ? "school" : "school-outline";
-              break;
-          }
+            if (isCenter) {
+              return (
+                <View key={index} style={styles.centerTabWrapper}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={onPress}
+                    style={styles.centerButton}
+                  >
+                    <Animated.View style={[styles.centerButtonInner]}>
+                      <Ionicons
+                        name={iconName as any}
+                        size={26}
+                        color="white"
+                      />
+                    </Animated.View>
+                  </TouchableOpacity>
+                </View>
+              );
+            }
 
-          if (isCenter) {
             return (
-              <View key={index} style={styles.centerTabWrapper}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={onPress}
-                  style={styles.centerButton}
-                >
-                  <Animated.View style={[styles.centerButtonInner]}>
-                    <Ionicons name={iconName as any} size={26} color="white" />
-                  </Animated.View>
-                </TouchableOpacity>
-              </View>
+              <TabBarItem
+                key={index}
+                isFocused={isFocused}
+                onPress={onPress}
+                iconName={iconName}
+                index={index}
+                centerIndex={centerIndex}
+              />
             );
-          }
-
-          return (
-            <TabBarItem
-              key={index}
-              isFocused={isFocused}
-              onPress={onPress}
-              iconName={iconName}
-              index={index}
-              centerIndex={centerIndex}
-            />
-          );
-        })}
+          })}
+        </View>
       </View>
+      <View
+        style={{
+          width,
+          position: "absolute",
+          height: insets.bottom + 15,
+          bottom: 0,
+          backgroundColor: "rgba(255,255,255,0.85)",
+        }}
+      />
     </View>
   );
 }
