@@ -3,12 +3,16 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
+  Platform,
   View,
   useWindowDimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
 import Screen from "../components/Screen";
 import AppLogo from "../components/AppLogo";
@@ -31,6 +35,7 @@ import Invited from "../components/Invited";
 import getRefresher from "@/src/components/Refresher";
 import { useRouter } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
+import { PAD_BOTTOM } from "../helpers/dataStore";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -157,7 +162,7 @@ const HomeScreen = () => {
       </View>
       <FlatList
         data={["HOME"]}
-        contentContainerStyle={{ paddingBottom: height * 0.1 }}
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         showsVerticalScrollIndicator={false}
         refreshControl={getRefresher({ refreshing, onRefresh })}
         renderItem={() => (
@@ -188,6 +193,58 @@ const HomeScreen = () => {
     </Screen>
   );
 };
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("General", {
+      name: "General",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: colors.primary,
+      sound: "default", // must match filename in `assets` folder
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") {
+      alert("Failed to get push token for push notification!");
+      return;
+    }
+    // Learn more about projectId:
+    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
+    // EAS projectId is used here.
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId;
+      if (!projectId) {
+        throw new Error("Project ID not found");
+      }
+      try {
+        token = (
+          await Notifications.getExpoPushTokenAsync({
+            projectId,
+          })
+        ).data;
+      } catch (errorT) {}
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert("Must use physical device for Push Notifications");
+  }
+
+  return token;
+}
 
 export default HomeScreen;
 
