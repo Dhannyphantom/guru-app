@@ -27,6 +27,7 @@ import {
   selectUser,
   useFetchFriendsQuery,
   useFetchUserQuery,
+  useUpdateUserProfileMutation,
 } from "../context/usersSlice";
 // import { hasCompletedProfile } from "../helpers/helperFunctions";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
@@ -77,6 +78,7 @@ const HomeScreen = () => {
   const screenWidth = useWindowDimensions().width;
   const { refetch } = useFetchUserQuery();
   useFetchFriendsQuery();
+  const [updateUserProfile] = useUpdateUserProfileMutation();
 
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -141,6 +143,14 @@ const HomeScreen = () => {
     return () => socket.off("receive_invite");
   }, []);
 
+  useEffect(() => {
+    try {
+      registerForPushNotificationsAsync().then((token) => {
+        updateUserProfile({ expoPushToken: token }).unwrap();
+      });
+    } catch (_errr) {}
+  }, []);
+
   return (
     <Screen style={styles.container}>
       <View style={styles.header}>
@@ -196,6 +206,7 @@ const HomeScreen = () => {
 
 async function registerForPushNotificationsAsync() {
   let token;
+  console.log("Fetching notifications");
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("General", {
@@ -208,6 +219,7 @@ async function registerForPushNotificationsAsync() {
   }
 
   if (Device.isDevice) {
+    console.log("isDevice");
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -215,6 +227,7 @@ async function registerForPushNotificationsAsync() {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
+
     if (finalStatus !== "granted") {
       alert("Failed to get push token for push notification!");
       return;
@@ -229,13 +242,16 @@ async function registerForPushNotificationsAsync() {
       if (!projectId) {
         throw new Error("Project ID not found");
       }
+
       try {
         token = (
           await Notifications.getExpoPushTokenAsync({
             projectId,
           })
         ).data;
-      } catch (errorT) {}
+      } catch (errorT) {
+        console.log({ errorT });
+      }
     } catch (e) {
       token = `${e}`;
     }
