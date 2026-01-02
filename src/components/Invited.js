@@ -5,6 +5,8 @@ import Avatar from "./Avatar";
 import AppText from "./AppText";
 import AppButton from "./AppButton";
 import { getFullName } from "../helpers/helperFunctions";
+import Animated, { LinearTransition } from "react-native-reanimated";
+import { enterAnim, exitingAnim } from "../helpers/dataStore";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -12,7 +14,12 @@ export default function Invited({ data, onPress }) {
   if (!data) return null;
 
   return (
-    <View style={styles.container}>
+    <Animated.View
+      entering={enterAnim}
+      exiting={exitingAnim}
+      layout={LinearTransition}
+      style={styles.container}
+    >
       <Avatar
         size={70}
         contStyle={{ padding: 15 }}
@@ -39,7 +46,7 @@ export default function Invited({ data, onPress }) {
           />
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

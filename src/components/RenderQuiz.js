@@ -53,12 +53,11 @@ const RenderQuiz = ({ setVisible, data }) => {
   const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
-  const sessionId = nanoid();
   const [quizInfo, setQuizInfo] = useState({
     category: null,
     subjects: [],
     // view: "quiz",
-    sessionId,
+    sessionId: "",
     view: "mode",
     mode: null,
     invites: [],
@@ -230,6 +229,10 @@ const RenderQuiz = ({ setVisible, data }) => {
       fetchQuiz();
     }
   }, [data]);
+
+  useEffect(() => {
+    setQuizInfo({ ...quizInfo, sessionId: nanoid() });
+  }, []);
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 10 }]}>

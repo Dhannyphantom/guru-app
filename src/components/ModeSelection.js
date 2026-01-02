@@ -34,6 +34,7 @@ import {
 } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
+import PromptModal from "./PromptModal";
 
 const { width } = Dimensions.get("screen");
 
@@ -57,11 +58,16 @@ const sortInvites = (arr) => {
   return arr.sort((a, b) => order[a.status] - order[b.status]);
 };
 
+const findUser = (user, invites = []) => {
+  return invites.find((item) => item?._id === user?._id);
+};
+
 const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   const [showFriendList, setShowFriendList] = useState(false);
   const { data: res } = useFetchFriendsQuery();
   const [popper, setPopper] = useState({ vis: false });
   const [invites, setInvites] = useState([]);
+  const [prompt, setPrompt] = useState({ vis: false });
 
   const friends = res?.data?.mutuals || [];
   const user = useSelector(selectUser);
@@ -81,7 +87,25 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     const copier = [...invites];
     const checker = copier.find((item) => item?._id === friend._id);
     if (checker) {
-      if (checker?.status === "accepted") return;
+      // Probably wants to remove user
+      setPrompt({
+        vis: true,
+        data: {
+          title: "Remove User",
+          msg: `Are you sure you want to remove ${friend?.username} from this session?`,
+          btn: "Remove",
+        },
+        cb: () => {
+          socket.emit("remove_invite", {
+            toUserId: friend?._id,
+            session: {
+              sessionId,
+              user: getUserProfile(friend),
+            },
+          });
+        },
+      });
+      return;
     } else {
       copier.push({ ...friend, status: "pending" });
       setInvites(copier);
@@ -155,7 +179,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   useEffect(() => {
     socket.on("invite_status_update", ({ user, status }) => {
       // update invites list
-
+      console.log({ status });
       const copier = [...invites];
 
       const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
@@ -174,6 +198,19 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     return () => socket.off("invite_status_update");
   }, []);
 
+  // remove_invited
+  useEffect(() => {
+    socket.on("remove_invited", ({ user }) => {
+      // update invites list
+      const filteredInvites = invites.filter((item) => item?._id !== user?._id);
+
+      setInvites(filteredInvites);
+    });
+
+    return () => socket.off("remove_invited");
+  }, []);
+
+  // user_joined
   useEffect(() => {
     socket.on("user_joined", (user) => {
       // update invites list
@@ -265,14 +302,21 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               data={friends}
               keyExtractor={(item) => item._id}
               contentContainerStyle={{ paddingBottom: 15 }}
-              renderItem={({ item }) => (
-                <FriendCard
-                  data={item}
-                  type="invite"
-                  btnStyle={{ text: "Invite" }}
-                  onPress={onInviteFriend}
-                />
-              )}
+              renderItem={({ item }) => {
+                const invitedUser = findUser(item, invites);
+
+                return (
+                  <FriendCard
+                    data={item}
+                    type="invite"
+                    btnStyle={{
+                      text: invitedUser ? "Remove" : "Invite",
+                      type: invitedUser ? "warn" : "accent",
+                    }}
+                    onPress={onInviteFriend}
+                  />
+                );
+              }}
             />
           </View>
           <PopMessage popData={popper} setPopData={setPopper} />
@@ -382,6 +426,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
           </AnimatedPressable>
         </Animated.View>
       )}
+      <PromptModal prompt={prompt} setPrompt={setPrompt} />
     </View>
   );
 };

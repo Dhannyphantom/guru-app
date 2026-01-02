@@ -37,6 +37,7 @@ import getRefresher from "@/src/components/Refresher";
 import { useRouter } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
 import { PAD_BOTTOM } from "../helpers/dataStore";
+import Animated, { LinearTransition } from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -128,6 +129,7 @@ const HomeScreen = () => {
         user: getUserProfile(user),
         status: "rejected",
       });
+      setInvite(null);
     }
   };
 
@@ -142,6 +144,16 @@ const HomeScreen = () => {
     });
 
     return () => socket.off("receive_invite");
+  }, []);
+
+  useEffect(() => {
+    socket.on("un_invite", (session) => {
+      // update invites list
+      console.log("Un_invited!!!");
+      setInvite(null);
+    });
+
+    return () => socket.off("un_invite");
   }, []);
 
   // useEffect(() => {
@@ -187,7 +199,9 @@ const HomeScreen = () => {
             >
               <DailyTask />
               <Invited data={invite} onPress={handleInvite} />
-              <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />
+              <Animated.View layout={LinearTransition}>
+                <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />
+              </Animated.View>
             </WebLayout>
 
             <SubjectCategory />
