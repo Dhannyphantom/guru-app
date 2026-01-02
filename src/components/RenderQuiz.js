@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { Dimensions, FlatList, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
@@ -149,10 +150,14 @@ const RenderQuiz = ({ setVisible, data }) => {
       setQuizInfo({ ...quizInfo, view: "subjects", bar: 3 });
     } else if (quizInfo.category && quizInfo.subjects && isSubjects) {
       // show quiz
+      if (isMultiplater) {
+        socket.emit("mode_subjects", {
+          sessionId: quizInfo.sessionId,
+          subjects: quizInfo.subjects,
+        });
+      }
+
       setQuizInfo({ ...quizInfo, view: "study", bar: 4 });
-      // setSubjectArr(
-      //   dummySubjects.filter((obj) => quizInfo.subjects.includes(obj.name))
-      // );
     } else if (
       quizInfo.category &&
       quizInfo.subjects &&

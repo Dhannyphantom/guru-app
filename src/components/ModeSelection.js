@@ -1,7 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Dimensions,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -33,7 +35,6 @@ import {
   socket,
 } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
-import { nanoid } from "@reduxjs/toolkit";
 import PromptModal from "./PromptModal";
 import AppButton from "./AppButton";
 import RenderCategories from "./RenderCategories";
@@ -225,6 +226,16 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     return () => socket.off("set_category");
   }, []);
 
+  // set_subjects
+  useEffect(() => {
+    socket.on("set_subjects", (subjects) => {
+      // update invites list
+      setMode({ ...mode, subjects });
+    });
+
+    return () => socket.off("set_subjects");
+  }, []);
+
   // user_joined
   useEffect(() => {
     socket.on("user_joined", (user) => {
@@ -393,17 +404,37 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               </Animated.View>
             )}
           </View>
-          <View style={styles.list}>
-            {mode?.category && (
-              <View>
-                <AppText style={styles.title} fontWeight="bold" size="large">
-                  Category
-                </AppText>
+          <ScrollView>
+            <View style={styles.list}>
+              {mode?.category && (
+                <View>
+                  <AppText style={styles.title} fontWeight="bold" size="large">
+                    Category
+                  </AppText>
 
-                <RenderCategories item={mode?.category} disabled />
-              </View>
-            )}
-          </View>
+                  <RenderCategories item={mode?.category} disabled />
+                </View>
+              )}
+              {mode?.subjects && mode?.subjects[0] && (
+                <View>
+                  <AppText style={styles.title} fontWeight="bold" size="large">
+                    Subjects
+                  </AppText>
+                  <View style={styles.row}>
+                    {mode?.subjects?.map((subj) => {
+                      return (
+                        <RenderCategories
+                          key={subj?._id}
+                          item={subj}
+                          disabled
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+            </View>
+          </ScrollView>
           <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : (
@@ -532,6 +563,10 @@ const styles = StyleSheet.create({
     borderRadius: 200,
     justifyContent: "center",
     alignItems: "center",
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   title: {
     marginLeft: 15,
