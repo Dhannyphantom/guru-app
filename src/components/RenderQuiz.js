@@ -72,7 +72,7 @@ const RenderQuiz = ({ setVisible, data }) => {
   const { data: subjects, isLoading: subjLoad } =
     useFetchSubjectCategoriesQuery(quizInfo?.category?._id);
 
-  const { isLobby, host } = useLocalSearchParams();
+  const { isLobby, host, lobbyId } = useLocalSearchParams();
 
   const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation();
   const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
@@ -124,7 +124,7 @@ const RenderQuiz = ({ setVisible, data }) => {
       case "quit":
         if (isLobby) {
           socket.emit("invite_response", {
-            sessionId: quizInfo?.sessionId,
+            sessionId: lobbyId,
             user: getUserProfile(user),
             status: "rejected",
           });

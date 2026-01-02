@@ -97,7 +97,7 @@ const HomeScreen = () => {
     }
   };
 
-  const joinQuizSession = () => {
+  const initializeSocket = () => {
     socket.connect();
     socket.emit("register_user", user?._id);
   };
@@ -119,6 +119,7 @@ const HomeScreen = () => {
           isLobby: true,
           status: "accepted",
           host: JSON.stringify(invite?.host),
+          lobbyId: invite?.sessionId,
         },
       });
     } else if (type === "reject") {
@@ -131,7 +132,7 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
-    joinQuizSession();
+    initializeSocket();
   }, [user]);
 
   useEffect(() => {
@@ -143,13 +144,13 @@ const HomeScreen = () => {
     return () => socket.off("receive_invite");
   }, []);
 
-  useEffect(() => {
-    try {
-      registerForPushNotificationsAsync().then((token) => {
-        updateUserProfile({ expoPushToken: token }).unwrap();
-      });
-    } catch (_errr) {}
-  }, []);
+  // useEffect(() => {
+  //   try {
+  //     registerForPushNotificationsAsync().then((token) => {
+  //       updateUserProfile({ expoPushToken: token }).unwrap();
+  //     });
+  //   } catch (_errr) {}
+  // }, []);
 
   return (
     <Screen style={styles.container}>
@@ -206,7 +207,6 @@ const HomeScreen = () => {
 
 async function registerForPushNotificationsAsync() {
   let token;
-  console.log("Fetching notifications");
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("General", {
@@ -219,7 +219,6 @@ async function registerForPushNotificationsAsync() {
   }
 
   if (Device.isDevice) {
-    console.log("isDevice");
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -249,9 +248,7 @@ async function registerForPushNotificationsAsync() {
             projectId,
           })
         ).data;
-      } catch (errorT) {
-        console.log({ errorT });
-      }
+      } catch (errorT) {}
     } catch (e) {
       token = `${e}`;
     }

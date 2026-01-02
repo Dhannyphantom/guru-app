@@ -79,8 +79,10 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 
   const onInviteFriend = (friend) => {
     const copier = [...invites];
-    const checker = copier.some((item) => item?._id === friend._id);
-    if (!checker) {
+    const checker = copier.find((item) => item?._id === friend._id);
+    if (checker) {
+      if (checker?.status === "accepted") return;
+    } else {
       copier.push({ ...friend, status: "pending" });
       setInvites(copier);
     }
@@ -90,6 +92,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
         sessionId,
         host: player,
         mode: "friends",
+        user: getUserProfile(friend),
       },
     });
 
@@ -125,20 +128,43 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   };
 
   useEffect(() => {
-    socket.on("invite_status_update", ({ user, status }) => {
+    socket.on("new_invite", ({ user }) => {
       // update invites list
-      console.log({ user, status });
+
       const copier = [...invites];
-      console.log({ copier });
+
       const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
       if (checkerIdx >= 0) {
-        console.log("Checker Found!");
+        copier[checkerIdx] = {
+          ...copier[checkerIdx],
+          status:
+            copier[checkerIdx]?.status === "rejected"
+              ? "pending"
+              : copier[checkerIdx]?.status,
+        };
+      } else {
+        copier.push({ ...user, status: "pending" });
+      }
+
+      setInvites(copier);
+    });
+
+    return () => socket.off("new_invite");
+  }, []);
+
+  useEffect(() => {
+    socket.on("invite_status_update", ({ user, status }) => {
+      // update invites list
+
+      const copier = [...invites];
+
+      const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
+      if (checkerIdx >= 0) {
         copier[checkerIdx] = {
           ...copier[checkerIdx],
           status,
         };
       } else {
-        console.log("Checker Not Found!");
         copier.push({ ...user, status });
       }
 
@@ -151,14 +177,12 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   useEffect(() => {
     socket.on("user_joined", (user) => {
       // update invites list
-      console.log("New User::", user);
+
       const copier = [...invites];
       const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
       if (checkerIdx >= 0) {
-        console.log("Checker Found!");
         copier[checkerIdx] = user;
       } else {
-        console.log("Checker Not Found!");
         copier.push(user);
       }
 
