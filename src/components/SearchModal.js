@@ -29,6 +29,7 @@ export default function SearchModal({
           onClose={() => setState({ vis: false })}
           onChangeCallback={onSearch}
           style={{ marginBottom: 0 }}
+          showClose={true}
         />
         <View style={styles.main}>
           <FlatList

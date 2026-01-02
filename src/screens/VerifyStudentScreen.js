@@ -93,6 +93,7 @@ const VerifyStudentScreen = () => {
           <FriendCard
             hideBtn={!isSchoolVerified}
             onPress={handleVerification}
+            isUser
             type="student"
             userID={user?._id}
             data={item}

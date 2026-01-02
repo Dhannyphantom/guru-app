@@ -63,6 +63,7 @@ const FriendCard = ({
   btnStyle,
   userID,
   hideBtn = false,
+  isUser,
   onPress,
 }) => {
   const isFollow = type === "follow";
@@ -123,24 +124,26 @@ const FriendCard = ({
     }
   }
 
+  const userObj = isUser ? data?.user : data;
+
   return (
     <View style={styles.container}>
-      <Avatar source={data?.avatar?.image} size={width * 0.13} />
+      <Avatar source={userObj?.avatar?.image} size={width * 0.13} />
       <View style={styles.textView}>
-        {Boolean(data?.firstName && data?.lastName) && (
+        {Boolean(userObj?.firstName && userObj?.lastName) && (
           <AppText
             fontWeight="medium"
             size="xsmall"
             style={[styles.nameTxt, { color: colors.medium }]}
           >
-            @{data?.username}
+            @{userObj?.username}
           </AppText>
         )}
         <AppText fontWeight="bold" style={styles.nameTxt}>
-          {data?.preffix ? data?.preffix + " " : ""}
-          {Boolean(data?.firstName && data?.lastName)
-            ? `${data?.firstName} ${data?.lastName}`
-            : data?.username}
+          {userObj?.preffix ? userObj?.preffix + " " : ""}
+          {Boolean(userObj?.firstName && userObj?.lastName)
+            ? `${userObj?.firstName} ${userObj?.lastName}`
+            : userObj?.username}
         </AppText>
         <AppText
           fontWeight="medium"

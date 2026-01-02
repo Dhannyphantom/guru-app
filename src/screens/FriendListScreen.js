@@ -20,6 +20,7 @@ import {
 } from "../context/usersSlice";
 import PromptModal from "../components/PromptModal";
 import AnimatedPressable from "../components/AnimatedPressable";
+import getRefresher from "../components/Refresher";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -51,9 +52,10 @@ const FollowStat = ({ head, onPress, active, sub }) => {
 const FriendListScreen = () => {
   const [searcher, setSearcher] = useState({ vis: false });
   const [prompt, setPrompt] = useState({ vis: false });
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState("Following");
 
-  const { data: list, isLoading } = useFetchFriendsQuery();
+  const { data: list, isLoading, refetch } = useFetchFriendsQuery();
 
   const [searchStudents, { data: res }] = useLazySearchStudentsQuery();
 
@@ -75,13 +77,23 @@ const FriendListScreen = () => {
 
   const onSearch = async (q) => {
     if (q?.length < 3) return;
+
     try {
       await searchStudents(q).unwrap();
     } catch (_errr) {}
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } catch (errr) {
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleStudentAction = async (student, type) => {
-    return console.log({ student, type });
     if (["Follow"].includes(type)) {
       try {
         await studentActions({
@@ -153,6 +165,7 @@ const FriendListScreen = () => {
           data={listData}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ paddingBottom: height * 0.12 }}
+          refreshControl={getRefresher({ refreshing, onRefresh })}
           renderItem={({ item }) => (
             <FriendCard data={item} onPress={handleStudentAction} />
           )}

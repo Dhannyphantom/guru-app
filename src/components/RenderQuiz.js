@@ -202,11 +202,17 @@ const RenderQuiz = ({ setVisible, data }) => {
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
 
-      animProgress.value = withTiming(0.6, { duration: 20000 }, (finished) => {
-        if (finished) {
-          animProgress.value = withTiming(0.85, { duration: 35000 });
-        }
-      });
+      if (!isMultiplater) {
+        animProgress.value = withTiming(
+          0.6,
+          { duration: 20000 },
+          (finished) => {
+            if (finished) {
+              animProgress.value = withTiming(0.85, { duration: 35000 });
+            }
+          }
+        );
+      }
 
       // fetch Quiz
 
@@ -224,6 +230,18 @@ const RenderQuiz = ({ setVisible, data }) => {
 
       try {
         const res = await fetchPremiumQuiz(sendData).unwrap();
+
+        if (isMultiplater) {
+          socket.emit("mode_topics", {
+            sessionId: quizInfo.sessionId,
+            quizData: res?.data,
+            subjects: quizInfo.subjects?.map((item) => ({
+              ...item,
+              topics: item?.topics?.filter((topic) => topic?.hasStudied),
+            })),
+          });
+          return;
+        }
 
         animProgress.value = withTiming(1, { duration: 1000 }, (finished) => {
           if (finished && Boolean(res?.data)) {

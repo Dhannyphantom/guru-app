@@ -80,14 +80,16 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 
   const waitingAnim = useSharedValue(1);
 
+  console.log({ invites });
+  // console.log(mode?.users[0]);
+
   const acceptedInvites = invites.filter((item) => item.status === "accepted");
   const pendingInvite = invites.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
   const sortedInvites = sortInvites(invites);
 
   const onInviteFriend = (friend) => {
-    const copier = [...invites];
-    const checker = copier.find((item) => item?._id === friend._id);
+    const checker = invites.find((item) => item?._id === friend._id);
     if (checker) {
       // Probably wants to remove user
       setPrompt({
@@ -107,27 +109,24 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
           });
         },
       });
-      return;
     } else {
-      copier.push({ ...friend, status: "pending" });
-      setInvites(copier);
-    }
-    socket.emit("send_invite", {
-      toUserId: friend?._id,
-      session: {
-        sessionId,
-        host: player,
-        mode: "friends",
-        user: getUserProfile(friend),
-      },
-    });
+      socket.emit("send_invite", {
+        toUserId: friend?._id,
+        session: {
+          sessionId,
+          host: player,
+          mode: "friends",
+          user: getUserProfile(friend),
+        },
+      });
 
-    setPopper({
-      vis: true,
-      msg: `Invite sent to ${capCapitalize(getFullName(friend, true))}`,
-      timer: 600,
-      type: "success",
-    });
+      setPopper({
+        vis: true,
+        msg: `Invite sent to ${capCapitalize(getFullName(friend, true))}`,
+        timer: 600,
+        type: "success",
+      });
+    }
   };
 
   const waitingStyle = useAnimatedStyle(() => {
@@ -157,48 +156,44 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     setState({ invites, view: "category" });
   };
 
+  // new_invite
   useEffect(() => {
     socket.on("new_invite", ({ user }) => {
       // update invites list
+      setInvites((prev) => {
+        const idx = prev.findIndex((u) => u._id === user._id);
 
-      const copier = [...invites];
+        if (idx >= 0) {
+          const copy = [...prev];
+          copy[idx] = {
+            ...copy[idx],
+            status:
+              copy[idx]?.status === "rejected" ? "pending" : copy[idx]?.status,
+          };
+          return copy;
+        }
 
-      const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
-      if (checkerIdx >= 0) {
-        copier[checkerIdx] = {
-          ...copier[checkerIdx],
-          status:
-            copier[checkerIdx]?.status === "rejected"
-              ? "pending"
-              : copier[checkerIdx]?.status,
-        };
-      } else {
-        copier.push({ ...user, status: "pending" });
-      }
-
-      setInvites(copier);
+        return [...prev, { ...user, status: "pending" }];
+      });
     });
 
     return () => socket.off("new_invite");
   }, []);
 
+  // invite_status_update (for when user responds)
   useEffect(() => {
     socket.on("invite_status_update", ({ user, status }) => {
-      // update invites list
-      console.log({ status });
-      const copier = [...invites];
+      setInvites((prev) => {
+        const idx = prev.findIndex((u) => u._id === user._id);
 
-      const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
-      if (checkerIdx >= 0) {
-        copier[checkerIdx] = {
-          ...copier[checkerIdx],
-          status,
-        };
-      } else {
-        copier.push({ ...user, status });
-      }
+        if (idx >= 0) {
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], status };
+          return copy;
+        }
 
-      setInvites(copier);
+        return [...prev, { ...user, status }];
+      });
     });
 
     return () => socket.off("invite_status_update");
@@ -220,7 +215,22 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   useEffect(() => {
     socket.on("set_category", (category) => {
       // update invites list
-      setMode({ ...mode, category });
+      setMode((prev) => ({
+        ...prev,
+        category,
+      }));
+    });
+
+    return () => socket.off("set_category");
+  }, []);
+
+  useEffect(() => {
+    socket.on("session_snapshot", (sessionData) => {
+      // update invites list
+      console.log("New Snapshot!!!");
+      // setMode((prev) => ({
+      //   ...prev, ...sessionData
+      // }));
     });
 
     return () => socket.off("set_category");
@@ -230,7 +240,23 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   useEffect(() => {
     socket.on("set_subjects", (subjects) => {
       // update invites list
-      setMode({ ...mode, subjects });
+      setMode((prev) => ({
+        ...prev,
+        subjects,
+      }));
+    });
+
+    return () => socket.off("set_subjects");
+  }, []);
+
+  useEffect(() => {
+    socket.on("set_topics", ({ subjects, quizData }) => {
+      // update invites list
+      setMode((prev) => ({
+        ...prev,
+        subjects,
+        quizData,
+      }));
     });
 
     return () => socket.off("set_subjects");
@@ -240,16 +266,17 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   useEffect(() => {
     socket.on("user_joined", (user) => {
       // update invites list
+      setInvites((prev) => {
+        const idx = prev.findIndex((u) => u._id === user._id);
 
-      const copier = [...invites];
-      const checkerIdx = copier.findIndex((item) => item?._id === user?._id);
-      if (checkerIdx >= 0) {
-        copier[checkerIdx] = user;
-      } else {
-        copier.push(user);
-      }
+        if (idx >= 0) {
+          const copy = [...prev];
+          copy[idx] = user;
+          return copy;
+        }
 
-      setInvites(copier);
+        return [...prev, user];
+      });
     });
 
     return () => socket.off("user_joined");
@@ -423,11 +450,19 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
                   <View style={styles.row}>
                     {mode?.subjects?.map((subj) => {
                       return (
-                        <RenderCategories
-                          key={subj?._id}
-                          item={subj}
-                          disabled
-                        />
+                        <View key={subj?._id}>
+                          <RenderCategories item={subj} disabled />
+                          {subj?.topics && (
+                            <View>
+                              <AppText>Topic:</AppText>
+                              {subj?.topics?.map((topic, idx) => (
+                                <AppText key={String(idx)}>
+                                  {topic?.name}
+                                </AppText>
+                              ))}
+                            </View>
+                          )}
+                        </View>
                       );
                     })}
                   </View>
