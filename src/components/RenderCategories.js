@@ -6,11 +6,20 @@ import colors from "../helpers/colors";
 
 const { width } = Dimensions.get("screen");
 
-const RenderCategories = ({ item, quizInfo, setQuizInfo }) => {
+const SIZE = width * 0.35;
+
+const RenderCategories = ({
+  item,
+  quizInfo,
+  disabled,
+  size = SIZE,
+  style,
+  setQuizInfo,
+}) => {
   const isSelected =
-    quizInfo.view === "category"
+    quizInfo?.view === "category"
       ? quizInfo?.category?._id === item._id
-      : quizInfo.subjects?.find((subj) => subj?._id == item._id);
+      : quizInfo?.subjects?.find((subj) => subj?._id === item._id);
   //
   //
   const handleItemPress = () => {
@@ -51,11 +60,17 @@ const RenderCategories = ({ item, quizInfo, setQuizInfo }) => {
   };
 
   return (
-    <AnimatedPressable onPress={handleItemPress} style={styles.category}>
+    <AnimatedPressable
+      disabled={disabled}
+      onPress={handleItemPress}
+      style={[styles.category, { width: size }, style]}
+    >
       <View
         style={[
           styles.categoryImgCont,
           {
+            width: size * 0.9,
+            height: size * 0.9,
             backgroundColor: isSelected ? colors.primaryLight : colors.unchange,
           },
         ]}

@@ -95,6 +95,7 @@ const RenderQuiz = ({ setVisible, data }) => {
   const isSubjects = quizInfo.view === "subjects";
   const isStart = quizInfo.view === "start";
   const isFinished = quizInfo.view === "finished";
+  const isMultiplater = quizInfo.mode === "friends";
   const hasStudiedAllTopics = quizInfo?.subjects
     ?.map((obj) => {
       if (
@@ -110,12 +111,12 @@ const RenderQuiz = ({ setVisible, data }) => {
     .every((item) => item === true);
 
   const hasAcceptedInvites = quizInfo.invites?.some(
-    (inv) => inv?.status === "accepted" && inv?.selected
+    (inv) => inv?.status === "accepted"
   );
 
   const shouldShowNextBtn =
     (isCategory && Boolean(quizInfo.category)) ||
-    (isSelection && Boolean(quizInfo.invites[0]) && hasAcceptedInvites) ||
+    (!isSelection && Boolean(quizInfo.invites[0]) && hasAcceptedInvites) ||
     (isSubjects && Boolean(quizInfo.subjects[0]));
 
   const handlePrompt = (type) => {
@@ -139,6 +140,12 @@ const RenderQuiz = ({ setVisible, data }) => {
 
   const handleNext = async () => {
     if (quizInfo.category && isCategory) {
+      if (isMultiplater) {
+        socket.emit("mode_category", {
+          sessionId: quizInfo.sessionId,
+          category: quizInfo.category,
+        });
+      }
       setQuizInfo({ ...quizInfo, view: "subjects", bar: 3 });
     } else if (quizInfo.category && quizInfo.subjects && isSubjects) {
       // show quiz

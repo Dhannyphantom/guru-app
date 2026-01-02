@@ -35,6 +35,8 @@ import {
 import { useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 import PromptModal from "./PromptModal";
+import AppButton from "./AppButton";
+import RenderCategories from "./RenderCategories";
 
 const { width } = Dimensions.get("screen");
 
@@ -67,6 +69,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   const { data: res } = useFetchFriendsQuery();
   const [popper, setPopper] = useState({ vis: false });
   const [invites, setInvites] = useState([]);
+  const [mode, setMode] = useState({});
   const [prompt, setPrompt] = useState({ vis: false });
 
   const friends = res?.data?.mutuals || [];
@@ -76,10 +79,8 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 
   const waitingAnim = useSharedValue(1);
 
-  const acceptedInvites = friends.filter(
-    (item) => item.selected && item.status === "accepted"
-  );
-  const pendingInvite = friends.find((item) => item?.status === "pending");
+  const acceptedInvites = invites.filter((item) => item.status === "accepted");
+  const pendingInvite = invites.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
   const sortedInvites = sortInvites(invites);
 
@@ -151,6 +152,10 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     }
   };
 
+  const handleContinue = () => {
+    setState({ invites, view: "category" });
+  };
+
   useEffect(() => {
     socket.on("new_invite", ({ user }) => {
       // update invites list
@@ -208,6 +213,16 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     });
 
     return () => socket.off("remove_invited");
+  }, []);
+
+  // set_category
+  useEffect(() => {
+    socket.on("set_category", (category) => {
+      // update invites list
+      setMode({ ...mode, category });
+    });
+
+    return () => socket.off("set_category");
   }, []);
 
   // user_joined
@@ -319,6 +334,14 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               }}
             />
           </View>
+          {acceptedInvites[0] && (
+            <AppButton
+              title="Continue"
+              onPress={handleContinue}
+              contStyle={styles.btn}
+            />
+          )}
+
           <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : isLobby ? (
@@ -370,7 +393,17 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               </Animated.View>
             )}
           </View>
-          <View style={styles.list}></View>
+          <View style={styles.list}>
+            {mode?.category && (
+              <View>
+                <AppText style={styles.title} fontWeight="bold" size="large">
+                  Category
+                </AppText>
+
+                <RenderCategories item={mode?.category} disabled />
+              </View>
+            )}
+          </View>
           <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : (
@@ -434,6 +467,9 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 export default ModeSelection;
 
 const styles = StyleSheet.create({
+  btn: {
+    alignSelf: "center",
+  },
   list: {
     flex: 1,
   },
@@ -496,6 +532,11 @@ const styles = StyleSheet.create({
     borderRadius: 200,
     justifyContent: "center",
     alignItems: "center",
+  },
+  title: {
+    marginLeft: 15,
+    marginBottom: 15,
+    marginTop: 10,
   },
   waitTxt: {
     textAlign: "center",
