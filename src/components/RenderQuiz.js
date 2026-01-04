@@ -273,37 +273,31 @@ const RenderQuiz = ({ setVisible, data }) => {
       );
       animProgress.value = withTiming(newValue, { duration: 800 });
     }
-  }, [readyInvites]);
+  }, [readyInvites, quizInfo.invites]);
 
   // player_ready
-  // useEffect(() => {
-  //   socket.on("player_ready", (user) => {
-  //     // update invites list
-  //     console.log("PLAYER IS READY!!!!", { user });
-  //     setQuizInfo((prev) => ({
-  //       ...prev,
-  //       invites: prev.invites.map((i) => {
-  //         if (i._id === user._id) {
-  //           return {
-  //             ...i,
-  //             isReady: true,
-  //           };
-  //         } else {
-  //           return i;
-  //         }
-  //       }),
-  //     }));
-  //   });
-
-  //   return () => socket.off("player_ready");
-  // }, []);
-
+  // session_snapshots
   useEffect(() => {
-    socket.on("session_created", (session) => {
+    socket.on("session_snapshots", (sessionDta) => {
+      // keep parent in sync
+
       setQuizInfo((prev) => ({
         ...prev,
-        sessionId: session.sessionId,
-        invites: session.users,
+        invites: sessionDta.users
+          ? sessionDta.users.map((u) => ({ ...u }))
+          : [],
+      }));
+    });
+
+    return () => socket.off("session_snapshots");
+  }, []);
+
+  useEffect(() => {
+    socket.on("session_created", (sessionDta) => {
+      setQuizInfo((prev) => ({
+        ...prev,
+        sessionId: sessionDta.sessionId,
+        invites: sessionDta.users,
       }));
     });
 

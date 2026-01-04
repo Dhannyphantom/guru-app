@@ -227,13 +227,22 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
       });
 
       // keep parent in sync
-      // setState({
-      //   sessionId: session.sessionId,
-      //   invites: session.users,
-      // });
+      setState({
+        sessionId: session.sessionId,
+        invites: session.users,
+      });
     });
 
     return () => socket.off("session_snapshot");
+  }, []);
+
+  // player_ready
+  useEffect(() => {
+    socket.on("player_ready", (session) => {
+      setState({ view: "quiz", mode: "friends" });
+    });
+
+    return () => socket.off("player_ready");
   }, []);
 
   useEffect(() => {
