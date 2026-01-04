@@ -58,7 +58,7 @@ const RenderQuiz = ({ setVisible, data }) => {
     category: null,
     subjects: [],
     // view: "quiz",
-    sessionId: "",
+    sessionId: null,
     view: "mode",
     mode: null,
     invites: [],
@@ -96,7 +96,7 @@ const RenderQuiz = ({ setVisible, data }) => {
   const isSubjects = quizInfo.view === "subjects";
   const isStart = quizInfo.view === "start";
   const isFinished = quizInfo.view === "finished";
-  const isMultiplater = quizInfo.mode === "friends";
+  const isMultiplayer = quizInfo.mode === "friends" || quizInfo.sessionId;
   const hasStudiedAllTopics = quizInfo?.subjects
     ?.map((obj) => {
       if (
@@ -111,9 +111,14 @@ const RenderQuiz = ({ setVisible, data }) => {
     })
     .every((item) => item === true);
 
-  const hasAcceptedInvites = quizInfo.invites?.some(
+  const acceptedInvites = quizInfo.invites?.filter(
     (inv) => inv?.status === "accepted"
   );
+
+  const readyInvites =
+    quizInfo.invites?.filter((inv) => inv?.isReady === true) || [];
+
+  const hasAcceptedInvites = Boolean(acceptedInvites);
 
   const shouldShowNextBtn =
     (isCategory && Boolean(quizInfo.category)) ||
@@ -141,7 +146,7 @@ const RenderQuiz = ({ setVisible, data }) => {
 
   const handleNext = async () => {
     if (quizInfo.category && isCategory) {
-      if (isMultiplater) {
+      if (isMultiplayer) {
         socket.emit("mode_category", {
           sessionId: quizInfo.sessionId,
           category: quizInfo.category,
@@ -150,7 +155,7 @@ const RenderQuiz = ({ setVisible, data }) => {
       setQuizInfo({ ...quizInfo, view: "subjects", bar: 3 });
     } else if (quizInfo.category && quizInfo.subjects && isSubjects) {
       // show quiz
-      if (isMultiplater) {
+      if (isMultiplayer) {
         socket.emit("mode_subjects", {
           sessionId: quizInfo.sessionId,
           subjects: quizInfo.subjects,
@@ -202,7 +207,7 @@ const RenderQuiz = ({ setVisible, data }) => {
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
 
-      if (!isMultiplater) {
+      if (!isMultiplayer) {
         animProgress.value = withTiming(
           0.6,
           { duration: 20000 },
@@ -231,7 +236,7 @@ const RenderQuiz = ({ setVisible, data }) => {
       try {
         const res = await fetchPremiumQuiz(sendData).unwrap();
 
-        if (isMultiplater) {
+        if (isMultiplayer) {
           socket.emit("mode_topics", {
             sessionId: quizInfo.sessionId,
             quizData: res?.data,
@@ -261,7 +266,48 @@ const RenderQuiz = ({ setVisible, data }) => {
   }, [data]);
 
   useEffect(() => {
-    setQuizInfo({ ...quizInfo, sessionId: nanoid() });
+    if (isMultiplayer) {
+      const newValue = Math.min(
+        (readyInvites?.length || 0) / (acceptedInvites?.length || 1),
+        1
+      );
+      animProgress.value = withTiming(newValue, { duration: 800 });
+    }
+  }, [readyInvites]);
+
+  // player_ready
+  // useEffect(() => {
+  //   socket.on("player_ready", (user) => {
+  //     // update invites list
+  //     console.log("PLAYER IS READY!!!!", { user });
+  //     setQuizInfo((prev) => ({
+  //       ...prev,
+  //       invites: prev.invites.map((i) => {
+  //         if (i._id === user._id) {
+  //           return {
+  //             ...i,
+  //             isReady: true,
+  //           };
+  //         } else {
+  //           return i;
+  //         }
+  //       }),
+  //     }));
+  //   });
+
+  //   return () => socket.off("player_ready");
+  // }, []);
+
+  useEffect(() => {
+    socket.on("session_created", (session) => {
+      setQuizInfo((prev) => ({
+        ...prev,
+        sessionId: session.sessionId,
+        invites: session.users,
+      }));
+    });
+
+    return () => socket.off("session_created");
   }, []);
 
   return (
@@ -297,8 +343,17 @@ const RenderQuiz = ({ setVisible, data }) => {
               style={{ color: colors.primary, marginTop: 50 }}
               size={"xxlarge"}
             >
-              Get Ready...
+              {isMultiplayer ? "Waiting for players..." : "Get Ready..."}
             </AppText>
+            {isMultiplayer && (
+              <AppText
+                fontWeight="heavy"
+                style={{ color: colors.primary, marginTop: 50 }}
+                size={"xxlarge"}
+              >
+                {readyInvites?.length} of {acceptedInvites?.length}
+              </AppText>
+            )}
 
             <AnimatedLottie
               animatedProps={animatedProps}
@@ -311,8 +366,8 @@ const RenderQuiz = ({ setVisible, data }) => {
             <AppButton
               title={"Cancel Session"}
               type="warn"
-              onPress={async () => await fetchQuiz()}
-              // onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+              // onPress={async () => await fetchQuiz()}
+              onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             />
           </Animated.View>
         </Screen>

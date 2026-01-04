@@ -11,11 +11,12 @@ import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
 import { useEffect, useState } from "react";
-import { enterAnimOther, exitingAnim } from "../helpers/dataStore";
+import { enterAnim, enterAnimOther, exitingAnim } from "../helpers/dataStore";
 import Animated, {
   BounceIn,
   CurvedTransition,
   FadeInUp,
+  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -80,9 +81,6 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 
   const waitingAnim = useSharedValue(1);
 
-  console.log({ invites });
-  // console.log(mode?.users[0]);
-
   const acceptedInvites = invites.filter((item) => item.status === "accepted");
   const pendingInvite = invites.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
@@ -145,11 +143,18 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
     } else {
       setState({ mode: "friends" });
       setShowFriendList(true);
-      socket.emit("join_session", {
-        sessionId,
-        user: player,
+      socket.emit("create_session", {
+        host: player,
       });
     }
+  };
+
+  const onReadyPlayer = () => {
+    socket.emit("ready_player", {
+      sessionId,
+      user: getUserProfile(user),
+    });
+    // setState({ view: "quiz", mode: "friends" });
   };
 
   const handleContinue = () => {
@@ -182,7 +187,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 
   // invite_status_update (for when user responds)
   useEffect(() => {
-    socket.on("invite_status_update", ({ user, status }) => {
+    socket.on("invite_status_update", ({ user, status, sessionId }) => {
       setInvites((prev) => {
         const idx = prev.findIndex((u) => u._id === user._id);
 
@@ -194,6 +199,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
 
         return [...prev, { ...user, status }];
       });
+      setState({ sessionId });
     });
 
     return () => socket.off("invite_status_update");
@@ -203,50 +209,31 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   useEffect(() => {
     socket.on("remove_invited", ({ user }) => {
       // update invites list
-      const filteredInvites = invites.filter((item) => item?._id !== user?._id);
-
-      setInvites(filteredInvites);
+      setInvites((prev) => prev.filter((item) => item?._id !== user?._id));
     });
 
     return () => socket.off("remove_invited");
   }, []);
 
-  // set_category
+  // session_snapshot
   useEffect(() => {
-    socket.on("set_category", (category) => {
-      // update invites list
-      setMode((prev) => ({
-        ...prev,
-        category,
-      }));
+    socket.on("session_snapshot", (session) => {
+      setInvites(session.users || []);
+
+      setMode({
+        category: session.category || null,
+        subjects: session.subjects || [],
+        quizData: session.quizData || null,
+      });
+
+      // keep parent in sync
+      setState({
+        sessionId: session.sessionId,
+        invites: session.users,
+      });
     });
 
-    return () => socket.off("set_category");
-  }, []);
-
-  useEffect(() => {
-    socket.on("session_snapshot", (sessionData) => {
-      // update invites list
-      console.log("New Snapshot!!!");
-      // setMode((prev) => ({
-      //   ...prev, ...sessionData
-      // }));
-    });
-
-    return () => socket.off("set_category");
-  }, []);
-
-  // set_subjects
-  useEffect(() => {
-    socket.on("set_subjects", (subjects) => {
-      // update invites list
-      setMode((prev) => ({
-        ...prev,
-        subjects,
-      }));
-    });
-
-    return () => socket.off("set_subjects");
+    return () => socket.off("session_snapshot");
   }, []);
 
   useEffect(() => {
@@ -431,42 +418,76 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               </Animated.View>
             )}
           </View>
-          <ScrollView>
+          <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
+            {Boolean(mode?.quizData) && (
+              <Animated.View
+                entering={enterAnimOther}
+                exiting={exitingAnim}
+                layout={LinearTransition}
+              >
+                <AppButton
+                  contStyle={styles.btnStart}
+                  onPress={onReadyPlayer}
+                  title={"Start Quiz Now"}
+                />
+              </Animated.View>
+            )}
             <View style={styles.list}>
               {mode?.category && (
-                <View>
+                <Animated.View
+                  entering={enterAnim}
+                  exiting={exitingAnim}
+                  layout={LinearTransition}
+                >
                   <AppText style={styles.title} fontWeight="bold" size="large">
                     Category
                   </AppText>
 
                   <RenderCategories item={mode?.category} disabled />
-                </View>
+                </Animated.View>
               )}
               {mode?.subjects && mode?.subjects[0] && (
-                <View>
+                <Animated.View
+                  entering={enterAnim}
+                  exiting={exitingAnim}
+                  layout={LinearTransition}
+                >
                   <AppText style={styles.title} fontWeight="bold" size="large">
                     Subjects
                   </AppText>
                   <View style={styles.row}>
-                    {mode?.subjects?.map((subj) => {
+                    {mode?.subjects?.map((subj, idxer) => {
                       return (
                         <View key={subj?._id}>
                           <RenderCategories item={subj} disabled />
                           {subj?.topics && (
-                            <View>
-                              <AppText>Topic:</AppText>
+                            <Animated.View
+                              style={{
+                                alignSelf: "center",
+                                alignItems: "center",
+                                gap: 6,
+                                width: "95%",
+                              }}
+                              entering={enterAnim}
+                              exiting={exitingAnim}
+                              layout={LinearTransition}
+                            >
+                              <AppText fontWeight="bold">Topic:</AppText>
                               {subj?.topics?.map((topic, idx) => (
-                                <AppText key={String(idx)}>
+                                <AppText
+                                  style={{ textAlign: "center" }}
+                                  key={String(idx)}
+                                >
                                   {topic?.name}
                                 </AppText>
                               ))}
-                            </View>
+                            </Animated.View>
                           )}
                         </View>
                       );
                     })}
                   </View>
-                </View>
+                </Animated.View>
               )}
             </View>
           </ScrollView>
@@ -535,6 +556,10 @@ export default ModeSelection;
 const styles = StyleSheet.create({
   btn: {
     alignSelf: "center",
+  },
+  btnStart: {
+    alignSelf: "center",
+    marginTop: 20,
   },
   list: {
     flex: 1,
