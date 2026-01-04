@@ -140,6 +140,7 @@ const HomeScreen = () => {
   useEffect(() => {
     socket.on("receive_invite", (session) => {
       // update invites list
+
       setInvite(session);
     });
 

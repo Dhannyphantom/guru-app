@@ -227,10 +227,10 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
       });
 
       // keep parent in sync
-      setState({
-        sessionId: session.sessionId,
-        invites: session.users,
-      });
+      // setState({
+      //   sessionId: session.sessionId,
+      //   invites: session.users,
+      // });
     });
 
     return () => socket.off("session_snapshot");
