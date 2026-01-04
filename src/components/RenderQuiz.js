@@ -34,7 +34,6 @@ import {
 } from "../context/instanceSlice";
 import { useLocalSearchParams } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
-import { nanoid } from "@reduxjs/toolkit";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 
@@ -60,6 +59,7 @@ const RenderQuiz = ({ setVisible, data }) => {
     // view: "quiz",
     sessionId: null,
     view: "mode",
+    qBank: [],
     mode: null,
     invites: [],
     bar: 1,
@@ -271,7 +271,7 @@ const RenderQuiz = ({ setVisible, data }) => {
         (readyInvites?.length || 0) / (acceptedInvites?.length || 1),
         1
       );
-      animProgress.value = withTiming(newValue, { duration: 800 });
+      animProgress.value = withTiming(newValue, { duration: 1500 });
     }
   }, [readyInvites, quizInfo.invites]);
 
@@ -290,6 +290,16 @@ const RenderQuiz = ({ setVisible, data }) => {
     });
 
     return () => socket.off("session_snapshots");
+  }, []);
+
+  useEffect(() => {
+    socket.on("quiz_start", ({ qBank }) => {
+      setQuizInfo((prev) => ({ ...prev, view: "start", qBank }));
+      // setIsQuiz(true);     // or navigate to quiz screen
+      // startQuiz();        // your existing function
+    });
+
+    return () => socket.off("quiz_start");
   }, []);
 
   useEffect(() => {
@@ -325,7 +335,9 @@ const RenderQuiz = ({ setVisible, data }) => {
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
             setQuizSession={setSession}
-            questionBank={quizzes?.data ?? quizData?.data ?? []}
+            questionBank={
+              quizzes?.data ?? quizData?.data ?? quizInfo?.qBank ?? []
+            }
           />
         </Screen>
       ) : isQuiz ? (
