@@ -335,6 +335,7 @@ const RenderQuiz = ({ setVisible, data }) => {
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
             setQuizSession={setSession}
+            sessionId={quizInfo.sessionId}
             questionBank={
               quizzes?.data ?? quizData?.data ?? quizInfo?.qBank ?? []
             }

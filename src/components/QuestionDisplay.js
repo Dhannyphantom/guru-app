@@ -20,13 +20,21 @@ import React, {
 // import { dummyQuestions } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import LottieAnimator from "./LottieAnimator";
-import { capFirstLetter, formatPoints } from "../helpers/helperFunctions";
+import {
+  capFirstLetter,
+  formatPoints,
+  getUserProfile,
+  socket,
+} from "../helpers/helperFunctions";
 import Options from "./Options";
 import AppButton from "./AppButton";
 import PopMessage from "./PopMessage";
+import PopAlerts from "./PopAlerts";
 // import { useFormikContext } from "formik";
 import { FormikCover } from "./CoverImage";
 import AnimatedPressable from "./AnimatedPressable";
+import { useSelector } from "react-redux";
+import { selectUser } from "../context/usersSlice";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -39,8 +47,11 @@ const QuestionDisplay = ({
   setQuizSession,
   setQuizInfoView,
   questionBank = [],
+  sessionId,
 }) => {
   const timerRef = useRef(null);
+  const isMultiplayer = Boolean(sessionId);
+  const user = useSelector(selectUser);
 
   /* ---------- normalize question bank ---------- */
   const normalizedBank = useMemo(() => {
@@ -70,6 +81,7 @@ const QuestionDisplay = ({
   });
 
   const [popData, setPopData] = useState({ vis: false });
+  const [alerts, setAlerts] = useState({ vis: false });
 
   const [session, setSession] = useState({
     totalQuestions: 0,
@@ -162,7 +174,7 @@ const QuestionDisplay = ({
     if (hasAnswered && currentQuestion.answered?._id === correctAnswer?._id) {
       setSession((p) => {
         const row = p.row + 1;
-        setPopData({
+        setAlerts({
           vis: true,
           msg: `Correct!${row > 1 ? `\n${row} in a row` : ""}`,
           type: "success",
@@ -170,21 +182,55 @@ const QuestionDisplay = ({
           point: formatPoints("+" + currentQuestion.point),
           popId: nanoid(),
         });
+        if (isMultiplayer) {
+          socket.emit("answer_question", {
+            answer: currentQuestion?.answered,
+            row,
+            point: currentQuestion.point,
+            sessionId,
+            user: getUserProfile(user),
+          });
+        }
         return { ...p, row, totalQuestions };
       });
     } else {
       setSession((p) => ({ ...p, row: 0 }));
-      setPopData({
+      setAlerts({
         vis: true,
         msg: "Incorrect!\nBetter luck next time",
         type: "failed",
-        point: formatPoints(-15),
+        point: formatPoints(-2),
         popId: nanoid(),
       });
+      if (isMultiplayer) {
+        socket.emit("answer_question", {
+          answer: currentQuestion?.answered,
+          row: 0,
+          point: -2,
+          sessionId,
+          user: getUserProfile(user),
+        });
+      }
     }
 
     handleNavQuestion();
   };
+
+  useEffect(() => {
+    socket.on("session_answers", ({ message }) => {
+      // keep parent in sync
+      setAlerts({
+        vis: true,
+        msg: message,
+        type: message?.includes("got") ? "success" : "failed",
+        timer: 2000,
+        // point: formatPoints("+" + currentQuestion.point),
+        popId: nanoid(),
+      });
+    });
+
+    return () => socket.off("session_answers");
+  }, []);
 
   /* ---------- proceed delay ---------- */
   useEffect(() => {
@@ -263,6 +309,7 @@ const QuestionDisplay = ({
       </View>
 
       <PopMessage popData={popData} setPopData={setPopData} />
+      <PopAlerts popData={alerts} setPopData={setAlerts} />
     </>
   );
 };
