@@ -174,11 +174,11 @@ const QuestionDisplay = ({
     if (hasAnswered && currentQuestion.answered?._id === correctAnswer?._id) {
       setSession((p) => {
         const row = p.row + 1;
-        setAlerts({
+        setPopData({
           vis: true,
           msg: `Correct!${row > 1 ? `\n${row} in a row` : ""}`,
           type: "success",
-          timer: 2000,
+          timer: 1000,
           point: formatPoints("+" + currentQuestion.point),
           popId: nanoid(),
         });
@@ -195,7 +195,7 @@ const QuestionDisplay = ({
       });
     } else {
       setSession((p) => ({ ...p, row: 0 }));
-      setAlerts({
+      setPopData({
         vis: true,
         msg: "Incorrect!\nBetter luck next time",
         type: "failed",
@@ -217,10 +217,10 @@ const QuestionDisplay = ({
   };
 
   useEffect(() => {
-    socket.on("session_answers", ({ message }) => {
+    socket.on("session_answers", ({ message, userId }) => {
       // keep parent in sync
       setAlerts({
-        vis: true,
+        vis: user?._id !== userId,
         msg: message,
         type: message?.includes("got") ? "success" : "failed",
         timer: 2000,

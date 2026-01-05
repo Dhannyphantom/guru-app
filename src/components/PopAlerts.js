@@ -8,9 +8,9 @@ import Animated, {
   withDelay,
   withSequence,
   runOnJS,
+  LinearTransition,
 } from "react-native-reanimated";
 
-import colors from "../helpers/colors";
 import AppText from "./AppText";
 
 const { width } = Dimensions.get("screen");
@@ -73,13 +73,14 @@ const AlertItem = ({ item, index, onDone }) => {
       )
     );
 
-    opacity.value = withTiming(1, { duration: 250 });
+    opacity.value = withTiming(0.85, { duration: 250 });
   }, [item.timer, handleDone]);
 
   const preset = TYPE_PRESET[item.type] || TYPE_PRESET.info;
 
   return (
     <Animated.View
+      layout={LinearTransition}
       style={[
         styles.alert,
         animatedStyle,
@@ -169,14 +170,16 @@ const styles = StyleSheet.create({
   },
   alert: {
     position: "absolute",
-    width: "100%",
+    maxWidth: "100%",
     height: ALERT_HEIGHT,
     borderWidth: 1,
+    opacity: 0.3,
     borderBottomWidth: 4,
-    marginLeft: 10,
-    borderRadius: 10,
+    marginHorizontal: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
     justifyContent: "center",
+    alignSelf: "flex-end",
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 6,

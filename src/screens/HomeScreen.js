@@ -129,8 +129,8 @@ const HomeScreen = () => {
         user: getUserProfile(user),
         status: "rejected",
       });
-      setInvite(null);
     }
+    setInvite(null);
   };
 
   useEffect(() => {
@@ -164,6 +164,9 @@ const HomeScreen = () => {
   //     });
   //   } catch (_errr) {}
   // }, []);
+  useEffect(() => {
+    refetch();
+  }, []);
 
   return (
     <Screen style={styles.container}>

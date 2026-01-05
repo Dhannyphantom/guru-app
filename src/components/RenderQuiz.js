@@ -121,9 +121,10 @@ const RenderQuiz = ({ setVisible, data }) => {
   const hasAcceptedInvites = Boolean(acceptedInvites);
 
   const shouldShowNextBtn =
-    (isCategory && Boolean(quizInfo.category)) ||
-    (!isSelection && Boolean(quizInfo.invites[0]) && hasAcceptedInvites) ||
-    (isSubjects && Boolean(quizInfo.subjects[0]));
+    !isStudy &&
+    ((isCategory && Boolean(quizInfo.category)) ||
+      (!isSelection && Boolean(quizInfo.invites[0]) && hasAcceptedInvites) ||
+      (isSubjects && Boolean(quizInfo.subjects[0])));
 
   const handlePrompt = (type) => {
     switch (type) {
@@ -314,6 +315,12 @@ const RenderQuiz = ({ setVisible, data }) => {
     return () => socket.off("session_created");
   }, []);
 
+  useEffect(() => {
+    if (!quizInfo.sessionId) {
+      setQuizInfo((prev) => ({ ...prev, sessionId: lobbyId }));
+    }
+  }, [lobbyId]);
+
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 10 }]}>
       {isFinished ? (
@@ -335,7 +342,7 @@ const RenderQuiz = ({ setVisible, data }) => {
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
             setQuizSession={setSession}
-            sessionId={quizInfo.sessionId}
+            sessionId={quizInfo.sessionId ?? lobbyId}
             questionBank={
               quizzes?.data ?? quizData?.data ?? quizInfo?.qBank ?? []
             }

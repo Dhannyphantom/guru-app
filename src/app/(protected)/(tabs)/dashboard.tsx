@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const schoolSub = school?.subscription?.isActive;
   const isPro = ["manager", "professional"].includes(user?.accountType);
   const hasJoined = Boolean(school && isSchoolVerified && schoolSub);
+  const userSubbed = user?.subscription?.isActive;
 
   if (!profileCompleted.bool) {
     // setPopper(profileCompleted.pop);
@@ -21,8 +22,16 @@ export default function DashboardPage() {
   } else {
     if (user?.accountType === "student") {
       // Check if school has active sub
-      if (Boolean(school) && schoolSub && isSchoolVerified) {
-        return <Redirect href={"/main/session"} />;
+      if (hasJoined) {
+        if (!userSubbed) {
+          return <Redirect href={"/main/session"} />;
+        } else {
+          return (
+            <Redirect
+              href={{ pathname: "/profile", params: { checkSub: "true" } }}
+            />
+          );
+        }
       } else {
         return <Redirect href={"/school"} />;
       }
