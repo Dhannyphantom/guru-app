@@ -1,10 +1,12 @@
-import React, { useEffect, useCallback, useMemo, useState } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { StyleSheet, View, Dimensions } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withDelay,
+  withSequence,
   runOnJS,
 } from "react-native-reanimated";
 
@@ -19,18 +21,22 @@ const TYPE_PRESET = {
   success: {
     bg: "#E9F9F0",
     text: "#1E7F4D",
+    icon: "check-circle",
   },
   failed: {
     bg: "#FDECEC",
     text: "#9B1C1C",
+    icon: "times-circle",
   },
   info: {
     bg: "#EEF4FF",
     text: "#1E40AF",
+    icon: "info-circle",
   },
   warning: {
     bg: "#FFF6E5",
     text: "#92400E",
+    icon: "warning",
   },
 };
 
@@ -46,19 +52,29 @@ const AlertItem = ({ item, index, onDone }) => {
     opacity: opacity.value,
   }));
 
-  useEffect(() => {
-    translateX.value = withTiming(0, { duration: 350 });
-    opacity.value = withTiming(1, { duration: 250 });
+  const handleDone = useCallback(() => {
+    if (typeof item.cb === "function") {
+      item.cb();
+    }
+    onDone(item.id);
+  }, [item.cb, item.id, onDone]);
 
-    const timeout = withDelay(
-      item.timer ?? 2000,
-      withTiming(width, { duration: 300 }, () => {
-        runOnJS(onDone)(item.id);
-      })
+  useEffect(() => {
+    // Slide in from right
+    translateX.value = withSequence(
+      withTiming(0, { duration: 350 }),
+      withDelay(
+        item.timer ?? 2000,
+        withTiming(width, { duration: 300 }, (finished) => {
+          if (finished) {
+            runOnJS(handleDone)();
+          }
+        })
+      )
     );
 
-    translateX.value = timeout;
-  }, []);
+    opacity.value = withTiming(1, { duration: 250 });
+  }, [item.timer, handleDone]);
 
   const preset = TYPE_PRESET[item.type] || TYPE_PRESET.info;
 
@@ -70,16 +86,20 @@ const AlertItem = ({ item, index, onDone }) => {
         {
           top: index * (ALERT_HEIGHT + GAP),
           backgroundColor: preset.bg,
+          borderColor: preset?.text + "60",
         },
       ]}
     >
-      <AppText
-        numberOfLines={2}
-        style={{ color: preset.text }}
-        fontWeight="medium"
-      >
-        {item.msg}
-      </AppText>
+      <View style={styles.main}>
+        <FontAwesome name={preset?.icon} color={preset?.text} size={18} />
+        <AppText
+          numberOfLines={2}
+          style={{ color: preset.text }}
+          fontWeight="bold"
+        >
+          {item.msg}
+        </AppText>
+      </View>
     </Animated.View>
   );
 };
@@ -88,7 +108,7 @@ const AlertItem = ({ item, index, onDone }) => {
  * MAIN POP ALERTS
  * ------------------------------------------- */
 const PopAlerts = ({ popData = { vis: false }, setPopData, max = 3 }) => {
-  const { vis, msg, type, timer } = popData;
+  const { vis, msg, type, timer, cb } = popData;
   const [alerts, setAlerts] = useState([]);
 
   const addAlert = useCallback(() => {
@@ -99,15 +119,16 @@ const PopAlerts = ({ popData = { vis: false }, setPopData, max = 3 }) => {
         {
           id: Date.now().toString(),
           msg,
-          type,
+          type: type || "info",
           timer,
+          cb,
         },
         ...prev,
       ];
 
       return next.slice(0, max);
     });
-  }, [msg, type, timer, max]);
+  }, [msg, type, timer, cb, max]);
 
   const removeAlert = useCallback((id) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
@@ -117,7 +138,7 @@ const PopAlerts = ({ popData = { vis: false }, setPopData, max = 3 }) => {
     if (!vis) return;
     addAlert();
     setPopData({ vis: false });
-  }, [vis]);
+  }, [vis, addAlert, setPopData]);
 
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
@@ -144,11 +165,15 @@ const styles = StyleSheet.create({
     top: 50,
     width: "100%",
     paddingHorizontal: 12,
+    zIndex: 9999,
   },
   alert: {
     position: "absolute",
     width: "100%",
     height: ALERT_HEIGHT,
+    borderWidth: 1,
+    borderBottomWidth: 4,
+    marginLeft: 10,
     borderRadius: 10,
     paddingHorizontal: 14,
     justifyContent: "center",
@@ -156,5 +181,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 4,
+  },
+  main: {
+    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
   },
 });

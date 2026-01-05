@@ -27,7 +27,7 @@ import {
   selectUser,
   useFetchFriendsQuery,
   useFetchUserQuery,
-  useUpdateUserProfileMutation,
+  // useUpdateUserProfileMutation,
 } from "../context/usersSlice";
 // import { hasCompletedProfile } from "../helpers/helperFunctions";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
@@ -79,7 +79,7 @@ const HomeScreen = () => {
   const screenWidth = useWindowDimensions().width;
   const { refetch } = useFetchUserQuery();
   useFetchFriendsQuery();
-  const [updateUserProfile] = useUpdateUserProfileMutation();
+  // const [updateUserProfile] = useUpdateUserProfileMutation();
 
   const user = useSelector(selectUser);
   const router = useRouter();

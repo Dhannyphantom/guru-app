@@ -1,4 +1,11 @@
-import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
+import {
+  Dimensions,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import React from "react";
 
 import logo from "../../assets/images/icon.png";
@@ -6,9 +13,9 @@ import AppText from "./AppText";
 
 const { width, height } = Dimensions.get("screen");
 
-const AppLogo = ({ hideName = false, size = 60 }) => {
+const AppLogo = ({ hideName = false, onPress, size = 60 }) => {
   return (
-    <View style={styles.container}>
+    <Pressable onPress={onPress} style={styles.container}>
       <Image
         source={logo}
         style={[styles.logo, { width: size, height: size }]}
@@ -18,7 +25,7 @@ const AppLogo = ({ hideName = false, size = 60 }) => {
           Guru
         </AppText>
       )}
-    </View>
+    </Pressable>
   );
 };
 
