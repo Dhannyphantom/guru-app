@@ -104,14 +104,15 @@ const LeaderboardChampion = ({
   );
 };
 
-const LeaderboardWinners = ({ data, isPro }) => {
+export const LeaderboardWinners = ({ data, isPro }) => {
   const formattedData = [
-    { ...data[2], award: 3 },
-    { ...data[0], award: 1 },
-    { ...data[1], award: 2 },
+    { ...data[2], isEmpty: Boolean(data[2]), award: 3 },
+    { ...data[0], isEmpty: Boolean(data[0]), award: 1 },
+    { ...data[1], isEmpty: Boolean(data[1]), award: 2 },
   ];
 
   const renderChamps = ({ item }) => {
+    if (!item?.isEmpty) return <View style={{ width: width * 0.2 }} />;
     return (
       <LeaderboardChampion
         name={getFullName(item)}

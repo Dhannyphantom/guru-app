@@ -46,6 +46,7 @@ const QuestionDisplay = ({
   handleQuit,
   setQuizSession,
   setQuizInfoView,
+  hardReset,
   questionBank = [],
   sessionId,
 }) => {
@@ -164,7 +165,7 @@ const QuestionDisplay = ({
         questions: questionStore,
       });
       setQuizInfoView("finished");
-    }, 1200);
+    }, 5000);
   };
 
   /* ---------- next ---------- */
@@ -187,6 +188,7 @@ const QuestionDisplay = ({
             answer: currentQuestion?.answered,
             row,
             point: currentQuestion.point,
+            nextQuestion: noNextQuestion,
             sessionId,
             user: getUserProfile(user),
           });
@@ -208,6 +210,7 @@ const QuestionDisplay = ({
           row: 0,
           point: -2,
           sessionId,
+          nextQuestion: noNextQuestion,
           user: getUserProfile(user),
         });
       }
@@ -244,7 +247,14 @@ const QuestionDisplay = ({
   if (!currentQuestion) {
     return (
       <View style={styles.avoidingView}>
-        <AppText>Loading question…</AppText>
+        <LottieAnimator visible />
+        <AppText fontWeight="medium">Loading question…</AppText>
+        <AppButton
+          type="warn"
+          title={"Cancel"}
+          onPress={hardReset}
+          contStyle={{ marginTop: 50 }}
+        />
       </View>
     );
   }

@@ -39,6 +39,7 @@ import { useSelector } from "react-redux";
 import PromptModal from "./PromptModal";
 import AppButton from "./AppButton";
 import RenderCategories from "./RenderCategories";
+import { nanoid } from "@reduxjs/toolkit";
 
 const { width } = Dimensions.get("screen");
 
@@ -56,7 +57,7 @@ const EmptyFriends = ({ friendsLength }) => {
   );
 };
 
-const sortInvites = (arr) => {
+const sortInvites = (arr = []) => {
   const order = { accepted: 1, pending: 2, rejected: 3 };
 
   return arr.sort((a, b) => order[a.status] - order[b.status]);
@@ -84,7 +85,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
   const acceptedInvites = invites.filter((item) => item.status === "accepted");
   const pendingInvite = invites.find((item) => item?.status === "pending");
   const isWaiting = !acceptedInvites[0] && Boolean(pendingInvite);
-  const sortedInvites = sortInvites(invites);
+  const sortedInvites = sortInvites([...invites]);
 
   const onInviteFriend = (friend) => {
     const checker = invites.find((item) => item?._id === friend._id);
@@ -167,7 +168,6 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
       // update invites list
       setInvites((prev) => {
         const idx = prev.findIndex((u) => u._id === user._id);
-
         if (idx >= 0) {
           const copy = [...prev];
           copy[idx] = {
@@ -177,7 +177,6 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
           };
           return copy;
         }
-
         return [...prev, { ...user, status: "pending" }];
       });
     });
@@ -325,7 +324,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
                 ListEmptyComponent={() => (
                   <EmptyFriends friendsLength={friends?.length} />
                 )}
-                keyExtractor={(item) => item._id}
+                keyExtractor={(item) => item?._id}
                 contentContainerStyle={{ padding: 15 }}
                 renderItem={({ item }) => (
                   <Animated.View

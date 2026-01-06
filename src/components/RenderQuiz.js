@@ -48,22 +48,24 @@ const QUIT_PROMPT = {
   type: "quit",
 };
 
+const initials = {
+  category: null,
+  subjects: [],
+  // view: "quiz",
+  sessionId: null,
+  view: "mode",
+  qBank: [],
+  mode: null,
+  invites: [],
+  bar: 1,
+};
+
 const RenderQuiz = ({ setVisible, data }) => {
   // data = {view, type}
   const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
-  const [quizInfo, setQuizInfo] = useState({
-    category: null,
-    subjects: [],
-    // view: "quiz",
-    sessionId: null,
-    view: "mode",
-    qBank: [],
-    mode: null,
-    invites: [],
-    bar: 1,
-  });
+  const [quizInfo, setQuizInfo] = useState(initials);
   const [session, setSession] = useState({
     totalQuestions: 1,
     questions: [],
@@ -272,7 +274,7 @@ const RenderQuiz = ({ setVisible, data }) => {
         (readyInvites?.length || 0) / (acceptedInvites?.length || 1),
         1
       );
-      animProgress.value = withTiming(newValue, { duration: 1500 });
+      animProgress.value = withTiming(newValue, { duration: 2000 });
     }
   }, [readyInvites, quizInfo.invites]);
 
@@ -324,23 +326,23 @@ const RenderQuiz = ({ setVisible, data }) => {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 10 }]}>
       {isFinished ? (
-        <Screen>
-          <FinishedQuiz
-            session={session}
-            data={
-              data?.type === "school"
-                ? { type: "school", mode: quizInfo?.mode }
-                : { type: "premium", mode: quizInfo?.mode }
-            }
-            retry={() => setQuizInfo({ ...quizInfo, view: "start" })}
-            hideModal={() => setVisible(false)}
-          />
-        </Screen>
+        <FinishedQuiz
+          session={session}
+          sessionId={quizInfo.sessionId ?? lobbyId}
+          data={
+            data?.type === "school"
+              ? { type: "school", mode: quizInfo?.mode }
+              : { type: "premium", mode: quizInfo?.mode }
+          }
+          retry={() => setQuizInfo({ ...quizInfo, view: "start" })}
+          hideModal={() => setVisible(false)}
+        />
       ) : isStart ? (
         <Screen>
           <QuestionDisplay
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
+            hardReset={() => setQuizInfo(initials)}
             setQuizSession={setSession}
             sessionId={quizInfo.sessionId ?? lobbyId}
             questionBank={

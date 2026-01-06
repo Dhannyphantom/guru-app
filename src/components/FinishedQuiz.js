@@ -1,4 +1,4 @@
-import { Dimensions, StyleSheet, View } from "react-native";
+import { Dimensions, FlatList, StyleSheet, View } from "react-native";
 
 import AppText from "../components/AppText";
 import { useEffect, useState } from "react";
@@ -9,10 +9,16 @@ import AppButton from "./AppButton";
 import QuizCorrections from "./QuizCorrections";
 import { useSubmitQuizMutation } from "../context/schoolSlice";
 import { useSubmitPremiumQuizMutation } from "../context/instanceSlice";
+import {
+  LeaderboardItem,
+  LeaderboardWinners,
+} from "../screens/LeaderboardScreen";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { socket } from "../helpers/helperFunctions";
 
 const { width, height } = Dimensions.get("screen");
 
-const FinishedQuiz = ({ hideModal, data, retry, session }) => {
+const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   const [stat, setStat] = useState({
     vis: false,
     answeredCorrectly: 0,
@@ -21,11 +27,14 @@ const FinishedQuiz = ({ hideModal, data, retry, session }) => {
   });
 
   const [submitQuiz, { isLoading, isError, error }] = useSubmitQuizMutation();
+  const [leaderboard, setLeaderboard] = useState([]);
   const [submitPremiumQuiz, { isLoading: premLoading }] =
     useSubmitPremiumQuizMutation();
 
   const percentage = Math.round((stat?.point / stat?.total) * 100);
   const lowPercent = percentage < 50;
+  const isMultiplayer = Boolean(sessionId);
+  const insets = useSafeAreaInsets();
 
   const retryQuiz = async () => {
     await uploadQuizSession();
@@ -82,11 +91,6 @@ const FinishedQuiz = ({ hideModal, data, retry, session }) => {
       } catch (error) {
         console.log("Premium error", error);
       }
-      // console.log(
-      //   "SESSION",
-      //   session?.questions[0]?.questions[0],
-      //   session?.questions[0]?.subject
-      // );
     }
   };
 
@@ -99,9 +103,52 @@ const FinishedQuiz = ({ hideModal, data, retry, session }) => {
     uploadQuizSession();
   }, [session]);
 
+  useEffect(() => {
+    socket.on("leaderboard_update", ({ leaderboard }) => {
+      setLeaderboard(leaderboard);
+    });
+
+    return () => socket.off("session_answers");
+  }, []);
+
   return (
     <View style={styles.container}>
-      {stat.vis ? (
+      {isMultiplayer ? (
+        <View
+          style={{
+            backgroundColor: colors.accent,
+            paddingTop: insets.top,
+            flex: 1,
+          }}
+        >
+          <AppText size="xlarge" fontWeight="heavy" style={styles.title}>
+            Quiz Results
+          </AppText>
+          <FlatList
+            data={leaderboard}
+            keyExtractor={(item) => item._id}
+            showsVerticalScrollIndicator={false}
+            // contentContainerStyle={{ paddingBottom: height * 0.11 }}
+            ListHeaderComponentStyle={{ backgroundColor: colors.accent }}
+            ListHeaderComponent={() => (
+              <LeaderboardWinners
+                isPro={false}
+                data={leaderboard?.slice(0, 2)}
+              />
+            )}
+            ListFooterComponent={
+              <View
+                style={
+                  leaderboard?.length < 4 ? styles.footerMain : styles.footer
+                }
+              />
+            }
+            renderItem={({ item, index }) => (
+              <LeaderboardItem item={item} isPro={false} index={index} />
+            )}
+          />
+        </View>
+      ) : stat.vis ? (
         <View style={styles.main}>
           <AppText style={styles.headerText} fontWeight="black" size={30}>
             Quiz Stats
@@ -193,12 +240,12 @@ const FinishedQuiz = ({ hideModal, data, retry, session }) => {
       <View style={styles.btns}>
         <AppButton title={"Close"} type="white" onPress={hideModal} />
         <AppButton
-          title={`${stat.vis ? "Hide" : ""} Stats`}
+          title={`${stat.vis ? "Hide" : ""} My Stats`}
           type="accent"
           style={{ alignSelf: "center" }}
           onPress={() => setStat({ ...stat, vis: !stat.vis })}
         />
-        <AppButton title={"Retry"} onPress={retryQuiz} />
+        {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
       </View>
       {/* </View> */}
     </View>
@@ -213,6 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   btns: {
+    paddingTop: 10,
     width,
     flexDirection: "row",
     alignItems: "center",
@@ -225,6 +273,20 @@ const styles = StyleSheet.create({
     maxHeight: height * 0.5,
     paddingLeft: 12,
     // backgroundColor: "red",
+  },
+  footer: {
+    // flex: 1,
+    marginTop: 40,
+    height: height * 0.5,
+    backgroundColor: colors.unchange,
+    // marginHorizontal: width * 0.02,
+  },
+  footerMain: {
+    height: height * 0.5,
+    borderTopRightRadius: 18,
+    borderTopLeftRadius: 18,
+    backgroundColor: colors.unchange,
+    // top: 40,
   },
   headerText: {
     textAlign: "center",
@@ -268,5 +330,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     justifyContent: "space-around",
     alignItems: "center",
+  },
+  title: {
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 15,
+    color: "#fff",
   },
 });
