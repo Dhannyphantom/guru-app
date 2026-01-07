@@ -27,7 +27,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   });
 
   const [submitQuiz, { isLoading, isError, error }] = useSubmitQuizMutation();
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboard, setLeaderboard] = useState(session?.leaderboard ?? []);
   const [submitPremiumQuiz, { isLoading: premLoading }] =
     useSubmitPremiumQuizMutation();
 
@@ -105,10 +105,11 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
 
   useEffect(() => {
     socket.on("leaderboard_update", ({ leaderboard }) => {
+      console.log("Yesssss, QUiz ended", { leaderboard });
       setLeaderboard(leaderboard);
     });
 
-    return () => socket.off("session_answers");
+    return () => socket.off("leaderboard_update");
   }, []);
 
   return (
@@ -141,7 +142,13 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
                 style={
                   leaderboard?.length < 4 ? styles.footerMain : styles.footer
                 }
-              />
+              >
+                <LottieAnimator
+                  name="congrats"
+                  loop={false}
+                  style={{ width: width * 0.8, height: width * 0.8 }}
+                />
+              </View>
             }
             renderItem={({ item, index }) => (
               <LeaderboardItem item={item} isPro={false} index={index} />
@@ -279,6 +286,7 @@ const styles = StyleSheet.create({
     marginTop: 40,
     height: height * 0.5,
     backgroundColor: colors.unchange,
+    alignItems: "center",
     // marginHorizontal: width * 0.02,
   },
   footerMain: {
@@ -286,6 +294,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 18,
     borderTopLeftRadius: 18,
     backgroundColor: colors.unchange,
+    alignItems: "center",
     // top: 40,
   },
   headerText: {

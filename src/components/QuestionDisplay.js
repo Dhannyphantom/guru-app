@@ -35,6 +35,7 @@ import { FormikCover } from "./CoverImage";
 import AnimatedPressable from "./AnimatedPressable";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
+import { AppState } from "react-native";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -53,6 +54,8 @@ const QuestionDisplay = ({
   const timerRef = useRef(null);
   const isMultiplayer = Boolean(sessionId);
   const user = useSelector(selectUser);
+  const appState = useRef(AppState.currentState);
+  const handleNextQuestionRef = useRef();
 
   /* ---------- normalize question bank ---------- */
   const normalizedBank = useMemo(() => {
@@ -87,6 +90,7 @@ const QuestionDisplay = ({
   const [session, setSession] = useState({
     totalQuestions: 0,
     questions: [],
+    leaderboard: [],
     row: 0,
   });
 
@@ -164,8 +168,16 @@ const QuestionDisplay = ({
         totalQuestions,
         questions: questionStore,
       });
+      if (isMultiplayer) {
+        socket.emit("quiz_end", {
+          point: currentQuestion.point,
+          sessionId,
+          answer: currentQuestion?.answered,
+          user: getUserProfile(user),
+        });
+      }
       setQuizInfoView("finished");
-    }, 5000);
+    }, 3000);
   };
 
   /* ---------- next ---------- */
@@ -235,6 +247,19 @@ const QuestionDisplay = ({
     return () => socket.off("session_answers");
   }, []);
 
+  // leaderboard_update
+  useEffect(() => {
+    socket.on("leaderboard_update", ({ leaderboard }) => {
+      setSession((prev) => ({ ...prev, leaderboard }));
+    });
+
+    return () => socket.off("leaderboard_update");
+  }, []);
+
+  useEffect(() => {
+    handleNextQuestionRef.current = handleNextQuestion;
+  }, [handleNextQuestion]);
+
   /* ---------- proceed delay ---------- */
   useEffect(() => {
     const t = setTimeout(() => {
@@ -242,6 +267,24 @@ const QuestionDisplay = ({
     }, 3000);
     return () => clearTimeout(t);
   }, [active.subject, active.question]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/active|foreground/) &&
+        nextAppState === "background"
+      ) {
+        // App has gone to the background - trigger your function here
+        handleNextQuestionRef.current?.();
+      }
+
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   /* ---------- HARD GUARD ---------- */
   if (!currentQuestion) {

@@ -22,6 +22,9 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
   if (index < 3) return;
   let pointText = formatPoints(item.points ?? item?.questionsCount);
   if (isPro) pointText = pointText?.slice(0, -3);
+
+  const loading = item?.nextQuestion;
+
   return (
     <View
       style={{
@@ -62,6 +65,7 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
             {pointText}{" "}
           </AppText>
         </View>
+        <LottieAnimator visible={loading} wTransparent absolute size={80} />
       </View>
       <View style={styles.separator} />
     </View>
@@ -73,6 +77,7 @@ const LeaderboardChampion = ({
   userID,
   avatar,
   award,
+  loading,
   isPro,
   points,
 }) => {
@@ -100,6 +105,8 @@ const LeaderboardChampion = ({
         fontSize="xsmall"
         style={{ backgroundColor: colors.unchange }}
       />
+
+      <LottieAnimator visible={loading} wTransparent absolute size={80} />
     </View>
   );
 };
@@ -118,6 +125,7 @@ export const LeaderboardWinners = ({ data, isPro }) => {
         name={getFullName(item)}
         award={item.award}
         userID={item?._id}
+        loading={item?.nextQuestion}
         isPro={isPro}
         avatar={item?.avatar?.image}
         points={item.points ?? item?.questionsCount}
