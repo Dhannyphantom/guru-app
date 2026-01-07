@@ -64,10 +64,12 @@ const initials = {
 const RenderQuiz = ({ setVisible, data }) => {
   // data = {view, type}
   const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
+  const { isLobby, host, lobbyId } = useLocalSearchParams();
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [quizInfo, setQuizInfo] = useState(initials);
   const [popper, setPopper] = useState({ vis: false });
+  const [hoster, setHoster] = useState(host ? JSON.parse(host) : null);
   const [session, setSession] = useState({
     totalQuestions: 1,
     questions: [],
@@ -75,8 +77,6 @@ const RenderQuiz = ({ setVisible, data }) => {
 
   const { data: subjects, isLoading: subjLoad } =
     useFetchSubjectCategoriesQuery(quizInfo?.category?._id);
-
-  const { isLobby, host, lobbyId } = useLocalSearchParams();
 
   const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation();
   const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
@@ -133,13 +133,14 @@ const RenderQuiz = ({ setVisible, data }) => {
   const handlePrompt = (type) => {
     switch (type) {
       case "quit":
-        if (isLobby) {
+        if (isMultiplayer) {
           socket.emit("invite_response", {
-            sessionId: lobbyId,
+            sessionId: lobbyId ?? quizInfo.sessionId,
             user: getUserProfile(user),
             status: "rejected",
           });
         }
+
         setVisible(false);
 
         break;
@@ -286,6 +287,8 @@ const RenderQuiz = ({ setVisible, data }) => {
     socket.on("session_snapshots", (sessionDta) => {
       // keep parent in sync
 
+      setHoster(sessionDta.host);
+
       setQuizInfo((prev) => ({
         ...prev,
         invites: sessionDta.users
@@ -408,7 +411,7 @@ const RenderQuiz = ({ setVisible, data }) => {
                 {isSelection && (
                   <ModeSelection
                     isLobby={Boolean(isLobby)}
-                    lobby={{ host: host ? JSON.parse(host) : null }}
+                    lobby={{ host: hoster }}
                     sessionId={quizInfo.sessionId}
                     setPop={setPopper}
                     setState={(data) => setQuizInfo({ ...quizInfo, ...data })}

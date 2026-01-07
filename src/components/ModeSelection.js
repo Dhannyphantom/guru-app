@@ -159,6 +159,18 @@ const ModeSelection = ({ setState, setPop, sessionId, lobby, isLobby }) => {
     setState({ invites, view: "category" });
   };
 
+  useEffect(() => {
+    if (!showFriendList && lobby?.host?._id === user?._id) {
+      setPop({
+        vis: true,
+        msg: `Hey, ${user?.username}, You're now the quiz host`,
+        timer: 3000,
+        type: "success",
+      });
+      setShowFriendList(true);
+    }
+  }, [lobby]);
+
   // new_invite
   useEffect(() => {
     socket.on("new_invite", ({ user }) => {
@@ -230,6 +242,17 @@ const ModeSelection = ({ setState, setPop, sessionId, lobby, isLobby }) => {
     });
 
     return () => socket.off("session_snapshot");
+  }, []);
+
+  // session_snapshots
+  useEffect(() => {
+    socket.on("session_snapshots", (sessionDta) => {
+      // keep parent in sync
+
+      setInvites(sessionDta.users ?? []);
+    });
+
+    return () => socket.off("session_snapshots");
   }, []);
 
   // player_ready
