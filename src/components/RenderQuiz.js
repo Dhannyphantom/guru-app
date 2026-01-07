@@ -36,6 +36,7 @@ import { useLocalSearchParams } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
+import PopMessage from "./PopMessage";
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 
@@ -66,6 +67,7 @@ const RenderQuiz = ({ setVisible, data }) => {
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [quizInfo, setQuizInfo] = useState(initials);
+  const [popper, setPopper] = useState({ vis: false });
   const [session, setSession] = useState({
     totalQuestions: 1,
     questions: [],
@@ -408,6 +410,7 @@ const RenderQuiz = ({ setVisible, data }) => {
                     isLobby={Boolean(isLobby)}
                     lobby={{ host: host ? JSON.parse(host) : null }}
                     sessionId={quizInfo.sessionId}
+                    setPop={setPopper}
                     setState={(data) => setQuizInfo({ ...quizInfo, ...data })}
                   />
                 )}
@@ -495,6 +498,7 @@ const RenderQuiz = ({ setVisible, data }) => {
         setPrompt={(data) => setPrompt(data)}
         onPress={handlePrompt}
       />
+      <PopMessage popData={popper} setPopData={setPopper} />
       <StatusBar style="dark" />
     </View>
   );
@@ -520,7 +524,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingTop: 20,
     alignItems: "center",
-    // backgroundColor: "red",
   },
   selectSubjects: {
     alignSelf: "center",

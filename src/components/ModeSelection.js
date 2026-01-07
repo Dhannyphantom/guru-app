@@ -28,7 +28,6 @@ import FriendCard, { ProfileCard } from "./FriendCard";
 import AnimatedPressable from "./AnimatedPressable";
 import colors from "../helpers/colors";
 import { selectUser, useFetchFriendsQuery } from "../context/usersSlice";
-import PopMessage from "./PopMessage";
 import {
   capCapitalize,
   getFullName,
@@ -39,7 +38,6 @@ import { useSelector } from "react-redux";
 import PromptModal from "./PromptModal";
 import AppButton from "./AppButton";
 import RenderCategories from "./RenderCategories";
-import { nanoid } from "@reduxjs/toolkit";
 
 const { width } = Dimensions.get("screen");
 
@@ -67,10 +65,9 @@ const findUser = (user, invites = []) => {
   return invites.find((item) => item?._id === user?._id);
 };
 
-const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
+const ModeSelection = ({ setState, setPop, sessionId, lobby, isLobby }) => {
   const [showFriendList, setShowFriendList] = useState(false);
   const { data: res } = useFetchFriendsQuery();
-  const [popper, setPopper] = useState({ vis: false });
   const [invites, setInvites] = useState([]);
   const [mode, setMode] = useState({});
   const [prompt, setPrompt] = useState({ vis: false });
@@ -119,7 +116,7 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
         },
       });
 
-      setPopper({
+      setPop({
         vis: true,
         msg: `Invite sent to ${capCapitalize(getFullName(friend, true))}`,
         timer: 600,
@@ -374,8 +371,6 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               contStyle={styles.btn}
             />
           )}
-
-          <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : isLobby ? (
         <Animated.View
@@ -499,7 +494,6 @@ const ModeSelection = ({ setState, sessionId, lobby, isLobby }) => {
               )}
             </View>
           </ScrollView>
-          <PopMessage popData={popper} setPopData={setPopper} />
         </Animated.View>
       ) : (
         <Animated.View
@@ -580,7 +574,6 @@ const styles = StyleSheet.create({
   },
   modeFriends: {
     flex: 1,
-    // backgroundColor: "red",
     // width,
     // height: 200,
   },
