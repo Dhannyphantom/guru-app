@@ -23,7 +23,7 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
   let pointText = formatPoints(item.points ?? item?.questionsCount);
   if (isPro) pointText = pointText?.slice(0, -3);
 
-  const loading = item?.nextQuestion;
+  const loading = !item?.hasFinished;
 
   return (
     <View
@@ -125,7 +125,7 @@ export const LeaderboardWinners = ({ data, isPro }) => {
         name={getFullName(item)}
         award={item.award}
         userID={item?._id}
-        loading={item?.nextQuestion}
+        loading={!item?.hasFinished}
         isPro={isPro}
         avatar={item?.avatar?.image}
         points={item.points ?? item?.questionsCount}

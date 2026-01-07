@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Dimensions,
   Platform,
@@ -170,9 +171,7 @@ const QuestionDisplay = ({
       });
       if (isMultiplayer) {
         socket.emit("quiz_end", {
-          point: currentQuestion.point,
           sessionId,
-          answer: currentQuestion?.answered,
           user: getUserProfile(user),
         });
       }
@@ -200,7 +199,6 @@ const QuestionDisplay = ({
             answer: currentQuestion?.answered,
             row,
             point: currentQuestion.point,
-            nextQuestion: noNextQuestion,
             sessionId,
             user: getUserProfile(user),
           });
@@ -222,7 +220,6 @@ const QuestionDisplay = ({
           row: 0,
           point: -2,
           sessionId,
-          nextQuestion: noNextQuestion,
           user: getUserProfile(user),
         });
       }

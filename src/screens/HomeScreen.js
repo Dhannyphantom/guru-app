@@ -150,7 +150,7 @@ const HomeScreen = () => {
   useEffect(() => {
     socket.on("un_invite", (session) => {
       // update invites list
-      console.log("Un_invited!!!");
+
       setInvite(null);
     });
 

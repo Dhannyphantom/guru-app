@@ -14,7 +14,9 @@ import {
   LeaderboardWinners,
 } from "../screens/LeaderboardScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { socket } from "../helpers/helperFunctions";
+import { getUserProfile, socket } from "../helpers/helperFunctions";
+import { useSelector } from "react-redux";
+import { selectUser } from "../context/usersSlice";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -35,6 +37,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   const lowPercent = percentage < 50;
   const isMultiplayer = Boolean(sessionId);
   const insets = useSafeAreaInsets();
+  const user = useSelector(selectUser);
 
   const retryQuiz = async () => {
     await uploadQuizSession();
@@ -99,13 +102,16 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
     : `You've done well, retake quiz or move to next topic or subject category`;
 
   useEffect(() => {
+    socket.emit("quiz_end", {
+      sessionId,
+      user: getUserProfile(user),
+    });
     getStats();
     uploadQuizSession();
   }, [session]);
 
   useEffect(() => {
     socket.on("leaderboard_update", ({ leaderboard }) => {
-      console.log("Yesssss, QUiz ended", { leaderboard });
       setLeaderboard(leaderboard);
     });
 
