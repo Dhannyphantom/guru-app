@@ -147,7 +147,7 @@ const QuestionDisplay = ({
         current: p.current + 1,
         canProceed: false,
       }));
-      timerRef.current?.play();
+      // timerRef.current?.play();
       return;
     }
 
@@ -158,7 +158,7 @@ const QuestionDisplay = ({
         current: p.current + 1,
         canProceed: false,
       }));
-      timerRef.current?.play();
+      // timerRef.current?.play();
       return;
     }
 
@@ -315,6 +315,7 @@ const QuestionDisplay = ({
           </AppText>
 
           <LottieAnimator
+            key={`${active.subject}-${active.question}`}
             name="timer"
             animRef={timerRef}
             speed={10 / (currentQuestion.timer || 10)}
