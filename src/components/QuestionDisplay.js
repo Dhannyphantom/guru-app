@@ -4,6 +4,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  AppState,
   TextInput,
   View,
 } from "react-native";
@@ -36,7 +37,6 @@ import { FormikCover } from "./CoverImage";
 import AnimatedPressable from "./AnimatedPressable";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
-import { AppState } from "react-native";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -169,12 +169,6 @@ const QuestionDisplay = ({
         totalQuestions,
         questions: questionStore,
       });
-      if (isMultiplayer) {
-        socket.emit("quiz_end", {
-          sessionId,
-          user: getUserProfile(user),
-        });
-      }
       setQuizInfoView("finished");
     }, 3000);
   };

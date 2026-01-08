@@ -76,6 +76,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   };
 
   const uploadQuizSession = async () => {
+    if (isMultiplayer) return;
     if (data?.type === "school") {
       try {
         await submitQuiz({ ...data, ...session }).unwrap();
@@ -128,8 +129,12 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
             flex: 1,
           }}
         >
-          <AppText size="xlarge" fontWeight="heavy" style={styles.title}>
-            Quiz Results
+          <AppText
+            size="xlarge"
+            fontWeight="heavy"
+            style={[styles.title, { textAlign: "flex-start", marginLeft: 15 }]}
+          >
+            Quiz Leaderboard
           </AppText>
           <FlatList
             data={leaderboard}
@@ -140,7 +145,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
             ListHeaderComponent={() => (
               <LeaderboardWinners
                 isPro={false}
-                data={leaderboard?.slice(0, 2)}
+                data={leaderboard?.slice(0, 3)}
               />
             )}
             ListFooterComponent={
