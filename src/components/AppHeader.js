@@ -10,6 +10,7 @@ const { width, height } = Dimensions.get("screen");
 const AppHeader = ({
   title = "",
   titleColor = "#000",
+  onPress,
   hideNavigator = false,
   Component,
 }) => {
@@ -17,7 +18,10 @@ const AppHeader = ({
   return (
     <Screen style={{ flex: null }}>
       <View style={styles.container}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.nav}>
+        <Pressable
+          onPress={() => (Boolean(onPress) ? onPress() : navigation.goBack())}
+          style={styles.nav}
+        >
           {!hideNavigator && (
             <Ionicons
               style={{ paddingRight: 5 }}

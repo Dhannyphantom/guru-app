@@ -69,11 +69,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
     withdrawFromWallet: builder.mutation({
       query: (data) => ({
-        url: "/payments/withdraw",
+        url: "/payouts/withdraw",
+        // url: "/payments/withdraw",
         method: "POST",
         body: data,
       }),
     }),
+
     proVerify: builder.mutation({
       query: (data) => ({
         url: "/users/professional",
@@ -176,7 +178,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
     fetchBanks: builder.query({
       query: () => ({
-        url: "/payments/banks",
+        url: "/payouts/banks",
         timeout: 15000,
       }),
     }),

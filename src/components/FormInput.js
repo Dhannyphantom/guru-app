@@ -105,7 +105,7 @@ const DropComponent = ({
         placeholder: dropData.name,
       });
       setSearch({ data });
-      const setData = getId ? dropData : dropData?.value ?? dropData?.name;
+      let setData = getId ? dropData : dropData?.value ?? dropData?.name;
       if (name === "bank")
         setData = { code: dropData.code, name: dropData.name };
       setFieldValue(name, setData);

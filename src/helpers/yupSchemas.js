@@ -211,7 +211,7 @@ export const subInitials = {
 };
 
 export const withdrawInitials = {
-  bank: { code: "044", name: "" },
+  bank: { code: "044", name: "Access Bank" },
   acct_number: "0690000032",
 };
 
