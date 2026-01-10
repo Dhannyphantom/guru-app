@@ -9,6 +9,7 @@ import {
 
 import AppText from "../components/AppText";
 import { selectUser, useSubscribeUserMutation } from "../context/usersSlice";
+import { PayWithFlutterwave } from "flutterwave-react-native";
 import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import {
@@ -48,12 +49,9 @@ const DisplayPayments = ({ hideModal, data }) => {
     useSavedInfo: false,
   });
   const [popper, setPopper] = useState({ vis: false });
-  const [acctDetail, setAcctDetail] = useState(null);
 
   // const webViewRef = useRef();
   const isSuccess = bools.status === "success";
-  const isVerify = bools.status === "verify";
-  const isPin = bools.status === "pin";
   const isPending = bools.status === "pending";
   const profile = hasCompletedProfile(user);
 
@@ -122,30 +120,25 @@ const DisplayPayments = ({ hideModal, data }) => {
     }
   };
 
-  const handleCheckBox = (bool, formSetter) => {
-    setBools({
-      ...bools,
-      useSavedInfo: bool,
-      saveInfo: acctDetail ? false : bool,
-    });
-
-    if (acctDetail && bool) {
-      formSetter && formSetter({ ...acctDetail });
-    } else if (acctDetail && !bool) {
-      formSetter && formSetter({ ...subInitials });
-    }
+  /* An example function called when transaction is completed successfully or canceled */
+  const handleOnRedirect = (data) => {
+    // data = { status, transaction_id?, tx_ref }
+    console.log(data);
   };
 
-  const getAcctDetails = async () => {
-    const getAcctInfo = await AsyncStorage.getItem("acct");
-    if (getAcctInfo) {
-      setAcctDetail(JSON.parse(getAcctInfo));
-    }
-  };
+  /* An example function to generate a random transaction reference */
+  const generateTransactionRef = (length) => {
+    let result = "";
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const charactersLength = characters.length;
 
-  useEffect(() => {
-    getAcctDetails();
-  }, []);
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+
+    return `flw_tx_ref_${result}`;
+  };
 
   return (
     <>
@@ -155,204 +148,109 @@ const DisplayPayments = ({ hideModal, data }) => {
           validationSchema={subUserSchema}
           onSubmit={handleSubscription}
         >
-          {({ setValues }) => {
+          {({ values }) => {
+            const amount = Number(values["sub_amount"]?.value ?? 0);
+
             return (
               <>
-                {!isSuccess && (
-                  <AppText
-                    size={"large"}
-                    fontWeight="heavy"
-                    style={styles.title}
-                  >
-                    Enter {isSchool ? "School" : "Student"} Payment Details
-                  </AppText>
-                )}
-
-                {isVerify && (
-                  <>
-                    <Animated.View
-                      entering={enterAnimOther}
-                      exiting={exitingAnim}
-                    >
-                      <AppText>{bools?.payload?.msg}</AppText>
-                      <FormikInput
-                        name={"otp"}
-                        keyboardType={"numeric"}
-                        placeholder="Enter OTP"
-                      />
-                    </Animated.View>
-                  </>
-                )}
-                {isPin && (
-                  <>
-                    <Animated.View
-                      entering={enterAnimOther}
-                      exiting={exitingAnim}
-                    >
-                      <FormikInput
-                        headerText={"Charge Authorization"}
-                        secureTextEntry
-                        name={"pin"}
-                        keyboardType={"numeric"}
-                        placeholder={bools?.payload?.msg}
-                      />
-                      <View style={{ marginBottom: 30 }}>
-                        <AppText>
-                          You're paying{" "}
-                          <AppText fontWeight="heavy">
-                            {getCurrencyAmount(bools?.payload?.amount)}
-                          </AppText>{" "}
-                          subscription
-                        </AppText>
-                      </View>
-                    </Animated.View>
-                  </>
-                )}
-
-                {isPending && (
-                  <Animated.View
-                    entering={profile.bool && enterAnimOther}
-                    exiting={profile.bool && exitingAnim}
-                    style={{ flex: 3 }}
-                  >
-                    <ScrollView
-                      style={{ flex: 1 }}
-                      contentContainerStyle={{ paddingBottom: height * 0.05 }}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <KeyboardAvoidingView
-                        style={styles.avoidingView}
-                        behavior="padding"
-                      >
-                        <View>
-                          <FormikInput
-                            name={"card_number"}
-                            keyboardType="numeric"
-                            headerText={"Card Number"}
-                            placeholder="Card Number"
-                          />
-                        </View>
-                        <View>
-                          <FormikInput
-                            keyboardType="numeric"
-                            headerText={"CVV"}
-                            name={"card_cvv"}
-                            placeholder="CVV"
-                          />
-                        </View>
-                        <View style={styles.row}>
-                          <View style={{ flex: 1 }}>
-                            <FormikInput
-                              name={"card_exp_month"}
-                              placeholder="Expiry Month"
-                              headerText={"Exp Month"}
-                              keyboardType="numeric"
-                              style={styles.dateInput}
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <FormikInput
-                              headerText={"Exp Year"}
-                              name={"card_exp_year"}
-                              keyboardType="numeric"
-                              placeholder="Expiry Year"
-                              style={styles.dateInput}
-                            />
-                          </View>
-                        </View>
-
-                        <FormikInput
-                          headerText={"Subscription amount"}
-                          name={"sub_amount"}
-                          data={isSchool ? subSchoolDrop : subDropdown}
-                          type="dropdown"
-                          placeholder="Select subscription plan"
-                        />
-                        <View style={styles.checkbox}>
-                          <AppText fontWeight="bold">
-                            {Boolean(acctDetail) ? "Use" : "Save"} Card Info
-                          </AppText>
-                          <AnimatedCheckBox
-                            isChecked={bools.saveInfo || bools?.useSavedInfo}
-                            setIsChecked={(bool) =>
-                              handleCheckBox(bool, setValues)
-                            }
-                          />
-                        </View>
-                        {bools.saveInfo ||
-                          (bools.useSavedInfo && (
-                            <AppText
-                              style={styles.cardInfo}
-                              fontWeight="bold"
-                              size={"xsmall"}
-                            >
-                              Please note that your card info are ONLY stored
-                              securely on your phone
-                            </AppText>
-                          ))}
-                      </KeyboardAvoidingView>
-                    </ScrollView>
-                  </Animated.View>
-                )}
-
-                {isSuccess && (
-                  <Animated.View
-                    entering={enterAnimOther}
-                    style={{ flex: 1, alignItems: "center" }}
-                  >
-                    <LottieAnimator
-                      name="success"
-                      style={{ width: width * 0.7, height: height * 0.4 }}
-                    />
-                    <AppText
-                      fontWeight="black"
-                      size={"xxlarge"}
-                      style={{ color: colors.greenDark }}
-                    >
-                      Subcription Successful
-                    </AppText>
-                    <AppText fontWeight="light" style={{ textAlign: "center" }}>
-                      You have successfully added a 30 days subscription to your
-                      account. Congratulations!
-                    </AppText>
-                  </Animated.View>
-                )}
-                <Animated.View
-                  layout={LinearTransition.springify()}
-                  style={styles.formBtn}
-                >
+                <>
                   {!isSuccess && (
-                    <>
-                      <AppText
-                        style={styles.payTxt}
-                        fontWeight="light"
-                        size={"xsmall"}
-                      >
-                        Payments secured by Flutterwave
-                      </AppText>
-
-                      <FormikButton
-                        title={
-                          isVerify
-                            ? "Verify Payment"
-                            : isPin
-                            ? "Enter Pin"
-                            : "Subscribe"
-                        }
-                        // onPress={handleSubscription}
-                        contStyle={{ marginTop: 10, marginHorizontal: 20 }}
-                      />
-                    </>
+                    <AppText
+                      size={"large"}
+                      fontWeight="heavy"
+                      style={styles.title}
+                    >
+                      Choose {isSchool ? "School" : "Student"} Payment Plan
+                    </AppText>
                   )}
 
-                  <AppButton
-                    title={isSuccess ? "Finish Session" : "Cancel Session"}
-                    type={isSuccess ? "accent" : "warn"}
-                    onPress={() => hideModal(isSuccess)}
-                    contStyle={{ marginHorizontal: 20 }}
-                  />
-                </Animated.View>
-                <LottieAnimator visible={isLoading} absolute />
+                  {isPending && (
+                    <Animated.View
+                      entering={profile.bool && enterAnimOther}
+                      exiting={profile.bool && exitingAnim}
+                      style={{ flex: 3 }}
+                    >
+                      <FormikInput
+                        headerText={"Subscription amount"}
+                        name={"sub_amount"}
+                        data={isSchool ? subSchoolDrop : subDropdown}
+                        type="dropdown"
+                        placeholder="Select subscription plan"
+                      />
+                    </Animated.View>
+                  )}
+
+                  {isSuccess && (
+                    <Animated.View
+                      entering={enterAnimOther}
+                      style={{ flex: 1, alignItems: "center" }}
+                    >
+                      <LottieAnimator
+                        name="success"
+                        style={{ width: width * 0.7, height: height * 0.4 }}
+                      />
+                      <AppText
+                        fontWeight="black"
+                        size={"xxlarge"}
+                        style={{ color: colors.greenDark }}
+                      >
+                        Subcription Successful
+                      </AppText>
+                      <AppText
+                        fontWeight="light"
+                        style={{ textAlign: "center" }}
+                      >
+                        You have successfully added a 30 days subscription to
+                        your account. Congratulations!
+                      </AppText>
+                    </Animated.View>
+                  )}
+
+                  <Animated.View
+                    layout={LinearTransition.springify()}
+                    style={styles.formBtn}
+                  >
+                    {!isSuccess && Boolean(values["sub_amount"]) && (
+                      <>
+                        <PayWithFlutterwave
+                          onRedirect={handleOnRedirect}
+                          options={{
+                            tx_ref: generateTransactionRef(10),
+                            authorization:
+                              "FLWPUBK_TEST-16067fba46bd1ab985e439656b68ce98-X",
+                            customer: {
+                              email: user.email,
+                            },
+                            amount,
+                            currency: "NGN",
+                            payment_options: "card,banktransfer,ussd",
+                            meta: {
+                              accountType: data?.type,
+                            },
+                          }}
+                          customButton={(props) => (
+                            <AppButton
+                              title={"Subscribe"}
+                              icon={{ name: "wallet", left: true }}
+                              style={styles.paymentButton}
+                              onPress={props.onPress}
+                              isBusy={props.isInitializing}
+                              disabled={props.disabled}
+                            />
+                          )}
+                        />
+                      </>
+                    )}
+
+                    <AppButton
+                      title={isSuccess ? "Finish Session" : "Cancel Session"}
+                      type={isSuccess ? "accent" : "warn"}
+                      onPress={() => hideModal(isSuccess)}
+                      contStyle={{ marginHorizontal: 20 }}
+                    />
+                  </Animated.View>
+                  <LottieAnimator visible={isLoading} absolute />
+                </>
               </>
             );
           }}
@@ -397,7 +295,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   webViewContainer: {
-    height: height * 0.75,
+    height: height * 0.45,
     width: width * 0.95,
     padding: 15,
     borderRadius: 10,

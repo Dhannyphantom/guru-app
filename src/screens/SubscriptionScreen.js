@@ -41,7 +41,7 @@ import DisplayPayments from "../components/DisplayPayments";
 import { selectSchool } from "../context/schoolSlice";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "../components/AppHeader";
-import TabSelector from "../components/TabSelector";
+// import TabSelector from "../components/TabSelector";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -614,6 +614,7 @@ const SubscriptionScreen = () => {
                 />
               )}
             </View>
+
             <View style={styles.history}>
               <AppText fontWeight="bold" size={"xlarge"} style={{ margin: 15 }}>
                 History

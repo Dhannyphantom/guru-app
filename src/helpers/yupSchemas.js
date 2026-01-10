@@ -196,15 +196,15 @@ const validationSchemaLogin = Yup.object().shape({
 
 export const subInitials = {
   // card_number: "",
-  card_number: "5531886652142950",
+  // card_number: "5531886652142950",
   // card_cvv: "",
-  card_cvv: "564",
+  // card_cvv: "564",
   // card_exp_month: "",
-  card_exp_month: "09",
+  // card_exp_month: "09",
   // card_exp_year: "",
-  card_exp_year: "31",
-  otp: "",
-  pin: "",
+  // card_exp_year: "31",
+  // otp: "",
+  // pin: "",
   sub_amount: "",
   // flw_ref: "",
   // tx_ref: "",
@@ -390,24 +390,24 @@ export const withdrawPointsSchema = Yup.object().shape({
 });
 
 export const subUserSchema = Yup.object().shape({
-  card_number: Yup.string().required().validCard().label("Card number"),
-  card_cvv: Yup.string()
-    .required()
-    .matches(/^[0-9]{3,4}$/, "CVV must be 3 or 4 digits")
-    .label("Card CVV"),
-  card_exp_month: Yup.string()
-    .required()
-    .matches(/^(0[1-9]|1[0-2])$/, "Invalid expiry month")
-    .label("Card expiry month"),
-  card_exp_year: Yup.string()
-    .required()
-    .label("Card expiry year")
-    .test("is-future-year", "Card is expired!", (value) => {
-      const currentYear = new Date().getFullYear();
-      return value >= currentYear.toString().slice(-2);
-    }),
-  otp: Yup.string().optional().label("OTP"),
-  pin: Yup.string().optional().label("Card pin"),
+  // card_number: Yup.string().required().validCard().label("Card number"),
+  // card_cvv: Yup.string()
+  //   .required()
+  //   .matches(/^[0-9]{3,4}$/, "CVV must be 3 or 4 digits")
+  //   .label("Card CVV"),
+  // card_exp_month: Yup.string()
+  //   .required()
+  //   .matches(/^(0[1-9]|1[0-2])$/, "Invalid expiry month")
+  //   .label("Card expiry month"),
+  // card_exp_year: Yup.string()
+  //   .required()
+  //   .label("Card expiry year")
+  //   .test("is-future-year", "Card is expired!", (value) => {
+  //     const currentYear = new Date().getFullYear();
+  //     return value >= currentYear.toString().slice(-2);
+  //   }),
+  // otp: Yup.string().optional().label("OTP"),
+  // pin: Yup.string().optional().label("Card pin"),
   sub_amount: Yup.object()
     .shape({
       name: Yup.string().optional().label("Amount"),
