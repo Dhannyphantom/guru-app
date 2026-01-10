@@ -1,14 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Dimensions, View } from "react-native";
 import React, { useState } from "react";
 import { WithdrawModal } from "./SubscriptionScreen";
 import AnimatedPressable from "../components/AnimatedPressable";
 import AppText from "../components/AppText";
-import { Dimensions } from "react-native";
 import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
 import colors from "../helpers/colors";
 import AppHeader from "../components/AppHeader";
 import { useRouter } from "expo-router";
-import { exitingAnim } from "../helpers/dataStore";
 import PopMessage from "../components/PopMessage";
 
 const { width, height } = Dimensions.get("screen");

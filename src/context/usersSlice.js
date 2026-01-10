@@ -98,10 +98,19 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      invalidatesTags: ["USER"],
     }),
     renewSubscription: builder.mutation({
       query: (data) => ({
         url: "/users/renew-subscription",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["USER"],
+    }),
+    rechargeAirtime: builder.mutation({
+      query: (data) => ({
+        url: "/payouts/recharge",
         method: "POST",
         body: data,
       }),
@@ -281,6 +290,7 @@ export const {
   useFetchUserQuery,
   useFetchRewardsQuery,
   useLazyFetchUserQuery,
+  useRechargeAirtimeMutation,
   useFetchProsQuery,
   useFetchFriendsQuery,
   useProVerifyMutation,

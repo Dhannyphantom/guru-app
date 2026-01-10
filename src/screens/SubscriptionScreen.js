@@ -14,6 +14,7 @@ import {
   selectUser,
   useLazyFetchBanksQuery,
   useLazyFetchUserQuery,
+  useRechargeAirtimeMutation,
   useRenewSubscriptionMutation,
   useVerifyAccountMutation,
   useWithdrawFromWalletMutation,
@@ -50,7 +51,7 @@ import DisplayPayments from "../components/DisplayPayments";
 import { selectSchool } from "../context/schoolSlice";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "../components/AppHeader";
-// import TabSelector from "../components/TabSelector";
+import TabSelector from "../components/TabSelector";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -68,6 +69,8 @@ export const WithdrawModal = ({
     useWithdrawFromWalletMutation();
   const [fetchBanks, { isLoading: bankLoading }] = useLazyFetchBanksQuery();
   const [verifyAcct, { isLoading: isVerifying }] = useVerifyAccountMutation();
+  const [rechargeAirtime, { isLoading: isRecharging }] =
+    useRechargeAirtimeMutation();
   const [renewSubscription, { isLoading: isRenewing }] =
     useRenewSubscriptionMutation();
 
@@ -75,6 +78,9 @@ export const WithdrawModal = ({
   const router = useRouter();
 
   const [amount, setAmount] = useState("");
+  const [contact, setContact] = useState(user?.contact);
+  const [tab, setTab] = useState("MTN");
+  const [resMsg, setResMsg] = useState("");
 
   const balance = calculatePointsAmount(user.points);
   const shouldHideContinueBtn = type === "subscription";
@@ -97,10 +103,16 @@ export const WithdrawModal = ({
       successTxt = `Congratulations. You have successfully added ${amount} days to your active subscription`;
       break;
 
+    case "airtime":
+      headerTxt = "Airtime Initiated Successfully";
+      successTxt = `Congratulations. ${resMsg}`;
+      break;
+
     case "transfer":
-      (headerTxt = "Transaction Initiated Successfully"),
-        (successTxt =
-          "Your withdraw transaction is pending. Please wait, you will be credited shortly.");
+      headerTxt = "Transaction Initiated Successfully";
+      successTxt =
+        "Your withdraw transaction is pending. Please wait, you will be credited shortly.";
+
       break;
   }
 
@@ -151,6 +163,35 @@ export const WithdrawModal = ({
         type: "failed",
         msg: "Transaction failed " + err?.msg ?? err?.data,
       });
+    }
+  };
+
+  const handleContinue = async () => {
+    if (type === "transfer") {
+      await onBankFetch(false);
+    } else if (type === "airtime") {
+      try {
+        const reqData = {
+          pointsToConvert: calculatePointsAmount(amount).point,
+          phoneNumber: contact,
+          network: tab,
+        };
+
+        const res = await rechargeAirtime(reqData).unwrap();
+
+        if (res?.success) {
+          setResMsg(res?.message);
+          setState({ ...state, status: "success" });
+        }
+      } catch (errr) {
+        setPopper({
+          vis: true,
+          type: "failed",
+          timer: 1400,
+          msg: errr?.data?.message ?? "Transaction failed",
+        });
+        console.log(errr);
+      }
     }
   };
 
@@ -259,6 +300,40 @@ export const WithdrawModal = ({
             </View>
           </View>
 
+          {type === "airtime" && (
+            <View style={{}}>
+              <TabSelector
+                options={[
+                  { label: "MTN", color: colors.warning },
+                  { label: "GLO", color: "#00B140" },
+                  { label: "AIRTEL", color: "#E90000" },
+                  { label: "9MOBILE", color: "#006400" },
+                ]}
+                onChange={(item, index) => {
+                  setTab(item?.label);
+                }}
+              />
+              <FormInput
+                keyboardType="numeric"
+                placeholder="Enter phone number"
+                maxLength={20}
+                headerText={"Phone Number:"}
+                value={contact}
+                onChangeText={(val) => setContact(val)}
+              />
+              <FormInput
+                keyboardType="numeric"
+                placeholder="Enter amount to withdraw"
+                editable={editable}
+                headerText={"Enter amount(₦):"}
+                value={amount}
+                onChangeText={onChangeAmount}
+              />
+              <AppText style={styles.preview} fontWeight="black" size="xxlarge">
+                {calculatePointsAmount(amount).pointFormat}
+              </AppText>
+            </View>
+          )}
           {type === "transfer" && (
             <View style={{ marginTop: 20 }}>
               <FormInput
@@ -383,7 +458,7 @@ export const WithdrawModal = ({
       )}
       <View style={styles.withdrawBtns}>
         {editable && isPending && !shouldHideContinueBtn && (
-          <AppButton title={"Continue"} onPress={() => onBankFetch(false)} />
+          <AppButton title={"Continue"} onPress={handleContinue} />
         )}
         <AppButton
           title={isSuccess ? "Close" : "Cancel Withdrawal"}
@@ -392,7 +467,7 @@ export const WithdrawModal = ({
         />
       </View>
       <LottieAnimator
-        visible={isLoading || bankLoading || isRenewing}
+        visible={isLoading || bankLoading || isRenewing || isRecharging}
         absolute
         wTransparent
       />

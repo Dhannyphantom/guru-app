@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions } from "react-native";
+import { View, Pressable, StyleSheet, Dimensions } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  interpolateColor,
 } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import colors from "../helpers/colors";
@@ -13,16 +14,34 @@ const { width } = Dimensions.get("window");
 
 const TabSelector = ({ options = [], initialIndex = 0, onChange }) => {
   const tabWidth = (width * 0.9) / options.length;
+
   const translateX = useSharedValue(tabWidth * initialIndex);
+  const indicatorIndex = useSharedValue(initialIndex);
+
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  const indicatorStyle = useAnimatedStyle(() => {
+    const inputRange = options.map((_, i) => i);
+    const outputRange = options.map((o) => o.color + "95" || colors.primary);
+    const outRange = options.map((o) => o.color || colors.primary);
+
+    return {
+      transform: [{ translateX: translateX.value }],
+      backgroundColor: interpolateColor(
+        indicatorIndex.value,
+        inputRange,
+        outputRange
+      ),
+      borderColor: interpolateColor(indicatorIndex.value, inputRange, outRange),
+    };
+  });
 
   const handlePress = (index) => {
     setActiveIndex(index);
+
     translateX.value = withTiming(tabWidth * index, { duration: 250 });
+    indicatorIndex.value = withTiming(index, { duration: 250 });
+
     onChange?.(options[index], index);
   };
 
@@ -49,8 +68,10 @@ const TabSelector = ({ options = [], initialIndex = 0, onChange }) => {
                   color={isActive ? "#fff" : "#777"}
                 />
               )}
+
               <AppText
-                fontWeight="bold"
+                fontWeight={isActive ? "black" : "bold"}
+                size={isActive ? "large" : null}
                 style={[styles.label, { color: isActive ? "#fff" : "#777" }]}
               >
                 {item.label}
@@ -91,5 +112,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 16,
     zIndex: 1,
+    borderWidth: 2,
+    borderBottomWidth: 6,
   },
 });
