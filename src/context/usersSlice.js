@@ -91,6 +91,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: data,
       }),
     }),
+
+    verifySubscription: builder.mutation({
+      query: (data) => ({
+        url: "/payouts/verify-subscription",
+        method: "POST",
+        body: data,
+      }),
+    }),
     studentAction: builder.mutation({
       query: (data) => ({
         url: "/users/students",
@@ -272,6 +280,7 @@ export const {
   useFetchProLeaderboardQuery,
   useWithdrawFromWalletMutation,
   useVerifyAccountMutation,
+  useVerifySubscriptionMutation,
   useLazyFetchBanksQuery,
 } = extendedUserApiSlice;
 
