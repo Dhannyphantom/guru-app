@@ -48,7 +48,7 @@ const { width, height } = Dimensions.get("screen");
 const PROGRESS_SIZE = width * 0.6;
 const maxProgress = 295;
 
-export const WithdrawModal = ({ closeModal }) => {
+export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
   const [withdrawFromWallet, { isLoading, isError, error }] =
     useWithdrawFromWalletMutation();
   const [fetchBanks, { isLoading: bankLoading }] = useLazyFetchBanksQuery();
@@ -58,13 +58,7 @@ export const WithdrawModal = ({ closeModal }) => {
   const router = useRouter();
 
   const [amount, setAmount] = useState("");
-  const [popper, setPopper] = useState({ vis: false });
-  const [tab, setTab] = useState("withdrawal");
-  const [state, setState] = useState({
-    status: "pending",
-    banks: [],
-    bankName: "",
-  });
+
   const balance = calculatePointsAmount(user.points);
 
   // console.log(JSON.stringify(state.banks, null, 2));
@@ -77,17 +71,6 @@ export const WithdrawModal = ({ closeModal }) => {
   const editable = true;
   const profile = hasCompletedProfile(user);
   // const editable = balance.amount >= 500;
-
-  let headerText;
-  switch (state.status) {
-    case "pending":
-      headerText = "Cashout Points";
-      break;
-
-    default:
-      headerText = "Back";
-      break;
-  }
 
   const onBankFetch = async (isFetcher = false) => {
     if (!profile.bool) {
@@ -115,7 +98,7 @@ export const WithdrawModal = ({ closeModal }) => {
   const handleCashOut = async (formValues) => {
     try {
       const res = await withdrawFromWallet({
-        pointsToConvert: amount,
+        pointsToConvert: calculatePointsAmount(amount).point,
         accountNumber: formValues.acct_number,
         accountBank: "044",
       }).unwrap();
@@ -139,24 +122,9 @@ export const WithdrawModal = ({ closeModal }) => {
     }
   };
 
-  const handleNavigation = () => {
-    switch (state.status) {
-      case "pending":
-        router.back();
-        break;
-      case "details":
-        setState((prev) => ({ ...prev, status: "pending" }));
-        break;
-
-      default:
-        headerText = "Back";
-        break;
-    }
-  };
-
   const onChangeAmount = (textVal) => {
     const num = parseInt(textVal, 10);
-    if (!isNaN(num) && num <= user?.points) {
+    if (!isNaN(num) && num <= balance.amount) {
       setAmount(textVal);
     } else if (textVal === "") {
       setAmount("");
@@ -193,181 +161,166 @@ export const WithdrawModal = ({ closeModal }) => {
   }, []);
 
   return (
-    <View>
-      <AppHeader title={headerText} onPress={handleNavigation} />
-
-      <View style={styles.withdraw}>
-        {isPending && (
-          <Animated.View exiting={exitingAnim}>
-            <View style={styles.withdrawRow}>
-              <View style={styles.cardMini}>
+    <View style={styles.withdraw}>
+      {isPending && (
+        <Animated.View exiting={exitingAnim}>
+          <View style={styles.withdrawRow}>
+            <View style={styles.cardMini}>
+              <AppText
+                size={"large"}
+                style={styles.withdrawHeaderTxt}
+                fontWeight="bold"
+              >
+                Points
+              </AppText>
+              <AppText
+                size="xxxlarge"
+                fontWeight="heavy"
+                style={styles.withdrawTxt}
+              >
+                {user?.points}
                 <AppText
-                  size={"large"}
-                  style={styles.withdrawHeaderTxt}
-                  fontWeight="bold"
-                >
-                  Points
-                </AppText>
-                <AppText
-                  size="xxxlarge"
-                  fontWeight="heavy"
                   style={styles.withdrawTxt}
+                  fontWeight="black"
+                  size="xsmall"
                 >
-                  {user?.points}
-                  <AppText
-                    style={styles.withdrawTxt}
-                    fontWeight="black"
-                    size="xsmall"
-                  >
-                    GT
-                  </AppText>
+                  GT
                 </AppText>
-              </View>
-
-              <View style={styles.cardMini}>
-                <AppText
-                  size={"large"}
-                  style={styles.withdrawHeaderTxt}
-                  fontWeight="bold"
-                >
-                  Balance
-                </AppText>
-                <AppText
-                  size="xxxlarge"
-                  fontWeight="heavy"
-                  style={styles.withdrawTxt}
-                >
-                  {balance.format}
-                </AppText>
-              </View>
-            </View>
-            {/* <TabSelector
-              options={[
-                { label: "BANK", icon: "signal" },
-                { label: "AIRTIME", icon: "cellphone-wireless" },
-                { label: "DATA", icon: "antenna" },
-              ]}
-              onChange={(item, index) => {
-                setTab(item?.label);
-              }}
-            /> */}
-
-            <View style={{ marginTop: 20 }}>
-              <FormInput
-                keyboardType="numeric"
-                placeholder="Enter point amount to withdraw"
-                editable={editable}
-                headerText={"Enter point amount:"}
-                value={amount}
-                onChangeText={onChangeAmount}
-              />
-              <AppText style={styles.preview} fontWeight="black" size="xxlarge">
-                {calculatePointsAmount(amount).format}
               </AppText>
             </View>
-            {isError && <AppText>{error.message}</AppText>}
-          </Animated.View>
-        )}
-        {isDetails && (
-          <Animated.View exiting={exitingAnim} entering={enterAnimOther}>
-            <AppText
-              style={[styles.withdrawHeaderTxt, { color: colors.black }]}
-              fontWeight="bold"
-            >
-              Enter Bank Account Details
-            </AppText>
-            <Formik
-              initialValues={withdrawInitials}
-              validationSchema={withdrawPointsSchema}
-              onSubmit={verifyAccount}
-            >
-              <>
-                <FormikInput
-                  name={"bank"}
-                  placeholder={"Select Bank"}
-                  data={state.banks}
-                  type="dropdown"
-                  numDisplayItems={2}
-                  headerText={"Bank"}
-                />
-                <FormikInput
-                  name={"acct_number"}
-                  placeholder={"Enter Account Number"}
-                  isLoading={isVerifying}
-                  keyboardType="numeric"
-                  headerText={"Account Number"}
-                />
-                {isVerified && (
-                  <View style={styles.acctName}>
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      color={colors.primary}
-                      size={16}
-                    />
-                    <AppText fontWeight="bold" style={styles.accountName}>
-                      {state.bankName}
-                    </AppText>
-                  </View>
-                )}
 
-                <FormikButton
-                  title={isVerified ? "Withdraw" : "Verify Account"}
-                  type="accent"
-                />
-              </>
-            </Formik>
-          </Animated.View>
-        )}
+            <View style={styles.cardMini}>
+              <AppText
+                size={"large"}
+                style={styles.withdrawHeaderTxt}
+                fontWeight="bold"
+              >
+                Balance
+              </AppText>
+              <AppText
+                size="xxxlarge"
+                fontWeight="heavy"
+                style={styles.withdrawTxt}
+              >
+                {balance.format}
+              </AppText>
+            </View>
+          </View>
 
-        {isSuccess && (
-          <Animated.View
-            entering={enterAnimOther}
-            style={{ alignItems: "center" }}
-          >
-            <LottieAnimator
-              name="success"
-              style={{ width: width * 0.7, height: height * 0.35 }}
+          <View style={{ marginTop: 20 }}>
+            <FormInput
+              keyboardType="numeric"
+              placeholder="Enter amount to withdraw"
+              editable={editable}
+              headerText={"Enter amount(₦):"}
+              value={amount}
+              onChangeText={onChangeAmount}
             />
-            <AppText
-              fontWeight="black"
-              size={"xxlarge"}
-              style={{ color: colors.accentDeep }}
-            >
-              Transaction Initiated Successfully
+            <AppText style={styles.preview} fontWeight="black" size="xxlarge">
+              {calculatePointsAmount(amount).pointFormat}
             </AppText>
-            <AppText
-              fontWeight="light"
-              style={{ textAlign: "center", marginBottom: 25 }}
-            >
-              Your withdraw transaction is pending. Please wait, you will be
-              credited shortly.
-            </AppText>
-          </Animated.View>
-        )}
-        {!editable && (
-          <AppText style={styles.info}>
-            Your balance is low, come back and withdraw your funds when you have
-            at least{" "}
-            <AppText fontWeight="heavy">{getCurrencyAmount(500)}</AppText>
+          </View>
+          {isError && <AppText>{error.message}</AppText>}
+        </Animated.View>
+      )}
+      {isDetails && (
+        <Animated.View exiting={exitingAnim} entering={enterAnimOther}>
+          <AppText
+            style={[styles.withdrawHeaderTxt, { color: colors.black }]}
+            fontWeight="bold"
+          >
+            Enter Bank Account Details
           </AppText>
-        )}
-        <View style={styles.withdrawBtns}>
-          {editable && isPending && (
-            <AppButton title={"Continue"} onPress={() => onBankFetch(false)} />
-          )}
-          <AppButton
-            title={isSuccess ? "Close" : "Cancel Withdrawal"}
-            type={isSuccess ? "accent" : "warn"}
-            onPress={closeModal}
+          <Formik
+            initialValues={withdrawInitials}
+            validationSchema={withdrawPointsSchema}
+            onSubmit={verifyAccount}
+          >
+            <>
+              <FormikInput
+                name={"bank"}
+                placeholder={"Select Bank"}
+                data={state.banks}
+                type="dropdown"
+                numDisplayItems={2}
+                headerText={"Bank"}
+              />
+              <FormikInput
+                name={"acct_number"}
+                placeholder={"Enter Account Number"}
+                isLoading={isVerifying}
+                keyboardType="numeric"
+                headerText={"Account Number"}
+              />
+              {isVerified && (
+                <View style={styles.acctName}>
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    color={colors.primary}
+                    size={16}
+                  />
+                  <AppText fontWeight="bold" style={styles.accountName}>
+                    {state.bankName}
+                  </AppText>
+                </View>
+              )}
+
+              <FormikButton
+                title={isVerified ? "Withdraw" : "Verify Account"}
+                type="accent"
+              />
+            </>
+          </Formik>
+        </Animated.View>
+      )}
+
+      {isSuccess && (
+        <Animated.View
+          entering={enterAnimOther}
+          style={{ alignItems: "center" }}
+        >
+          <LottieAnimator
+            name="success"
+            style={{ width: width * 0.7, height: height * 0.35 }}
           />
-        </View>
-        <LottieAnimator
-          visible={isLoading || bankLoading}
-          absolute
-          wTransparent
+          <AppText
+            fontWeight="black"
+            size={"xxlarge"}
+            style={{ color: colors.accentDeep }}
+          >
+            Transaction Initiated Successfully
+          </AppText>
+          <AppText
+            fontWeight="light"
+            style={{ textAlign: "center", marginBottom: 25 }}
+          >
+            Your withdraw transaction is pending. Please wait, you will be
+            credited shortly.
+          </AppText>
+        </Animated.View>
+      )}
+      {!editable && (
+        <AppText style={styles.info}>
+          Your balance is low, come back and withdraw your funds when you have
+          at least{" "}
+          <AppText fontWeight="heavy">{getCurrencyAmount(500)}</AppText>
+        </AppText>
+      )}
+      <View style={styles.withdrawBtns}>
+        {editable && isPending && (
+          <AppButton title={"Continue"} onPress={() => onBankFetch(false)} />
+        )}
+        <AppButton
+          title={isSuccess ? "Close" : "Cancel Withdrawal"}
+          type={isSuccess ? "accent" : "warn"}
+          onPress={closeModal}
         />
       </View>
-      <PopMessage popData={popper} setPopData={setPopper} />
+      <LottieAnimator
+        visible={isLoading || bankLoading}
+        absolute
+        wTransparent
+      />
     </View>
   );
 };
@@ -772,10 +725,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   withdraw: {
-    // backgroundColor: colors.white,
-    // width: width * 0.96,
-    padding: 20,
-    borderRadius: 20,
+    flex: 1,
+    padding: 10,
   },
   withdrawRow: {
     flexDirection: "row",

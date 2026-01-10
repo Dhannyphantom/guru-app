@@ -1,9 +1,10 @@
 import React from "react";
 import { Dimensions, Pressable, StyleSheet, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import AppText from "./AppText";
 import Screen from "./Screen";
+import { useRouter } from "expo-router";
+import AnimatedPressable from "./AnimatedPressable";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -14,14 +15,20 @@ const AppHeader = ({
   hideNavigator = false,
   Component,
 }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
+
+  const handleNav = () => {
+    if (Boolean(onPress)) {
+      onPress?.();
+    } else {
+      router.back();
+    }
+  };
+
   return (
     <Screen style={{ flex: null }}>
       <View style={styles.container}>
-        <Pressable
-          onPress={() => (Boolean(onPress) ? onPress() : navigation.goBack())}
-          style={styles.nav}
-        >
+        <AnimatedPressable onPress={handleNav} style={styles.nav}>
           {!hideNavigator && (
             <Ionicons
               style={{ paddingRight: 5 }}
@@ -44,7 +51,7 @@ const AppHeader = ({
               {title}
             </AppText>
           )}
-        </Pressable>
+        </AnimatedPressable>
         {Component && (
           <View style={styles.component}>
             <Component />

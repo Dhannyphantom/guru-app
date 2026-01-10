@@ -302,6 +302,7 @@ export const calculatePointsAmount = (value) => {
   // reverse is true, value = "amount"
   // N1 = 1000 GT;
   // x = points;
+
   const amount = (value / GT_VALUE).toPrecision(2);
   const pointsVal = Math.floor(value * GT_VALUE);
   return {
