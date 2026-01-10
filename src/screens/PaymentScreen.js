@@ -4,7 +4,7 @@ import { WithdrawModal } from "./SubscriptionScreen";
 import AnimatedPressable from "../components/AnimatedPressable";
 import AppText from "../components/AppText";
 import { Dimensions } from "react-native";
-import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
 import colors from "../helpers/colors";
 import AppHeader from "../components/AppHeader";
 import { useRouter } from "expo-router";
@@ -92,8 +92,8 @@ export default function PaymentScreen() {
     <View style={styles.container}>
       <AppHeader title={headerText} onPress={() => handleNavigation()} />
 
-      {!type && (
-        <Animated.View entering={FadeIn} exiting={exitingAnim}>
+      {!type ? (
+        <Animated.View entering={FadeIn} exiting={FadeOut}>
           <AppText fontWeight="semibold" style={styles.headerTxt}>
             Choose Withdrawal Type
           </AppText>
@@ -132,9 +132,14 @@ export default function PaymentScreen() {
             />
           </View>
         </Animated.View>
-      )}
-      {type === "transfer" && (
-        <WithdrawModal state={state} setState={setState} />
+      ) : (
+        <WithdrawModal
+          state={state}
+          type={type}
+          closeModal={() => setType(null)}
+          setPopper={setPopper}
+          setState={setState}
+        />
       )}
 
       <PopMessage popData={popper} setPopData={setPopper} />

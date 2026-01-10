@@ -215,6 +215,10 @@ export const withdrawInitials = {
   acct_number: "0690000032",
 };
 
+export const renewInitials = {
+  amount: "",
+};
+
 export const createSubjInitials = {
   name: "",
   categories: [],
@@ -389,25 +393,19 @@ export const withdrawPointsSchema = Yup.object().shape({
     .label("Account number"),
 });
 
+export const renewSubsSchema = Yup.object().shape({
+  amount: Yup.object()
+    .shape({
+      name: Yup.string().optional().label("Amount"),
+      value: Yup.string().required().label("Amount"),
+      title: Yup.string().optional().label("Amount"),
+      _id: Yup.string().optional(),
+    })
+    .required()
+    .label("Subscription Amount"),
+});
+
 export const subUserSchema = Yup.object().shape({
-  // card_number: Yup.string().required().validCard().label("Card number"),
-  // card_cvv: Yup.string()
-  //   .required()
-  //   .matches(/^[0-9]{3,4}$/, "CVV must be 3 or 4 digits")
-  //   .label("Card CVV"),
-  // card_exp_month: Yup.string()
-  //   .required()
-  //   .matches(/^(0[1-9]|1[0-2])$/, "Invalid expiry month")
-  //   .label("Card expiry month"),
-  // card_exp_year: Yup.string()
-  //   .required()
-  //   .label("Card expiry year")
-  //   .test("is-future-year", "Card is expired!", (value) => {
-  //     const currentYear = new Date().getFullYear();
-  //     return value >= currentYear.toString().slice(-2);
-  //   }),
-  // otp: Yup.string().optional().label("OTP"),
-  // pin: Yup.string().optional().label("Card pin"),
   sub_amount: Yup.object()
     .shape({
       name: Yup.string().optional().label("Amount"),
@@ -416,8 +414,6 @@ export const subUserSchema = Yup.object().shape({
     })
     .required()
     .label("Amount"),
-  // flw_ref: Yup.string().optional().label("Tx ref"),
-  // tx_ref: Yup.string().optional().label("Tx ref"),
 });
 
 export const newClassInitials = {

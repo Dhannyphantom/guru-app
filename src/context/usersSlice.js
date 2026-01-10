@@ -99,6 +99,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: data,
       }),
     }),
+    renewSubscription: builder.mutation({
+      query: (data) => ({
+        url: "/users/renew-subscription",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["USER"],
+    }),
     studentAction: builder.mutation({
       query: (data) => ({
         url: "/users/students",
@@ -265,6 +273,7 @@ export const {
   useFetchAppInfoQuery,
   useLazyFetchAppInfoQuery,
   useUpdateUserProfileMutation,
+  useRenewSubscriptionMutation,
   useStudentActionMutation,
   useLazySearchStudentsQuery,
   useFetchUserInfoQuery,

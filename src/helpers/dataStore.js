@@ -558,6 +558,44 @@ export const genderDropdown = [
   },
 ];
 
+const renewSubs = [
+  {
+    _id: nanoid(),
+    name: "2500 GT for 7 days",
+    value: 2500,
+    days: 7,
+  },
+  {
+    _id: nanoid(),
+    name: "5000 GT for 14 days",
+    value: 5000,
+    days: 14,
+  },
+  {
+    _id: nanoid(),
+    name: "7500 GT for 21 days",
+    value: 7500,
+    days: 21,
+  },
+];
+
+const renewsubDropdown = Array(12)
+  .fill("1")
+  .map((_i, idx) => {
+    const cost = (idx + 1) * appData.SUB_PER_MONTH * appData.GT_VALUE;
+
+    const prefix = idx + 1 > 1 ? `${idx + 1} months` : "month";
+
+    return {
+      _id: nanoid(),
+      name: `${cost} GT for ${prefix}`,
+      value: cost,
+      days: (idx + 1) * 30,
+    };
+  });
+
+export const renewSubList = [...renewSubs, ...renewsubDropdown];
+
 export const teacherPreffix = [
   {
     _id: nanoid(),
@@ -628,7 +666,7 @@ export const subDropdown = Array(12)
 
     return {
       _id: nanoid(),
-      name: `₦${Number(cost).toLocaleString()} per ${isYear ? "year" : prefix}`,
+      name: `₦${Number(cost).toLocaleString()} for ${isYear ? "year" : prefix}`,
       value: cost,
       title: `+${(idx + 1) * 30} days`,
     };

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 import React, { useEffect, useRef, useState } from "react";
 import { Dimensions, FlatList, StyleSheet, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,6 +14,7 @@ import {
   selectUser,
   useLazyFetchBanksQuery,
   useLazyFetchUserQuery,
+  useRenewSubscriptionMutation,
   useVerifyAccountMutation,
   useWithdrawFromWalletMutation,
 } from "../context/usersSlice";
@@ -20,6 +22,8 @@ import AppText from "../components/AppText";
 import {
   enterAnimOther,
   exitingAnim,
+  PAD_BOTTOM,
+  renewSubList,
   subHistories,
 } from "../helpers/dataStore";
 import {
@@ -30,11 +34,16 @@ import {
   hasCompletedProfile,
 } from "../helpers/helperFunctions";
 import FormInput, { FormikInput } from "../components/FormInput";
-import Animated from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 import PopMessage from "../components/PopMessage";
 import { useSelector } from "react-redux";
 import { Formik } from "formik";
-import { withdrawInitials, withdrawPointsSchema } from "../helpers/yupSchemas";
+import {
+  renewInitials,
+  renewSubsSchema,
+  withdrawInitials,
+  withdrawPointsSchema,
+} from "../helpers/yupSchemas";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import getRefresher from "../components/Refresher";
 import DisplayPayments from "../components/DisplayPayments";
@@ -48,11 +57,19 @@ const { width, height } = Dimensions.get("screen");
 const PROGRESS_SIZE = width * 0.6;
 const maxProgress = 295;
 
-export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
+export const WithdrawModal = ({
+  closeModal,
+  state,
+  type,
+  setState,
+  setPopper,
+}) => {
   const [withdrawFromWallet, { isLoading, isError, error }] =
     useWithdrawFromWalletMutation();
   const [fetchBanks, { isLoading: bankLoading }] = useLazyFetchBanksQuery();
   const [verifyAcct, { isLoading: isVerifying }] = useVerifyAccountMutation();
+  const [renewSubscription, { isLoading: isRenewing }] =
+    useRenewSubscriptionMutation();
 
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -60,6 +77,7 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
   const [amount, setAmount] = useState("");
 
   const balance = calculatePointsAmount(user.points);
+  const shouldHideContinueBtn = type === "subscription";
 
   // console.log(JSON.stringify(state.banks, null, 2));
 
@@ -71,6 +89,20 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
   const editable = true;
   const profile = hasCompletedProfile(user);
   // const editable = balance.amount >= 500;
+
+  let headerTxt, successTxt;
+  switch (type) {
+    case "subscription":
+      headerTxt = "Subscription Renewed Successfully";
+      successTxt = `Congratulations. You have successfully added ${amount} days to your active subscription`;
+      break;
+
+    case "transfer":
+      (headerTxt = "Transaction Initiated Successfully"),
+        (successTxt =
+          "Your withdraw transaction is pending. Please wait, you will be credited shortly.");
+      break;
+  }
 
   const onBankFetch = async (isFetcher = false) => {
     if (!profile.bool) {
@@ -131,6 +163,26 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
     }
   };
 
+  const onRenewSub = async (fv) => {
+    if (user.points < fv?.amount?.value) {
+      return setPopper({
+        vis: true,
+        type: "failed",
+        timer: 1000,
+        msg: "You don't have enough Guru Tokens",
+      });
+    }
+    try {
+      const res = await renewSubscription(fv?.amount).unwrap();
+      setAmount(fv?.amount?.days);
+      if (res?.status === "success") {
+        setState({ ...state, status: "success" });
+      }
+    } catch (errr) {
+      console.log(errr);
+    }
+  };
+
   const verifyAccount = async (formValues) => {
     if (isVerified) {
       await handleCashOut(formValues);
@@ -161,7 +213,7 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
   }, []);
 
   return (
-    <View style={styles.withdraw}>
+    <Animated.View entering={FadeIn.delay(300)} style={styles.withdraw}>
       {isPending && (
         <Animated.View exiting={exitingAnim}>
           <View style={styles.withdrawRow}>
@@ -207,19 +259,43 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
             </View>
           </View>
 
-          <View style={{ marginTop: 20 }}>
-            <FormInput
-              keyboardType="numeric"
-              placeholder="Enter amount to withdraw"
-              editable={editable}
-              headerText={"Enter amount(₦):"}
-              value={amount}
-              onChangeText={onChangeAmount}
-            />
-            <AppText style={styles.preview} fontWeight="black" size="xxlarge">
-              {calculatePointsAmount(amount).pointFormat}
-            </AppText>
-          </View>
+          {type === "transfer" && (
+            <View style={{ marginTop: 20 }}>
+              <FormInput
+                keyboardType="numeric"
+                placeholder="Enter amount to withdraw"
+                editable={editable}
+                headerText={"Enter amount(₦):"}
+                value={amount}
+                onChangeText={onChangeAmount}
+              />
+              <AppText style={styles.preview} fontWeight="black" size="xxlarge">
+                {calculatePointsAmount(amount).pointFormat}
+              </AppText>
+            </View>
+          )}
+          {type === "subscription" && (
+            <View>
+              <Formik
+                initialValues={renewInitials}
+                validationSchema={renewSubsSchema}
+                onSubmit={onRenewSub}
+              >
+                <>
+                  <FormikInput
+                    name={"amount"}
+                    placeholder={"Select Subscription Plan"}
+                    data={renewSubList}
+                    type="dropdown"
+                    numDisplayItems={2}
+                    headerText={"Subscription Plan"}
+                  />
+
+                  <FormikButton title={"Buy Subscription"} type="accent" />
+                </>
+              </Formik>
+            </View>
+          )}
           {isError && <AppText>{error.message}</AppText>}
         </Animated.View>
       )}
@@ -288,14 +364,13 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
             size={"xxlarge"}
             style={{ color: colors.accentDeep }}
           >
-            Transaction Initiated Successfully
+            {headerTxt}
           </AppText>
           <AppText
             fontWeight="light"
             style={{ textAlign: "center", marginBottom: 25 }}
           >
-            Your withdraw transaction is pending. Please wait, you will be
-            credited shortly.
+            {successTxt}
           </AppText>
         </Animated.View>
       )}
@@ -307,7 +382,7 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
         </AppText>
       )}
       <View style={styles.withdrawBtns}>
-        {editable && isPending && (
+        {editable && isPending && !shouldHideContinueBtn && (
           <AppButton title={"Continue"} onPress={() => onBankFetch(false)} />
         )}
         <AppButton
@@ -317,11 +392,11 @@ export const WithdrawModal = ({ closeModal, state, setState, setPopper }) => {
         />
       </View>
       <LottieAnimator
-        visible={isLoading || bankLoading}
+        visible={isLoading || bankLoading || isRenewing}
         absolute
         wTransparent
       />
-    </View>
+    </Animated.View>
   );
 };
 
@@ -469,10 +544,12 @@ const SubscriptionScreen = () => {
   }, [sub, total]);
 
   return (
-    <Screen style={styles.container}>
+    <View style={styles.container}>
+      <AppHeader title="Subscriptions" />
       <FlatList
         data={["Sub"]}
         refreshControl={getRefresher({ refreshing, onRefresh })}
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         renderItem={() => (
           <>
             <LinearGradient
@@ -557,12 +634,14 @@ const SubscriptionScreen = () => {
                 type="accent"
                 title={"Subscribe"}
                 icon={{ name: "wallet", left: true }}
+                style={{ paddingHorizontal: 40 }}
                 onPress={openSubsciptionModal}
               />
               {!isSchool && (
                 <AppButton
                   title={"Withdraw"}
                   icon={{ name: "cash-remove", left: true }}
+                  style={{ paddingHorizontal: 40 }}
                   onPress={handleWithdrawal}
                 />
               )}
@@ -607,7 +686,7 @@ const SubscriptionScreen = () => {
       />
       <PopMessage popData={popper} setPopData={setPopper} />
       {/* <LottieAnimator visible={isLoading} absolute wTransparent /> */}
-    </Screen>
+    </View>
   );
 };
 
@@ -643,7 +722,8 @@ const styles = StyleSheet.create({
     maxHeight: height * 0.22,
     backgroundColor: colors.lightly,
     alignSelf: "center",
-    marginVertical: 20,
+    marginBottom: 20,
+    marginTop: 10,
     borderRadius: 20,
     elevation: 3,
     flexDirection: "row",

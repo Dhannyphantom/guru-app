@@ -1,26 +1,14 @@
-/* eslint-disable react/no-unescaped-entities */
-import {
-  Dimensions,
-  KeyboardAvoidingView,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Dimensions, StyleSheet, View } from "react-native";
 
 import AppText from "../components/AppText";
 import {
   selectUser,
-  useSubscribeUserMutation,
   useVerifySubscriptionMutation,
 } from "../context/usersSlice";
 import { PayWithFlutterwave } from "flutterwave-react-native";
 import { useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import {
-  getCurrencyAmount,
-  getFullName,
-  hasCompletedProfile,
-} from "../helpers/helperFunctions";
+import { useState } from "react";
+import { getFullName, hasCompletedProfile } from "../helpers/helperFunctions";
 import colors from "../helpers/colors";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import {
@@ -32,11 +20,9 @@ import {
 import { FormikInput } from "./FormInput";
 import PopMessage from "./PopMessage";
 import LottieAnimator from "./LottieAnimator";
-import AppButton, { FormikButton } from "./AppButton";
+import AppButton from "./AppButton";
 import { Formik } from "formik";
 import { subInitials, subUserSchema } from "../helpers/yupSchemas";
-import AnimatedCheckBox from "./AnimatedCheckbox";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("screen");
 
