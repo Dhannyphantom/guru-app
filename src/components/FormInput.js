@@ -84,6 +84,8 @@ const DropComponent = ({
   getId,
   setActive,
   active,
+  items,
+  hideText = false,
   data,
   updateMultipleList,
   closeModal,
@@ -149,10 +151,17 @@ const DropComponent = ({
                 key={data._id ?? nanoid()}
               >
                 <View style={styles.dropItem}>
-                  <AppText fontWeight="medium">
-                    {" "}
-                    {capFirstLetter(data.name)}{" "}
-                  </AppText>
+                  {!hideText && (
+                    <AppText fontWeight="medium">
+                      {" "}
+                      {capFirstLetter(data.name)}{" "}
+                    </AppText>
+                  )}
+                  {items?.map((itm) => (
+                    <AppText key={itm?.name} {...itm}>
+                      {data[itm?.name]}
+                    </AppText>
+                  ))}
                   {multiple && data?.selected && (
                     <View>
                       <Ionicons
@@ -186,6 +195,8 @@ const DropdownInput = ({
   headerText,
   disabled,
   isLoading,
+  items = [],
+  hideText,
   placeholder,
   useDefaultModalHeight,
   maxModalHeight,
@@ -300,6 +311,8 @@ const DropdownInput = ({
               active={active}
               onValueSelected={onValueSelected}
               closeModal={closeModal}
+              items={items}
+              hideText={hideText}
               getId={getId}
               setActive={setActive}
               updateMultipleList={updateMultipleList}
@@ -541,8 +554,10 @@ export const FormikInput = ({
   rangeYrs,
   keyboardType,
   data,
+  hideText,
   fetcher,
   multiple,
+  items = [],
   onValueSelected,
   style,
   type = "input",
@@ -590,7 +605,9 @@ export const FormikInput = ({
           isLoading={isLoading}
           fetcher={fetcher}
           data={data}
+          items={items}
           headerText={headerText}
+          hideText={hideText}
           onValueSelected={onValueSelected}
           getId={getId}
           placeholder={placeholder}
@@ -693,8 +710,8 @@ const styles = StyleSheet.create({
   },
   dropItem: {
     padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
+    // flexDirection: "row",
+    // alignItems: "center",
     // justifyContent: "space-between",
   },
   eye: {

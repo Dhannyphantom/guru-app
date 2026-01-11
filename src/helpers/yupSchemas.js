@@ -405,6 +405,31 @@ export const renewSubsSchema = Yup.object().shape({
     .label("Subscription Amount"),
 });
 
+export const buyDataInitials = {
+  network: "MTN",
+  phoneNumber: "",
+  bundle: {},
+};
+
+export const buyDataSchema = Yup.object().shape({
+  network: Yup.string().required().label("Network"),
+  phoneNumber: Yup.string().required().label("Phone Number"),
+  bundle: Yup.object()
+    .shape({
+      name: Yup.string().optional().label("Bundle Name"),
+      billerCode: Yup.string().required().label("Bundle Plan"),
+      id: Yup.string().optional(),
+      itemCode: Yup.string().optional(),
+      amount: Yup.string().optional(),
+      description: Yup.string().optional(),
+      points: Yup.string().optional(),
+      validity: Yup.string().optional(),
+      value: Yup.string().optional(),
+    })
+    .required()
+    .label("Data Bundle"),
+});
+
 export const subUserSchema = Yup.object().shape({
   sub_amount: Yup.object()
     .shape({

@@ -116,6 +116,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["USER"],
     }),
+    buyData: builder.mutation({
+      query: (data) => ({
+        url: "/payouts/data",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["USER"],
+    }),
     studentAction: builder.mutation({
       query: (data) => ({
         url: "/users/students",
@@ -145,6 +153,12 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         timeout: 15000,
       }),
       providesTags: ["FETCH_REWARDS"],
+    }),
+    fetchDataBundles: builder.query({
+      query: () => ({
+        url: "/payouts/data-bundles",
+        timeout: 15000,
+      }),
     }),
     fetchPros: builder.query({
       query: () => ({
@@ -289,6 +303,8 @@ export const {
   useLazyFetchUserInfoQuery,
   useFetchUserQuery,
   useFetchRewardsQuery,
+  useFetchDataBundlesQuery,
+  useBuyDataMutation,
   useLazyFetchUserQuery,
   useRechargeAirtimeMutation,
   useFetchProsQuery,

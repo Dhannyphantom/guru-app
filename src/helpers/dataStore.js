@@ -662,11 +662,13 @@ export const subDropdown = Array(12)
   .map((_i, idx) => {
     const cost = (idx + 1) * appData.SUB_PER_MONTH;
     const isYear = idx >= 11;
-    const prefix = idx + 1 > 1 ? `${idx + 1} months` : "month";
+    const prefix = idx + 1 > 1 ? `${idx + 1} months` : "a month";
 
     return {
       _id: nanoid(),
-      name: `₦${Number(cost).toLocaleString()} for ${isYear ? "year" : prefix}`,
+      name: `₦${Number(cost).toLocaleString()} for ${
+        isYear ? "a year" : prefix
+      }`,
       value: cost,
       title: `+${(idx + 1) * 30} days`,
     };

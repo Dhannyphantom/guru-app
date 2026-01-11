@@ -1,6 +1,12 @@
 /* eslint-disable no-unused-expressions */
 import React, { useEffect, useRef, useState } from "react";
-import { Dimensions, FlatList, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -12,6 +18,8 @@ import colors from "../helpers/colors";
 import LottieAnimator from "../components/LottieAnimator";
 import {
   selectUser,
+  useBuyDataMutation,
+  useFetchDataBundlesQuery,
   useLazyFetchBanksQuery,
   useLazyFetchUserQuery,
   useRechargeAirtimeMutation,
@@ -40,6 +48,8 @@ import PopMessage from "../components/PopMessage";
 import { useSelector } from "react-redux";
 import { Formik } from "formik";
 import {
+  buyDataInitials,
+  buyDataSchema,
   renewInitials,
   renewSubsSchema,
   withdrawInitials,
@@ -69,10 +79,13 @@ export const WithdrawModal = ({
     useWithdrawFromWalletMutation();
   const [fetchBanks, { isLoading: bankLoading }] = useLazyFetchBanksQuery();
   const [verifyAcct, { isLoading: isVerifying }] = useVerifyAccountMutation();
+  const { data, isLoading: isBundling, refetch } = useFetchDataBundlesQuery();
   const [rechargeAirtime, { isLoading: isRecharging }] =
     useRechargeAirtimeMutation();
   const [renewSubscription, { isLoading: isRenewing }] =
     useRenewSubscriptionMutation();
+  const [buyData, { isLoading: isBuying, data: bundler }] =
+    useBuyDataMutation();
 
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -81,9 +94,10 @@ export const WithdrawModal = ({
   const [contact, setContact] = useState(user?.contact);
   const [tab, setTab] = useState("MTN");
   const [resMsg, setResMsg] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   const balance = calculatePointsAmount(user.points);
-  const shouldHideContinueBtn = type === "subscription";
+  const shouldHideContinueBtn = ["subscription", "data"].includes(type);
 
   // console.log(JSON.stringify(state.banks, null, 2));
 
@@ -91,10 +105,13 @@ export const WithdrawModal = ({
   const isSuccess = state.status === "success";
   const isDetails = state.status === "details";
   const isVerified = Boolean(state.bankName);
+  const bundles = data?.data ?? [];
 
   const editable = true;
   const profile = hasCompletedProfile(user);
-  // const editable = balance.amount >= 500;
+  buyDataInitials.phoneNumber = user?.contact;
+
+  console.log({ bundler });
 
   let headerTxt, successTxt;
   switch (type) {
@@ -106,6 +123,11 @@ export const WithdrawModal = ({
     case "airtime":
       headerTxt = "Airtime Initiated Successfully";
       successTxt = `Congratulations. ${resMsg}`;
+      break;
+
+    case "data":
+      headerTxt = "Data Bundle Initiated Successfully";
+      successTxt = `Congratulations. ${bundler?.message}`;
       break;
 
     case "transfer":
@@ -180,7 +202,6 @@ export const WithdrawModal = ({
         const res = await rechargeAirtime(reqData).unwrap();
 
         if (res?.success) {
-          setResMsg(res?.message);
           setState({ ...state, status: "success" });
         }
       } catch (errr) {
@@ -204,6 +225,16 @@ export const WithdrawModal = ({
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } catch (errr) {
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const onRenewSub = async (fv) => {
     if (user.points < fv?.amount?.value) {
       return setPopper({
@@ -220,7 +251,49 @@ export const WithdrawModal = ({
         setState({ ...state, status: "success" });
       }
     } catch (errr) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: errr?.data?.message ?? errr?.error ?? "Transaction Failed",
+      });
       console.log(errr);
+    }
+  };
+
+  const onBuyData = async (fv) => {
+    if (user.points < fv?.bundle?.value) {
+      return setPopper({
+        vis: true,
+        type: "failed",
+        timer: 1000,
+        msg: "You don't have enough Guru Tokens",
+      });
+    }
+
+    try {
+      const res = await buyData({
+        pointsToConvert: fv?.bundle?.value,
+        phoneNumber: fv?.phoneNumber,
+        network: fv?.network,
+        bundleId: fv?.bundle?.id,
+        billerCode: fv?.bundle?.billerCode,
+        itemCode: fv?.bundle?.itemCode,
+        bundleName: fv?.bundle?.name,
+        bundleAmount: fv?.bundle?.amount,
+      }).unwrap();
+
+      setAmount(fv?.amount?.name);
+      if (res?.success) {
+        setState({ ...state, status: "success" });
+      }
+    } catch (errr) {
+      console.log({ errr });
+      setPopper({
+        vis: true,
+        timer: 1200,
+        type: "failed",
+        msg: errr?.data?.message ?? errr?.error ?? "Transaction Failed",
+      });
     }
   };
 
@@ -255,222 +328,292 @@ export const WithdrawModal = ({
 
   return (
     <Animated.View entering={FadeIn.delay(300)} style={styles.withdraw}>
-      {isPending && (
-        <Animated.View exiting={exitingAnim}>
-          <View style={styles.withdrawRow}>
-            <View style={styles.cardMini}>
-              <AppText
-                size={"large"}
-                style={styles.withdrawHeaderTxt}
-                fontWeight="bold"
-              >
-                Points
-              </AppText>
-              <AppText
-                size="xxxlarge"
-                fontWeight="heavy"
-                style={styles.withdrawTxt}
-              >
-                {user?.points}
+      <ScrollView
+        refreshControl={getRefresher({ refreshing, onRefresh })}
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+      >
+        {isPending && (
+          <Animated.View exiting={exitingAnim}>
+            <View style={styles.withdrawRow}>
+              <View style={styles.cardMini}>
                 <AppText
-                  style={styles.withdrawTxt}
-                  fontWeight="black"
-                  size="xsmall"
+                  size={"large"}
+                  style={styles.withdrawHeaderTxt}
+                  fontWeight="bold"
                 >
-                  GT
+                  Points
                 </AppText>
-              </AppText>
-            </View>
-
-            <View style={styles.cardMini}>
-              <AppText
-                size={"large"}
-                style={styles.withdrawHeaderTxt}
-                fontWeight="bold"
-              >
-                Balance
-              </AppText>
-              <AppText
-                size="xxxlarge"
-                fontWeight="heavy"
-                style={styles.withdrawTxt}
-              >
-                {balance.format}
-              </AppText>
-            </View>
-          </View>
-
-          {type === "airtime" && (
-            <View style={{}}>
-              <TabSelector
-                options={[
-                  { label: "MTN", color: colors.warning },
-                  { label: "GLO", color: "#00B140" },
-                  { label: "AIRTEL", color: "#E90000" },
-                  { label: "9MOBILE", color: "#006400" },
-                ]}
-                onChange={(item, index) => {
-                  setTab(item?.label);
-                }}
-              />
-              <FormInput
-                keyboardType="numeric"
-                placeholder="Enter phone number"
-                maxLength={20}
-                headerText={"Phone Number:"}
-                value={contact}
-                onChangeText={(val) => setContact(val)}
-              />
-              <FormInput
-                keyboardType="numeric"
-                placeholder="Enter amount to withdraw"
-                editable={editable}
-                headerText={"Enter amount(₦):"}
-                value={amount}
-                onChangeText={onChangeAmount}
-              />
-              <AppText style={styles.preview} fontWeight="black" size="xxlarge">
-                {calculatePointsAmount(amount).pointFormat}
-              </AppText>
-            </View>
-          )}
-          {type === "transfer" && (
-            <View style={{ marginTop: 20 }}>
-              <FormInput
-                keyboardType="numeric"
-                placeholder="Enter amount to withdraw"
-                editable={editable}
-                headerText={"Enter amount(₦):"}
-                value={amount}
-                onChangeText={onChangeAmount}
-              />
-              <AppText style={styles.preview} fontWeight="black" size="xxlarge">
-                {calculatePointsAmount(amount).pointFormat}
-              </AppText>
-            </View>
-          )}
-          {type === "subscription" && (
-            <View>
-              <Formik
-                initialValues={renewInitials}
-                validationSchema={renewSubsSchema}
-                onSubmit={onRenewSub}
-              >
-                <>
-                  <FormikInput
-                    name={"amount"}
-                    placeholder={"Select Subscription Plan"}
-                    data={renewSubList}
-                    type="dropdown"
-                    numDisplayItems={2}
-                    headerText={"Subscription Plan"}
-                  />
-
-                  <FormikButton title={"Buy Subscription"} type="accent" />
-                </>
-              </Formik>
-            </View>
-          )}
-          {isError && <AppText>{error.message}</AppText>}
-        </Animated.View>
-      )}
-      {isDetails && (
-        <Animated.View exiting={exitingAnim} entering={enterAnimOther}>
-          <AppText
-            style={[styles.withdrawHeaderTxt, { color: colors.black }]}
-            fontWeight="bold"
-          >
-            Enter Bank Account Details
-          </AppText>
-          <Formik
-            initialValues={withdrawInitials}
-            validationSchema={withdrawPointsSchema}
-            onSubmit={verifyAccount}
-          >
-            <>
-              <FormikInput
-                name={"bank"}
-                placeholder={"Select Bank"}
-                data={state.banks}
-                type="dropdown"
-                numDisplayItems={2}
-                headerText={"Bank"}
-              />
-              <FormikInput
-                name={"acct_number"}
-                placeholder={"Enter Account Number"}
-                isLoading={isVerifying}
-                keyboardType="numeric"
-                headerText={"Account Number"}
-              />
-              {isVerified && (
-                <View style={styles.acctName}>
-                  <MaterialCommunityIcons
-                    name="check-circle"
-                    color={colors.primary}
-                    size={16}
-                  />
-                  <AppText fontWeight="bold" style={styles.accountName}>
-                    {state.bankName}
+                <AppText
+                  size="xxxlarge"
+                  fontWeight="heavy"
+                  style={styles.withdrawTxt}
+                >
+                  {user?.points}
+                  <AppText
+                    style={styles.withdrawTxt}
+                    fontWeight="black"
+                    size="xsmall"
+                  >
+                    GT
                   </AppText>
-                </View>
-              )}
+                </AppText>
+              </View>
 
-              <FormikButton
-                title={isVerified ? "Withdraw" : "Verify Account"}
-                type="accent"
-              />
-            </>
-          </Formik>
-        </Animated.View>
-      )}
+              <View style={styles.cardMini}>
+                <AppText
+                  size={"large"}
+                  style={styles.withdrawHeaderTxt}
+                  fontWeight="bold"
+                >
+                  Balance
+                </AppText>
+                <AppText
+                  size="xxxlarge"
+                  fontWeight="heavy"
+                  style={styles.withdrawTxt}
+                >
+                  {balance.format}
+                </AppText>
+              </View>
+            </View>
 
-      {isSuccess && (
-        <Animated.View
-          entering={enterAnimOther}
-          style={{ alignItems: "center" }}
-        >
-          <LottieAnimator
-            name="success"
-            style={{ width: width * 0.7, height: height * 0.35 }}
-          />
-          <AppText
-            fontWeight="black"
-            size={"xxlarge"}
-            style={{ color: colors.accentDeep }}
-          >
-            {headerTxt}
-          </AppText>
-          <AppText
-            fontWeight="light"
-            style={{ textAlign: "center", marginBottom: 25 }}
-          >
-            {successTxt}
-          </AppText>
-        </Animated.View>
-      )}
-      {!editable && (
-        <AppText style={styles.info}>
-          Your balance is low, come back and withdraw your funds when you have
-          at least{" "}
-          <AppText fontWeight="heavy">{getCurrencyAmount(500)}</AppText>
-        </AppText>
-      )}
-      <View style={styles.withdrawBtns}>
-        {editable && isPending && !shouldHideContinueBtn && (
-          <AppButton title={"Continue"} onPress={handleContinue} />
+            {type === "airtime" && (
+              <View style={{}}>
+                <TabSelector
+                  options={[
+                    { label: "MTN", color: colors.warning },
+                    { label: "GLO", color: "#00B140" },
+                    { label: "AIRTEL", color: "#E90000" },
+                    { label: "9MOBILE", color: "#006400" },
+                  ]}
+                  onChange={(item, index) => {
+                    setTab(item?.label);
+                  }}
+                />
+                <FormInput
+                  keyboardType="numeric"
+                  placeholder="Enter phone number"
+                  maxLength={20}
+                  headerText={"Phone Number:"}
+                  value={contact}
+                  onChangeText={(val) => setContact(val)}
+                />
+                <FormInput
+                  keyboardType="numeric"
+                  placeholder="Enter amount to withdraw"
+                  editable={editable}
+                  headerText={"Enter amount(₦):"}
+                  value={amount}
+                  onChangeText={onChangeAmount}
+                />
+                <AppText
+                  style={styles.preview}
+                  fontWeight="black"
+                  size="xxlarge"
+                >
+                  {calculatePointsAmount(amount).pointFormat}
+                </AppText>
+              </View>
+            )}
+            {type === "transfer" && (
+              <View style={{ marginTop: 20 }}>
+                <FormInput
+                  keyboardType="numeric"
+                  placeholder="Enter amount to withdraw"
+                  editable={editable}
+                  headerText={"Enter amount(₦):"}
+                  value={amount}
+                  onChangeText={onChangeAmount}
+                />
+                <AppText
+                  style={styles.preview}
+                  fontWeight="black"
+                  size="xxlarge"
+                >
+                  {calculatePointsAmount(amount).pointFormat}
+                </AppText>
+              </View>
+            )}
+            {type === "data" && (
+              <View>
+                <Formik
+                  initialValues={buyDataInitials}
+                  validationSchema={buyDataSchema}
+                  onSubmit={onBuyData}
+                >
+                  {({ values, setFieldValue }) => {
+                    return (
+                      <>
+                        <TabSelector
+                          options={[
+                            { label: "MTN", color: colors.warning },
+                            { label: "GLO", color: "#00B140" },
+                            { label: "AIRTEL", color: "#E90000" },
+                            { label: "9MOBILE", color: "#006400" },
+                          ]}
+                          onChange={(item, index) => {
+                            setFieldValue("network", item?.label);
+                            setFieldValue("bundle", {});
+                          }}
+                        />
+                        <FormikInput
+                          keyboardType="numeric"
+                          placeholder="Enter phone number"
+                          maxLength={20}
+                          name={"phoneNumber"}
+                          headerText={"Phone Number:"}
+                        />
+                        <FormikInput
+                          name={"bundle"}
+                          placeholder={"Select Subscription Plan"}
+                          data={bundles[values["network"]]}
+                          hideText
+                          type="dropdown"
+                          isLoading={isBundling}
+                          items={[
+                            { name: "points", fontWeight: "medium" },
+                            {
+                              name: "description",
+                              fontWeight: "bold",
+                              size: "medium",
+                            },
+                          ]}
+                          numDisplayItems={2}
+                          headerText={"Subscription Plan"}
+                        />
+
+                        <FormikButton title={"Buy Data"} type="accent" />
+                      </>
+                    );
+                  }}
+                </Formik>
+              </View>
+            )}
+            {type === "subscription" && (
+              <View>
+                <Formik
+                  initialValues={renewInitials}
+                  validationSchema={renewSubsSchema}
+                  onSubmit={onRenewSub}
+                >
+                  <>
+                    <FormikInput
+                      name={"amount"}
+                      placeholder={"Select Subscription Plan"}
+                      data={renewSubList}
+                      type="dropdown"
+                      numDisplayItems={2}
+                      headerText={"Subscription Plan"}
+                    />
+
+                    <FormikButton title={"Buy Subscription"} type="accent" />
+                  </>
+                </Formik>
+              </View>
+            )}
+            {isError && <AppText>{error.message}</AppText>}
+          </Animated.View>
         )}
-        <AppButton
-          title={isSuccess ? "Close" : "Cancel Withdrawal"}
-          type={isSuccess ? "accent" : "warn"}
-          onPress={closeModal}
+        {isDetails && (
+          <Animated.View exiting={exitingAnim} entering={enterAnimOther}>
+            <AppText
+              style={[styles.withdrawHeaderTxt, { color: colors.black }]}
+              fontWeight="bold"
+            >
+              Enter Bank Account Details
+            </AppText>
+            <Formik
+              initialValues={withdrawInitials}
+              validationSchema={withdrawPointsSchema}
+              onSubmit={verifyAccount}
+            >
+              <>
+                <FormikInput
+                  name={"bank"}
+                  placeholder={"Select Bank"}
+                  data={state.banks}
+                  type="dropdown"
+                  numDisplayItems={2}
+                  headerText={"Bank"}
+                />
+                <FormikInput
+                  name={"acct_number"}
+                  placeholder={"Enter Account Number"}
+                  isLoading={isVerifying}
+                  keyboardType="numeric"
+                  headerText={"Account Number"}
+                />
+                {isVerified && (
+                  <View style={styles.acctName}>
+                    <MaterialCommunityIcons
+                      name="check-circle"
+                      color={colors.primary}
+                      size={16}
+                    />
+                    <AppText fontWeight="bold" style={styles.accountName}>
+                      {state.bankName}
+                    </AppText>
+                  </View>
+                )}
+
+                <FormikButton
+                  title={isVerified ? "Withdraw" : "Verify Account"}
+                  type="accent"
+                />
+              </>
+            </Formik>
+          </Animated.View>
+        )}
+
+        {isSuccess && (
+          <Animated.View
+            entering={enterAnimOther}
+            style={{ alignItems: "center" }}
+          >
+            <LottieAnimator
+              name="success"
+              style={{ width: width * 0.7, height: height * 0.35 }}
+            />
+            <AppText
+              fontWeight="black"
+              size={"xxlarge"}
+              style={{ color: colors.accentDeep }}
+            >
+              {headerTxt}
+            </AppText>
+            <AppText
+              fontWeight="light"
+              style={{ textAlign: "center", marginBottom: 25 }}
+            >
+              {successTxt}
+            </AppText>
+          </Animated.View>
+        )}
+        {!editable && (
+          <AppText style={styles.info}>
+            Your balance is low, come back and withdraw your funds when you have
+            at least{" "}
+            <AppText fontWeight="heavy">{getCurrencyAmount(500)}</AppText>
+          </AppText>
+        )}
+        <View style={styles.withdrawBtns}>
+          {editable && isPending && !shouldHideContinueBtn && (
+            <AppButton title={"Continue"} onPress={handleContinue} />
+          )}
+          <AppButton
+            title={isSuccess ? "Close" : "Cancel Withdrawal"}
+            type={isSuccess ? "accent" : "warn"}
+            onPress={closeModal}
+          />
+        </View>
+        <LottieAnimator
+          visible={
+            isLoading || bankLoading || isRenewing || isRecharging || isBuying
+          }
+          absolute
+          wTransparent
         />
-      </View>
-      <LottieAnimator
-        visible={isLoading || bankLoading || isRenewing || isRecharging}
-        absolute
-        wTransparent
-      />
+      </ScrollView>
     </Animated.View>
   );
 };
