@@ -671,6 +671,7 @@ export const subDropdown = Array(12)
       }`,
       value: cost,
       title: `+${(idx + 1) * 30} days`,
+      days: (idx + 1) * 30,
     };
   });
 
@@ -687,6 +688,7 @@ export const subSchoolDrop = Array(10)
       name: `₦${Number(cost).toLocaleString()} ${isYear ? "year" : prefix}`,
       value: cost,
       title: `+${nextIdx} term${nextIdx > 1 ? "s" : ""}`,
+      days: (idx + 1) * 90,
     };
   });
 

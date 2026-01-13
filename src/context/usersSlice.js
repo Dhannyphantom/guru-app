@@ -74,6 +74,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
 
     proVerify: builder.mutation({
@@ -98,7 +99,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["USER"],
+      invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
     renewSubscription: builder.mutation({
       query: (data) => ({
@@ -106,7 +107,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["USER"],
+      invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
     rechargeAirtime: builder.mutation({
       query: (data) => ({
@@ -114,7 +115,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["USER"],
+      invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
     buyData: builder.mutation({
       query: (data) => ({
@@ -122,7 +123,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["USER"],
+      invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
     studentAction: builder.mutation({
       query: (data) => ({
@@ -153,6 +154,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         timeout: 15000,
       }),
       providesTags: ["FETCH_REWARDS"],
+    }),
+    fetchTransactions: builder.query({
+      query: (params) => ({
+        url: "/users/transactions",
+        timeout: 15000,
+        params,
+      }),
+      providesTags: ["FETCH_TRANSACTIONS"],
     }),
     fetchDataBundles: builder.query({
       query: () => ({
@@ -313,6 +322,7 @@ export const {
   useUpdateRewardMutation,
   useSubscribeUserMutation,
   useFetchProLeaderboardQuery,
+  useFetchTransactionsQuery,
   useWithdrawFromWalletMutation,
   useVerifyAccountMutation,
   useVerifySubscriptionMutation,

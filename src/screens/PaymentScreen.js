@@ -8,6 +8,7 @@ import colors from "../helpers/colors";
 import AppHeader from "../components/AppHeader";
 import { useRouter } from "expo-router";
 import PopMessage from "../components/PopMessage";
+import { StatusBar } from "expo-status-bar";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -141,6 +142,7 @@ export default function PaymentScreen() {
       )}
 
       <PopMessage popData={popper} setPopData={setPopper} />
+      <StatusBar style="dark" />
     </View>
   );
 }

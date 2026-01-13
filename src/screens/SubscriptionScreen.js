@@ -20,6 +20,7 @@ import {
   selectUser,
   useBuyDataMutation,
   useFetchDataBundlesQuery,
+  useFetchTransactionsQuery,
   useLazyFetchBanksQuery,
   useLazyFetchUserQuery,
   useRechargeAirtimeMutation,
@@ -62,6 +63,8 @@ import { selectSchool } from "../context/schoolSlice";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "../components/AppHeader";
 import TabSelector from "../components/TabSelector";
+import ListEmpty from "../components/ListEmpty";
+import { StatusBar } from "expo-status-bar";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -80,9 +83,9 @@ export const WithdrawModal = ({
   const [fetchBanks, { isLoading: bankLoading }] = useLazyFetchBanksQuery();
   const [verifyAcct, { isLoading: isVerifying }] = useVerifyAccountMutation();
   const { data, isLoading: isBundling, refetch } = useFetchDataBundlesQuery();
-  const [rechargeAirtime, { isLoading: isRecharging }] =
+  const [rechargeAirtime, { isLoading: isRecharging, data: recharger }] =
     useRechargeAirtimeMutation();
-  const [renewSubscription, { isLoading: isRenewing }] =
+  const [renewSubscription, { isLoading: isRenewing, data: renewer }] =
     useRenewSubscriptionMutation();
   const [buyData, { isLoading: isBuying, data: bundler }] =
     useBuyDataMutation();
@@ -93,7 +96,6 @@ export const WithdrawModal = ({
   const [amount, setAmount] = useState("");
   const [contact, setContact] = useState(user?.contact);
   const [tab, setTab] = useState("MTN");
-  const [resMsg, setResMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   const balance = calculatePointsAmount(user.points);
@@ -111,8 +113,6 @@ export const WithdrawModal = ({
   const profile = hasCompletedProfile(user);
   buyDataInitials.phoneNumber = user?.contact;
 
-  console.log({ bundler });
-
   let headerTxt, successTxt;
   switch (type) {
     case "subscription":
@@ -122,7 +122,7 @@ export const WithdrawModal = ({
 
     case "airtime":
       headerTxt = "Airtime Initiated Successfully";
-      successTxt = `Congratulations. ${resMsg}`;
+      successTxt = `Congratulations. ${recharger?.message}`;
       break;
 
     case "data":
@@ -168,7 +168,7 @@ export const WithdrawModal = ({
         accountNumber: formValues.acct_number,
         accountBank: "044",
       }).unwrap();
-      console.log(res);
+
       if (res.success === true) {
         setState({ ...state, status: "success" });
       } else {
@@ -481,8 +481,24 @@ export const WithdrawModal = ({
                           numDisplayItems={2}
                           headerText={"Subscription Plan"}
                         />
+                        {values["bundle"]?.points && (
+                          <AppText
+                            style={styles.preview}
+                            fontWeight="black"
+                            size="xxlarge"
+                          >
+                            -{values["bundle"]?.points}
+                          </AppText>
+                        )}
 
-                        <FormikButton title={"Buy Data"} type="accent" />
+                        <FormikButton
+                          contStyle={{
+                            marginTop: 25,
+                            marginHorizontal: width * 0.1,
+                          }}
+                          title={"Buy Data"}
+                          type="accent"
+                        />
                       </>
                     );
                   }}
@@ -506,7 +522,11 @@ export const WithdrawModal = ({
                       headerText={"Subscription Plan"}
                     />
 
-                    <FormikButton title={"Buy Subscription"} type="accent" />
+                    <FormikButton
+                      contStyle={{ marginHorizontal: width * 0.1 }}
+                      title={"Buy Subscription"}
+                      type="accent"
+                    />
                   </>
                 </Formik>
               </View>
@@ -557,6 +577,7 @@ export const WithdrawModal = ({
                 )}
 
                 <FormikButton
+                  contStyle={{ marginHorizontal: width * 0.1 }}
                   title={isVerified ? "Withdraw" : "Verify Account"}
                   type="accent"
                 />
@@ -583,7 +604,11 @@ export const WithdrawModal = ({
             </AppText>
             <AppText
               fontWeight="light"
-              style={{ textAlign: "center", marginBottom: 25 }}
+              style={{
+                textAlign: "center",
+                marginHorizontal: 30,
+                marginBottom: 25,
+              }}
             >
               {successTxt}
             </AppText>
@@ -598,7 +623,11 @@ export const WithdrawModal = ({
         )}
         <View style={styles.withdrawBtns}>
           {editable && isPending && !shouldHideContinueBtn && (
-            <AppButton title={"Continue"} onPress={handleContinue} />
+            <AppButton
+              contStyle={{ marginTop: 20 }}
+              title={"Continue"}
+              onPress={handleContinue}
+            />
           )}
           <AppButton
             title={isSuccess ? "Close" : "Cancel Withdrawal"}
@@ -620,7 +649,7 @@ export const WithdrawModal = ({
 
 const SubHistory = ({ item }) => {
   if (!item) return null;
-  const isSub = item.title.toLowerCase() === "subscription";
+  const isSub = ["credit", "points"].includes(item?.transactionType);
   return (
     <View
       style={[
@@ -651,7 +680,14 @@ const SubHistory = ({ item }) => {
           size={"large"}
           style={{ color: colors.medium }}
         >
-          {item.title}
+          {isSub ? "Subscription" : "Withdrawal"}
+        </AppText>
+        <AppText
+          fontWeight="medium"
+          size={"medium"}
+          style={{ color: colors.medium }}
+        >
+          {item?.description}
         </AppText>
         <AppText
           style={{
@@ -661,20 +697,20 @@ const SubHistory = ({ item }) => {
           fontWeight="heavy"
           size={"xlarge"}
         >
-          {getCurrencyAmount(item.amount)}
+          {item?.transactionType === "points"
+            ? formatPoints(item?.metadata?.pointsSpent)
+            : getCurrencyAmount(item.amount)}
         </AppText>
       </View>
       <View style={styles.subHistoryDetail}>
         <AppText fontWeight="bold" size={"small"}>
           {" "}
-          {isSub ? item.msg : formatPoints(item.msg)}{" "}
+          {isSub
+            ? `+${item?.metadata?.days} days`
+            : item?.metadata?.payoutType}{" "}
         </AppText>
-        <AppText
-          style={{ marginTop: 10, color: colors.medium }}
-          fontWeight="thin"
-          size={"small"}
-        >
-          {dateFormatter(item.date, "fullDate")}
+        <AppText style={{ marginTop: 10 }} fontWeight="thin" size={"small"}>
+          {dateFormatter(item.createdAt, "fullDate")}
         </AppText>
       </View>
     </View>
@@ -693,6 +729,7 @@ const SubscriptionScreen = () => {
 
   const { isActive, expiry, current } = user.subscription;
   const [fetchUser] = useLazyFetchUserQuery();
+  const { data, isLoading, refetch } = useFetchTransactionsQuery();
 
   const [bools, setBools] = useState({
     modal: false,
@@ -703,6 +740,7 @@ const SubscriptionScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const lottieRef = useRef(null);
+  const history = data?.data;
 
   const { sub, total, terms } = dateFormatter(expiry, "sub", { current });
   const isTeacher = user?.accountType === "teacher";
@@ -745,6 +783,7 @@ const SubscriptionScreen = () => {
     setRefreshing(true);
     try {
       await fetchUser();
+      await refetch();
     } catch (error) {
       console.log(error);
     } finally {
@@ -870,9 +909,12 @@ const SubscriptionScreen = () => {
                 History
               </AppText>
               <FlatList
-                data={subHistories}
+                data={history?.transactions}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={{ paddingBottom: height * 0.42 }}
+                ListEmptyComponent={() => (
+                  <ListEmpty vis={!isLoading} message="No history data" />
+                )}
                 renderItem={({ item }) => <SubHistory item={item} />}
               />
             </View>
@@ -880,11 +922,13 @@ const SubscriptionScreen = () => {
             <AppModal
               visible={bools.modal}
               setVisible={() => setBools({ ...bools, modal: false })}
+              fitContent={bools.type === "display"} // Add this line
               Component={() => {
                 if (bools.type === "display") {
                   return (
                     <DisplayPayments
                       hideModal={() => setBools({ ...bools, modal: false })}
+                      data={{ type: isSchool ? "school" : "student" }} // Add data prop
                     />
                   );
                 } else if (bools.type === "withdraw") {
@@ -903,6 +947,7 @@ const SubscriptionScreen = () => {
         )}
       />
       <PopMessage popData={popper} setPopData={setPopper} />
+      <StatusBar style="dark" />
       {/* <LottieAnimator visible={isLoading} absolute wTransparent /> */}
     </View>
   );
@@ -1007,16 +1052,16 @@ const styles = StyleSheet.create({
     paddingLeft: 1,
   },
   subHistoryIcon: {
-    flex: 0.15,
+    margin: 15,
     justifyContent: "center",
     alignItems: "center",
   },
   subHistoryContent: {
-    flex: 0.45,
+    flex: 1,
+    marginRight: 8,
   },
   subHistoryDetail: {
-    flex: 0.4,
-    alignItems: "flex-end",
+    // alignItems: "flex-end",
   },
   title: {
     marginTop: 5,
@@ -1039,7 +1084,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   withdrawBtns: {
-    marginTop: 40,
+    // marginTop: 40,
     marginHorizontal: width * 0.1,
   },
 });

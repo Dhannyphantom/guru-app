@@ -205,7 +205,7 @@ export const subInitials = {
   // card_exp_year: "31",
   // otp: "",
   // pin: "",
-  sub_amount: "",
+  sub_amount: {},
   // flw_ref: "",
   // tx_ref: "",
 };

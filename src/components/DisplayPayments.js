@@ -49,7 +49,6 @@ const DisplayPayments = ({ hideModal, data }) => {
   /* An example function called when transaction is completed successfully or canceled */
   const handleOnRedirect = async (response) => {
     // data = { status, transaction_id?, tx_ref }
-    console.log("Payment Response:", response);
 
     try {
       if (response?.status === "successful") {
@@ -59,8 +58,6 @@ const DisplayPayments = ({ hideModal, data }) => {
           tx_ref: response.tx_ref,
           status: response.status,
         }).unwrap();
-
-        console.log(result);
 
         if (result.success) {
           setBools({ ...bools, status: "success" });
@@ -103,124 +100,113 @@ const DisplayPayments = ({ hideModal, data }) => {
   };
 
   return (
-    <>
-      <View style={styles.webViewContainer}>
-        <Formik
-          initialValues={subInitials}
-          validationSchema={subUserSchema}
-          onSubmit={() => {}}
-        >
-          {({ values }) => {
-            const amount = Number(values["sub_amount"]?.value ?? 0);
+    <View style={styles.webViewContainer}>
+      <Formik
+        initialValues={subInitials}
+        validationSchema={subUserSchema}
+        onSubmit={() => {}}
+      >
+        {({ values }) => {
+          const amount = Number(values["sub_amount"]?.value ?? 0);
 
-            return (
-              <>
-                <>
-                  {!isSuccess && (
-                    <AppText
-                      size={"large"}
-                      fontWeight="heavy"
-                      style={styles.title}
-                    >
-                      Choose {isSchool ? "School" : "Student"} Payment Plan
-                    </AppText>
-                  )}
+          return (
+            <View style={styles.main}>
+              {!isSuccess && (
+                <AppText size={"large"} fontWeight="heavy" style={styles.title}>
+                  Choose {isSchool ? "School" : "Student"} Payment Plan
+                </AppText>
+              )}
 
-                  {isPending && (
-                    <Animated.View
-                      entering={profile.bool && enterAnimOther}
-                      exiting={profile.bool && exitingAnim}
-                      style={{ flex: 3 }}
-                    >
-                      <FormikInput
-                        headerText={"Subscription amount"}
-                        name={"sub_amount"}
-                        data={isSchool ? subSchoolDrop : subDropdown}
-                        type="dropdown"
-                        placeholder="Select subscription plan"
-                      />
-                    </Animated.View>
-                  )}
+              {isPending && (
+                <Animated.View
+                  entering={profile.bool && enterAnimOther}
+                  exiting={profile.bool && exitingAnim}
+                >
+                  <FormikInput
+                    headerText={"Subscription amount"}
+                    name={"sub_amount"}
+                    data={isSchool ? subSchoolDrop : subDropdown}
+                    type="dropdown"
+                    placeholder="Select subscription plan"
+                  />
+                </Animated.View>
+              )}
 
-                  {isSuccess && (
-                    <Animated.View
-                      entering={enterAnimOther}
-                      style={{ flex: 1, alignItems: "center" }}
-                    >
-                      <LottieAnimator
-                        name="success"
-                        style={{ width: width * 0.7, height: height * 0.4 }}
-                      />
-                      <AppText
-                        fontWeight="black"
-                        size={"xxlarge"}
-                        style={{ color: colors.greenDark }}
-                      >
-                        Subcription Successful
-                      </AppText>
-                      <AppText
-                        fontWeight="light"
-                        style={{ textAlign: "center" }}
-                      >
-                        You have successfully added a 30 days subscription to
-                        your account. Congratulations!
-                      </AppText>
-                    </Animated.View>
-                  )}
-
-                  <Animated.View
-                    layout={LinearTransition.springify()}
-                    style={styles.formBtn}
+              {isSuccess && (
+                <Animated.View
+                  entering={enterAnimOther}
+                  style={{ alignItems: "center" }}
+                >
+                  <LottieAnimator
+                    name="success"
+                    style={{ width: width * 0.7, height: height * 0.4 }}
+                  />
+                  <AppText
+                    fontWeight="black"
+                    size={"xxlarge"}
+                    style={{ color: colors.greenDark }}
                   >
-                    {!isSuccess && Boolean(values["sub_amount"]) && (
-                      <>
-                        <PayWithFlutterwave
-                          onRedirect={handleOnRedirect}
-                          options={{
-                            tx_ref: generateTransactionRef(10),
-                            authorization:
-                              "FLWPUBK_TEST-16067fba46bd1ab985e439656b68ce98-X",
-                            customer: {
-                              email: user.email,
-                            },
-                            amount,
-                            currency: "NGN",
-                            payment_options: "card,banktransfer,ussd",
-                            meta: {
-                              account_type: data?.type,
-                              name: getFullName(user),
-                            },
-                          }}
-                          customButton={(props) => (
-                            <AppButton
-                              title={"Subscribe"}
-                              icon={{ name: "wallet", left: true }}
-                              style={styles.paymentButton}
-                              onPress={props.onPress}
-                              isBusy={props.isInitializing}
-                              disabled={props.disabled}
-                            />
-                          )}
-                        />
-                      </>
-                    )}
+                    Subcription Successful
+                  </AppText>
+                  <AppText fontWeight="light" style={{ textAlign: "center" }}>
+                    You have successfully added a 30 days subscription to your
+                    account. Congratulations!
+                  </AppText>
+                </Animated.View>
+              )}
 
-                    <AppButton
-                      title={isSuccess ? "Finish Session" : "Cancel Session"}
-                      type={isSuccess ? "accent" : "warn"}
-                      onPress={() => hideModal(isSuccess)}
-                      contStyle={{ marginHorizontal: 20 }}
+              <Animated.View
+                layout={LinearTransition.springify()}
+                style={styles.formBtn}
+              >
+                {!isSuccess && Boolean(values["sub_amount"]) && (
+                  <>
+                    <PayWithFlutterwave
+                      onRedirect={handleOnRedirect}
+                      options={{
+                        tx_ref: generateTransactionRef(10),
+                        authorization:
+                          "FLWPUBK_TEST-16067fba46bd1ab985e439656b68ce98-X",
+                        customer: {
+                          email: user.email,
+                        },
+                        amount,
+                        currency: "NGN",
+                        payment_options: "card,banktransfer,ussd",
+                        meta: {
+                          account_type: data?.type,
+                          name: getFullName(user),
+                          days: values["sub_amount"]?.days,
+                        },
+                      }}
+                      customButton={(props) => (
+                        <AppButton
+                          title={"Subscribe"}
+                          icon={{ name: "wallet", left: true }}
+                          style={styles.paymentButton}
+                          onPress={props.onPress}
+                          isBusy={props.isInitializing}
+                          disabled={props.disabled}
+                        />
+                      )}
                     />
-                  </Animated.View>
-                  <LottieAnimator visible={isLoading} absolute />
-                </>
-              </>
-            );
-          }}
-        </Formik>
-      </View>
+                  </>
+                )}
+
+                <AppButton
+                  title={isSuccess ? "Finish Session" : "Cancel Session"}
+                  type={isSuccess ? "accent" : "warn"}
+                  onPress={() => hideModal(isSuccess)}
+                  contStyle={{ marginHorizontal: 20 }}
+                />
+              </Animated.View>
+              <LottieAnimator visible={isLoading} absolute />
+            </View>
+          );
+        }}
+      </Formik>
       <PopMessage popData={popper} setPopData={setPopper} />
-    </>
+    </View>
   );
 };
 
@@ -246,27 +232,31 @@ const styles = StyleSheet.create({
     width: width * 0.4,
   },
   formBtn: {
-    flex: 1,
-    justifyContent: "flex-end",
+    // flex: 1,
+    // justifyContent: "flex-end",
+  },
+  main: {
+    backgroundColor: colors.white,
+    padding: 15,
+    borderRadius: 10,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
   },
   payTxt: {
     textAlign: "center",
   },
+
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   webViewContainer: {
-    height: height * 0.45,
-    width: width * 0.95,
+    flex: 1,
     padding: 15,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: colors.white,
-    elevation: 5,
+    // backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
   },
-
   webView: {
     // borderRadius: 30,
     overflow: "hidden",

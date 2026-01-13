@@ -8,7 +8,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
-const AppModal = ({ visible, Component, noBlur = false, setVisible }) => {
+const AppModal = ({
+  visible,
+  Component,
+  noBlur = false,
+  setVisible,
+  fitContent = false,
+}) => {
   if (!visible) return null;
   return (
     <SafeAreaProvider>
@@ -23,7 +29,7 @@ const AppModal = ({ visible, Component, noBlur = false, setVisible }) => {
           {noBlur ? (
             <Animated.View style={styles.noblur}>
               <Animated.View
-                style={styles.main}
+                style={fitContent ? styles.mainFit : styles.main}
                 exiting={SlideOutRight.duration(350)}
                 entering={SlideInLeft.duration(600)}
               >
@@ -37,7 +43,7 @@ const AppModal = ({ visible, Component, noBlur = false, setVisible }) => {
               experimentalBlurMethod="dimezisBlurView"
             >
               <Animated.View
-                style={styles.main}
+                style={fitContent ? styles.mainFit : styles.main}
                 exiting={SlideOutRight.duration(350)}
                 entering={SlideInLeft.duration(600)}
               >
@@ -64,6 +70,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  mainFit: {
+    justifyContent: "center",
+    alignItems: "center",
+    maxWidth: "95%",
   },
   modal: {
     flex: 1,
