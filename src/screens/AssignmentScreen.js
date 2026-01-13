@@ -13,19 +13,19 @@ import { assignmentsArr, teacherAssignments } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
 import { capFirstLetter, dateFormatter } from "../helpers/helperFunctions";
 import colors from "../helpers/colors";
-import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import Counter from "../components/Counter";
 import { ProgressBar } from "../components/AppDetails";
 import { selectSchool, useFetchAssignmentsQuery } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 const ITEM_WIDTH = width * 0.75;
 
 const RenderItem = ({ item, index }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
   let bgColor, txtColor, borderColor;
   // let stats = "accepted";
   switch (item?.status) {
@@ -52,9 +52,16 @@ const RenderItem = ({ item, index }) => {
       break;
   }
 
+  // ("Solve", { item })
+
   return (
     <Pressable
-      onPress={() => navigation.navigate("Solve", { item })}
+      onPress={() =>
+        router.push({
+          pathname: "/school/solve",
+          params: { item: JSON.stringify(item) },
+        })
+      }
       style={styles.assItem}
     >
       <View style={styles.number}>
@@ -127,7 +134,7 @@ const RenderAssignment = ({ item, index }) => {
 
 const TeacherAssignment = ({ item, index }) => {
   const isActive = item?.status === "ongoing";
-  const navigation = useNavigation();
+  const router = useRouter();
   let statStyle = {};
 
   if (!isActive) {
@@ -138,7 +145,12 @@ const TeacherAssignment = ({ item, index }) => {
   }
   return (
     <Pressable
-      onPress={() => navigation.navigate("StudentAssignment", { item })}
+      onPress={() =>
+        router.push({
+          pathname: "/school/assignment/students",
+          params: { item: JSON.stringify(item) },
+        })
+      }
       style={styles.teacher}
     >
       <Counter count={index + 1} />

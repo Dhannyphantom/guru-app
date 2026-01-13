@@ -11,7 +11,6 @@ import { Ionicons } from "@expo/vector-icons";
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import { notificationsArr } from "../helpers/dataStore";
-import { useNavigation } from "@react-navigation/native";
 import { NavBack } from "../components/AppIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
@@ -28,7 +27,7 @@ import LottieAnimator from "../components/LottieAnimator";
 import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -55,7 +54,7 @@ export const Header = ({
 };
 
 const NotiItems = ({ item, index }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
   const isLast = index == notificationsArr.length - 1;
   let bgColor, borderColor, title;
   switch (item.type) {
@@ -83,8 +82,11 @@ const NotiItems = ({ item, index }) => {
   }
 
   const handleItemPress = () => {
-    if (Boolean(item?.type == "school")) {
-      navigation.navigate("School", { refresh: true });
+    if (Boolean(item?.type === "school")) {
+      router.push({
+        pathname: "/school",
+        params: { refresh: true },
+      });
     }
   };
 

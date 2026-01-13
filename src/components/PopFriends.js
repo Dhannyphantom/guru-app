@@ -25,6 +25,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import WebLayout from "./WebLayout";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -58,7 +59,7 @@ const ActionItem = ({ image, onPress, title, message }) => {
 
 const FindFriendsModal = ({ closeModal }) => {
   const user = useSelector(selectUser);
-  const navigation = useNavigation();
+  const router = useRouter();
 
   // const screenWidth = useWindowDimensions();
 
@@ -66,7 +67,7 @@ const FindFriendsModal = ({ closeModal }) => {
 
   const handleNav = (screen) => {
     closeModal();
-    navigation.navigate(screen);
+    router.push(screen);
   };
 
   return (
@@ -96,14 +97,14 @@ const FindFriendsModal = ({ closeModal }) => {
             <ActionItem
               title={"Search Contact"}
               message={"Find friends by phone number"}
-              onPress={() => !isPro && handleNav("Contact")}
+              onPress={() => !isPro && handleNav("/contact")}
               image={contactImg}
             />
             <View style={styles.separator} />
             <ActionItem
               title={"Invite Friends"}
               message={"Play together with your friends now"}
-              onPress={() => !isPro && handleNav("Invite")}
+              onPress={() => !isPro && handleNav("/invite")}
               image={friendsImg}
             />
           </View>

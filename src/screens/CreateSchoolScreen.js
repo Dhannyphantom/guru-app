@@ -24,7 +24,7 @@ import AppText from "../components/AppText";
 import { useCreateSchoolMutation } from "../context/schoolSlice";
 import DisplayPayments from "../components/DisplayPayments";
 import PopMessage from "../components/PopMessage";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -79,7 +79,7 @@ const CreateSchoolScreen = () => {
   const [createSchool, { isLoading }] = useCreateSchoolMutation();
   const [popper, setPopper] = useState({ vis: false });
 
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const handleSubmit = async (formData) => {
     // console.log({ formData });
@@ -104,7 +104,11 @@ const CreateSchoolScreen = () => {
 
   const onModalClose = (refresh) => {
     setBools({ ...bools, subModal: false });
-    navigation.replace("Learn", { refresh });
+    // replace("Learn", { refresh });
+    router.replace({
+      pathname: "/school",
+      params: { refresh },
+    });
   };
 
   return (

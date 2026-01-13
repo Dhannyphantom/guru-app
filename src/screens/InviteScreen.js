@@ -24,6 +24,7 @@ import { useEffect, useState } from "react";
 import PopMessage from "../components/PopMessage";
 import LottieAnimator from "../components/LottieAnimator";
 import ListEmpty from "../components/ListEmpty";
+import { PAD_BOTTOM } from "../helpers/dataStore";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -193,7 +194,7 @@ const InviteScreen = () => {
           <FlatList
             data={["REWARDS"]}
             keyExtractor={(item) => item}
-            // contentContainerStyle={{ paddingTop: 60 }}
+            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
             renderItem={() => (
               <>
                 <View style={[styles.content, { width: width * 0.98 }]}>

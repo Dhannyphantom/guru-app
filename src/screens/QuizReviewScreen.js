@@ -22,7 +22,7 @@ import Animated, {
   useAnimatedRef,
 } from "react-native-reanimated";
 import SearchBar from "../components/SearchBar";
-import { useNavigation } from "@react-navigation/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -38,13 +38,17 @@ const scoresList = dummyLeaderboards
   .sort((a, b) => b.score - a.score);
 
 const StudentScore = ({ item, index, isAssignment }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
+  // ("AssignmentReview", { item, uploaded: true })
   return (
     <Pressable
       disabled={!isAssignment}
       onPress={() =>
-        navigation?.navigate("AssignmentReview", { item, uploaded: true })
+        router.push({
+          pathname: "/school/assignment/review",
+          params: { item: JSON.stringify(item), uploaded: true },
+        })
       }
       style={styles.item}
     >
@@ -80,8 +84,10 @@ const StudentScore = ({ item, index, isAssignment }) => {
   );
 };
 
-const QuizReviewScreen = ({ route }) => {
-  const isAssignment = route?.params?.isAssignment;
+const QuizReviewScreen = () => {
+  const route = useLocalSearchParams();
+  const isAssignment = Boolean(route?.isAssignment);
+
   const [bools, setBools] = useState({ search: false });
 
   const searchRef = useAnimatedRef(null);

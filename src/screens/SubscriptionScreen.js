@@ -723,11 +723,15 @@ const SubscriptionScreen = () => {
 
   const searchParams = useLocalSearchParams();
 
-  const params = Boolean(params?.data) ? JSON.parse(searchParams?.data) : {};
+  const params = Boolean(searchParams?.data)
+    ? JSON.parse(searchParams?.data)
+    : {};
   const fromSchool = params?.screen === "School";
   const router = useRouter();
 
-  const { isActive, expiry, current } = user.subscription;
+  const { isActive, expiry, current } = fromSchool
+    ? school?.subscription
+    : user.subscription;
   const [fetchUser] = useLazyFetchUserQuery();
   const { data, isLoading, refetch } = useFetchTransactionsQuery();
 
@@ -752,7 +756,7 @@ const SubscriptionScreen = () => {
       return setPopper(profile.pop);
     }
 
-    if (isSchool && Boolean(school)) {
+    if (isSchool && !Boolean(school)) {
       return setPopper({
         vis: true,
         msg: "Please create a Profile for your School",
@@ -928,7 +932,10 @@ const SubscriptionScreen = () => {
                   return (
                     <DisplayPayments
                       hideModal={() => setBools({ ...bools, modal: false })}
-                      data={{ type: isSchool ? "school" : "student" }} // Add data prop
+                      data={{
+                        type: isSchool ? "school" : "student",
+                        schoolId: school?._id,
+                      }} // Add data prop
                     />
                   );
                 } else if (bools.type === "withdraw") {

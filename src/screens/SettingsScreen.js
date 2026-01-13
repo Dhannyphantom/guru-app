@@ -51,16 +51,8 @@ const SettingsScreen = () => {
         </AppText>
         {/* <Separator /> */}
         <View>
-          <ProfileLink
-            title={"Contact us"}
-            icon={"call"}
-            // onPress={() => navigation.navigate("ContactUs")}
-          />
-          <ProfileLink
-            title={"FAQs"}
-            icon={"help-circle"}
-            // onPress={() => navigation.navigate("FAQs")}
-          />
+          <ProfileLink title={"Contact us"} icon={"call"} />
+          <ProfileLink title={"FAQs"} icon={"help-circle"} />
         </View>
       </View>
     </View>

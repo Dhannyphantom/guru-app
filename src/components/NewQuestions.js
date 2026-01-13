@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { Formik } from "formik";
-import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
@@ -48,6 +47,7 @@ import { selectUser } from "../context/usersSlice";
 import WebLayout from "./WebLayout";
 import PromptModal from "./PromptModal";
 import LottieAnimator from "./LottieAnimator";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -150,8 +150,8 @@ export const NewQuestions = ({
   type,
   data,
 }) => {
-  const navigation = useNavigation();
-  const user = useSelector(selectUser);
+  const router = useRouter();
+  // const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
 
   // Choose schema/initials based on header
@@ -339,7 +339,8 @@ export const NewQuestions = ({
             msg: "Question updated successfully",
             type: "success",
             timer: 2000,
-            cb: () => navigation.navigate("InstanceEdit"),
+            cb: () => router.push("/pros/edit"),
+            // cb: () => ("InstanceEdit"),
           });
           return;
         }
@@ -348,7 +349,14 @@ export const NewQuestions = ({
           const payload = {
             questions: questions.map((item) => {
               const { _id, ...rest } = item;
-              return rest;
+
+              return {
+                ...rest,
+                answers: rest?.answers?.map((ans) => {
+                  const { _id, ...restAns } = ans;
+                  return restAns;
+                }),
+              };
             }),
             ...schoolQuiz,
             schoolId: school?._id,
@@ -365,7 +373,7 @@ export const NewQuestions = ({
               msg: "Quiz Updated Successfully",
               type: "success",
               timer: 2000,
-              cb: () => navigation.goBack(),
+              cb: () => router.back(),
             });
           } else {
             await createSchoolQuiz(payload).unwrap();
@@ -374,7 +382,7 @@ export const NewQuestions = ({
               msg: "Quiz Created Successfully",
               type: "success",
               timer: 2000,
-              cb: () => navigation.goBack(),
+              cb: () => router.back(),
             });
           }
           return;
@@ -387,7 +395,7 @@ export const NewQuestions = ({
           msg: "Questions created successfully",
           type: "success",
           timer: 2000,
-          cb: () => navigation.goBack(),
+          cb: () => router.back(),
         });
       } catch (err) {
         console.log({ err });
@@ -411,7 +419,7 @@ export const NewQuestions = ({
       updateSchoolQuiz,
       createSchoolQuiz,
       createQuestion,
-      navigation,
+      router,
     ]
   );
 
@@ -445,9 +453,9 @@ export const NewQuestions = ({
         {({ errors, touched }) => (
           <View style={styles.container}>
             <AppHeader
-              title={`${type === "edit" ? "Edit" : "Create New"} question${
-                type === "edit" ? "" : "s"
-              }`}
+              title={`${
+                type === "edit" || isEdit ? "Edit" : "Create New"
+              } question${type === "edit" ? "" : "s"}`}
               Component={() => (
                 <InstanceAction
                   canDelete={canDelete}

@@ -21,7 +21,7 @@ import {
   useUpdateInstanceMutation,
 } from "../context/instanceSlice";
 import LottieAnimator from "./LottieAnimator";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRouter } from "expo-router";
 
 const NewCategory = ({ addInstanceActions, type, data }) => {
   const [instances, setInstances] = useState({ 0: createCatInitials });
@@ -31,7 +31,7 @@ const NewCategory = ({ addInstanceActions, type, data }) => {
 
   const [createCategory, { isLoading }] = useCreateCategoryMutation();
   const [updateInstance, { isLoading: updating }] = useUpdateInstanceMutation();
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const isEdit = type === "edit";
   let formInitials = { ...createCatInitials };
@@ -89,7 +89,7 @@ const NewCategory = ({ addInstanceActions, type, data }) => {
           type: "success",
           timer: 2000,
           cb: () => {
-            navigation.goBack();
+            router.back();
           },
         });
       } catch (err) {
@@ -110,7 +110,7 @@ const NewCategory = ({ addInstanceActions, type, data }) => {
           type: "success",
           timer: 2000,
           cb: () => {
-            navigation.goBack();
+            router.back();
           },
         });
       } catch (err) {

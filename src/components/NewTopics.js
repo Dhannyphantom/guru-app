@@ -1,13 +1,11 @@
 import {
   Dimensions,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
 
-import AppText from "../components/AppText";
 import { useEffect, useState } from "react";
 import { Formik } from "formik";
 import AppHeader from "./AppHeader";
@@ -16,7 +14,6 @@ import InstanceAction, { AddInstance } from "./InstanceAction";
 import AppButton, { FormikButton } from "./AppButton";
 import { FormikInput } from "./FormInput";
 import { createTopicInitials, createTopicSchema } from "../helpers/yupSchemas";
-import { useNavigation } from "@react-navigation/native";
 import {
   useCreateTopicMutation,
   useFetchSubjectsQuery,
@@ -28,6 +25,7 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import { capFirstLetter } from "../helpers/helperFunctions";
 import WebLayout from "./WebLayout";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -86,7 +84,7 @@ const NewTopics = ({ addInstanceActions, type, data }) => {
     }
   };
 
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const uploadData = async (formValues) => {
     const formData = handleForm(formValues);
@@ -103,7 +101,7 @@ const NewTopics = ({ addInstanceActions, type, data }) => {
           type: "success",
           timer: 2000,
           cb: () => {
-            navigation.goBack();
+            router.back();
           },
         });
       } catch (err) {
@@ -124,7 +122,7 @@ const NewTopics = ({ addInstanceActions, type, data }) => {
           type: "success",
           timer: 2000,
           cb: () => {
-            navigation.goBack();
+            router.back();
           },
         });
       } catch (err) {

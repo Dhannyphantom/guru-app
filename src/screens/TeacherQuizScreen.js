@@ -16,7 +16,6 @@ import { capFirstLetter, dateFormatter } from "../helpers/helperFunctions";
 import Counter from "../components/Counter";
 import colors from "../helpers/colors";
 import AppButton from "../components/AppButton";
-import { useNavigation } from "@react-navigation/native";
 import { A_DAY } from "../helpers/dataStore";
 import {
   selectSchool,
@@ -29,15 +28,21 @@ import getRefresher from "../components/Refresher";
 import { useEffect, useState } from "react";
 import PopMessage from "../components/PopMessage";
 import PromptModal from "../components/PromptModal";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
 export const TQuizItem = ({ item, isAssignment }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   return (
     <Pressable
-      onPress={() => navigation.navigate("QuizReview", { isAssignment })}
+      onPress={() =>
+        router.push({
+          pathname: "/school/quiz_review",
+          params: { isAssignment },
+        })
+      }
       style={styles.item}
     >
       <View style={styles.itemMain}>
@@ -83,10 +88,11 @@ export const TQuizItem = ({ item, isAssignment }) => {
 const TeacherQuizScreen = () => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
-  const navigation = {};
-  const route = {};
-  const routeData = route?.params?.item;
-  const refresh = route?.params.refresh;
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const route = JSON.parse(params?.item ?? "{}");
+  const routeData = route;
+  const refresh = route?.refresh;
 
   const [refreshing, setRefreshing] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
@@ -101,7 +107,7 @@ const TeacherQuizScreen = () => {
   } = useFetchSchoolQuizQuery({
     schoolId: school?._id,
     type: "full",
-    quizId: routeData._id,
+    quizId: routeData?._id,
   });
 
   const screenData = { ...routeData, ...history?.extra };
@@ -127,8 +133,10 @@ const TeacherQuizScreen = () => {
         },
       });
     }
+
     if (isActive) {
       // END QUIZ
+      console.log({ status });
       try {
         await changeSchoolQuiz({
           status,
@@ -151,16 +159,20 @@ const TeacherQuizScreen = () => {
           msg: "Something went wrong",
           timer: 4000,
           type: "failed",
-          cb: () => navigation?.goBack(),
+          cb: () => router.back(),
         });
       }
     } else if (isReview) {
       console.log("Test scores released!");
     } else {
-      navigation.navigate("NewQuiz", {
-        type: "start",
-        data: screenData,
+      router.push({
+        pathname: "/main/new_quiz",
+        params: { data: JSON.stringify(screenData), type: "start" },
       });
+      // "NewQuiz",
+      //   type: "start",
+      //   data: screenData,
+      //
     }
   };
 
@@ -176,13 +188,18 @@ const TeacherQuizScreen = () => {
         },
       });
     }
+
     if (isActive) {
       handleQuiz(status);
     } else {
-      navigation.navigate("NewQuiz", {
-        type: "edit",
-        data: screenData,
+      router.push({
+        pathname: "/main/new_quiz",
+        params: { data: JSON.stringify(screenData), type: "edit" },
       });
+      // "NewQuiz", {
+      //   type: "edit",
+      //   data: screenData,
+      // });
     }
   };
 

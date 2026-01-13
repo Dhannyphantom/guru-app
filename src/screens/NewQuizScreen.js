@@ -22,7 +22,7 @@ import {
   useChangeSchoolQuizMutation,
 } from "../context/schoolSlice";
 import { useSelector } from "react-redux";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -31,6 +31,7 @@ const NewQuizScreen = () => {
 
   const params = useLocalSearchParams();
   const screenType = params?.type;
+  const router = useRouter();
 
   const isStart = screenType === "start";
   const isEdit = screenType === "edit";
@@ -61,10 +62,14 @@ const NewQuizScreen = () => {
           msg: "Quiz session is now Active",
           type: "success",
           cb: () => {
-            navigation.navigate("TeacherQuiz", {
-              item: routeData,
-              refresh: true,
+            router.push({
+              pathname: "/school/teacher_quiz",
+              params: { item: JSON.stringify(routeData), refresh: true },
             });
+            // ("TeacherQuiz", {
+            //   item: routeData,
+            //   refresh: true,
+            // });
           },
         });
       } catch (err) {
@@ -72,7 +77,7 @@ const NewQuizScreen = () => {
           vis: true,
           msg: "Something went wrong",
           type: "failed",
-          cb: () => navigation?.goBack(),
+          cb: () => router?.back(),
         });
       }
     } else {
@@ -85,17 +90,18 @@ const NewQuizScreen = () => {
     if (quizMeta) {
       newQuizInitials["subject"] = quizMeta?.subject;
       newQuizInitials["title"] = quizMeta?.title;
-      // newQuizInitials["class"] = {
-      //   _id: "1",
-      //   name: quizMeta?.class,
-      // };
+      if (Boolean(quizMeta?.class) && typeof quizMeta.class === "object") {
+        newQuizInitials["class"] = quizMeta?.class;
+      }
     } else {
       newQuizInitials["subject"] = routeData?.subject;
       newQuizInitials["title"] = routeData?.title;
-      // newQuizInitials["class"] = {
-      //   _id: "1",
-      //   name: routeData?.class?.toUpperCase(),
-      // };
+      if (Boolean(routeData?.class)) {
+        newQuizInitials["class"] = {
+          _id: "1",
+          name: routeData?.class?.toUpperCase(),
+        };
+      }
     }
   }
 
@@ -112,7 +118,7 @@ const NewQuizScreen = () => {
         setBools({ ...bools, screen: "form", header: "Start Quiz" });
         break;
     }
-  }, [params]);
+  }, []);
 
   return (
     <View style={styles.container}>

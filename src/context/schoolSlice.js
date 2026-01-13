@@ -56,6 +56,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
+      invalidatesTags: ["FETCH_QUIZ"],
     }),
     createSchoolQuiz: builder.mutation({
       query: (data) => {
@@ -65,6 +66,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
+      invalidatesTags: ["FETCH_QUIZ"],
     }),
     getQuizQuestions: builder.mutation({
       query: (data) => {
@@ -93,6 +95,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
+      invalidatesTags: ["FETCH_QUIZ"],
     }),
     createAssignment: builder.mutation({
       query: (data) => {

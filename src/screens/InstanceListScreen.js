@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { capFirstLetter, getImageObj } from "../helpers/helperFunctions";
 import colors from "../helpers/colors";
 import AnimatedPressable from "../components/AnimatedPressable";
-import { useNavigation } from "@react-navigation/native";
 import {
   useFetchSubjectsQuery,
   useLazyFetchInstanceQuery,
@@ -41,11 +40,11 @@ const { width, height } = Dimensions.get("screen");
 const grids = ["category", "subjects"];
 
 const RenderCategories = ({ data }) => {
-  const navigation = useRouter();
+  const router = useRouter();
   const img = getImageObj(data?.image);
 
   const onPress = () => {
-    navigation.push({
+    router.push({
       pathname: "/pros/create",
       params: { name: "category", type: "edit", data: JSON.stringify(data) },
     });
@@ -68,13 +67,16 @@ const RenderSubjects = ({ data, index }) => {
 };
 
 const RenderTopics = ({ data, index, extra }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const handlePress = () => {
-    navigation.navigate("Create", {
-      name: "topics",
-      type: "edit",
-      data: { ...data, subject: extra },
+    router.push({
+      pathname: "/pros/create",
+      params: {
+        name: "topics",
+        type: "edit",
+        data: JSON.stringify({ ...data, subject: extra }),
+      },
     });
   };
 
@@ -89,13 +91,16 @@ const RenderTopics = ({ data, index, extra }) => {
 };
 
 const QuestionRender = ({ data, index, extra = {} }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const handlePress = () => {
-    navigation.navigate("Create", {
-      name: "questions",
-      type: "edit",
-      data: { ...data, subject: extra },
+    router.push({
+      pathname: "/pros/create",
+      params: {
+        name: "questions",
+        type: "edit",
+        data: JSON.stringify({ ...data, subject: extra }),
+      },
     });
   };
 

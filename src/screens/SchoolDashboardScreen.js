@@ -35,7 +35,6 @@ const SchoolDashboardScreen = () => {
         pathname: item?.nav?.screen,
         params: { data: JSON.stringify(item?.nav?.data) },
       });
-      // navigation?.navigate(item.nav?.screen, item?.nav?.data);
     }
   };
 

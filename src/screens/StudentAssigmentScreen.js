@@ -33,6 +33,7 @@ import { selectUser } from "../context/usersSlice";
 import PopMessage from "../components/PopMessage";
 import { QuizItem } from "./QuizHistoryScreen";
 import { TQuizItem } from "./TeacherQuizScreen";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -90,10 +91,15 @@ const listArr = dummyLeaderboards.map((item, idx) => {
 });
 
 const ListItem = ({ item, index }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
   return (
     <Pressable
-      onPress={() => navigation.navigate("AssignmentReview", { item })}
+      onPress={() =>
+        router.push({
+          pathname: "/school/assignment/review",
+          params: { item: JSON.stringify(item) },
+        })
+      }
       style={styles.item}
     >
       <View style={styles.itemMain}>
@@ -125,8 +131,9 @@ const ListItem = ({ item, index }) => {
   );
 };
 
-const StudentAssigmentScreen = ({ route }) => {
-  const routeData = route?.params?.item;
+const StudentAssigmentScreen = () => {
+  const route = useLocalSearchParams();
+  const routeData = Boolean(route?.item) ? JSON.parse(route?.item) : {};
   const user = useSelector(selectUser);
 
   const [bools, setBools] = useState({ search: false });
@@ -184,7 +191,7 @@ const StudentAssigmentScreen = ({ route }) => {
             <AppButton
               title={"Edit Assignment"}
               // onPress={() =>
-              //   navigation.navigate("NewQuiz", {
+              //   ("NewQuiz", {
               //     type: "edit",
               //     data: routeData,
               //   })

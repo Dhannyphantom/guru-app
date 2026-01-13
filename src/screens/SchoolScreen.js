@@ -254,7 +254,7 @@ const SchoolModal = ({ data, closeModal }) => {
   const navigateHistory = () => {
     if (isTeacher) {
       //  ("NewQuiz");
-      router.push("/school/new_quiz");
+      router.push("/main/new_quiz");
     } else {
       //  ("QuizHistory");
       router.push("/school/quiz_history");

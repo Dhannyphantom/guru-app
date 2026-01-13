@@ -30,6 +30,7 @@ import Animated, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import PromptModal from "../components/PromptModal";
+import { useLocalSearchParams } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -90,7 +91,8 @@ export const handleHead3 = ({ tintColor }) => (
   </AppText>
 );
 
-const SolveScreen = ({ route }) => {
+const SolveScreen = () => {
+  const route = useLocalSearchParams();
   const routeData = route?.params?.item;
 
   const [bools, setBools] = useState({

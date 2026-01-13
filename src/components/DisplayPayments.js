@@ -177,6 +177,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                           account_type: data?.type,
                           name: getFullName(user),
                           days: values["sub_amount"]?.days,
+                          schoolId: isSchool ? data?.schoolId : "",
                         },
                       }}
                       customButton={(props) => (

@@ -23,9 +23,9 @@ import {
   useUpdateInstanceMutation,
 } from "../context/instanceSlice";
 import LottieAnimator from "./LottieAnimator";
-import { useNavigation } from "@react-navigation/native";
 import PromptModal from "./PromptModal";
 import WebLayout from "./WebLayout";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -81,7 +81,7 @@ const NewSubjects = ({ addInstanceActions, type, data }) => {
     cacheInitials: ["categories"],
   });
 
-  const navigation = useNavigation();
+  const router = useRouter();
 
   const uploadData = async (formValues) => {
     const formData = handleForm(formValues);
@@ -101,7 +101,7 @@ const NewSubjects = ({ addInstanceActions, type, data }) => {
           type: "success",
           timer: 2000,
           cb: () => {
-            navigation.goBack();
+            router.back();
           },
         });
       } catch (err) {
@@ -122,7 +122,7 @@ const NewSubjects = ({ addInstanceActions, type, data }) => {
           type: "success",
           timer: 2000,
           cb: () => {
-            navigation.goBack();
+            router.back();
           },
         });
       } catch (err) {

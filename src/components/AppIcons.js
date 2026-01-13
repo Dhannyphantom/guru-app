@@ -1,16 +1,22 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import colors from "../helpers/colors";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 
 export const NavBack = ({ style, color = colors.white }) => {
-  const navigation = useNavigation();
+  const router = useRouter();
+
+  const handleNav = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(protected)/(tabs)/(home)");
+    }
+  };
+
   return (
-    <Pressable
-      onPress={() => navigation.goBack()}
-      style={[styles.container, style]}
-    >
+    <Pressable onPress={handleNav} style={[styles.container, style]}>
       <Ionicons name="chevron-back" color={color} size={25} />
     </Pressable>
   );

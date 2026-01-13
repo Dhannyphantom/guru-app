@@ -1492,36 +1492,36 @@ export const panelItems = [
 export const pointsSelect = [
   {
     _id: nanoid(),
-    num: 10,
+    num: 1,
   },
   {
     _id: nanoid(),
-    num: 20,
+    num: 2,
   },
   {
     _id: nanoid(),
-    num: 30,
+    num: 3,
+  },
+  {
+    _id: nanoid(),
+    num: 4,
+  },
+  {
+    _id: nanoid(),
+    num: 5,
     selected: true,
   },
   {
     _id: nanoid(),
-    num: 40,
+    num: 6,
   },
   {
     _id: nanoid(),
-    num: 50,
+    num: 7,
   },
   {
     _id: nanoid(),
-    num: 60,
-  },
-  {
-    _id: nanoid(),
-    num: 80,
-  },
-  {
-    _id: nanoid(),
-    num: 100,
+    num: 10,
   },
 ];
 
