@@ -141,6 +141,7 @@ const StudentAssigmentScreen = () => {
   const [popper, setPopper] = useState({ vis: false });
 
   const isActive = routeData?.status === "active";
+  const router = useRouter();
 
   const onReleaseScores = () => {
     const checkAll = submissions?.every((item) => Boolean(item.grade));
@@ -163,7 +164,7 @@ const StudentAssigmentScreen = () => {
   return (
     <View style={styles.container}>
       <AppHeader
-        title=""
+        title="Assignment"
         Component={() => (
           <AnimatedPressable
             onPress={() => setBools({ ...bools, search: !bools.search })}
@@ -190,12 +191,17 @@ const StudentAssigmentScreen = () => {
             />
             <AppButton
               title={"Edit Assignment"}
-              // onPress={() =>
-              //   ("NewQuiz", {
-              //     type: "edit",
-              //     data: routeData,
-              //   })
-              // }
+              onPress={
+                () =>
+                  router.push({
+                    pathname: "/school/assignment/create",
+                    params: { isEdit: true, data: JSON.stringify(routeData) },
+                  })
+                // ("NewQuiz", {
+                //   type: "edit",
+                //   data: routeData,
+                // })
+              }
               type="white"
               icon={{ left: true, name: "pencil", color: colors.medium }}
             />

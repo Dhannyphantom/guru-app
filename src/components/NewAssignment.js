@@ -25,7 +25,7 @@ import { useState } from "react";
 import colors from "../helpers/colors";
 import { PAD_BOTTOM, schoolClasses } from "../helpers/dataStore";
 import { useSelector } from "react-redux";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "./AppHeader";
 
 const { width, height } = Dimensions.get("screen");
@@ -35,6 +35,22 @@ const NewAssignment = () => {
   const [createAssignment, { isLoading }] = useCreateAssignmentMutation();
   const school = useSelector(selectSchool);
   const router = useRouter();
+  const route = useLocalSearchParams();
+
+  const isEdit = Boolean(route?.isEdit);
+  const routeData = route?.data ? JSON.parse(route?.data) : null;
+
+  if (isEdit) {
+    newAssignmentInitials.title = routeData?.title || "";
+    newAssignmentInitials.question = routeData?.question || "";
+    newAssignmentInitials.subject = routeData?.subject || "";
+    newAssignmentInitials.classes =
+      routeData?.classes?.map((clas) => ({
+        _id: "1",
+        name: clas?.toUpperCase?.(),
+      })) || [];
+    newAssignmentInitials.date = routeData?.date || "";
+  }
 
   const [popper, setPopper] = useState({ vis: false });
 
@@ -64,9 +80,11 @@ const NewAssignment = () => {
     }
   };
 
+  const handleDeleteAssignment = () => {};
+
   return (
-    <>
-      <AppHeader title="New Assignment" />
+    <View style={{ flex: 1 }}>
+      <AppHeader title={`${isEdit ? "Edit" : "New"} Assignment`} />
       <KeyboardAvoidingView style={styles.avoidingView} behavior="padding">
         <View style={styles.form}>
           <ScrollView
@@ -116,28 +134,34 @@ const NewAssignment = () => {
 
                 <FormikInput
                   name={"date"}
-                  placeholder={"Pick Expected Date of Submission"}
+                  placeholder={
+                    isEdit
+                      ? routeData?.date
+                      : "Pick Expected Date of Submission"
+                  }
                   headerText={"Expected Date of Submission:"}
                   futureYear={true}
                   type="date"
                 />
                 <View style={styles.formBtns}>
-                  <FormikButton title={"Create"} />
+                  <FormikButton title={"Create Assignment"} />
 
-                  <AppButton
-                    title={"Close"}
-                    type="warn"
-                    onPress={() => router.back()}
-                  />
+                  {isEdit && (
+                    <AppButton
+                      title={"Delete Assignment"}
+                      type="warn"
+                      onPress={handleDeleteAssignment}
+                    />
+                  )}
                 </View>
               </>
             </Formik>
           </ScrollView>
           <LottieAnimator visible={isLoading} absolute wTransparent />
         </View>
-        <PopMessage popData={popper} setPopData={setPopper} />
       </KeyboardAvoidingView>
-    </>
+      <PopMessage popData={popper} setPopData={setPopper} />
+    </View>
   );
 };
 

@@ -225,7 +225,10 @@ const TeacherQuizScreen = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title={`${screenData?.subject?.name} Quiz`} />
+      <AppHeader
+        title={`${screenData?.subject?.name} Quiz`}
+        onPress={() => router.replace("/school")}
+      />
       <View style={styles.main}>
         <ScrollView
           refreshControl={getRefresher({ refreshing, onRefresh })}

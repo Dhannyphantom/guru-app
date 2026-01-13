@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
   },
   text: {
     textAlign: "center",
-    maxWidth: "90%",
+    maxWidth: "70%",
     lineHeight: 25,
     color: colors.medium,
     marginVertical: 10,

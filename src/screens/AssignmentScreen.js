@@ -9,7 +9,7 @@ import { StatusBar } from "expo-status-bar";
 
 import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
-import { assignmentsArr, teacherAssignments } from "../helpers/dataStore";
+import { assignmentsArr } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
 import { capFirstLetter, dateFormatter } from "../helpers/helperFunctions";
 import colors from "../helpers/colors";
@@ -20,6 +20,10 @@ import { ProgressBar } from "../components/AppDetails";
 import { selectSchool, useFetchAssignmentsQuery } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import { useRouter } from "expo-router";
+import ListEmpty from "../components/ListEmpty";
+import AppButton from "../components/AppButton";
+import { useState } from "react";
+import getRefresher from "../components/Refresher";
 
 const { width, height } = Dimensions.get("screen");
 const ITEM_WIDTH = width * 0.75;
@@ -242,21 +246,47 @@ const AssignmentScreen = () => {
   const school = useSelector(selectSchool);
   const isTeacher = user?.accountType === "teacher";
 
-  const { data, isLoading } = useFetchAssignmentsQuery(school?._id);
+  const { data, isLoading, refetch } = useFetchAssignmentsQuery(school?._id);
+
+  const [refreshing, setRefreshing] = useState(false);
+
   const assignments = data?.data;
-  console.log({ assignments });
+  const router = useRouter();
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } catch (_errr) {
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <AppHeader title="My Assignments" />
+      <AppHeader title="Assignments" />
       {isTeacher ? (
         <>
+          <AppButton
+            contStyle={styles.btn}
+            title={"Create New Assignment"}
+            onPress={() => router.push("/school/assignment/create")}
+          />
           <FlatList
             data={assignments}
             keyExtractor={(item) => item._id}
             renderItem={({ item, index }) => (
               <TeacherAssignment index={index} item={item} />
             )}
+            refreshControl={getRefresher({ refreshing, onRefresh })}
+            ListEmptyComponent={
+              <ListEmpty
+                vis={!isLoading}
+                style={{ height: height * 0.7 }}
+                message="You haven't prepared any assignments for your students yet"
+              />
+            }
             contentContainerStyle={{ paddingBottom: height * 0.125 }}
           />
         </>
@@ -268,6 +298,14 @@ const AssignmentScreen = () => {
           renderItem={({ item, index }) => (
             <RenderAssignment item={item} index={index} />
           )}
+          refreshControl={getRefresher({ refreshing, onRefresh })}
+          ListEmptyComponent={
+            <ListEmpty
+              vis={!isLoading}
+              style={{ height: height * 0.7 }}
+              message="You don't have any assignments data from your teachers"
+            />
+          }
         />
       )}
       <LottieAnimator visible={isLoading} absolute wTransparent />
@@ -333,6 +371,9 @@ const styles = StyleSheet.create({
   assItemStatTxt: {
     textTransform: "capitalize",
     marginTop: 1,
+  },
+  btn: {
+    marginHorizontal: 30,
   },
   container: {
     flex: 1,

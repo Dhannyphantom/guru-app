@@ -380,7 +380,11 @@ const DayMonthYearSelector = ({ setter, range = [], futureYear, name }) => {
     .fill(0)
     .map((num, idx) => idx + 1);
 
-  const yearsData = range ? range : futureYear ? fututeYearsList : yearsList;
+  const yearsData = Boolean(range[0])
+    ? range
+    : futureYear
+    ? fututeYearsList
+    : yearsList;
 
   const handleSelectDate = () => {
     if (!selected.year || !selected.month || !selected.day) return;

@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createSlice } from "@reduxjs/toolkit";
 import { apiSlice } from "./apiSlice";
-import { getFormData } from "../helpers/helperFunctions";
+// import { getFormData } from "../helpers/helperFunctions";
 
 const initialState = {
   school: null,
@@ -41,6 +41,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: `/school/assignments?schoolId=${schoolId}`,
         timeout: 15000,
       }),
+      providesTags: ["FETCH_ASSIGNMENTS"],
     }),
     fetchAnnouncements: builder.query({
       query: (schoolId) => ({
@@ -105,6 +106,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
     }),
     createAnnouncement: builder.mutation({
       query: (data) => {

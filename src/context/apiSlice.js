@@ -23,6 +23,7 @@ export const apiSlice = createApi({
     "USER",
     "FETCH_QUIZ",
     "FETCH_INSTANCE",
+    "FETCH_ASSIGNMENTS",
     "FETCH_PROS",
     "FETCH_FRIENDS",
     "FETCH_REWARDS",
