@@ -207,7 +207,7 @@ const TeacherAssignment = ({ item, index }) => {
             >
               Date of Submission:{" "}
               <AppText fontWeight="bold" style={{ color: colors.primaryDeep }}>
-                {capFirstLetter(dateFormatter(item.expiry, "future"))}
+                {capFirstLetter(dateFormatter(item.expiry, "fullDate"))}
               </AppText>
             </AppText>
             <AppText

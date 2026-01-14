@@ -20,6 +20,8 @@ import {
   selectSchool,
   //   selectSchool,
   useCreateAssignmentMutation,
+  useDeleteAssignmentMutation,
+  useUpdateAssignmentMutation,
 } from "../context/schoolSlice";
 import { useState } from "react";
 import colors from "../helpers/colors";
@@ -27,15 +29,24 @@ import { PAD_BOTTOM, schoolClasses } from "../helpers/dataStore";
 import { useSelector } from "react-redux";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "./AppHeader";
+import { nanoid } from "@reduxjs/toolkit";
+import PromptModal from "./PromptModal";
 
 const { width, height } = Dimensions.get("screen");
 
 const NewAssignment = () => {
   const { data: subjects, isLoading: subjLoading } = useFetchSubjectsQuery();
   const [createAssignment, { isLoading }] = useCreateAssignmentMutation();
+  const [updateAssignment, { isLoading: updating }] =
+    useUpdateAssignmentMutation();
+  const [deleteAssignmet, { isLoading: deleting }] =
+    useDeleteAssignmentMutation();
   const school = useSelector(selectSchool);
   const router = useRouter();
   const route = useLocalSearchParams();
+
+  const [popper, setPopper] = useState({ vis: false });
+  const [prompt, setPrompt] = useState({ vis: false });
 
   const isEdit = Boolean(route?.isEdit);
   const routeData = route?.data ? JSON.parse(route?.data) : null;
@@ -46,41 +57,105 @@ const NewAssignment = () => {
     newAssignmentInitials.subject = routeData?.subject || "";
     newAssignmentInitials.classes =
       routeData?.classes?.map((clas) => ({
-        _id: "1",
+        _id: nanoid(),
         name: clas?.toUpperCase?.(),
       })) || [];
     newAssignmentInitials.date = routeData?.date || "";
   }
 
-  const [popper, setPopper] = useState({ vis: false });
-
   const handleForm = async (formData) => {
-    try {
-      const res = await createAssignment({
-        ...formData,
-        schoolId: school?._id,
-      }).unwrap();
-      if (res.status === "success") {
+    if (isEdit) {
+      try {
+        const res = await updateAssignment({
+          data: { ...routeData, ...formData },
+          schoolId: school?._id,
+          assignmentId: routeData?._id,
+        }).unwrap();
+        if (res.status === "success") {
+          setPopper({
+            vis: true,
+            timer: 2000,
+            msg: `Assignment updated successfully`,
+            type: "success",
+          });
+        }
+      } catch (error) {
+        console.log(error);
         setPopper({
           vis: true,
           timer: 2000,
-          msg: `Assignment created successfully`,
-          type: "success",
-          cb: () => router.back(),
+          msg: error?.data?.message ?? "Something went wrong, Please retry",
+          type: "failed",
         });
       }
-    } catch (error) {
-      console.log(error);
-      setPopper({
-        vis: true,
-        timer: 2000,
-        msg: error?.data?.message ?? "Something went wrong, Please retry",
-        type: "failed",
-      });
+    } else {
+      try {
+        const res = await createAssignment({
+          ...formData,
+          schoolId: school?._id,
+        }).unwrap();
+        if (res.status === "success") {
+          setPopper({
+            vis: true,
+            timer: 2000,
+            msg: `Assignment created successfully`,
+            type: "success",
+            cb: () => router.back(),
+          });
+        }
+      } catch (error) {
+        console.log(error);
+        setPopper({
+          vis: true,
+          timer: 2000,
+          msg: error?.data?.message ?? "Something went wrong, Please retry",
+          type: "failed",
+        });
+      }
     }
   };
 
-  const handleDeleteAssignment = () => {};
+  const handlePrompts = async () => {
+    switch (prompt?.data?.type) {
+      case "delete":
+        try {
+          await deleteAssignmet({
+            schoolId: school?._id,
+            assignmentId: routeData?._id,
+          }).unwrap();
+          setPopper({
+            vis: true,
+            msg: `Assignment deleted successfully`,
+            type: "success",
+            cb: () => router.back(),
+          });
+        } catch (errr) {
+          console.log(errr);
+          setPopper({
+            vis: true,
+            msg: errr?.data ?? "Something went wrong",
+            type: "failed",
+            cb: () => router.back(),
+          });
+        }
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  const handleDeleteAssignment = () => {
+    setPrompt({
+      vis: true,
+      data: {
+        title: "Delete Assignment",
+        msg: "Are really sure you want to delete this assignment permanently?",
+        type: "delete",
+        btn: "Delete",
+      },
+    });
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -134,17 +209,15 @@ const NewAssignment = () => {
 
                 <FormikInput
                   name={"date"}
-                  placeholder={
-                    isEdit
-                      ? routeData?.date
-                      : "Pick Expected Date of Submission"
-                  }
+                  placeholder={"Pick Expected Date of Submission"}
                   headerText={"Expected Date of Submission:"}
                   futureYear={true}
                   type="date"
                 />
                 <View style={styles.formBtns}>
-                  <FormikButton title={"Create Assignment"} />
+                  <FormikButton
+                    title={`${isEdit ? "Update" : "Create"} Assignment`}
+                  />
 
                   {isEdit && (
                     <AppButton
@@ -161,6 +234,11 @@ const NewAssignment = () => {
         </View>
       </KeyboardAvoidingView>
       <PopMessage popData={popper} setPopData={setPopper} />
+      <PromptModal
+        prompt={prompt}
+        setPrompt={setPrompt}
+        onPress={handlePrompts}
+      />
     </View>
   );
 };

@@ -21,6 +21,7 @@ import {
   A_DAY,
   assignmentHistory,
   dummyLeaderboards,
+  PAD_BOTTOM,
   schoolQuizHistory,
 } from "../helpers/dataStore";
 import colors from "../helpers/colors";
@@ -140,8 +141,18 @@ const StudentAssigmentScreen = () => {
   const [submissions, setSubmissions] = useState(listArr);
   const [popper, setPopper] = useState({ vis: false });
 
-  const isActive = routeData?.status === "active";
+  const isActive = routeData?.status === "ongoing";
   const router = useRouter();
+
+  let statColor = "";
+  switch (routeData?.status) {
+    case "ongoing":
+      statColor = colors.greenDark;
+      break;
+    case "inactive":
+      statColor = colors.medium;
+      break;
+  }
 
   const onReleaseScores = () => {
     const checkAll = submissions?.every((item) => Boolean(item.grade));
@@ -176,21 +187,59 @@ const StudentAssigmentScreen = () => {
       />
       <View style={styles.main}>
         <View style={{ flex: 1 }}>
-          <AppText fontWeight="bold">
-            TITLE:{" "}
-            <AppText fontWeight="heavy" style={{ color: colors.medium }}>
-              {routeData?.title}
+          <AppText
+            style={{ color: colors.medium }}
+            size="small"
+            fontWeight="bold"
+          >
+            TITLE: <AppText fontWeight="heavy">{routeData?.title}</AppText>
+          </AppText>
+          <AppText
+            style={{ marginTop: 5, color: colors.medium }}
+            size="small"
+            fontWeight="bold"
+          >
+            SUBMISSION:{" "}
+            <AppText fontWeight="heavy">
+              {dateFormatter(routeData?.expiry, "fullDate")}
             </AppText>
           </AppText>
+          <View style={styles.row}>
+            <AppText
+              style={{ color: colors.medium }}
+              size="small"
+              fontWeight="bold"
+            >
+              STATUS:{" "}
+            </AppText>
+            <AppText
+              fontWeight="heavy"
+              style={{
+                backgroundColor: statColor + 30,
+                color: statColor,
+                borderColor: statColor,
+                padding: 3,
+                paddingHorizontal: 10,
+                borderRadius: 20,
+                paddingBottom: 6,
+                borderWidth: 1.5,
+                borderBottomWidth: 3,
+              }}
+            >
+              {routeData?.status}
+            </AppText>
+          </View>
 
           <View style={styles.btns}>
             <AppButton
               icon={{ left: true, name: "rocket" }}
               onPress={onReleaseScores}
-              title={isActive ? "Release scores" : "New Assigment"}
+              type={isActive ? "accent" : "primary"}
+              title={isActive ? "Release scores" : "Start Assigment"}
             />
             <AppButton
               title={"Edit Assignment"}
+              disabled={isActive}
               onPress={
                 () =>
                   router.push({
@@ -228,7 +277,7 @@ const StudentAssigmentScreen = () => {
             <ListItem item={item} index={index} />
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{ paddingBottom: height * 0.125 }}
+          contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         />
       )}
       {!isActive && (
@@ -244,7 +293,7 @@ const StudentAssigmentScreen = () => {
           <FlatList
             data={assignmentHistory}
             keyExtractor={(item) => item._id}
-            contentContainerStyle={{ paddingBottom: height * 0.125 }}
+            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
             renderItem={({ item, index }) => (
               <TQuizItem item={item} index={index} isAssignment={true} />
             )}
@@ -294,6 +343,11 @@ const styles = StyleSheet.create({
     padding: 15,
     paddingBottom: 0,
     marginBottom: 10,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
   },
   separator: {
     height: 1.5,

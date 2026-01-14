@@ -43,6 +43,36 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_ASSIGNMENTS"],
     }),
+    deleteAssignment: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/school/assignment",
+          method: "DELETE",
+          params: data,
+        };
+      },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+    }),
+    updateAssignmentStatus: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/school/assignment",
+          method: "PATCH",
+          body: data,
+        };
+      },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+    }),
+    updateAssignment: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/school/assignment",
+          method: "PUT",
+          body: data,
+        };
+      },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+    }),
     fetchAnnouncements: builder.query({
       query: (schoolId) => ({
         url: `/school/announcements?schoolId=${schoolId}`,
@@ -190,6 +220,9 @@ export const {
   useChangeSchoolQuizMutation,
   useFetchAssignmentsQuery,
   useSubmitQuizMutation,
+  useDeleteAssignmentMutation,
+  useUpdateAssignmentMutation,
+  useUpdateAssignmentStatusMutation,
   useUpdateSchoolQuizMutation,
   useGetQuizQuestionsMutation,
   useVerifySchoolInstanceMutation,

@@ -364,14 +364,22 @@ const AppSideUpModal = ({ visible, setter, title = "", ContentComponent }) => {
   );
 };
 
-const DayMonthYearSelector = ({ setter, range = [], futureYear, name }) => {
-  const { setFieldValue } = useFormikContext();
+const DayMonthYearSelector = ({
+  setter,
+  init,
+  range = [],
+  futureYear,
+  name,
+}) => {
+  const { setFieldValue, values } = useFormikContext();
 
-  const [selected, setSelected] = useState({
-    day: 1,
-    month: "January",
-    year: null,
-  });
+  const [selected, setSelected] = useState(
+    init ?? {
+      day: 1,
+      month: "January",
+      year: null,
+    }
+  );
 
   const monthIdx = calenderMonths.findIndex(
     (obj) => obj.name == selected.month
@@ -511,6 +519,24 @@ const DateModal = ({ name, futureYear, range = [], placeholder }) => {
 
   const hasChangedValue = active.placeholder !== placeholder;
 
+  const { initialValues } = useFormikContext();
+
+  useEffect(() => {
+    if (initialValues[name]) {
+      const dater = new Date(initialValues[name]);
+      const init = {
+        day: dater.getDay() + 1,
+        year: dater.getFullYear(),
+        month: calenderMonths[dater.getMonth()].name,
+      };
+      setActive({
+        ...active,
+        init,
+        placeholder: `${init.day} ${init.month}, ${init.year}`,
+      });
+    }
+  }, [name]);
+
   return (
     <View style={styles.dropdownContainer}>
       <Pressable onPress={handleModalAction} style={styles.dropdownHeader}>
@@ -532,6 +558,7 @@ const DateModal = ({ name, futureYear, range = [], placeholder }) => {
             name={name}
             placeholder={placeholder}
             futureYear={futureYear}
+            init={active?.init}
             range={range}
           />
         )}
