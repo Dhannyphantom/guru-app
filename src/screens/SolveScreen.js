@@ -31,16 +31,23 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import PromptModal from "../components/PromptModal";
 import { useLocalSearchParams } from "expo-router";
+import { useSelector } from "react-redux";
+import {
+  selectSchool,
+  useSubmitAssignmentMutation,
+} from "../context/schoolSlice";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import LottieAnimator from "../components/LottieAnimator";
 
 const { width, height } = Dimensions.get("screen");
 
 const SUBMIT_PROMPT = {
   title: "Submit Assignment",
-  msg: "Are you sure you want to submit your assignment?\n\nThis process cannot be reversed once you've submitted\n\nSo ensure you're satisfied with your solution",
+  msg: "Submit assignment now?\nThis action cannot be undone.",
   btn: "Submit",
   type: "submit",
 };
-const submitBtnTransition = LinearTransition.springify().damping(25);
+const submitBtnTransition = LinearTransition.springify();
 
 export const plusAction = ({ tintColor }) => (
   <AppText size={"xlarge"} fontWeight="bold" style={{ color: tintColor }}>
@@ -93,7 +100,10 @@ export const handleHead3 = ({ tintColor }) => (
 
 const SolveScreen = () => {
   const route = useLocalSearchParams();
-  const routeData = route?.params?.item;
+  const school = useSelector(selectSchool);
+  const routeData = Boolean(route?.item) ? JSON.parse(route?.item) : {};
+
+  const [submitAssignment, { isLoading }] = useSubmitAssignmentMutation();
 
   const [bools, setBools] = useState({
     showQuestion: true,
@@ -107,6 +117,8 @@ const SolveScreen = () => {
   const editorRef = useRef(null);
   const isChanged = cached != text;
   const isEmpty = text == "";
+  const insets = useSafeAreaInsets();
+  const CACHE_KEY = `assignments_${routeData?._id}`;
 
   const onEditorInitialized = () => {
     if (cached) {
@@ -130,14 +142,38 @@ const SolveScreen = () => {
   const handlePrompt = async (type) => {
     switch (type) {
       case "submit":
-        setPopper({
-          vis: true,
-          msg: "Assignment submitted successfully",
-          type: "success",
-          cb: async () => {
-            await submitAssignment();
-          },
-        });
+        await AsyncStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ text, isSubmitted: true })
+        );
+
+        try {
+          const res = await submitAssignment({
+            schoolId: school?._id,
+            assignmentId: routeData?._id,
+            solution: text,
+          }).unwrap();
+          if (res?.success) {
+            setBools({ ...bools, isSubmitted: true });
+            setPopper({
+              vis: true,
+              msg: "Assignment submitted successfully",
+              type: "success",
+            });
+          }
+        } catch (errr) {
+          console.log(errr);
+          setPopper({
+            vis: true,
+            msg: "Something went wrong while submitting assignment",
+            type: "failed",
+          });
+          await AsyncStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ text, isSubmitted: false })
+          );
+        }
+
         break;
 
       default:
@@ -173,77 +209,24 @@ const SolveScreen = () => {
 
   const getSavedText = async () => {
     // await AsyncStorage.removeItem("assignments");
-    const cachedData = await AsyncStorage.getItem(`assignments`);
+    const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+
     if (cachedData) {
-      const cachedArr = JSON.parse(cachedData);
-      const currentAssignment = cachedArr.find(
-        (item) => item._id == routeData?.title
-      );
-      setCached(currentAssignment?.text);
+      const cachedObj = JSON.parse(cachedData);
+      setCached(cachedObj?.text);
+      setText(cachedObj?.text);
       setBools({
         ...bools,
-        isSubmitted: Boolean(currentAssignment?.isSubmitted),
+        // isSubmitted: Boolean(cachedObj?.isSubmitted),
       });
     }
   };
 
-  const submitAssignment = async () => {
-    setBools({ ...bools, isSubmitted: true });
-    const cachedData = await AsyncStorage.getItem("assignments");
-    let editedCache = [{ id: routeData?.title, text, isSubmitted: true }];
-    if (Boolean(cachedData)) {
-      const cachedArr = JSON.parse(cachedData);
-      const currentAssignment = cachedArr.find(
-        (item) => item._id == routeData?.title
-      );
-      if (currentAssignment) {
-        editedCache = cachedArr.map((item) => {
-          if (item._id == routeData?.title) {
-            return {
-              ...item,
-              isSubmitted: true,
-            };
-          } else {
-            return item;
-          }
-        });
-      } else {
-        editedCache = cachedArr?.concat(editedCache);
-      }
-    }
-    await AsyncStorage.setItem("assignments", JSON.stringify(editedCache));
-  };
-
   const saveText = async () => {
-    const cachedData = await AsyncStorage.getItem("assignments");
-    let editedCache = [{ id: routeData?.title, text }];
-    if (Boolean(cachedData)) {
-      const cachedArr = JSON.parse(cachedData);
-      const currentAssignment = cachedArr.find(
-        (item) => item._id == routeData?.title
-      );
-      if (currentAssignment) {
-        editedCache = cachedArr.map((item) => {
-          if (item._id == routeData?.title) {
-            return {
-              ...item,
-              text,
-            };
-          } else {
-            return item;
-          }
-        });
-      } else {
-        editedCache = cachedArr?.concat(editedCache);
-      }
-    }
-    await AsyncStorage.setItem("assignments", JSON.stringify(editedCache));
+    // const cachedData = await AsyncStorage.getItem(`assignments_${routeData?._id}`);
+
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ text }));
     setCached(text);
-    // setPopper({
-    //   vis: true,
-    //   msg: "Changes saved",
-    //   type: "success",
-    // });
   };
 
   useEffect(() => {
@@ -251,7 +234,7 @@ const SolveScreen = () => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <AppHeader
         title={routeData?.title}
         Component={() => (
@@ -271,8 +254,8 @@ const SolveScreen = () => {
       />
       {bools?.showQuestion && (
         <Animated.View
-          entering={FlipInEasyX.springify().damping(15)}
-          exiting={FadeOutUp.springify().damping(15)}
+          entering={FlipInEasyX.springify().damping(45)}
+          exiting={FadeOutUp.springify().damping(45)}
           style={styles.question}
         >
           <AppText fontWeight="heavy" style={{ color: colors.medium }}>
@@ -280,68 +263,6 @@ const SolveScreen = () => {
             <AppText fontWeight="medium">{routeData?.question}</AppText>
           </AppText>
         </Animated.View>
-      )}
-      <Animated.View
-        layout={LinearTransition.springify().damping(20)}
-        style={styles.main}
-      >
-        <RichEditor
-          ref={editorRef}
-          useContainer={false}
-          initialContentHTML={cached}
-          disabled={bools.isSubmitted}
-          placeholder="Start working on your assignment here..."
-          editorInitializedCallback={onEditorInitialized}
-          // onInput={onInputText}
-          editorStyle={{ backgroundColor: "tranparent" }}
-          onChange={(text) => setText(text)}
-        />
-      </Animated.View>
-      {!bools.isSubmitted && (
-        <RichToolbar
-          editor={editorRef}
-          selectedIconTint={colors.primary}
-          actions={[
-            actions.undo,
-            actions.redo,
-            actions.setBold,
-            actions.setItalic,
-            actions.setUnderline,
-            actions.heading1,
-            actions.heading3,
-            actions.alignLeft,
-            actions.alignCenter,
-            actions.alignRight,
-            actions.insertOrderedList,
-            actions.insertBulletsList,
-            actions.indent,
-            actions.outdent,
-            "plusAction",
-            "minusAction",
-            "divideAction",
-            "mulAction",
-            "equalAction",
-            "bracketAction",
-            actions.setSubscript,
-            actions.setSuperscript,
-          ]}
-          plusAction={() => handleCustomActions("plus")}
-          minusAction={() => handleCustomActions("minus")}
-          divideAction={() => handleCustomActions("divide")}
-          mulAction={() => handleCustomActions("mul")}
-          equalAction={() => handleCustomActions("equal")}
-          bracketAction={() => handleCustomActions("bracket")}
-          iconMap={{
-            [actions.heading1]: handleHead1,
-            [actions.heading3]: handleHead3,
-            plusAction,
-            mulAction,
-            minusAction,
-            divideAction,
-            equalAction,
-            bracketAction,
-          }}
-        />
       )}
       {!bools.isSubmitted && !isEmpty && (
         <Animated.View
@@ -357,7 +278,73 @@ const SolveScreen = () => {
           />
         </Animated.View>
       )}
+      <KeyboardAvoidingView style={styles.avoidingView} behavior="padding">
+        <Animated.View
+          layout={LinearTransition.springify().damping(40)}
+          style={styles.main}
+        >
+          <RichEditor
+            ref={editorRef}
+            useContainer={false}
+            initialContentHTML={cached}
+            disabled={bools.isSubmitted}
+            placeholder="Start working on your assignment here..."
+            editorInitializedCallback={onEditorInitialized}
+            // onInput={onInputText}
+            editorStyle={{ backgroundColor: "tranparent" }}
+            onChange={(text) => setText(text)}
+          />
+        </Animated.View>
+        {!bools.isSubmitted && (
+          <RichToolbar
+            editor={editorRef}
+            selectedIconTint={colors.primary}
+            actions={[
+              actions.undo,
+              actions.redo,
+              actions.setBold,
+              actions.setItalic,
+              actions.setUnderline,
+              actions.heading1,
+              actions.heading3,
+              actions.alignLeft,
+              actions.alignCenter,
+              actions.alignRight,
+              actions.insertOrderedList,
+              actions.insertBulletsList,
+              actions.indent,
+              actions.outdent,
+              "plusAction",
+              "minusAction",
+              "divideAction",
+              "mulAction",
+              "equalAction",
+              "bracketAction",
+              actions.setSubscript,
+              actions.setSuperscript,
+            ]}
+            plusAction={() => handleCustomActions("plus")}
+            minusAction={() => handleCustomActions("minus")}
+            divideAction={() => handleCustomActions("divide")}
+            mulAction={() => handleCustomActions("mul")}
+            equalAction={() => handleCustomActions("equal")}
+            bracketAction={() => handleCustomActions("bracket")}
+            iconMap={{
+              [actions.heading1]: handleHead1,
+              [actions.heading3]: handleHead3,
+              plusAction,
+              mulAction,
+              minusAction,
+              divideAction,
+              equalAction,
+              bracketAction,
+            }}
+          />
+        )}
+      </KeyboardAvoidingView>
+
       <PopMessage popData={popper} setPopData={setPopper} />
+      <LottieAnimator visible={isLoading} absolute wTransparent />
       <PromptModal
         prompt={prompt}
         setPrompt={(data) => setPrompt(data)}
@@ -371,6 +358,9 @@ const SolveScreen = () => {
 export default SolveScreen;
 
 const styles = StyleSheet.create({
+  avoidingView: {
+    flex: 1,
+  },
   btns: {
     flexDirection: "row",
     alignItems: "center",
@@ -382,8 +372,9 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   hide: {
-    // backgroundColor: "red",
     paddingRight: 15,
+    paddingLeft: 25,
+    paddingVertical: 10,
   },
   main: {
     width: width * 0.96,

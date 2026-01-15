@@ -66,7 +66,7 @@ const RenderItem = ({ item, index }) => {
     <Pressable
       onPress={() =>
         router.push({
-          pathname: "/school/solve",
+          pathname: "/main/solve",
           params: { item: JSON.stringify(item) },
         })
       }
@@ -299,7 +299,7 @@ const AssignmentScreen = () => {
       ) : (
         <FlatList
           data={assignments}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item) => item.teacher?._id}
           contentContainerStyle={{ paddingBottom: height * 0.125 }}
           renderItem={({ item, index }) => (
             <RenderAssignment item={item} index={index} />

@@ -71,6 +71,16 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       },
       invalidatesTags: ["FETCH_ASSIGNMENTS"],
     }),
+    submitAssignment: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/school/assignment/submit",
+          method: "POST",
+          body: data,
+        };
+      },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+    }),
     updateAssignmentStatus: builder.mutation({
       query: (data) => {
         return {
@@ -250,6 +260,7 @@ export const {
   useFetchSchoolQuizQuery,
   useLazySearchSchoolsQuery,
   useLazyFetchSchoolInstanceQuery,
+  useSubmitAssignmentMutation,
   useJoinSchoolMutation,
 } = extendedUserApiSlice;
 

@@ -71,6 +71,8 @@ const styles = StyleSheet.create({
   },
   component: {
     flex: 1,
+    // alignItems: "center",
+    justifyContent: "center",
     alignItems: "flex-end",
   },
   btn: {
