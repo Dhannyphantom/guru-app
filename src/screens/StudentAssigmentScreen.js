@@ -27,7 +27,7 @@ import {
 import colors from "../helpers/colors";
 import Avatar from "../components/Avatar";
 import { capFirstLetter, dateFormatter } from "../helpers/helperFunctions";
-import { useNavigation } from "@react-navigation/native";
+// import { useNavigation } from "@react-navigation/native";
 import AppButton from "../components/AppButton";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
@@ -35,6 +35,13 @@ import PopMessage from "../components/PopMessage";
 import { QuizItem } from "./QuizHistoryScreen";
 import { TQuizItem } from "./TeacherQuizScreen";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  selectSchool,
+  useFetchAssignmentByIdQuery,
+} from "../context/schoolSlice";
+import LottieAnimator from "../components/LottieAnimator";
+import getRefresher from "../components/Refresher";
+import ListEmpty from "../components/ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -134,15 +141,23 @@ const ListItem = ({ item, index }) => {
 
 const StudentAssigmentScreen = () => {
   const route = useLocalSearchParams();
+  const school = useSelector(selectSchool);
   const routeData = Boolean(route?.item) ? JSON.parse(route?.item) : {};
   const user = useSelector(selectUser);
 
+  const { data, isLoading, refetch } = useFetchAssignmentByIdQuery({
+    assignmentId: routeData?._id,
+    schoolId: school?._id,
+  });
+
   const [bools, setBools] = useState({ search: false });
-  const [submissions, setSubmissions] = useState(listArr);
   const [popper, setPopper] = useState({ vis: false });
+  const [refreshing, setRefreshing] = useState(false);
 
   const isActive = routeData?.status === "ongoing";
   const router = useRouter();
+  const assignment = data?.data;
+  const submissions = assignment?.submissions || [];
 
   let statColor = "";
   switch (routeData?.status) {
@@ -169,6 +184,16 @@ const StudentAssigmentScreen = () => {
         type: "failed",
         timer: 2000,
       });
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch().unwrap();
+    } catch (errr) {
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -256,7 +281,7 @@ const StudentAssigmentScreen = () => {
             />
           </View>
         </View>
-        <Avatar name={user?.username} />
+        <Avatar name={user?.username} source={user?.avatar?.image} />
       </View>
       {bools.search && (
         <Animated.View
@@ -269,37 +294,48 @@ const StudentAssigmentScreen = () => {
           />
         </Animated.View>
       )}
-      {isActive && (
-        <Animated.FlatList
-          layout={LinearTransition.damping(20)}
-          data={listArr}
-          renderItem={({ item, index }) => (
-            <ListItem item={item} index={index} />
-          )}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
-        />
-      )}
-      {!isActive && (
-        <View style={styles.history}>
-          <AppText
-            fontWeight="heavy"
-            size={"large"}
-            style={{ marginLeft: 15, marginBottom: 10 }}
-          >
-            Assignment History
-          </AppText>
-
-          <FlatList
-            data={assignmentHistory}
-            keyExtractor={(item) => item._id}
-            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+      <View style={{ flex: 1 }}>
+        {isActive && (
+          <Animated.FlatList
+            layout={LinearTransition.damping(20)}
+            data={submissions}
             renderItem={({ item, index }) => (
-              <TQuizItem item={item} index={index} isAssignment={true} />
+              <ListItem item={item} index={index} />
             )}
+            refreshControl={getRefresher({ refreshing, onRefresh })}
+            ListEmptyComponent={
+              <ListEmpty
+                vis={!isLoading}
+                message={"No student submissions yet"}
+              />
+            }
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
           />
-        </View>
-      )}
+        )}
+        {!isActive && (
+          <View style={styles.history}>
+            <AppText
+              fontWeight="heavy"
+              size={"large"}
+              style={{ marginLeft: 15, marginBottom: 10 }}
+            >
+              Assignment History
+            </AppText>
+
+            <FlatList
+              data={assignmentHistory}
+              keyExtractor={(item) => item._id}
+              contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+              refreshControl={getRefresher({ refreshing, onRefresh })}
+              renderItem={({ item, index }) => (
+                <TQuizItem item={item} index={index} isAssignment={true} />
+              )}
+            />
+          </View>
+        )}
+        <LottieAnimator visible={isLoading} absolute />
+      </View>
       <PopMessage popData={popper} setPopData={setPopper} />
     </View>
   );
@@ -339,6 +375,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     justifyContent: "space-between",
     marginHorizontal: 15,
+    boxShadow: `1px 3px 10px ${colors.primary}35`,
     borderRadius: 15,
     padding: 15,
     paddingBottom: 0,

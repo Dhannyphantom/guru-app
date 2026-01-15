@@ -11,6 +11,11 @@ import { useEffect, useRef, useState } from "react";
 import { passGrades, studentAssignment } from "../helpers/dataStore";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { RichEditor } from "react-native-pell-rich-editor";
+import {
+  selectSchool,
+  useGradeAssignmentMutation,
+} from "../context/schoolSlice";
+import { useSelector } from "react-redux";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -28,7 +33,7 @@ const Grades = ({ closeModal, getGrade }) => {
       >
         Grade
       </AppText>
-      <FlatList
+      {/* <FlatList
         data={passGrades}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => {
@@ -97,7 +102,7 @@ const Grades = ({ closeModal, getGrade }) => {
             </AnimatedPressable>
           );
         }}
-      />
+      /> */}
     </View>
   );
 };
@@ -108,6 +113,9 @@ const AssignmentReviewScreen = () => {
   const [grade, setGrade] = useState(null);
   const route = {};
   const routeData = route?.params?.item;
+
+  const school = useSelector(selectSchool);
+  const [gradeAssignment, { isLoading }] = useGradeAssignmentMutation();
 
   const hasUploaded = route?.params?.uploaded === true;
 

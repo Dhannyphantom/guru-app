@@ -43,6 +43,24 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_ASSIGNMENTS"],
     }),
+    fetchAssignmentById: builder.query({
+      query: (params) => ({
+        url: "/school/assignment",
+        timeout: 15000,
+        params,
+      }),
+      providesTags: ["FETCH_ASSIGNMENTS"],
+    }),
+    gradeAssignment: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/school/assignment/grade",
+          method: "POST",
+          params: data,
+        };
+      },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+    }),
     deleteAssignment: builder.mutation({
       query: (data) => {
         return {
@@ -224,8 +242,10 @@ export const {
   useUpdateAssignmentMutation,
   useUpdateAssignmentStatusMutation,
   useUpdateSchoolQuizMutation,
+  useFetchAssignmentByIdQuery,
   useGetQuizQuestionsMutation,
   useVerifySchoolInstanceMutation,
+  useGradeAssignmentMutation,
   useLazyFetchSchoolQuizQuery,
   useFetchSchoolQuizQuery,
   useLazySearchSchoolsQuery,

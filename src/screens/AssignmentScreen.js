@@ -11,7 +11,11 @@ import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
 import { assignmentsArr } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
-import { capFirstLetter, dateFormatter } from "../helpers/helperFunctions";
+import {
+  capFirstLetter,
+  dateFormatter,
+  getFullName,
+} from "../helpers/helperFunctions";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
@@ -32,7 +36,7 @@ const RenderItem = ({ item, index }) => {
   const router = useRouter();
   let bgColor, txtColor, borderColor;
   // let stats = "accepted";
-  switch (item?.status) {
+  switch (item?.userStatus) {
     case "submitted":
       bgColor = colors.white;
       borderColor = colors.extraLight;
@@ -50,9 +54,9 @@ const RenderItem = ({ item, index }) => {
       txtColor = colors.primaryLighter;
       break;
     case "pending":
-      bgColor = colors.warning;
-      borderColor = colors.warningDark;
-      txtColor = colors.light;
+      bgColor = colors.warning + 40;
+      borderColor = colors.warning;
+      txtColor = colors.warningDark;
       break;
   }
 
@@ -92,7 +96,7 @@ const RenderItem = ({ item, index }) => {
           ]}
         >
           <AppText style={{ ...styles.assItemStatTxt, color: txtColor }}>
-            {item.status}
+            {item.userStatus}
           </AppText>
         </View>
       </View>
@@ -104,20 +108,22 @@ const RenderAssignment = ({ item, index }) => {
   return (
     <View style={styles.ass}>
       <View style={styles.assHeader}>
-        <Avatar />
+        <Avatar source={item?.teacher?.avatar?.image} />
         <View style={styles.assHeadDetail}>
-          <AppText fontWeight="bold" size={"large"}>
-            {item?.teacher?.pronoun}. {item?.teacher?.name}
+          <AppText fontWeight="bold" style={styles.name} size={"large"}>
+            {item?.teacher?.preffix} {getFullName(item?.teacher)}
           </AppText>
-          <AppText size={"small"} fontWeight="medium" style={styles.assSubj}>
+          {/* <AppText size={"small"} fontWeight="medium" style={styles.assSubj}>
             {item?.subject} Teacher
+          </AppText> */}
+          <AppText style={styles.assStat}>
+            {item?.pendingCount} pending assignments
           </AppText>
-          <AppText style={styles.assStat}>2 pending assignments</AppText>
         </View>
       </View>
       <View style={styles.assList}>
         <FlatList
-          data={item?.assignments}
+          data={item?.list}
           contentContainerStyle={{ paddingHorizontal: 15 }}
           showsHorizontalScrollIndicator={false}
           pagingEnabled
@@ -292,7 +298,7 @@ const AssignmentScreen = () => {
         </>
       ) : (
         <FlatList
-          data={assignmentsArr}
+          data={assignments}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ paddingBottom: height * 0.125 }}
           renderItem={({ item, index }) => (
@@ -338,6 +344,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   assHeadDetail: {
+    flex: 1,
     marginLeft: 12,
   },
   assItem: {
@@ -361,7 +368,8 @@ const styles = StyleSheet.create({
     // width: "70%",
   },
   assItemStat: {
-    borderWidth: 2,
+    borderWidth: 1.5,
+    borderBottomWidth: 3,
     paddingBottom: 4,
     paddingHorizontal: 10,
     borderRadius: 100,
@@ -390,6 +398,9 @@ const styles = StyleSheet.create({
 
   numberText: {
     color: colors.white,
+  },
+  name: {
+    textTransform: "capitalize",
   },
   teacher: {
     width: width * 0.95,

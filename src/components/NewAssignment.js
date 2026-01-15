@@ -31,6 +31,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "./AppHeader";
 import { nanoid } from "@reduxjs/toolkit";
 import PromptModal from "./PromptModal";
+import AnimatedCheckBox from "./AnimatedCheckbox";
+import AppText from "./AppText";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -171,63 +178,105 @@ const NewAssignment = () => {
               initialValues={newAssignmentInitials}
               onSubmit={handleForm}
             >
-              <>
-                <FormikInput
-                  name={"subject"}
-                  placeholder={"Select Subject"}
-                  type="dropdown"
-                  data={subjects?.data}
-                  isLoading={subjLoading}
-                  // multiple
-                  headerText={"Select Subject:"}
-                  // onLayout={() => setFieldTouched("topics", true)}
-                  // showErr={bools.showErr}
-                />
-                <FormikInput
-                  name={"classes"}
-                  placeholder={"Select Class"}
-                  type="dropdown"
-                  data={schoolClasses}
-                  multiple
-                  headerText={"Select Eligible Classes:"}
-                  // onLayout={() => setFieldTouched("topics", true)}
-                  // showErr={bools.showErr}
-                />
-                <FormikInput
-                  name={"title"}
-                  headerText={"Assignment Title"}
-                  placeholder="e.g Maths assignment, Fractions Assignment"
-                />
-                <FormikInput
-                  name={"question"}
-                  headerText={"Assignment Questions"}
-                  placeholder="Write Your Assigment Questions"
-                  multiline
-                  style={{ minHeight: height * 0.2, alignItems: "flex-start" }}
-                  numberOfLines={5}
-                />
-
-                <FormikInput
-                  name={"date"}
-                  placeholder={"Pick Expected Date of Submission"}
-                  headerText={"Expected Date of Submission:"}
-                  futureYear={true}
-                  type="date"
-                />
-                <View style={styles.formBtns}>
-                  <FormikButton
-                    title={`${isEdit ? "Update" : "Create"} Assignment`}
-                  />
-
-                  {isEdit && (
-                    <AppButton
-                      title={"Delete Assignment"}
-                      type="warn"
-                      onPress={handleDeleteAssignment}
+              {({ values, setFieldValue }) => {
+                return (
+                  <>
+                    <FormikInput
+                      name={"subject"}
+                      placeholder={"Select Subject"}
+                      type="dropdown"
+                      data={subjects?.data}
+                      isLoading={subjLoading}
+                      // multiple
+                      headerText={"Select Subject:"}
+                      // onLayout={() => setFieldTouched("topics", true)}
+                      // showErr={bools.showErr}
                     />
-                  )}
-                </View>
-              </>
+                    <FormikInput
+                      name={"classes"}
+                      placeholder={"Select Class"}
+                      type="dropdown"
+                      data={schoolClasses}
+                      multiple
+                      headerText={"Select Eligible Classes:"}
+                      // onLayout={() => setFieldTouched("topics", true)}
+                      // showErr={bools.showErr}
+                    />
+                    <FormikInput
+                      name={"title"}
+                      headerText={"Assignment Title"}
+                      placeholder="e.g Maths assignment, Fractions Assignment"
+                    />
+                    <FormikInput
+                      name={"question"}
+                      headerText={"Assignment Questions"}
+                      placeholder="Write Your Assigment Questions"
+                      multiline
+                      style={{
+                        minHeight: height * 0.2,
+                        alignItems: "flex-start",
+                      }}
+                      numberOfLines={5}
+                    />
+
+                    {!isEdit && values["status"] === "ongoing" && (
+                      <Animated.View
+                        layout={LinearTransition}
+                        entering={FadeIn}
+                        exiting={FadeOut}
+                      >
+                        <FormikInput
+                          name={"date"}
+                          placeholder={"Pick Expected Date of Submission"}
+                          headerText={"Expected Date of Submission:"}
+                          futureYear={true}
+                          type="date"
+                        />
+                      </Animated.View>
+                    )}
+                    {!isEdit && (
+                      <Animated.View
+                        layout={LinearTransition}
+                        style={styles.row}
+                      >
+                        <AppText
+                          style={{ color: colors.medium }}
+                          fontWeight="bold"
+                          size="medium"
+                        >
+                          Save Assignment as draft for later?
+                        </AppText>
+                        <AnimatedCheckBox
+                          isChecked={values["status"] === "inactive"}
+                          setIsChecked={(bool) => {
+                            if (bool === true) {
+                              setFieldValue("status", "inactive");
+                            } else {
+                              setFieldValue("status", "ongoing");
+                            }
+                          }}
+                        />
+                      </Animated.View>
+                    )}
+                    <Animated.View
+                      layout={LinearTransition}
+                      style={styles.formBtns}
+                    >
+                      <FormikButton
+                        title={`${isEdit ? "Update" : "Create"} Assignment`}
+                      />
+
+                      {isEdit && (
+                        <AppButton
+                          title={"Delete Assignment"}
+                          type="warn"
+                          onPress={handleDeleteAssignment}
+                        />
+                      )}
+                    </Animated.View>
+                  </>
+                );
+              }}
             </Formik>
           </ScrollView>
           <LottieAnimator visible={isLoading} absolute wTransparent />
@@ -293,6 +342,12 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: colors.white,
     color: colors.medium,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 30,
   },
   separator: {
     height: 2,

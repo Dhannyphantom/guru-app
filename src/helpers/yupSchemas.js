@@ -462,6 +462,7 @@ export const newAssignmentInitials = {
   classes: [],
   title: "",
   question: "",
+  status: "ongoing",
   date: "",
 };
 
@@ -475,6 +476,7 @@ export const newAssignmentSchema = Yup.object().shape({
     .label("Subject"),
   title: Yup.string().required().label("Assignment Title"),
   question: Yup.string().required().label("Assignment Question"),
+  status: Yup.string().required().label("Assignment Status"),
   date: Yup.string().required().label("Date of Submission"),
   classes: Yup.array()
     .of(
