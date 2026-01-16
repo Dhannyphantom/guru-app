@@ -624,18 +624,20 @@ export const classLevel = [
   },
 ];
 
-export const passGrades = [
+export const gradesList = [
   {
     _id: nanoid(),
     grade: "A+",
     score: 95,
     max: 100,
+    color: colors.accent,
     title: "Outstanding",
   },
   {
     _id: nanoid(),
     grade: "A",
     score: 70,
+    color: colors.primary,
     max: 95,
     title: "Excellent",
   },
@@ -643,6 +645,7 @@ export const passGrades = [
     _id: nanoid(),
     grade: "B",
     score: 60,
+    color: colors.greenDark,
     max: 70,
     title: "Good",
   },
@@ -651,12 +654,14 @@ export const passGrades = [
     grade: "C",
     score: 50,
     max: 60,
+    color: colors.warningDark,
     title: "Satisfactory",
   },
   {
     _id: nanoid(),
     grade: "D",
     score: 40,
+    color: colors.google,
     max: 50,
     title: "Basic",
   },
@@ -665,6 +670,7 @@ export const passGrades = [
     grade: "E",
     score: 30,
     max: 40,
+    color: colors.facebook,
     title: "Bad",
   },
   {
@@ -672,6 +678,7 @@ export const passGrades = [
     grade: "F",
     score: 0,
     max: 30,
+    color: colors.heartDark,
     title: "Fail",
   },
 ];
@@ -1652,50 +1659,6 @@ export const states = nigeriaLocale.map((item) => ({
   name: item.state,
   _id: nanoid(),
 }));
-
-export const studentAssignment = `<h1><span style=\"font-size: 16px;\">Definition of Taxonomy</span></h1><div>
-<span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">&nbsp; &nbsp; &nbsp; 
-Taxonomy is the branch of biology that deals with the classification, naming, and organization of living organisms into groups based on 
-shared characteristics. It provides a structured framework to identify, describe, and categorize organisms to reflect their evolutionary
- relationships.</span></div><div><span style=\"font-size: 16px;\"><br></span></div><h3><span style=\"font-size: 16px;\">Key Characteristics 
- Used to Classify Organisms into Kingdoms:</span></h3><div><span style=\"font-size: 16px;\"><br></span></div><div><span
-  style=\"font-size: 16px;\">Organisms are classified into kingdoms based on several fundamental characteristics,
-   including:</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">1.
-    <b>Cell Structure:</b></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size:
-     16px;\">Prokaryotic: Organisms without a true nucleus (e.g., Kingdom Monera).</span></div><div><span style=\"font-size: 
-     16px;\"><br></span></div><div><span style=\"font-size: 16px;\">Eukaryotic: Organisms with a well-defined nucleus (e.g., 
-      Kingdom Protista, Fungi, Plantae, Animalia).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span 
-      style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size:
-       16px;\">2. <b>Mode of Nutrition:</b></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span
-        style=\"font-size: 16px;\">Autotrophic: Organisms capable of producing their food through photosynthesis or chemosynthesis
-         (e.g., plants, some protists).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-         <span style=\"font-size: 16px;\">Heterotrophic: Organisms that depend on other organisms for food (e.g., animals, fungi).
-         </span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div>
-         <div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">3. <b>Cell Wall Composition:</b>
-         </span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">Presence or absence of
-          a cell wall and its composition, such as:</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-          <span style=\"font-size: 16px;\">Cellulose (plants).</span></div><div><span style=\"font-size: 16px;\"><br></span>
-          </div><div><span style=\"font-size: 16px;\">Chitin (fungi).</span></div><div><span style=\"font-size: 16px;\"><br>
-          </span></div><div><span style=\"font-size: 16px;\">Absent in animals.</span></div><div><span style=\"font-size: 16px;\">
-          <br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span>
-          </div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">4. <b>Body Organization</b>
-          :</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><i>Unicellular</i>
-           (e.g., protists, monerans).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">
-           <i>Multicellular</i> (e.g., fungi, plants, animals).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-           <span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-           <span style=\"font-size: 16px;\">5. <b>Reproductive Methods:</b></span></div><div><span style=\"font-size: 16px;\"><br>
-           </span></div><div><span style=\"font-size: 16px;\">Asexual reproduction (e.g., binary fission in monerans).</span></div>
-           <div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">Sexual reproduction 
-           (e.g., most plants and animals).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-           <span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div>
-           <div><span style=\"font-size: 16px;\">6. <b>Locomotion:</b></span></div><div><span style=\"font-size: 16px;\"><br>
-           </span></div><div><span style=\"font-size: 16px;\">Motile (able to move, e.g., animals).</span></div>
-           <div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">Non-motile (e.g., plants, fungi).</span>
-           </div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-           <span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">7. <b>Habitat:</b></span></div><div>
-           <span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">Adaptations to specific environments, 
-           such as aquatic, terrestrial, or parasitic lifestyles.</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div>
-           <span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><h3><span style=\"font-size: 16px;\">The Five-Kingdom Classification (Proposed by Robert Whittaker):</span></h3><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">1. <b>Monera</b>: Prokaryotic, unicellular organisms (e.g., bacteria).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">2. <b>Protista</b>: Eukaryotic, mostly unicellular organisms (e.g., amoeba, algae).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">3. <b>Fungi</b>: Eukaryotic, heterotrophic organisms with chitin cell walls (e.g., mushrooms, yeast).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">4. <b>Plantae</b>: Eukaryotic, autotrophic organisms with cellulose cell walls (e.g., trees, grasses).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\">5. <b>Animalia</b>: Eukaryotic, heterotrophic organisms without cell walls (e.g., humans, insects).</span></div><div><span style=\"font-size: 16px;\"><br></span></div><div><span style=\"font-size: 16px;\"><br></span></div><h1><span style=\"font-size: 16px;\">Conclusion</span></h1><div><span style=\"font-size: 16px;\">This classification helps in understanding the diversity of life and the relationships among different organisms.</span></div><div><br></div>`;
 
 export const layoutTransit = LinearTransition.springify().damping(8);
 export const PAD_BOTTOM = height * 0.18;

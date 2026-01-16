@@ -56,7 +56,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         return {
           url: "/school/assignment/grade",
           method: "POST",
-          params: data,
+          body: data,
         };
       },
       invalidatesTags: ["FETCH_ASSIGNMENTS"],

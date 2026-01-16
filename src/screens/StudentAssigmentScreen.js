@@ -18,15 +18,20 @@ import Animated, {
 } from "react-native-reanimated";
 import SearchBar from "../components/SearchBar";
 import {
-  A_DAY,
+  // A_DAY,
   assignmentHistory,
-  dummyLeaderboards,
+  gradesList,
+  // dummyLeaderboards,
   PAD_BOTTOM,
-  schoolQuizHistory,
+  // schoolQuizHistory,
 } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import Avatar from "../components/Avatar";
-import { capFirstLetter, dateFormatter } from "../helpers/helperFunctions";
+import {
+  // capFirstLetter,
+  dateFormatter,
+  getFullName,
+} from "../helpers/helperFunctions";
 // import { useNavigation } from "@react-navigation/native";
 import AppButton from "../components/AppButton";
 import { useSelector } from "react-redux";
@@ -45,67 +50,19 @@ import ListEmpty from "../components/ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
-const listArr = dummyLeaderboards.map((item, idx) => {
-  // const randInt = Math.floor(Math.random() * 5);
-  const date = new Date(new Date().getTime() - A_DAY).toISOString();
-  if (idx === 0) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.primary, text: "A+" },
-    };
-  } else if (idx == 1) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.greenDark, text: "C" },
-    };
-  } else if (idx == 2) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.accent, text: "A" },
-    };
-  } else if (idx == 3) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.accent, text: "A" },
-    };
-  } else if (idx == 4) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.warningDark, text: "B" },
-    };
-  } else if (idx == 5) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.greenDark, text: "C" },
-    };
-  } else if (idx == 6) {
-    return {
-      name: item.name,
-      date,
-      grade: { color: colors.primary, text: "A+" },
-    };
-  } else {
-    return {
-      name: item.name,
-      date,
-    };
-  }
-});
-
-const ListItem = ({ item, index }) => {
+const ListItem = ({ item, assId, index }) => {
   const router = useRouter();
+
+  const gradeData = gradesList.find((grade) => {
+    return item?.score?.value >= grade.score && item?.score?.value <= grade.max;
+  });
+
   return (
     <Pressable
       onPress={() =>
         router.push({
           pathname: "/school/assignment/review",
-          params: { item: JSON.stringify(item) },
+          params: { item: JSON.stringify(item), assignmentId: assId },
         })
       }
       style={styles.item}
@@ -114,16 +71,36 @@ const ListItem = ({ item, index }) => {
         <AppText fontWeight="black" style={styles.itemCount} size={"xlarge"}>
           {index + 1}
         </AppText>
-        <Avatar size={width * 0.12} name={item?.name} horizontal />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <Avatar size={width * 0.12} source={item?.student?.avatar?.image} />
+          <View>
+            <AppText fontWeight="bold" size="large" style={styles.name}>
+              {getFullName(item?.student)}
+            </AppText>
+            <AppText
+              fontWeight="medium"
+              size="medium"
+              style={{ color: colors.medium, textTransform: "uppercase" }}
+            >
+              {item?.student?.class?.level}
+            </AppText>
+          </View>
+        </View>
       </View>
       <View>
-        {item?.grade ? (
+        {item?.score?.value ? (
           <AppText
-            style={{ color: item?.grade?.color, marginRight: 15 }}
+            style={{ color: gradeData.color, marginRight: 15 }}
             fontWeight="black"
             size={"xxxlarge"}
           >
-            {item?.grade?.text}
+            {item?.score?.grade}
           </AppText>
         ) : (
           <AppText
@@ -300,7 +277,7 @@ const StudentAssigmentScreen = () => {
             layout={LinearTransition.damping(20)}
             data={submissions}
             renderItem={({ item, index }) => (
-              <ListItem item={item} index={index} />
+              <ListItem item={item} assId={routeData?._id} index={index} />
             )}
             refreshControl={getRefresher({ refreshing, onRefresh })}
             ListEmptyComponent={
@@ -356,6 +333,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   item: {
+    flex: 1,
     flexDirection: "row",
     backgroundColor: colors.white,
     alignItems: "center",
@@ -367,6 +345,7 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   itemMain: {
+    // flex: 1,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -380,6 +359,9 @@ const styles = StyleSheet.create({
     padding: 15,
     paddingBottom: 0,
     marginBottom: 10,
+  },
+  name: {
+    textTransform: "capitalize",
   },
   row: {
     flexDirection: "row",

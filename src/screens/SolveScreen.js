@@ -217,7 +217,7 @@ const SolveScreen = () => {
       setText(cachedObj?.text);
       setBools({
         ...bools,
-        // isSubmitted: Boolean(cachedObj?.isSubmitted),
+        isSubmitted: Boolean(cachedObj?.isSubmitted),
       });
     }
   };

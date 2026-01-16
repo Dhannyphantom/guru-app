@@ -1,4 +1,11 @@
-import { Dimensions, FlatList, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  KeyboardAvoidingView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 
 import AppText from "../components/AppText";
 import Screen from "../components/Screen";
@@ -7,8 +14,8 @@ import colors from "../helpers/colors";
 import Avatar from "../components/Avatar";
 import AppButton from "../components/AppButton";
 import AppModal from "../components/AppModal";
-import { useEffect, useRef, useState } from "react";
-import { passGrades, studentAssignment } from "../helpers/dataStore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { gradesList } from "../helpers/dataStore";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { RichEditor } from "react-native-pell-rich-editor";
 import {
@@ -16,94 +23,116 @@ import {
   useGradeAssignmentMutation,
 } from "../context/schoolSlice";
 import { useSelector } from "react-redux";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { getFullName } from "../helpers/helperFunctions";
+import Animated, {
+  FlipInEasyY,
+  LinearTransition,
+  ZoomOutRotate,
+} from "react-native-reanimated";
+import LottieAnimator from "../components/LottieAnimator";
 
 const { width, height } = Dimensions.get("screen");
 
-const Grades = ({ closeModal, getGrade }) => {
+const Grades = ({ closeModal, init, getGrade }) => {
+  const [score, setScore] = useState(init ? String(init) : "");
+
+  const textRef = useRef();
+
   const onItemPress = (data) => {
-    getGrade && getGrade(data);
+    getGrade && getGrade({ ...data, score: Number(score) });
     closeModal();
   };
+
+  const handleScoreChange = (value) => {
+    // Remove non-numeric characters
+    const numericValue = value.replace(/[^0-9]/g, "");
+
+    // Convert to number and limit to 100
+    const numericScore = Number(numericValue);
+
+    if (numericScore <= 100) {
+      setScore(numericValue);
+    } else {
+      setScore("100");
+    }
+  };
+
+  // Better way to get score data
+  const scoreData = useMemo(() => {
+    const numericScore = Number(score);
+
+    // Return null if score is invalid
+    if (isNaN(numericScore) || score === "") {
+      return null;
+    }
+
+    // Find the matching grade
+    return gradesList.find((grade) => {
+      return numericScore >= grade.score && numericScore <= grade.max;
+    });
+  }, [score]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      textRef?.current?.focus();
+    }, 600);
+  }, []);
+
   return (
-    <View style={styles.grade}>
-      <AppText
-        style={{ marginBottom: 15, color: colors.medium }}
-        fontWeight="black"
-        size={"xxlarge"}
-      >
-        Grade
-      </AppText>
-      {/* <FlatList
-        data={passGrades}
-        keyExtractor={(item) => item._id}
-        renderItem={({ item }) => {
-          let overlay, bg, color, light;
-          switch (item?.score) {
-            case "100":
-              overlay = colors.primaryLight;
-              bg = colors.primaryDeep;
-              color = colors.white;
-              light = colors.primaryLighter;
-
-              break;
-            case "70":
-              overlay = colors.accentLight;
-              bg = colors.accentDeep;
-              color = colors.white;
-              light = colors.accentLighter;
-
-              break;
-            case "60":
-              overlay = colors.warningLight;
-              bg = colors.warningDark;
-              color = colors.white;
-              light = colors.warningLighter;
-
-              break;
-            case "40":
-              overlay = colors.heartLight;
-              bg = colors.heartDark;
-              color = colors.white;
-              light = colors.heartLight;
-
-              break;
-
-            default:
-              overlay = colors.greenLighter;
-              bg = colors.greenDark;
-              color = colors.white;
-              light = colors.greenLighter;
-
-              break;
-          }
-
-          return (
-            <AnimatedPressable
-              onPress={() => onItemPress({ ...item, bg })}
-              style={{ ...styles.gradeOverlay, backgroundColor: overlay }}
+    <KeyboardAvoidingView
+      style={{ flex: 1, justifyContent: "center" }}
+      behavior="padding"
+    >
+      <Animated.View layout={LinearTransition.springify()} style={styles.grade}>
+        <AppText
+          style={{ marginBottom: 15, color: colors.medium }}
+          fontWeight="black"
+          size={"xxlarge"}
+        >
+          Grade
+        </AppText>
+        <View style={styles.row}>
+          <TextInput
+            placeholder="Enter score"
+            placeholderTextColor={colors.medium + 80}
+            style={styles.input}
+            maxLength={3}
+            ref={textRef}
+            value={score}
+            onChangeText={handleScoreChange} // Changed from onChange
+            keyboardType="numeric"
+          />
+          {scoreData && (
+            <Animated.View
+              entering={FlipInEasyY.springify().damping(30)}
+              exiting={ZoomOutRotate.springify()}
+              style={{ flex: 1, alignItems: "center" }}
             >
-              <View style={[styles.gradeItem, { backgroundColor: bg }]}>
-                <View style={[styles.gradeMain]}>
-                  <AppText
-                    style={{ ...styles.gradeLetter, color: light }}
-                    fontWeight="black"
-                    size={"xxxlarge"}
-                  >
-                    {item.grade}
-                  </AppText>
-                  <AppText style={{ color }} fontWeight="bold">
-                    {item.title}
-                  </AppText>
-                </View>
-                <AppText style={{ color }} fontWeight="black">
-                  {item.score}%
-                </AppText>
-              </View>
-            </AnimatedPressable>
-          );
-        }}
-      /> */}
-    </View>
+              <AppText
+                fontWeight="black"
+                size={40}
+                style={{ color: scoreData?.color }}
+              >
+                {scoreData?.grade}
+              </AppText>
+              <AppText style={{ color: scoreData?.color + 80 }}>
+                {scoreData?.title}
+              </AppText>
+            </Animated.View>
+          )}
+        </View>
+
+        <View style={styles.btns}>
+          <AppButton
+            title={"Save Grade"}
+            onPress={() => scoreData && onItemPress(scoreData)}
+            disabled={!scoreData}
+          />
+          <AppButton title={"Cancel"} type="warn" onPress={closeModal} />
+        </View>
+      </Animated.View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -111,21 +140,47 @@ const AssignmentReviewScreen = () => {
   const editorRef = useRef();
   const [modal, setModal] = useState({ vis: false });
   const [grade, setGrade] = useState(null);
-  const route = {};
-  const routeData = route?.params?.item;
+  const route = useLocalSearchParams();
+  const routeData = Boolean(route?.item) ? JSON.parse(route?.item) : {};
+  const assignmentId = route?.assignmentId;
+
+  const router = useRouter();
 
   const school = useSelector(selectSchool);
   const [gradeAssignment, { isLoading }] = useGradeAssignmentMutation();
 
   const hasUploaded = route?.params?.uploaded === true;
 
-  const handleFailBtn = () => {
-    setGrade({ grade: "F", bg: colors.heartDeep });
+  const handleCancelBtn = () => {
+    router?.back();
+    // setGrade({ grade: "F", bg: colors.heartDeep });
+  };
+
+  const uploadGrade = async (data) => {
+    setGrade({ ...data, value: data?.score });
+    try {
+      await gradeAssignment({
+        schoolId: school?._id,
+        assignmentId,
+        score: data?.score,
+        user: routeData?.student?._id,
+      }).unwrap();
+    } catch (errr) {
+      console.log(errr);
+    }
   };
 
   useEffect(() => {
-    if (routeData?.grade) {
-      setGrade({ grade: routeData?.grade?.text, bg: routeData?.grade?.color });
+    if (routeData?.score?.value) {
+      const numericScore = routeData?.score?.value;
+      const gradeData = gradesList.find((grade) => {
+        return numericScore >= grade.score && numericScore <= grade.max;
+      });
+      setGrade({
+        grade: gradeData.grade,
+        value: numericScore,
+        color: gradeData?.color,
+      });
     }
   }, []);
 
@@ -134,16 +189,23 @@ const AssignmentReviewScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerNav}>
           <NavBack color={colors.medium} style={styles.nav} />
-          <Avatar name={routeData?.name} horizontal />
+          <Avatar
+            name={getFullName(routeData?.student)}
+            source={routeData?.student?.avatar?.image}
+            horizontal
+          />
         </View>
         {grade && (
           <View style={styles.studentGrade}>
             <AppText
-              style={{ color: grade?.bg }}
+              style={{ color: grade?.color }}
               fontWeight="black"
-              size={"xxxlarge"}
+              size={40}
             >
               {grade?.grade}
+            </AppText>
+            <AppText style={{ color: grade?.color }} fontWeight="black">
+              {grade?.value}
             </AppText>
           </View>
         )}
@@ -155,7 +217,7 @@ const AssignmentReviewScreen = () => {
         <RichEditor
           ref={editorRef}
           useContainer={false}
-          initialContentHTML={studentAssignment}
+          initialContentHTML={routeData?.solution ?? ""}
           // editorInitializedCallback={onEditorInitialized}
           editorStyle={{ backgroundColor: "tranparent" }}
           disabled={true}
@@ -163,9 +225,12 @@ const AssignmentReviewScreen = () => {
         />
       </View>
       {!hasUploaded && (
-        <View style={styles.btns}>
-          <AppButton title={"Pass"} onPress={() => setModal({ vis: true })} />
-          <AppButton title={"Fail"} onPress={handleFailBtn} type="warn" />
+        <View style={[styles.btns, { marginBottom: 20 }]}>
+          <AppButton
+            title={`${grade ? "Update" : "Set"} Grade`}
+            onPress={() => setModal({ vis: true })}
+          />
+          <AppButton title={"Cancel"} onPress={handleCancelBtn} type="white" />
         </View>
       )}
       <AppModal
@@ -174,10 +239,12 @@ const AssignmentReviewScreen = () => {
         Component={() => (
           <Grades
             closeModal={() => setModal({ vis: false })}
-            getGrade={(data) => setGrade(data)}
+            getGrade={uploadGrade}
+            init={routeData?.score?.value}
           />
         )}
       />
+      <LottieAnimator absolute wTransparent visible={isLoading} />
     </Screen>
   );
 };
@@ -234,6 +301,15 @@ const styles = StyleSheet.create({
   headerNav: {
     flexDirection: "row",
   },
+  input: {
+    backgroundColor: colors.primary + 20,
+    height: 60,
+    width: width * 0.4,
+    borderRadius: 20,
+    padding: 20,
+    fontFamily: "sf-black",
+    fontSize: 20,
+  },
   main: {
     flex: 1,
     backgroundColor: colors.white,
@@ -245,8 +321,15 @@ const styles = StyleSheet.create({
     paddingLeft: 22,
     paddingRight: 8,
   },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   studentGrade: {
+    alignItems: "center",
     marginRight: 30,
+    transform: [{ rotate: "-15deg" }],
   },
   studentGradeTxt: {},
   title: {
