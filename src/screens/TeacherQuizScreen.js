@@ -32,7 +32,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
-export const TQuizItem = ({ item, isAssignment }) => {
+export const TQuizItem = ({ item, assId, isAssignment }) => {
   const router = useRouter();
 
   return (
@@ -40,7 +40,12 @@ export const TQuizItem = ({ item, isAssignment }) => {
       onPress={() =>
         router.push({
           pathname: "/school/quiz_review",
-          params: { isAssignment },
+          params: {
+            isAssignment,
+            historyId: item?._id,
+            assignmentId: assId,
+            submissions: item?.participants,
+          },
         })
       }
       style={styles.item}
@@ -48,8 +53,8 @@ export const TQuizItem = ({ item, isAssignment }) => {
       <View style={styles.itemMain}>
         <View style={styles.itemCount}>
           <Counter
-            count={item.average_score}
-            fontSize={width * 0.18 * 0.33}
+            count={item.percentageScore}
+            fontSize={width * 0.18 * 0.28}
             size={width * 0.18}
             percentage
           />
@@ -68,7 +73,7 @@ export const TQuizItem = ({ item, isAssignment }) => {
         >
           {isAssignment ? "Date" : "Quiz Date"}:{" \t"}
           <AppText size={"large"} fontWeight="heavy">
-            {dateFormatter(item?.date, "fullDate")}
+            {dateFormatter(item?.createdAt, "fullDate")}
           </AppText>
         </AppText>
         <AppText
@@ -77,7 +82,7 @@ export const TQuizItem = ({ item, isAssignment }) => {
         >
           {isAssignment ? "Submissions" : "Students participated"}:{" \t"}
           <AppText size={"large"} fontWeight="heavy">
-            {item.student_count}
+            {item.participants}
           </AppText>
         </AppText>
       </View>

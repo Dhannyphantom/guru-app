@@ -683,6 +683,12 @@ export const gradesList = [
   },
 ];
 
+export const getGradeData = (numericScore) => {
+  return gradesList.find((grade) => {
+    return numericScore >= grade.score && numericScore <= grade.max;
+  });
+};
+
 export const subDropdown = Array(12)
   .fill("1")
   .map((_i, idx) => {

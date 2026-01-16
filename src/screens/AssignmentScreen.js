@@ -26,8 +26,14 @@ import LottieAnimator from "../components/LottieAnimator";
 import { useRouter } from "expo-router";
 import ListEmpty from "../components/ListEmpty";
 import AppButton from "../components/AppButton";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import getRefresher from "../components/Refresher";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("screen");
 const ITEM_WIDTH = width * 0.75;
@@ -144,15 +150,40 @@ const RenderAssignment = ({ item, index }) => {
 
 const TeacherAssignment = ({ item, index }) => {
   const isActive = item?.status === "ongoing";
+  const isFinished = item?.status === "finished";
   const router = useRouter();
+  const scaler = useSharedValue(1);
+
   let statStyle = {};
 
-  if (!isActive) {
-    statStyle = {
-      color: colors.medium,
-      backgroundColor: colors.extraLight,
+  const rStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scaleX: scaler.value }],
     };
+  });
+
+  if (!isActive) {
+    statStyle = isFinished
+      ? {
+          color: colors.warningDark,
+          backgroundColor: colors.warning + 30,
+        }
+      : {
+          color: colors.medium,
+          backgroundColor: colors.extraLight,
+        };
   }
+
+  const handleAnimate = () => {
+    if (isFinished) {
+      scaler.value = withRepeat(withTiming(1.15), Infinity, true);
+    }
+  };
+
+  useEffect(() => {
+    handleAnimate();
+  }, []);
+
   return (
     <Pressable
       onPress={() =>
@@ -171,6 +202,14 @@ const TeacherAssignment = ({ item, index }) => {
         <AppText fontWeight="bold" style={{ color: colors.medium }}>
           {capFirstLetter(item.subject?.name)}
         </AppText>
+        {isFinished && (
+          <AppText fontWeight="bold" style={{ color: colors.medium }}>
+            Date Ended:{" "}
+            <AppText fontWeight="bold">
+              {dateFormatter(item?.expiry, "fullDate")}
+            </AppText>
+          </AppText>
+        )}
         <AppText
           fontWeight="bold"
           size={"xsmall"}
@@ -241,6 +280,17 @@ const TeacherAssignment = ({ item, index }) => {
               barHeight={18}
             />
           </View>
+        )}
+        {isFinished && (
+          <Animated.View style={[rStyle]}>
+            <AppText
+              fontWeight="bold"
+              style={{ color: colors.warningDark, marginLeft: 10 }}
+              size="small"
+            >
+              Review and publish!!!
+            </AppText>
+          </Animated.View>
         )}
       </View>
     </Pressable>

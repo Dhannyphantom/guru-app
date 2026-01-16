@@ -8,7 +8,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
-import { dummyLeaderboards, gradesArr } from "../helpers/dataStore";
+import {
+  dummyLeaderboards,
+  getGradeData,
+  gradesArr,
+} from "../helpers/dataStore";
 import AppHeader from "../components/AppHeader";
 import Avatar from "../components/Avatar";
 import colors from "../helpers/colors";
@@ -23,19 +27,16 @@ import Animated, {
 } from "react-native-reanimated";
 import SearchBar from "../components/SearchBar";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  selectSchool,
+  useFetchAssignmentHistoryQuery,
+} from "../context/schoolSlice";
+import { useSelector } from "react-redux";
+import LottieAnimator from "../components/LottieAnimator";
+import { getFullName } from "../helpers/helperFunctions";
+import getRefresher from "../components/Refresher";
 
 const { width, height } = Dimensions.get("screen");
-
-const scoresList = dummyLeaderboards
-  .map((item) => {
-    const randInt = Math.floor(Math.random() * gradesArr.length);
-    return {
-      ...item,
-      score: Math.floor(Math.random() * 50),
-      grade: gradesArr[randInt],
-    };
-  })
-  .sort((a, b) => b.score - a.score);
 
 const StudentScore = ({ item, index, isAssignment }) => {
   const router = useRouter();
@@ -56,17 +57,36 @@ const StudentScore = ({ item, index, isAssignment }) => {
         <AppText fontWeight="black" style={styles.itemCount} size={"xxlarge"}>
           {index + 1}
         </AppText>
-        <Avatar name={item?.name} horizontal />
+        <Avatar
+          name={getFullName(item?.student)}
+          source={item?.student?.avatar?.image}
+          horizontal
+        />
       </View>
       <View>
         {isAssignment ? (
-          <AppText
-            fontWeight="black"
-            size={"xxxlarge"}
-            style={{ marginRight: 10, color: item?.grade?.color }}
-          >
-            {item?.grade?.text}
-          </AppText>
+          <View style={{ alignItems: "center" }}>
+            <AppText
+              fontWeight="black"
+              size={"xxxlarge"}
+              style={{
+                marginRight: 10,
+                color: getGradeData(item?.score?.value).color,
+              }}
+            >
+              {item?.score?.grade}
+            </AppText>
+            <AppText
+              fontWeight="black"
+              // size={"xxxlarge"}
+              style={{
+                marginRight: 10,
+                color: getGradeData(item?.score?.value).color,
+              }}
+            >
+              {item?.score?.value}
+            </AppText>
+          </View>
         ) : (
           <AppText fontWeight="heavy" size={"xxlarge"}>
             {item.score}
@@ -86,11 +106,32 @@ const StudentScore = ({ item, index, isAssignment }) => {
 
 const QuizReviewScreen = () => {
   const route = useLocalSearchParams();
+  const school = useSelector(selectSchool);
   const isAssignment = Boolean(route?.isAssignment);
+  const historyId = route?.historyId;
+
+  const assignmentId = route?.assignmentId;
+
+  const { data, isLoading, refetch } = useFetchAssignmentHistoryQuery({
+    assignmentId,
+    schoolId: school?._id,
+    historyId,
+  });
 
   const [bools, setBools] = useState({ search: false });
+  const [refreshing, setRefreshing] = useState(false);
 
   const searchRef = useAnimatedRef(null);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch().unwrap();
+    } catch (errr) {
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -124,13 +165,15 @@ const QuizReviewScreen = () => {
       )}
       <Animated.FlatList
         layout={LinearTransition.damping(20)}
-        data={scoresList}
+        data={data?.data?.participants}
         renderItem={({ item, index }) => (
           <StudentScore index={index} item={item} isAssignment={isAssignment} />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        refreshControl={getRefresher({ refreshing, onRefresh })}
         contentContainerStyle={{ paddingBottom: height * 0.125 }}
       />
+      <LottieAnimator visible={isLoading} wTransparent absolute />
     </View>
   );
 };

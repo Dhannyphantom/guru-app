@@ -15,7 +15,7 @@ import Avatar from "../components/Avatar";
 import AppButton from "../components/AppButton";
 import AppModal from "../components/AppModal";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { gradesList } from "../helpers/dataStore";
+import { gradesList, PAD_BOTTOM } from "../helpers/dataStore";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { RichEditor } from "react-native-pell-rich-editor";
 import {
@@ -149,7 +149,7 @@ const AssignmentReviewScreen = () => {
   const school = useSelector(selectSchool);
   const [gradeAssignment, { isLoading }] = useGradeAssignmentMutation();
 
-  const hasUploaded = route?.params?.uploaded === true;
+  const hasUploaded = route?.uploaded === "true";
 
   const handleCancelBtn = () => {
     router?.back();
@@ -260,7 +260,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.unchange,
-    marginBottom: 80,
+    paddingBottom: PAD_BOTTOM,
+    // marginBottom: 80,
   },
   grade: {
     width: width * 0.95,
@@ -313,7 +314,6 @@ const styles = StyleSheet.create({
   main: {
     flex: 1,
     backgroundColor: colors.white,
-    marginBottom: 20,
     marginHorizontal: 10,
     borderRadius: 15,
   },

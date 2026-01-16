@@ -19,7 +19,7 @@ import Animated, {
 import SearchBar from "../components/SearchBar";
 import {
   // A_DAY,
-  assignmentHistory,
+  // assignmentHistory,
   gradesList,
   // dummyLeaderboards,
   PAD_BOTTOM,
@@ -37,18 +37,19 @@ import AppButton from "../components/AppButton";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import PopMessage from "../components/PopMessage";
-import { QuizItem } from "./QuizHistoryScreen";
+// import { QuizItem } from "./QuizHistoryScreen";
 import { TQuizItem } from "./TeacherQuizScreen";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   selectSchool,
   useFetchAssignmentByIdQuery,
+  usePublishAssignmentMutation,
 } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const ListItem = ({ item, assId, index }) => {
   const router = useRouter();
@@ -126,42 +127,57 @@ const StudentAssigmentScreen = () => {
     assignmentId: routeData?._id,
     schoolId: school?._id,
   });
+  const [publishAssignment, { isLoading: publishing }] =
+    usePublishAssignmentMutation();
 
   const [bools, setBools] = useState({ search: false });
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
 
-  const isActive = routeData?.status === "ongoing";
-  const router = useRouter();
   const assignment = data?.data;
+  const isActive = assignment?.status === "ongoing";
+  const isFinished = assignment?.status === "finished";
+  const router = useRouter();
   const submissions = assignment?.submissions || [];
 
   let statColor = "";
-  switch (routeData?.status) {
+  switch (assignment?.status) {
     case "ongoing":
       statColor = colors.greenDark;
+      break;
+    case "finished":
+      statColor = colors.warningDark;
       break;
     case "inactive":
       statColor = colors.medium;
       break;
   }
 
-  const onReleaseScores = () => {
-    const checkAll = submissions?.every((item) => Boolean(item.grade));
-    if (checkAll) {
+  const onReleaseScores = async () => {
+    try {
+      const res = await publishAssignment({
+        schoolId: school?._id,
+        assignmentId: assignment?._id,
+      }).unwrap();
+      if (res?.status === "success") {
+        setPopper({
+          vis: true,
+          msg: res?.message,
+          type: "success",
+        });
+      }
+    } catch (errr) {
       setPopper({
         vis: true,
-        msg: "Assignment scores uploaded!",
-        type: "success",
-      });
-    } else {
-      setPopper({
-        vis: true,
-        msg: "Review all student's assignment",
+        msg: errr?.message ?? errr?.data?.message ?? "Something went wrong",
         type: "failed",
-        timer: 2000,
+        timer: 2500,
       });
     }
+    // const checkAll = submissions?.every((item) => Boolean(item.grade));
+    // if (checkAll) {
+    // } else {
+    // }
   };
 
   const onRefresh = async () => {
@@ -194,7 +210,7 @@ const StudentAssigmentScreen = () => {
             size="small"
             fontWeight="bold"
           >
-            TITLE: <AppText fontWeight="heavy">{routeData?.title}</AppText>
+            TITLE: <AppText fontWeight="heavy">{assignment?.title}</AppText>
           </AppText>
           <AppText
             style={{ marginTop: 5, color: colors.medium }}
@@ -203,7 +219,7 @@ const StudentAssigmentScreen = () => {
           >
             SUBMISSION:{" "}
             <AppText fontWeight="heavy">
-              {dateFormatter(routeData?.expiry, "fullDate")}
+              {dateFormatter(assignment?.expiry, "fullDate")}
             </AppText>
           </AppText>
           <View style={styles.row}>
@@ -228,7 +244,7 @@ const StudentAssigmentScreen = () => {
                 borderBottomWidth: 3,
               }}
             >
-              {routeData?.status}
+              {assignment?.status}
             </AppText>
           </View>
 
@@ -236,21 +252,23 @@ const StudentAssigmentScreen = () => {
             <AppButton
               icon={{ left: true, name: "rocket" }}
               onPress={onReleaseScores}
-              type={isActive ? "accent" : "primary"}
-              title={isActive ? "Release scores" : "Start Assigment"}
+              type={isActive || isFinished ? "accent" : "primary"}
+              title={
+                isActive || isFinished ? "Release scores" : "Start Assigment"
+              }
             />
             <AppButton
               title={"Edit Assignment"}
-              disabled={isActive}
+              disabled={isActive || isFinished}
               onPress={
                 () =>
                   router.push({
                     pathname: "/school/assignment/create",
-                    params: { isEdit: true, data: JSON.stringify(routeData) },
+                    params: { isEdit: true, data: JSON.stringify(assignment) },
                   })
                 // ("NewQuiz", {
                 //   type: "edit",
-                //   data: routeData,
+                //   data: assignment,
                 // })
               }
               type="white"
@@ -272,25 +290,26 @@ const StudentAssigmentScreen = () => {
         </Animated.View>
       )}
       <View style={{ flex: 1 }}>
-        {isActive && (
-          <Animated.FlatList
-            layout={LinearTransition.damping(20)}
-            data={submissions}
-            renderItem={({ item, index }) => (
-              <ListItem item={item} assId={routeData?._id} index={index} />
-            )}
-            refreshControl={getRefresher({ refreshing, onRefresh })}
-            ListEmptyComponent={
-              <ListEmpty
-                vis={!isLoading}
-                message={"No student submissions yet"}
-              />
-            }
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
-          />
-        )}
-        {!isActive && (
+        {isActive ||
+          (isFinished && (
+            <Animated.FlatList
+              layout={LinearTransition.damping(20)}
+              data={submissions}
+              renderItem={({ item, index }) => (
+                <ListItem item={item} assId={assignment?._id} index={index} />
+              )}
+              refreshControl={getRefresher({ refreshing, onRefresh })}
+              ListEmptyComponent={
+                <ListEmpty
+                  vis={!isLoading}
+                  message={"No student submissions yet"}
+                />
+              }
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+            />
+          ))}
+        {!isActive && !isFinished && (
           <View style={styles.history}>
             <AppText
               fontWeight="heavy"
@@ -301,17 +320,22 @@ const StudentAssigmentScreen = () => {
             </AppText>
 
             <FlatList
-              data={assignmentHistory}
+              data={assignment?.history}
               keyExtractor={(item) => item._id}
               contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
               refreshControl={getRefresher({ refreshing, onRefresh })}
               renderItem={({ item, index }) => (
-                <TQuizItem item={item} index={index} isAssignment={true} />
+                <TQuizItem
+                  item={item}
+                  assId={assignment?._id}
+                  index={index}
+                  isAssignment={true}
+                />
               )}
             />
           </View>
         )}
-        <LottieAnimator visible={isLoading} absolute />
+        <LottieAnimator visible={isLoading || publishing} absolute />
       </View>
       <PopMessage popData={popper} setPopData={setPopper} />
     </View>

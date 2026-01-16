@@ -43,6 +43,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_ASSIGNMENTS"],
     }),
+    fetchAssignmentHistory: builder.query({
+      query: (params) => ({
+        url: `/school/assignment/history`,
+        timeout: 15000,
+        params,
+      }),
+    }),
     fetchAssignmentById: builder.query({
       query: (params) => ({
         url: "/school/assignment",
@@ -67,6 +74,16 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           url: "/school/assignment",
           method: "DELETE",
           params: data,
+        };
+      },
+      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+    }),
+    publishAssignment: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/school/assignment/publish",
+          method: "POST",
+          body: data,
         };
       },
       invalidatesTags: ["FETCH_ASSIGNMENTS"],
@@ -229,7 +246,7 @@ export const schoolSlice = createSlice({
   },
 });
 
-export const {} = schoolSlice.actions;
+// export const {} = schoolSlice.actions;
 // SELECTORS
 export const selectSchool = (state) => state.school.school;
 export const selectSchoolVerified = (state) => state.school.verified;
@@ -251,6 +268,8 @@ export const {
   useDeleteAssignmentMutation,
   useUpdateAssignmentMutation,
   useUpdateAssignmentStatusMutation,
+  usePublishAssignmentMutation,
+  useFetchAssignmentHistoryQuery,
   useUpdateSchoolQuizMutation,
   useFetchAssignmentByIdQuery,
   useGetQuizQuestionsMutation,
