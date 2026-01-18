@@ -337,9 +337,9 @@ const LeaderboardScreen = () => {
 
   // Title
   const title = useMemo(() => {
-    if (isSchoolView) return boardData?.school?.name || "School Leaderboard";
+    if (isSchoolView) return boardData?.school?.name || "My School Leaderboard";
     if (isPro) return "Pro Leaderboard";
-    return "Global Leaderboard";
+    return "Leaderboard";
   }, [isSchoolView, isPro, boardData?.school?.name]);
 
   return (

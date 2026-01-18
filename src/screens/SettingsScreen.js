@@ -8,9 +8,12 @@ import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultSettings } from "../helpers/dataStore";
 import { ProfileLink } from "./ProfileScreen";
+import { useRouter } from "expo-router";
 
 const SettingsScreen = () => {
   const [settingsData, setSettingsData] = useState([]);
+
+  const router = useRouter();
 
   const fetchSettings = async () => {
     const savedSettings = await AsyncStorage.getItem("settings");
@@ -51,8 +54,16 @@ const SettingsScreen = () => {
         </AppText>
         {/* <Separator /> */}
         <View>
-          <ProfileLink title={"Contact us"} icon={"call"} />
-          <ProfileLink title={"FAQs"} icon={"help-circle"} />
+          <ProfileLink
+            title={"Contact us"}
+            onPress={() => router.push("/main/support")}
+            icon={"call"}
+          />
+          <ProfileLink
+            title={"FAQs"}
+            onPress={() => router.push("/main/faqs")}
+            icon={"help-circle"}
+          />
         </View>
       </View>
     </View>

@@ -1,15 +1,15 @@
 import {
   Dimensions,
   Platform,
-  Pressable,
-  RefreshControl,
+  // Pressable,
+  // RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import React, { useState } from "react";
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 import Screen from "../components/Screen";
 import Avatar from "../components/Avatar";
@@ -26,7 +26,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Points from "../components/Points";
 import {
-  capFirstLetter,
+  // capFirstLetter,
   hasCompletedProfile,
 } from "../helpers/helperFunctions";
 import { StatusBar } from "expo-status-bar";
@@ -123,7 +123,7 @@ const ProfileScreen = () => {
     setRefreshing(true);
     try {
       await fetchUser();
-    } catch (error) {
+    } catch (_error) {
     } finally {
       setRefreshing(false);
     }
