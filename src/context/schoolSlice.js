@@ -50,6 +50,78 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         params,
       }),
     }),
+    fetchSchoolLeaderboard: builder.query({
+      query: ({
+        limit = 50,
+        offset = 0,
+        sortBy = "totalPoints",
+        classLevel,
+      } = {}) => ({
+        url: `/school/leaderboard?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
+          classLevel ? `&classLevel=${classLevel}` : ""
+        }`,
+        timeout: 15000,
+      }),
+      serializeQueryArgs: ({ endpointName }) => {
+        return endpointName;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg?.offset === 0) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          data: {
+            ...newItems.data,
+            leaderboard: [
+              ...(currentCache?.data?.leaderboard || []),
+              ...(newItems?.data?.leaderboard || []),
+            ],
+          },
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return currentArg?.offset !== previousArg?.offset;
+      },
+      providesTags: ["SCHOOL_LEADERBOARD"],
+    }),
+
+    fetchSchoolLeaderboardById: builder.query({
+      query: ({
+        schoolId,
+        limit = 50,
+        offset = 0,
+        sortBy = "totalPoints",
+        classLevel,
+      } = {}) => ({
+        url: `/leaderboard/school/${schoolId}?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
+          classLevel ? `&classLevel=${classLevel}` : ""
+        }`,
+        timeout: 15000,
+      }),
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        return `${endpointName}-${queryArgs.schoolId}`;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg?.offset === 0) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          data: {
+            ...newItems.data,
+            leaderboard: [
+              ...(currentCache?.data?.leaderboard || []),
+              ...(newItems?.data?.leaderboard || []),
+            ],
+          },
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return currentArg?.offset !== previousArg?.offset;
+      },
+      providesTags: ["SCHOOL_LEADERBOARD"],
+    }),
     fetchAssignmentById: builder.query({
       query: (params) => ({
         url: "/school/assignment",
@@ -264,6 +336,7 @@ export const {
   useFetchAnnouncementsQuery,
   useChangeSchoolQuizMutation,
   useFetchAssignmentsQuery,
+  useFetchSchoolLeaderboardQuery,
   useSubmitQuizMutation,
   useDeleteAssignmentMutation,
   useUpdateAssignmentMutation,

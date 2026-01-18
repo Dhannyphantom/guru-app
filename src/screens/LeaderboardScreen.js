@@ -1,26 +1,33 @@
 import { Dimensions, FlatList, Image, StyleSheet, View } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { StatusBar } from "expo-status-bar";
+import { useLocalSearchParams } from "expo-router";
 
 import colors from "../helpers/colors";
 import Avatar from "../components/Avatar";
 import AppHeader from "../components/AppHeader";
-import { dummyLeaderboards } from "../helpers/dataStore";
 import AppText from "../components/AppText";
-
 import leaderboardStage from "../../assets/images/leaderboard.png";
 import Points from "../components/Points";
 import { formatPoints, getFullName } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
-import { selectUser, useFetchProLeaderboardQuery } from "../context/usersSlice";
+import {
+  selectUser,
+  useFetchGlobalLeaderboardQuery,
+  useFetchProLeaderboardQuery,
+} from "../context/usersSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import { nanoid } from "@reduxjs/toolkit";
+import { useFetchSchoolLeaderboardQuery } from "../context/schoolSlice";
 
 const { width, height } = Dimensions.get("screen");
 
 export const LeaderboardItem = ({ item, isPro, index }) => {
-  if (index < 3) return;
-  let pointText = formatPoints(item.points ?? item?.questionsCount);
+  if (index < 3) return null;
+
+  let pointText = formatPoints(
+    item.points ?? item.totalPoints ?? item?.questionsCount
+  );
   if (isPro) pointText = pointText?.slice(0, -3);
 
   const loading = item?.hasFinished === false;
@@ -28,16 +35,14 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
   return (
     <View
       style={{
-        // marginHorizontal: width * 0.02,
         backgroundColor: colors.light,
         paddingLeft: 10,
-        borderTopStartRadius: index == 3 ? 10 : 0,
-        borderTopEndRadius: index == 3 ? 10 : 0,
+        borderTopStartRadius: index === 3 ? 10 : 0,
+        borderTopEndRadius: index === 3 ? 10 : 0,
       }}
     >
       <View
         style={{
-          // flex: 1,
           flexDirection: "row",
           alignItems: "center",
           padding: 12,
@@ -45,7 +50,7 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
         }}
       >
         <AppText fontWeight="black" size={"xxlarge"}>
-          {index + 1}
+          {item.rank ?? index + 1}
         </AppText>
         <Avatar
           style={{ marginLeft: 25 }}
@@ -84,7 +89,6 @@ const LeaderboardChampion = ({
   return (
     <View
       style={{
-        // position: "absolute"
         alignSelf: "center",
         alignItems: "center",
         marginHorizontal: 10,
@@ -105,7 +109,6 @@ const LeaderboardChampion = ({
         fontSize="xsmall"
         style={{ backgroundColor: colors.unchange }}
       />
-
       <LottieAnimator visible={loading} wTransparent absolute size={80} />
     </View>
   );
@@ -128,7 +131,7 @@ export const LeaderboardWinners = ({ data, isPro }) => {
         loading={item?.hasFinished === false}
         isPro={isPro}
         avatar={item?.avatar?.image}
-        points={item.points ?? item?.questionsCount}
+        points={item.points ?? item.totalPoints ?? item?.questionsCount}
       />
     );
   };
@@ -141,7 +144,6 @@ export const LeaderboardWinners = ({ data, isPro }) => {
           zIndex: 50,
           flexDirection: "row",
           alignItems: "center",
-
           alignSelf: "center",
         }}
       >
@@ -157,7 +159,6 @@ export const LeaderboardWinners = ({ data, isPro }) => {
           </View>
         ))}
       </View>
-      {/* <View style={{ height: height * 0.15 }} /> */}
       <View style={{ width, justifyContent: "flex-end", alignItems: "center" }}>
         <Image
           resizeMode="cover"
@@ -175,35 +176,176 @@ export const LeaderboardWinners = ({ data, isPro }) => {
 
 const LeaderboardScreen = () => {
   const user = useSelector(selectUser);
-  const { data, isLoading, isError, error, refetch } =
-    useFetchProLeaderboardQuery();
-  const isPro = user?.accountType !== "user";
-  const [refreshing, setRefreshing] = useState(false);
+  const route = useLocalSearchParams();
+  const routeData = Boolean(route?.data) ? JSON.parse(route?.data) : {};
 
-  const onRefresh = async () => {
+  // Pagination state
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const LIMIT = 50;
+
+  // Determine which leaderboard to fetch
+  const isPro =
+    user?.accountType === "professional" || user?.accountType === "manager";
+  const isStudent = user?.accountType === "student";
+  const isTeacher = user?.accountType === "teacher";
+  const isSchoolView = routeData?.screen === "School";
+
+  // Conditionally call the right query hook
+  const shouldFetchPro = isPro && !isSchoolView;
+  const shouldFetchSchool = (isStudent || isTeacher) && isSchoolView;
+  const shouldFetchGlobal = (isStudent || isTeacher) && !isSchoolView;
+
+  // Professional leaderboard
+  const {
+    data: proData,
+    isLoading: proLoading,
+    isFetching: proFetching,
+    error,
+    refetch: proRefetch,
+  } = useFetchProLeaderboardQuery(
+    { limit: LIMIT, offset },
+    { skip: !shouldFetchPro }
+  );
+
+  // School leaderboard
+  const {
+    data: schoolData,
+    isLoading: schoolLoading,
+    isFetching: schoolFetching,
+
+    refetch: schoolRefetch,
+  } = useFetchSchoolLeaderboardQuery(
+    { limit: LIMIT, offset },
+    { skip: !shouldFetchSchool }
+  );
+
+  // Global leaderboard
+  const {
+    data: globalData,
+    isLoading: globalLoading,
+
+    isFetching: globalFetching,
+    refetch: globalRefetch,
+  } = useFetchGlobalLeaderboardQuery(
+    { limit: LIMIT, offset },
+    { skip: !shouldFetchGlobal }
+  );
+
+  // Determine which data to use
+  const activeData = useMemo(() => {
+    if (shouldFetchPro) return proData;
+    if (shouldFetchSchool) return schoolData;
+    if (shouldFetchGlobal) return globalData;
+    return null;
+  }, [
+    shouldFetchPro,
+    shouldFetchSchool,
+    shouldFetchGlobal,
+    proData,
+    schoolData,
+    globalData,
+  ]);
+
+  const isLoading = proLoading || schoolLoading || globalLoading;
+  const isFetching = proFetching || schoolFetching || globalFetching;
+
+  const refetch = useMemo(() => {
+    if (shouldFetchPro) return proRefetch;
+    if (shouldFetchSchool) return schoolRefetch;
+    if (shouldFetchGlobal) return globalRefetch;
+    return () => {};
+  }, [
+    shouldFetchPro,
+    shouldFetchSchool,
+    shouldFetchGlobal,
+    proRefetch,
+    schoolRefetch,
+    globalRefetch,
+  ]);
+
+  // Extract leaderboard data
+  const boardData = activeData?.data;
+  const leaderboardArr = boardData?.leaderboard ?? [];
+
+  // Load more handler
+  const handleLoadMore = useCallback(() => {
+    if (isFetching || !hasMore) return;
+
+    const pagination = boardData?.pagination;
+    if (pagination?.hasMore) {
+      setOffset((prevOffset) => prevOffset + LIMIT);
+    } else {
+      setHasMore(false);
+    }
+  }, [isFetching, hasMore, boardData]);
+
+  // Refresh handler
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setOffset(0);
+    setHasMore(true);
     try {
       await refetch();
     } catch (err) {
+      console.error("Refresh error:", err);
     } finally {
       setRefreshing(false);
     }
+  }, [refetch]);
+
+  // Footer component
+  const renderFooter = useCallback(() => {
+    if (!isFetching || refreshing) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <LottieAnimator visible />
+        <AppText style={styles.loadingText}>Loading more...</AppText>
+      </View>
+    );
+  }, [isFetching, refreshing]);
+
+  // List footer
+  const ListFooter = useCallback(() => {
+    if (isFetching && !refreshing) {
+      return renderFooter();
+    }
+    return (
+      <View
+        style={leaderboardArr?.length < 4 ? styles.footerMain : styles.footer}
+      />
+    );
+  }, [leaderboardArr?.length, isFetching, refreshing]);
+
+  // Determine background color
+  const backgroundColor = useMemo(() => {
+    if (isPro) return colors.greenDark;
+    if (isSchoolView) return colors.primary;
+    return colors.accent;
+  }, [isPro, isSchoolView]);
+
+  // Get rank suffix
+  const getRankSuffix = (rank) => {
+    if (!rank) return "TH";
+    if (rank === 1) return "ST";
+    if (rank === 2) return "ND";
+    if (rank === 3) return "RD";
+    return "TH";
   };
 
-  const boardData = isPro ? data?.data : null;
-  const leaderboardArr =
-    boardData?.leaderboard ??
-    dummyLeaderboards.sort((a, b) => b.points - a.points);
+  // Title
+  const title = useMemo(() => {
+    if (isSchoolView) return boardData?.school?.name || "School Leaderboard";
+    if (isPro) return "Pro Leaderboard";
+    return "Global Leaderboard";
+  }, [isSchoolView, isPro, boardData?.school?.name]);
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: isPro ? colors.greenDark : colors.accent },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor }]}>
       <AppHeader
-        title="Leaderboard"
+        title={title}
         Component={() => (
           <View style={styles.mine}>
             <AppText
@@ -213,13 +355,7 @@ const LeaderboardScreen = () => {
             >
               {boardData?.currentUser?.rank ?? 0}
               <AppText style={styles.mineText} fontWeight="black">
-                {boardData?.currentUser?.rank === 1
-                  ? "ST"
-                  : boardData?.currentUser?.rank == 2
-                  ? "ND"
-                  : boardData?.currentUser?.rank === 3
-                  ? "RD"
-                  : "TH"}
+                {getRankSuffix(boardData?.currentUser?.rank)}
               </AppText>
             </AppText>
           </View>
@@ -233,26 +369,32 @@ const LeaderboardScreen = () => {
         refreshing={refreshing}
         onRefresh={onRefresh}
         showsVerticalScrollIndicator={false}
-        // contentContainerStyle={{ paddingBottom: height * 0.11 }}
+        // Infinite scroll
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
         ListHeaderComponent={() => (
           <LeaderboardWinners
             isPro={isPro}
             data={leaderboardArr?.slice(0, 3)}
           />
         )}
-        ListFooterComponent={
-          <View
-            style={
-              leaderboardArr?.length < 4 ? styles.footerMain : styles.footer
-            }
-          />
-        }
+        ListFooterComponent={ListFooter}
         renderItem={({ item, index }) => (
           <LeaderboardItem item={item} isPro={isPro} index={index} />
         )}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={15}
+        windowSize={10}
       />
       <StatusBar style="light" />
-      <LottieAnimator visible={isLoading} absolute wTransparent />
+      <LottieAnimator
+        visible={isLoading && offset === 0}
+        absolute
+        wTransparent
+      />
     </View>
   );
 };
@@ -266,18 +408,26 @@ const styles = StyleSheet.create({
   footer: {
     height: height * 0.2,
     backgroundColor: colors.unchange,
-    // marginHorizontal: width * 0.02,
   },
   footerMain: {
     height: height * 0.5,
     borderTopRightRadius: 18,
     borderTopLeftRadius: 18,
     backgroundColor: colors.unchange,
-    // top: 40,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.unchange,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#666",
+    fontSize: 14,
   },
   mine: {
     flex: 1,
-    // backgroundColor: colors.accentLightest,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,

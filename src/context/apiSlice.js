@@ -30,7 +30,9 @@ export const apiSlice = createApi({
     "FETCH_REWARDS",
     "FETCH_TRANSACTIONS",
     "SEARCH_STUDENTS",
-    "PRO_LEADERBORAD",
+    "PRO_LEADERBOARD",
+    "GLOBAL_LEADERBOARD",
+    "SCHOOL_LEADERBOARD",
   ],
   endpoints: (builder) => ({}),
 });

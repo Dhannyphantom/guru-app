@@ -229,12 +229,68 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       providesTags: ["SEARCH_STUDENTS"],
     }),
     fetchProLeaderboard: builder.query({
-      query: () => ({
-        url: "/users/pro_leaderboard",
+      query: ({ limit = 50, offset = 0 } = {}) => ({
+        url: `/users/pro_leaderboard?limit=${limit}&offset=${offset}`,
         timeout: 15000,
       }),
-      providesTags: ["PRO_LEADERBORAD"],
+      serializeQueryArgs: ({ endpointName }) => {
+        return endpointName;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg?.offset === 0) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          data: {
+            ...newItems.data,
+            leaderboard: [
+              ...(currentCache?.data?.leaderboard || []),
+              ...(newItems?.data?.leaderboard || []),
+            ],
+          },
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return currentArg?.offset !== previousArg?.offset;
+      },
+      providesTags: ["PRO_LEADERBOARD"],
     }),
+
+    fetchGlobalLeaderboard: builder.query({
+      query: ({
+        limit = 50,
+        offset = 0,
+        timeframe = "all-time",
+        sortBy = "totalPoints",
+      } = {}) => ({
+        url: `/users/leaderboard/global?limit=${limit}&offset=${offset}&timeframe=${timeframe}&sortBy=${sortBy}`,
+        timeout: 15000,
+      }),
+      serializeQueryArgs: ({ endpointName }) => {
+        return endpointName;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg?.offset === 0) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          data: {
+            ...newItems.data,
+            leaderboard: [
+              ...(currentCache?.data?.leaderboard || []),
+              ...(newItems?.data?.leaderboard || []),
+            ],
+          },
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return currentArg?.offset !== previousArg?.offset;
+      },
+      providesTags: ["GLOBAL_LEADERBOARD"],
+    }),
+
     fetchUserInfo: builder.query({
       query: (userId) => ({
         url: `/users/userInfo?userId=${userId}`,
@@ -359,6 +415,7 @@ export const {
   useFetchUserQuery,
   useFetchRewardsQuery,
   useFetchDataBundlesQuery,
+  useFetchGlobalLeaderboardQuery,
   useBuyDataMutation,
   useLazyFetchUserQuery,
   useRechargeAirtimeMutation,
