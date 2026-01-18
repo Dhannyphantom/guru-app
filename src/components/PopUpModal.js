@@ -18,12 +18,14 @@ import Animated, {
 import { useEffect } from "react";
 import colors from "../helpers/colors";
 import { Ionicons } from "@expo/vector-icons";
+import AppText from "./AppText";
 
 const { width, height } = Dimensions.get("screen");
 
 const PopUpModal = ({
   visible,
   setVisible,
+  title,
   mainStyle,
   Component,
   useDefaultHeight = false,
@@ -95,21 +97,33 @@ const PopUpModal = ({
                   useDefaultHeight && { height: undefined }, // Let content determine height
                 ]}
               >
-                <Pressable
-                  onPress={handleCloseModal}
+                <View
                   style={{
-                    alignSelf: "flex-end",
-                    padding: 20,
-                    paddingTop: 15,
-                    paddingBottom: 6,
+                    flexDirection: "row",
+                    // alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  <Ionicons
-                    name="close-circle-outline"
-                    size={25}
-                    color={colors.medium}
-                  />
-                </Pressable>
+                  <AppText
+                    fontWeight="bold"
+                    size="large"
+                    style={{ margin: 18 }}
+                  >
+                    {title}
+                  </AppText>
+                  <Pressable
+                    onPress={handleCloseModal}
+                    style={{
+                      padding: 20,
+                    }}
+                  >
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={25}
+                      color={colors.medium}
+                    />
+                  </Pressable>
+                </View>
                 {Component && <Component closeModal={handleCloseModal} />}
               </Animated.View>
             </Animated.View>

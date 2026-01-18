@@ -31,6 +31,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import AnimatedPressable from "./AnimatedPressable";
 import PopUpModal from "./PopUpModal";
 import ListEmpty from "./ListEmpty";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("screen");
 const RENDER_NUMBER = 15;
@@ -371,7 +372,8 @@ const DayMonthYearSelector = ({
   futureYear,
   name,
 }) => {
-  const { setFieldValue, values } = useFormikContext();
+  const { setFieldValue } = useFormikContext();
+  const insets = useSafeAreaInsets();
 
   const [selected, setSelected] = useState(
     init ?? {
@@ -384,15 +386,19 @@ const DayMonthYearSelector = ({
   const monthIdx = calenderMonths.findIndex(
     (obj) => obj.name == selected.month
   );
+
   const daysList = Array(calenderMonths[monthIdx].days)
     .fill(0)
     .map((num, idx) => idx + 1);
 
-  const yearsData = Boolean(range[0])
-    ? range
-    : futureYear
-    ? fututeYearsList
-    : yearsList;
+  // return console.log({ range });
+
+  const yearsData =
+    range && Boolean(range[0])
+      ? range
+      : futureYear
+      ? fututeYearsList
+      : yearsList;
 
   const handleSelectDate = () => {
     if (!selected.year || !selected.month || !selected.day) return;
@@ -403,7 +409,7 @@ const DayMonthYearSelector = ({
   };
 
   return (
-    <View style={{ height: height * 0.6 }}>
+    <View style={{ height: height * 0.6, marginBottom: insets.bottom }}>
       <View
         style={{
           flexDirection: "row",

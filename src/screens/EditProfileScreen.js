@@ -173,9 +173,9 @@ const EditProfileScreen = () => {
                             name={"class"}
                             disabled={user?.class?.hasChanged && user?.verified}
                             placeholder={
-                              user?.class
-                                ? `${user.class?.level}`
-                                : null ?? "Select your current class"
+                              user?.class?.level
+                                ? `${user.class?.level?.toUpperCase()}`
+                                : "Select your current class"
                             }
                             data={schoolClasses}
                             // numDisplayItems={2}

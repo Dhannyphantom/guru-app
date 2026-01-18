@@ -156,6 +156,36 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_REWARDS"],
     }),
+    findMoreFriends: builder.query({
+      query: ({ limit = 20, accountType = "student", offset = 0 } = {}) => ({
+        url: `/users/suggestions?limit=${limit}&offset=${offset}&accountType=${accountType}`,
+        timeout: 15000,
+      }),
+      // Merge incoming data with existing data for infinite scroll
+      serializeQueryArgs: ({ endpointName }) => {
+        return endpointName;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        // If offset is 0, replace the cache (refresh scenario)
+        if (arg?.offset === 0) {
+          return newItems;
+        }
+        // Otherwise, append new items to existing suggestions
+        return {
+          ...newItems,
+          data: {
+            ...newItems.data,
+            suggestions: [
+              ...(currentCache?.data?.suggestions || []),
+              ...(newItems?.data?.suggestions || []),
+            ],
+          },
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return currentArg?.offset !== previousArg?.offset;
+      },
+    }),
     fetchUserStats: builder.query({
       query: () => ({
         url: "/users/user_stats",
@@ -324,6 +354,7 @@ export const {
   useFetchUserStatsQuery,
   useLazySearchStudentsQuery,
   useFetchUserInfoQuery,
+  useFindMoreFriendsQuery,
   useLazyFetchUserInfoQuery,
   useFetchUserQuery,
   useFetchRewardsQuery,

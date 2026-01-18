@@ -23,9 +23,11 @@ import contactImg from "../../assets/images/abc.png";
 import friendsImg from "../../assets/images/online-learning.png";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
+import { selectUser, useFindMoreFriendsQuery } from "../context/usersSlice";
 import WebLayout from "./WebLayout";
 import { useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import LottieAnimator from "./LottieAnimator";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -61,37 +63,87 @@ const FindFriendsModal = ({ closeModal }) => {
   const user = useSelector(selectUser);
   const router = useRouter();
 
-  // const screenWidth = useWindowDimensions();
+  // Pagination state
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const LIMIT = 20;
 
-  const isPro = user?.accountType == "professional";
+  // Fetch friends with pagination
+  const { data: friends, isFetching } = useFindMoreFriendsQuery({
+    limit: LIMIT,
+    offset,
+  });
+
+  const isPro = user?.accountType === "professional";
 
   const handleNav = (screen) => {
     closeModal();
     router.push(screen);
   };
 
+  // Load more function
+  const handleLoadMore = useCallback(() => {
+    // Don't load if already fetching or no more data
+    if (isFetching || !hasMore) return;
+
+    const pagination = friends?.data?.pagination;
+
+    // Check if there's more data to load
+    if (pagination?.hasMore) {
+      setOffset((prevOffset) => prevOffset + LIMIT);
+    } else {
+      setHasMore(false);
+    }
+  }, [isFetching, hasMore, friends]);
+
+  // Refresh function (pull to refresh)
+  const handleRefresh = useCallback(() => {
+    setOffset(0);
+    setHasMore(true);
+  }, []);
+
+  // Footer component
+  const renderFooter = () => {
+    if (!isFetching) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <LottieAnimator visible />
+        <AppText style={styles.loadingText}>Loading more...</AppText>
+      </View>
+    );
+  };
+
+  // Empty component
+  const renderEmpty = () => {
+    if (isFetching && offset === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <LottieAnimator visible absolute wTransparent />
+          {/* <ActivityIndicator size="large" color="#007AFF" /> */}
+          {/* <AppText style={styles.emptyText}>Finding friends...</AppText> */}
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <AppText style={styles.emptyText}>No suggestions available</AppText>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.friendsModal}>
       <WebLayout
-        // scroll
         style={{
           flex: 1,
           flexDirection: "row",
           justifyContent: "space-around",
-          // alignItems: "center",
           width: "100%",
         }}
       >
         <WebLayout style={{ width: "35%", alignSelf: "flex-start" }}>
-          <View style={styles.rowWide}>
-            <AppText
-              fontWeight="bold"
-              size={"large"}
-              style={{ marginLeft: 20, marginBottom: 10 }}
-            >
-              My Friends
-            </AppText>
-          </View>
           <SearchBar placeholder="Search name, username or email" />
           <View style={styles.action}>
             <ActionItem
@@ -109,22 +161,40 @@ const FindFriendsModal = ({ closeModal }) => {
             />
           </View>
         </WebLayout>
+
         <WebLayout style={{ width: "45%", alignSelf: null }}>
           <AppText fontWeight="bold" size={"large"} style={styles.headerTxt}>
             Students you may know
+            {friends?.data?.pagination?.total && (
+              <AppText style={styles.countText}>
+                {" "}
+                ({friends.data.pagination.total})
+              </AppText>
+            )}
           </AppText>
 
-          <WebLayout scroll>
+          <WebLayout scroll={false}>
             <View style={styles.list}>
               <FlatList
-                data={dummyLeaderboards.map((item) => ({
-                  user: { firstName: item.name },
-                  school: item.school,
-                  _id: item._id,
-                }))}
+                data={friends?.data?.suggestions ?? []}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={{ paddingBottom: 55 }}
                 renderItem={({ item }) => <FriendCard data={item} />}
+                // Infinite scroll props
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5} // Trigger when 50% from bottom
+                // Loading indicators
+                ListFooterComponent={renderFooter}
+                ListEmptyComponent={renderEmpty}
+                // Pull to refresh
+                refreshing={isFetching && offset === 0}
+                onRefresh={handleRefresh}
+                // Performance optimizations
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                initialNumToRender={15}
+                windowSize={10}
               />
             </View>
           </WebLayout>
@@ -140,6 +210,7 @@ const PopFriends = ({ visible, setter }) => {
       visible={visible}
       setVisible={(bool) => setter(bool)}
       mainStyle={styles.main}
+      title={"My Friends"}
       Component={({ closeModal }) => (
         <FindFriendsModal closeModal={closeModal} />
       )}
@@ -150,15 +221,41 @@ const PopFriends = ({ visible, setter }) => {
 export default PopFriends;
 
 const styles = StyleSheet.create({
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#666",
+    fontSize: 14,
+  },
+  emptyContainer: {
+    paddingVertical: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    marginTop: 10,
+    color: "#999",
+    fontSize: 16,
+  },
+  countText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "normal",
+  },
   action: {
-    width: Platform.OS == "web" ? "100%" : width * 0.8,
+    width: Platform.OS === "web" ? "100%" : width * 0.8,
     backgroundColor: colors.white,
     borderRadius: 35,
     alignSelf: "center",
-    elevation: 8,
+    // elevation: 8,
     marginBottom: 15,
     // paddingLeft: 8,
     paddingVertical: 4,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
   },
   actionNav: {
     flex: 1,

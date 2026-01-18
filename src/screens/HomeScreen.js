@@ -47,36 +47,6 @@ import {
 
 const { width, height } = Dimensions.get("screen");
 
-const HomeBlurView = () => {
-  return null;
-  return (
-    <BlurView
-      intensity={250}
-      experimentalBlurMethod="dimezisBlurView"
-      style={{
-        position: "absolute",
-        zIndex: -1,
-        width,
-        height,
-        backgroundColor: "transparent",
-      }}
-    >
-      <View
-        style={{
-          width: width * 0.9,
-          height: height * 0.55,
-          backgroundColor: colors.primary,
-          borderTopEndRadius: 70,
-          borderBottomEndRadius: 200,
-          borderBottomStartRadius: 300,
-          position: "absolute",
-          zIndex: -2,
-        }}
-      />
-    </BlurView>
-  );
-};
-
 const HomeScreen = () => {
   const [bools, setBools] = useState({ friendsModal: false });
   const [invite, setInvite] = useState(null);
@@ -229,7 +199,7 @@ const HomeScreen = () => {
           </WebLayout>
         )}
       />
-      <HomeBlurView />
+
       <PopFriends
         visible={bools.friendsModal}
         setter={(bool) => setBools({ ...bools, friendsModal: bool })}
