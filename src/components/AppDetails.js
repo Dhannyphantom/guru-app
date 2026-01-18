@@ -22,6 +22,7 @@ import AnimatedPressable from "./AnimatedPressable";
 import { formatPoints, getImageObj } from "../helpers/helperFunctions";
 import WebLayout from "./WebLayout";
 import { useRouter } from "expo-router";
+import LottieAnimator from "./LottieAnimator";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -129,7 +130,9 @@ export const DailyTask = ({ stats }) => {
             >
               Daily Task
             </AppText>
-            <AppText fontWeight="light">30 questions</AppText>
+            <AppText fontWeight="light">
+              {stats?.daily?.questionsRemaining} questions left
+            </AppText>
           </View>
           <View style={{ alignItems: "center" }}>
             <Avatar
@@ -150,7 +153,7 @@ export const DailyTask = ({ stats }) => {
         <ProgressBar
           barHeight={20}
           value={stats?.daily?.questionsAnswered}
-          max={stats?.daily?.questionsRemaining}
+          max={100}
         />
       </View>
     </BlurView>
@@ -186,7 +189,7 @@ export const DetailHeader = ({
   );
 };
 
-export const SubjectItem = ({ data, isEdit }) => {
+export const SubjectItem = ({ data, loading, isEdit }) => {
   const router = useRouter();
 
   let imgSrc = getImageObj(data?.image);
@@ -209,49 +212,61 @@ export const SubjectItem = ({ data, isEdit }) => {
 
   return (
     <Pressable onPress={handleNav} style={styles.subj}>
-      <View style={styles.subjImgView}>
-        <Image
-          resizeMode="contain"
-          source={imgSrc}
-          style={{ width: "60%", height: "60%" }}
-        />
-      </View>
-      <View style={{ marginTop: 10 }}>
-        <AppText
-          style={{ marginBottom: 10, textTransform: "capitalize" }}
-          fontWeight="bold"
-          size={"xlarge"}
+      {!loading ? (
+        <>
+          <View style={styles.subjImgView}>
+            <Image
+              resizeMode="contain"
+              source={imgSrc}
+              style={{ width: "60%", height: "60%" }}
+            />
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <AppText
+              style={{ marginBottom: 10, textTransform: "capitalize" }}
+              fontWeight="bold"
+              size={"xlarge"}
+            >
+              {data.name}
+            </AppText>
+            <AppText fontWeight="medium" size={"small"}>
+              {data.numberOfQuestions} question
+              {data?.numberOfQuestions > 1 ? "s" : ""}
+            </AppText>
+            <AppText
+              fontWeight={"light"}
+              style={{ marginTop: 4 }}
+              size={"xsmall"}
+            >
+              {data?.topicCount} topic{data?.topicCount > 1 ? "s" : ""}
+            </AppText>
+          </View>
+          <View style={styles.row}>
+            <Ionicons name="sparkles" size={16} color={colors.primary} />
+            <AppText style={{ color: colors.primary, marginLeft: 3 }}>
+              {data.questionsAnswered}
+            </AppText>
+          </View>
+          <BoltIcon
+            size={35}
+            style={{
+              position: "absolute",
+              bottom: 10,
+              right: 10,
+            }}
+          />
+        </>
+      ) : (
+        <View
+          style={{
+            height: width / 1.8,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
-          {data.name}
-        </AppText>
-        <AppText fontWeight="medium" size={"small"}>
-          {data.numberOfQuestions} question
-          {data?.numberOfQuestions > 1 ? "s" : ""}
-        </AppText>
-        <AppText
-          fontWeight={isEdit ? "light" : "thin"}
-          style={{ marginTop: 4 }}
-          size={"xsmall"}
-        >
-          {isEdit
-            ? `${data?.topicCount} topic${data?.topicCount > 1 ? "s" : ""}`
-            : data.category}
-        </AppText>
-      </View>
-      <View style={styles.row}>
-        <Ionicons name="sparkles" size={16} color={colors.primary} />
-        <AppText style={{ color: colors.primary, marginLeft: 3 }}>
-          {data.numbersPlayed}
-        </AppText>
-      </View>
-      <BoltIcon
-        size={35}
-        style={{
-          position: "absolute",
-          bottom: 10,
-          right: 10,
-        }}
-      />
+          <LottieAnimator visible />
+        </View>
+      )}
     </Pressable>
   );
 };
@@ -259,18 +274,20 @@ export const SubjectItem = ({ data, isEdit }) => {
 export const Subjects = ({
   noHeader = false,
   title,
+  data = [],
+  loading,
   contentContainerStyle,
 }) => {
   const renderDetails = ({ item, index }) => {
-    return <SubjectItem data={item} />;
+    return <SubjectItem data={item} loading={loading} />;
   };
 
   return (
     <View style={{ flex: 1 }}>
       {!noHeader && <DetailHeader title={title} />}
       <FlatList
-        numColumns={Platform.OS == "web" ? 4 : 2}
-        data={dummySubjects}
+        numColumns={Platform.OS === "web" ? 4 : 2}
+        data={loading ? dummySubjects : data}
         keyExtractor={(item) => item._id}
         contentContainerStyle={contentContainerStyle}
         renderItem={renderDetails}
@@ -280,7 +297,7 @@ export const Subjects = ({
 };
 //  onPress={() => router.push("SubjectList", { item })}
 
-export const SubjectCategory = () => {
+export const SubjectCategory = ({ data = [], loading }) => {
   const router = useRouter();
   const renderCategories = ({ item }) => {
     return (
@@ -306,14 +323,23 @@ export const SubjectCategory = () => {
             alignItems: "center",
           }}
         >
-          <Image source={item.image} style={{ width: "55%", height: "55%" }} />
+          {!loading ? (
+            <Image
+              source={item.image}
+              style={{ width: "55%", height: "55%" }}
+            />
+          ) : (
+            <LottieAnimator visible />
+          )}
         </View>
-        <AppText
-          style={{ maxWidth: "80%", lineHeight: 25 }}
-          fontWeight="medium"
-        >
-          {item.name}
-        </AppText>
+        {!loading && (
+          <AppText
+            style={{ maxWidth: "80%", lineHeight: 25 }}
+            fontWeight="medium"
+          >
+            {item.name}
+          </AppText>
+        )}
       </AnimatedPressable>
     );
   };
@@ -323,7 +349,7 @@ export const SubjectCategory = () => {
       <WebLayout>
         <DetailHeader title="Categories" hideRightView />
         <FlatList
-          data={subjectCategories}
+          data={loading ? subjectCategories : data}
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item._id}

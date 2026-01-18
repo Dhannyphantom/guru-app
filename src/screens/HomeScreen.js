@@ -40,6 +40,10 @@ import { useRouter } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
 import { PAD_BOTTOM } from "../helpers/dataStore";
 import Animated, { LinearTransition } from "react-native-reanimated";
+import {
+  useFetchCategoriesQuery,
+  useFetchSubjectsQuery,
+} from "../context/instanceSlice";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -83,6 +87,10 @@ const HomeScreen = () => {
   const { data: stats } = useFetchUserStatsQuery();
   useFetchFriendsQuery();
   const [updateUserProfile] = useUpdateUserProfileMutation();
+  const { data: categories, isLoading: fetchingCategories } =
+    useFetchCategoriesQuery();
+  const { data: subjects, isLoading: fetchingSubjects } =
+    useFetchSubjectsQuery();
 
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -209,8 +217,15 @@ const HomeScreen = () => {
               </Animated.View>
             </WebLayout>
 
-            <SubjectCategory />
-            <Subjects title={"My Subjects"} />
+            <SubjectCategory
+              data={categories?.data}
+              loading={fetchingCategories}
+            />
+            <Subjects
+              title={"My Subjects"}
+              data={subjects?.data}
+              loading={fetchingSubjects}
+            />
           </WebLayout>
         )}
       />

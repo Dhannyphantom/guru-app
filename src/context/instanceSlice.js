@@ -22,7 +22,10 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
 
     fetchSubjects: builder.query({
-      query: (type) => `/instance/subjects?type=${type}`,
+      query: (type) => ({
+        url: "/instance/subjects",
+        params: { type },
+      }),
     }),
     fetchInstance: builder.query({
       query: ({ route, schoolId, topicId, subjectId }) => ({
