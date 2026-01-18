@@ -6,6 +6,7 @@ const initialState = {
   token: null,
   user: null,
   appInfo: null,
+  stat: null,
 };
 
 export const extendedUserApiSlice = apiSlice.injectEndpoints({
@@ -155,6 +156,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_REWARDS"],
     }),
+    fetchUserStats: builder.query({
+      query: () => ({
+        url: "/users/user_stats",
+        timeout: 15000,
+      }),
+      providesTags: ["FETCH_REWARDS"],
+    }),
     fetchTransactions: builder.query({
       query: (params) => ({
         url: "/users/transactions",
@@ -277,6 +285,12 @@ export const usersSlice = createSlice({
       }
     );
     builder.addMatcher(
+      extendedUserApiSlice.endpoints.fetchUserStats.matchFulfilled,
+      (state, action) => {
+        state.stat = action.payload.data;
+      }
+    );
+    builder.addMatcher(
       extendedUserApiSlice.endpoints.updateUserAvatar.matchFulfilled,
       (state, action) => {
         state.user = { ...state.user, avatar: action.payload.avatar };
@@ -307,6 +321,7 @@ export const {
   useUpdateUserProfileMutation,
   useRenewSubscriptionMutation,
   useStudentActionMutation,
+  useFetchUserStatsQuery,
   useLazySearchStudentsQuery,
   useFetchUserInfoQuery,
   useLazyFetchUserInfoQuery,

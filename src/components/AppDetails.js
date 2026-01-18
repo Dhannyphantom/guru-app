@@ -88,7 +88,7 @@ export const ProgressBar = ({
   );
 };
 
-export const DailyTask = () => {
+export const DailyTask = ({ stats }) => {
   const user = useSelector(selectUser);
   return (
     <BlurView style={styles.container}>
@@ -147,7 +147,11 @@ export const DailyTask = () => {
             </AppText>
           </View>
         </View>
-        <ProgressBar barHeight={20} />
+        <ProgressBar
+          barHeight={20}
+          value={stats?.daily?.questionsAnswered}
+          max={stats?.daily?.questionsRemaining}
+        />
       </View>
     </BlurView>
   );

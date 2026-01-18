@@ -27,6 +27,7 @@ import {
   selectUser,
   useFetchFriendsQuery,
   useFetchUserQuery,
+  useFetchUserStatsQuery,
   useUpdateUserProfileMutation,
   // useUpdateUserProfileMutation,
 } from "../context/usersSlice";
@@ -79,6 +80,7 @@ const HomeScreen = () => {
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
   const { refetch } = useFetchUserQuery();
+  const { data: stats } = useFetchUserStatsQuery();
   useFetchFriendsQuery();
   const [updateUserProfile] = useUpdateUserProfileMutation();
 
@@ -160,13 +162,11 @@ const HomeScreen = () => {
 
   useEffect(() => {
     try {
+      refetch();
       registerForPushNotificationsAsync().then((token) => {
         updateUserProfile({ expoPushToken: token }).unwrap();
       });
     } catch (_errr) {}
-  }, []);
-  useEffect(() => {
-    refetch();
   }, []);
 
   return (
@@ -202,7 +202,7 @@ const HomeScreen = () => {
                 justifyContent: "space-around",
               }}
             >
-              <DailyTask />
+              <DailyTask stats={stats?.data} />
               <Invited data={invite} onPress={handleInvite} />
               <Animated.View layout={LinearTransition}>
                 <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />

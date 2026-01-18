@@ -42,6 +42,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 2,
   },
   text: {
     elevation: 5,
