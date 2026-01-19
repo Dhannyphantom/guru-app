@@ -32,6 +32,8 @@ import AppButton from "../components/AppButton";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
+import { getFullName } from "../helpers/helperFunctions";
+import Avatar from "../components/Avatar";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -153,11 +155,11 @@ const CategoryCard = ({ item, onPress, index }) => {
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.95, { damping: 15 });
+    scale.value = withSpring(0.95, { damping: 30 });
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15 });
+    scale.value = withSpring(1, { damping: 30 });
   };
 
   return (
@@ -208,11 +210,11 @@ const QuickContactCard = ({ item, index }) => {
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.95, { damping: 15 });
+    scale.value = withSpring(0.95, { damping: 35 });
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15 });
+    scale.value = withSpring(1, { damping: 35 });
   };
 
   return (
@@ -358,13 +360,18 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
         <View style={styles.formBody}>
           {/* User Info Display */}
           <View style={styles.userInfoCard}>
-            <Ionicons name="person" size={20} color={colors.primary} />
+            {/* <Ionicons name="person" size={20} color={colors.primary} /> */}
+            <Avatar size={50} source={user?.avatar?.image} />
             <View style={{ marginLeft: 10, flex: 1 }}>
               <AppText size="xsmall" style={{ color: colors.medium }}>
                 Sending as
               </AppText>
-              <AppText fontWeight="semibold" size="small">
-                {user?.firstName} {user?.lastName}
+              <AppText
+                fontWeight="semibold"
+                style={{ textTransform: "capitalize" }}
+                size="large"
+              >
+                {getFullName(user, true)}
               </AppText>
               <AppText size="xsmall" style={{ color: colors.medium }}>
                 {user?.email}
@@ -497,7 +504,7 @@ const ContactSupportScreen = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Contact Support" />
+      <AppHeader title="How can we help?" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -524,9 +531,6 @@ const ContactSupportScreen = () => {
 
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <AppText fontWeight="black" size="xxlarge">
-            How can we help?
-          </AppText>
           <AppText
             size="regular"
             style={{ color: colors.medium, marginTop: 8, lineHeight: 24 }}
@@ -637,11 +641,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    // elevation: 2,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.08,
+    // shadowRadius: 4,
   },
   categoryIcon: {
     width: 56,
@@ -663,11 +667,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 14,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    // elevation: 1,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 1 },
+    // shadowOpacity: 0.05,
+    // shadowRadius: 2,
   },
   quickContactIcon: {
     width: 44,
@@ -687,11 +691,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
     overflow: "hidden",
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    // elevation: 1,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 1 },
+    // shadowOpacity: 0.05,
+    // shadowRadius: 2,
   },
   commonIssueHeader: {
     flexDirection: "row",

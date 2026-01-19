@@ -15,16 +15,18 @@ import Animated, {
   useSharedValue,
   withSpring,
   interpolate,
+  LinearTransition,
+  withTiming,
 } from "react-native-reanimated";
 
 // Import your actual components
 import AppText from "../components/AppText";
-import Screen from "../components/Screen";
 import AppHeader from "../components/AppHeader";
 import colors from "../helpers/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
-const { width, height } = Dimensions.get("screen");
+// const { width, height } = Dimensions.get("screen");
 
 // FAQ Data organized by categories
 const FAQ_DATA = [
@@ -407,8 +409,8 @@ const AccordionItem = ({ item, isExpanded, onToggle }) => {
   const rotation = useSharedValue(0);
 
   React.useEffect(() => {
-    height.value = withSpring(isExpanded ? 1 : 0, { damping: 55 });
-    rotation.value = withSpring(isExpanded ? 180 : 0, { damping: 55 });
+    height.value = withTiming(isExpanded ? 1 : 0);
+    rotation.value = withTiming(isExpanded ? 180 : 0);
   }, [isExpanded]);
 
   const bodyStyle = useAnimatedStyle(() => ({
@@ -422,7 +424,7 @@ const AccordionItem = ({ item, isExpanded, onToggle }) => {
   }));
 
   return (
-    <View style={styles.accordionItem}>
+    <Animated.View layout={LinearTransition} style={styles.accordionItem}>
       <Pressable style={styles.accordionHeader} onPress={onToggle}>
         <View style={{ flex: 1, paddingRight: 10 }}>
           <AppText fontWeight="semibold" size="regular">
@@ -440,7 +442,7 @@ const AccordionItem = ({ item, isExpanded, onToggle }) => {
           </AppText>
         </View>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -499,6 +501,7 @@ const FAQScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState("general");
 
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const toggleItem = (id) => {
     setExpandedItems((prev) => {
@@ -625,7 +628,12 @@ const FAQScreen = () => {
                     (selectedCategory === null && item.id === "all")) &&
                     styles.filterChipTextActive,
                 ]}
-                fontWeight="medium"
+                fontWeight={
+                  selectedCategory === item.id ||
+                  (selectedCategory === null && item.id === "all")
+                    ? "heavy"
+                    : "medium"
+                }
                 size="xsmall"
               >
                 {item.category}
@@ -719,7 +727,10 @@ const FAQScreen = () => {
             </AppText>
           </View>
         </View>
-        <Pressable style={styles.supportButton}>
+        <Pressable
+          style={styles.supportButton}
+          onPress={() => router?.push("/main/support")}
+        >
           <Ionicons
             name="mail"
             size={18}
@@ -784,6 +795,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1.5,
+    borderBottomWidth: 3,
     borderColor: colors.primary,
   },
   filterChipActive: {
@@ -884,6 +896,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    boxShadow: `5px 10px 24px ${colors.primary}45`,
+
     // elevation: 8,
     // shadowColor: "#000",
     // shadowOffset: { width: 0, height: -2 },
