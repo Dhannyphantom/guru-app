@@ -1,11 +1,9 @@
 /* eslint-disable react/no-unescaped-entities */
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState } from "react";
 import {
   View,
-  FlatList,
   Pressable,
   StyleSheet,
-  Dimensions,
   Platform,
   TextInput,
   KeyboardAvoidingView,
@@ -34,8 +32,7 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import { getFullName } from "../helpers/helperFunctions";
 import Avatar from "../components/Avatar";
-
-const { width, height } = Dimensions.get("screen");
+import { useRouter } from "expo-router";
 
 // Support Categories
 const SUPPORT_CATEGORIES = [
@@ -101,12 +98,12 @@ const QUICK_CONTACTS = [
     action: () => Linking.openURL("mailto:support@guruedutech.com"),
   },
   {
-    id: "whatsapp",
-    title: "WhatsApp",
-    subtitle: "+234 XXX XXX XXXX",
-    icon: "logo-whatsapp",
-    color: "#25D366",
-    action: () => Linking.openURL("https://wa.me/234XXXXXXXXXX"),
+    id: "livechat",
+    title: "Live Chat",
+    subtitle: "Chat with us in real-time",
+    icon: "chatbubbles", // Changed from logo-whatsapp
+    color: "#25D366", // Kept the same nice green
+    action: "chat", // Special identifier instead of URL
   },
   {
     id: "phone",
@@ -320,7 +317,7 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
     // Simulate API call
     setTimeout(() => {
       onSubmit({
-        category: category.title,
+        category,
         subject,
         message,
         userEmail: user?.email,
@@ -471,23 +468,50 @@ const ContactSupportScreen = () => {
   const [expandedIssue, setExpandedIssue] = useState(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
+  const router = useRouter();
+
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
   };
 
   const handleFormSubmit = (data) => {
-    console.log("Support request:", data);
+    // return console.log({ data });
+
+    router.push({
+      pathname: "/main/support/chat",
+      params: {
+        category: data?.category?.id,
+        categoryTitle: data?.category?.title,
+        categoryDescription: data?.category?.description,
+        categoryIcon: data?.category?.icon,
+        categoryColor: data?.category?.color,
+      },
+    });
+
     setSelectedCategory(null);
-    setShowSuccessMessage(true);
+    // setShowSuccessMessage(true);
 
     // Hide success message after 3 seconds
-    setTimeout(() => {
-      setShowSuccessMessage(false);
-    }, 3000);
+    // setTimeout(() => {
+    //   setShowSuccessMessage(false);
+    // }, 3000);
   };
 
   const toggleIssue = (id) => {
     setExpandedIssue(expandedIssue === id ? null : id);
+  };
+
+  const handleLiveChatPress = () => {
+    router.push({
+      pathname: "/main/support/chat",
+      params: {
+        category: "general",
+        categoryTitle: "Live Chat",
+        categoryDescription: "Chat with our support team in real-time",
+        categoryIcon: "chatbubbles",
+        categoryColor: "#25D366",
+      },
+    });
   };
 
   if (selectedCategory) {
@@ -546,7 +570,15 @@ const ContactSupportScreen = () => {
             Quick Contact
           </AppText>
           {QUICK_CONTACTS.map((item, index) => (
-            <QuickContactCard key={item.id} item={item} index={index} />
+            <QuickContactCard
+              key={item.id}
+              item={{
+                ...item,
+                action:
+                  item?.id === "livechat" ? handleLiveChatPress : item?.action,
+              }}
+              index={index}
+            />
           ))}
         </View>
 
