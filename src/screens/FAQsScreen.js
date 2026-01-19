@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react/no-unescaped-entities */
 import React, { useState, useMemo } from "react";
 import {
@@ -5,7 +6,6 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  Dimensions,
   Platform,
   TextInput,
 } from "react-native";
@@ -13,7 +13,6 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   interpolate,
   LinearTransition,
   withTiming,
@@ -49,12 +48,18 @@ const FAQ_DATA = [
       },
       {
         id: "g3",
+        question: "How do I get the most out of Guru?",
+        answer:
+          "Guru is designed to help you truly learn, not just guess. Start by studying your chosen topic using your notes or class materials, then test yourself with topic-based quizzes tailored for focused learning. Start Quiz only when you’re ready, Guru reinforces understanding, boosts retention, and helps you track real academic growth.",
+      },
+      {
+        id: "g4",
         question: "What are Guru Tokens (GT)?",
         answer:
           "Guru Tokens (GT) are points you earn by answering questions correctly, maintaining streaks, and completing daily tasks. You can use GT to renew subscriptions, convert to cash, or purchase airtime and data.",
       },
       {
-        id: "g4",
+        id: "g5",
         question: "Is my data secure?",
         answer:
           "Yes! We take data security seriously. All your personal information is encrypted and stored securely. We never share your data with third parties without your consent.",
@@ -70,13 +75,13 @@ const FAQ_DATA = [
         id: "s1",
         question: "How much does a subscription cost?",
         answer:
-          "Student subscriptions start at ₦2,000/month, with discounts for longer periods (₦4,000 for 2 months, ₦6,000 for 3 months, up to ₦24,000 for 12 months). School subscriptions are ₦50,000/year. We offer flexible payment plans to suit your needs.",
+          "Student subscriptions start at ₦1,000/month, and spans for longer periods (₦2,000 for 2 months, ₦3,000 for 3 months, up to ₦12,000 for 12 months). School subscriptions are ₦10,000/term i.e valid for 3 months. We offer flexible payment plans to suit your needs.",
       },
       {
         id: "s2",
         question: "Can I renew subscription with Guru Tokens?",
         answer:
-          "Yes! You can use your earned Guru Tokens to renew your subscription. The conversion rate is 10 GT = ₦1. Simply go to Settings → Renew Subscription to use your points.",
+          "Yes! You can use your earned Guru Tokens to renew your subscription. The conversion rate is 10 GT = ₦1. Simply go to Profile → Subscriptions → Withdraw to use your points.",
       },
       {
         id: "s3",
@@ -107,7 +112,7 @@ const FAQ_DATA = [
         id: "p1",
         question: "How do I earn points?",
         answer:
-          "Earn points by: answering new questions correctly (40 points), answering repeated questions correctly (0.2 points), maintaining daily streaks, completing weekly quotas, and inviting friends. Note: Incorrect answers deduct 15 points.",
+          "Earn points by: answering new questions correctly (5 GT), answering repeated questions correctly (0.2 GT), maintaining daily streaks, completing weekly quotas, and inviting friends. NOTE: Incorrect answers deduct 2 GT.",
       },
       {
         id: "p2",
@@ -119,13 +124,13 @@ const FAQ_DATA = [
         id: "p3",
         question: "How do I convert points to cash?",
         answer:
-          "Go to Wallet → Withdraw. Enter the amount you want to withdraw (10 GT = ₦1), add your bank account details, and submit. Withdrawals are processed within 24 hours and credited directly to your bank account.",
+          "Go to Profile → Subcriptions → Bank Transfer. Enter the amount you want to withdraw (10 GT = ₦1), add your bank account details, and submit. Withdrawals are processed within 24 hours and credited directly to your bank account.",
       },
       {
         id: "p4",
         question: "Can I buy airtime/data with points?",
         answer:
-          "Yes! Navigate to Wallet → Recharge (for airtime) or Data. Select your network (MTN, GLO, Airtel, 9Mobile), enter your phone number, choose a bundle, and confirm. Your airtime/data is delivered instantly.",
+          "Yes! Navigate to Profile → Subscriptions (for airtime) or Data. Select your network (MTN, GLO, Airtel, 9Mobile), enter your phone number, choose a bundle, and confirm. Your airtime/data is delivered instantly.",
       },
       {
         id: "p5",
@@ -144,13 +149,13 @@ const FAQ_DATA = [
         id: "q1",
         question: "What types of quizzes are available?",
         answer:
-          "We offer three types: Solo practice quizzes (individual learning), Multiplayer friend challenges (compete with up to 3 friends), and School assignments (teacher-created tasks). Each type has different point calculations.",
+          "We offer three types: Solo practice quizzes (individual learning), Multiplayer friend challenges (compete with up to 3 friends), and School quiz & assignments (teacher-created tasks). Each type has different point calculations.",
       },
       {
         id: "q2",
         question: "How does multiplayer mode work?",
         answer:
-          "Invite up to 3 friends to a quiz session. Each player earns points based on their own answer history - new questions earn full points (40), repeated questions earn 0.2 points. The player with the highest score wins! Points are calculated fairly for each player.",
+          "Invite up to 3 friends to a quiz session. Each player earns points based on their own answer history - new questions earn full tokens (5 GT), repeated questions earn 0.2 GT. The player with the highest score wins! Points are calculated fairly for each player.",
       },
       {
         id: "q3",
@@ -162,13 +167,13 @@ const FAQ_DATA = [
         id: "q4",
         question: "What happens if I answer incorrectly?",
         answer:
-          "Incorrect answers deduct 15 points from your score. However, the question is added to your question bank (qBank) so you can review and learn from your mistakes.",
+          "Incorrect answers deduct 2 GT from your score. However, the question is added to your question history so you can review and learn from your mistakes.",
       },
       {
         id: "q5",
         question: "How are quiz points calculated?",
         answer:
-          "Points calculation: New correct answer = +40 points, Repeated correct answer = +0.2 points (questions already in your qBank), Wrong answer = -15 points. Your final score is the total of all questions, with a minimum of 0.",
+          "Points calculation: New correct answer = +5 GT, Repeated correct answer = +0.2 GT (questions already answered), Wrong answer = -2 GT. Your final score is the total of all questions, with a minimum of 0.",
       },
       {
         id: "q6",
@@ -188,7 +193,7 @@ const FAQ_DATA = [
         id: "sc1",
         question: "How do students join a school?",
         answer:
-          'Search for your school in the app → Tap "Join School" → Wait for teacher verification. Once a verified teacher approves you, you gain access to school assignments, announcements, and the school leaderboard.',
+          'Search for your school in the School tab → Tap "Join School" → Wait for teacher verification. Once a verified teacher approves you, you gain access to school assignments, announcements, and the school leaderboard.',
       },
       {
         id: "sc2",
@@ -225,7 +230,7 @@ const FAQ_DATA = [
         id: "so1",
         question: "How do I add friends?",
         answer:
-          'Go to Find Friends → Search for students by name or username → Tap "Follow". When they follow you back, you become "mutuals" and can invite each other to multiplayer quizzes and see each other on your friends list.',
+          'Click Find Friends in Home screen → Search for students by name or username → Tap "Follow". When they follow you back, you become "mutuals" and can invite each other to multiplayer quizzes and see each other on your friends list.',
       },
       {
         id: "so2",
@@ -237,7 +242,7 @@ const FAQ_DATA = [
         id: "so3",
         question: "How do I invite friends to a quiz?",
         answer:
-          'Go to Premium Quiz → Select subjects and topics → Choose "Friends" mode → Select up to 3 friends → Send invites. Friends have 24 hours to accept. Once all players join the lobby, the host can start the quiz.',
+          'Enter Quiz Room by clicking the Rocket Icon → Choose "Friends" mode → Select subjects and topics → Select up to 3 friends → Send invites. Friends have few hours to accept. Once all players join the lobby, the host can start the quiz.',
       },
       {
         id: "so4",
@@ -249,7 +254,7 @@ const FAQ_DATA = [
         id: "so5",
         question: 'What does "status" mean on friend profiles?',
         answer:
-          'Status indicators: "Mutual" (you follow each other), "Following" (you follow them), "Follower" (they follow you), or null (no connection). Mutual friends can invite each other to quizzes.',
+          'Status indicators: "Mutual" (you follow each other), "Following" (you follow them), "Follower" (they follow you), or none (no connection). Mutual friends can invite each other to quizzes.',
       },
     ],
   },
@@ -262,7 +267,7 @@ const FAQ_DATA = [
         id: "a1",
         question: "How do I update my profile?",
         answer:
-          "Go to Profile → Tap Edit icon → Update your information (first name, last name, prefix, class level, location, gender, avatar) → Save. Note: Email and username cannot be changed for security reasons.",
+          "Go to Profile → Click Edit Profile → Update your information (first name, last name, prefix, class level, location, gender, avatar) → Save. Note: Email and username cannot be changed for security reasons.",
       },
       {
         id: "a2",
@@ -286,7 +291,7 @@ const FAQ_DATA = [
         id: "a5",
         question: "What are the different account types?",
         answer:
-          "Student (answer questions, earn points, join schools), Teacher (create assignments, manage students, grade work), Professional (create content, questions, topics), and Manager (oversee professionals and content quality).",
+          "Student (answer questions, earn points, join schools), Teacher (create assignments, manage students, grade work), Professional (create content, questions, topics)",
       },
     ],
   },
@@ -397,7 +402,7 @@ const FAQ_DATA = [
         id: "f5",
         question: "How are rankings calculated?",
         answer:
-          "Rankings are based on: Total Points (primary factor), Current Points (secondary), School Points (for school leaderboard), Streak (tie-breaker). Rankings update in real-time as students earn or spend points.",
+          "Rankings are based on: Total Points (primary factor), School Points (for school leaderboard), Streak (tie-breaker). Rankings update in real-time as students earn or spend points.",
       },
     ],
   },
