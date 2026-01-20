@@ -28,7 +28,7 @@ import Screen from "../components/Screen";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
-import { getFullName } from "../helpers/helperFunctions";
+import { capCapitalize, getFullName } from "../helpers/helperFunctions";
 // import Avatar from "../components/Avatar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
@@ -59,6 +59,34 @@ const MessageBubble = ({ message, isCurrentUser, index }) => {
       layout={LinearTransition.springify()}
       style={[styles.messageContainer, { alignItems: alignment }]}
     >
+      {Boolean(message?.category) && (
+        <View>
+          <View style={[styles.headerInfo, styles.headerInfoMsg]}>
+            <View
+              style={[
+                styles.headerIcon,
+                { backgroundColor: message?.category?.color + "20" },
+              ]}
+            >
+              <Ionicons
+                name={message?.category?.icon}
+                size={20}
+                color={message?.category?.color}
+              />
+            </View>
+            <View>
+              <AppText fontWeight="bold" size="regular">
+                {message?.category?.title}
+              </AppText>
+              <View style={styles.statusRow}>
+                <AppText size="xsmall" style={{ color: colors.medium }}>
+                  {message?.category?.description}
+                </AppText>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
       <View style={[styles.messageBubble, { backgroundColor }]}>
         {/* Support Badge */}
         {isSupport && (
@@ -234,10 +262,7 @@ const ChatRoomScreen = () => {
   const [showQuickReplies, setShowQuickReplies] = useState(true);
 
   // Extract category info from params
-  const categoryTitle = params?.categoryTitle || "Support Chat";
-  const categoryDescription = params?.categoryDescription || "";
-  const categoryIcon = params?.categoryIcon || "chatbubbles";
-  const categoryColor = params?.categoryColor || colors.primary;
+  const categoryData = params?.data ? JSON.parse(params?.data) : {};
 
   // Quick replies based on category
   const quickReplies = [
@@ -250,21 +275,65 @@ const ChatRoomScreen = () => {
 
   // Initialize with welcome message
   useEffect(() => {
-    const welcomeMessage = {
-      id: "0",
-      sender: "support",
-      text: `Hello ${getFullName(
-        user,
-        true
-      )}! 👋\n\nThank you for contacting support regarding "${categoryTitle}".\n\n${categoryDescription}\n\nHow can we help you today?`,
-      timestamp: new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status: MessageStatus.DELIVERED,
-    };
+    if (categoryData) {
+      const starterMessage = {
+        id: "0",
+        sender: "user",
+        text: `${categoryData?.subject?.toUpperCase()}\n\n${
+          categoryData?.message
+        }`,
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        category: categoryData?.category,
+        status: MessageStatus.DELIVERED,
+      };
 
-    setMessages([welcomeMessage]);
+      setMessages([starterMessage]);
+      // Simulate support typing
+      setTimeout(() => {
+        setIsTyping(true);
+      }, 1000);
+
+      setTimeout(() => {
+        setIsTyping(false);
+
+        const supportMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: "support",
+          text: `Thank you ${capCapitalize(
+            getFullName(user)
+          )}.\nWe apologise you're experiencing such issue.\n\nA member of our support team has been notified and will assist you shortly`,
+          timestamp: formatTime(),
+          status: MessageStatus.DELIVERED,
+        };
+
+        setMessages((prev) => [...prev, supportMessage]);
+
+        // Mark user message as read
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === "0" ? { ...msg, status: MessageStatus.READ } : msg
+          )
+        );
+      }, 3500);
+    } else {
+      const welcomeMessage = {
+        id: "0",
+        sender: "support",
+        text: `Hello ${capCapitalize(
+          getFullName(user, true)
+        )}! 👋\n\nThank you for contacting support\n\nHow can we help you today?`,
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        status: MessageStatus.DELIVERED,
+      };
+
+      setMessages([welcomeMessage]);
+    }
   }, []);
 
   // Auto-scroll to bottom when new messages arrive
@@ -399,14 +468,14 @@ const ChatRoomScreen = () => {
           <View
             style={[
               styles.headerIcon,
-              { backgroundColor: categoryColor + "20" },
+              { backgroundColor: colors.primary + "20" },
             ]}
           >
-            <Ionicons name={categoryIcon} size={20} color={categoryColor} />
+            <Ionicons name={"chatbubbles"} size={20} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <AppText fontWeight="bold" size="regular">
-              {categoryTitle}
+              Support Chat
             </AppText>
             <View style={styles.statusRow}>
               <View style={styles.onlineDot} />
@@ -523,6 +592,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+  },
+  headerInfoMsg: {
+    flex: null,
+    backgroundColor: colors.white,
+    padding: 8,
+    borderRadius: 8,
+    borderTopStartRadius: 30,
+    borderBottomLeftRadius: 30,
   },
   headerIcon: {
     width: 40,

@@ -98,20 +98,20 @@ const QUICK_CONTACTS = [
     action: () => Linking.openURL("mailto:support@guruedutech.com"),
   },
   {
-    id: "livechat",
-    title: "Live Chat",
-    subtitle: "Chat with us in real-time",
-    icon: "chatbubbles", // Changed from logo-whatsapp
-    color: "#25D366", // Kept the same nice green
-    action: "chat", // Special identifier instead of URL
-  },
-  {
     id: "phone",
     title: "Call Us",
-    subtitle: "+234 XXX XXX XXXX",
+    subtitle: "+234 815 625 0199",
     icon: "call",
     color: "#FF6B6B",
-    action: () => Linking.openURL("tel:+234XXXXXXXXXX"),
+    action: () => Linking.openURL("tel:+2348156250199"),
+  },
+  {
+    id: "facebook",
+    title: "Facebook",
+    subtitle: "Chat with us in real-time",
+    icon: "logo-facebook", // Changed from logo-whatsapp
+    color: colors.facebook, // Kept the same nice green
+    action: "chat", // Special identifier instead of URL
   },
 ];
 
@@ -476,10 +476,10 @@ const ContactSupportScreen = () => {
 
   const handleFormSubmit = (data) => {
     // return console.log({ data });
-
     router.push({
       pathname: "/main/support/chat",
       params: {
+        data: JSON.stringify(data),
         category: data?.category?.id,
         categoryTitle: data?.category?.title,
         categoryDescription: data?.category?.description,
@@ -567,25 +567,35 @@ const ContactSupportScreen = () => {
         {/* Quick Contact Options */}
         <View style={styles.section}>
           <AppText fontWeight="bold" size="large" style={styles.sectionTitle}>
-            Quick Contact
+            Contact Us
           </AppText>
-          {QUICK_CONTACTS.map((item, index) => (
-            <QuickContactCard
-              key={item.id}
-              item={{
-                ...item,
-                action:
-                  item?.id === "livechat" ? handleLiveChatPress : item?.action,
-              }}
-              index={index}
-            />
-          ))}
+          {QUICK_CONTACTS.map((item, index) => {
+            return (
+              <QuickContactCard
+                key={item.id}
+                item={{
+                  ...item,
+                  action:
+                    item?.id === "livechat"
+                      ? handleLiveChatPress
+                      : item?.action,
+                }}
+                index={index}
+              />
+            );
+          })}
         </View>
 
         {/* Support Categories */}
         <View style={styles.section}>
-          <AppText fontWeight="bold" size="large" style={styles.sectionTitle}>
+          <AppText fontWeight="bold" size="large" style={{}}>
             What do you need help with?
+          </AppText>
+          <AppText
+            size="regular"
+            style={{ color: colors.medium, marginBottom: 15, lineHeight: 24 }}
+          >
+            Select an option to open up a live chat with the support team
           </AppText>
           {SUPPORT_CATEGORIES.map((item, index) => (
             <CategoryCard
