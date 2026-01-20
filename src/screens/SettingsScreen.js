@@ -9,11 +9,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultSettings } from "../helpers/dataStore";
 import { ProfileLink } from "./ProfileScreen";
 import { useRouter } from "expo-router";
+import { useSelector } from "react-redux";
+import { selectUser } from "../context/usersSlice";
 
 const SettingsScreen = () => {
   const [settingsData, setSettingsData] = useState([]);
 
   const router = useRouter();
+  const user = useSelector(selectUser);
+  const isPro = ["professional", "manager"].includes(user?.accountType);
 
   const fetchSettings = async () => {
     const savedSettings = await AsyncStorage.getItem("settings");
@@ -56,7 +60,9 @@ const SettingsScreen = () => {
         <View>
           <ProfileLink
             title={"Contact us"}
-            onPress={() => router.push("/main/support")}
+            onPress={() =>
+              router.push(isPro ? "/main/support/pro" : "/main/support")
+            }
             icon={"call"}
           />
           <ProfileLink

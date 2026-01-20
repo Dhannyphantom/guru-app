@@ -33,7 +33,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
             ...media,
             media: true,
             bucket: "avatars",
-          })
+          }),
         );
         formData.append("upload", {
           uri: media.uri,
@@ -483,13 +483,13 @@ export const usersSlice = createSlice({
       (state, action) => {
         state.token = action.payload.token;
         state.user = action.payload.user;
-      }
+      },
     );
     builder.addMatcher(
       extendedUserApiSlice.endpoints.fetchAppInfo.matchFulfilled,
       (state, action) => {
         state.appInfo = action.payload?.data;
-      }
+      },
     );
     builder.addMatcher(
       extendedUserApiSlice.endpoints.signInUser.matchFulfilled,
@@ -497,31 +497,31 @@ export const usersSlice = createSlice({
         state.token = action.payload.token;
         state.user = action.payload.user;
         // extendedUserApiSlice.endpoints.fetchUser.initiate();
-      }
+      },
     );
     builder.addMatcher(
       extendedUserApiSlice.endpoints.fetchUser.matchFulfilled,
       (state, action) => {
         state.user = action.payload.user;
-      }
+      },
     );
     builder.addMatcher(
       extendedUserApiSlice.endpoints.fetchUserStats.matchFulfilled,
       (state, action) => {
         state.stat = action.payload.data;
-      }
+      },
     );
     builder.addMatcher(
       extendedUserApiSlice.endpoints.updateUserAvatar.matchFulfilled,
       (state, action) => {
         state.user = { ...state.user, avatar: action.payload.avatar };
-      }
+      },
     );
     builder.addMatcher(
       extendedUserApiSlice.endpoints.updateUserProfile.matchFulfilled,
       (state, action) => {
         state.user = { ...state.user, ...action.payload.user };
-      }
+      },
     );
   },
 });
@@ -572,6 +572,11 @@ export const {
   useMarkTicketMessagesReadMutation,
   useRateTicketMutation,
   useDeleteTicketMutation,
+  useFetchAllTicketsAdminQuery,
+  useAdminReplyTicketMutation,
+  useUpdateTicketStatusMutation,
+  useUpdateTicketPriorityMutation,
+  useFetchSupportStatsQuery,
 } = extendedUserApiSlice;
 
 export default usersSlice.reducer;

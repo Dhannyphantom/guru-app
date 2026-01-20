@@ -656,8 +656,8 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
                 style={{ color: colors.medium, lineHeight: 18 }}
               >
                 • Include transaction reference for payment issues{"\n"}•
-                Mention device model for technical issues{"\n"}• Attach
-                screenshots if possible
+                Mention device model for technical issues{"\n"}• Explain in
+                details how to reproduce same issue
               </AppText>
             </View>
           </View>

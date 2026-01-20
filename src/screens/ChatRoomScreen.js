@@ -270,14 +270,16 @@ const ChatRoomScreen = () => {
   const [typingUser, setTypingUser] = useState(null);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
 
-  const { data, isLoading } = useFetchSingleTicketQuery(params?.ticketId);
+  const { data, isLoading, error } = useFetchSingleTicketQuery(
+    params?.ticketId,
+  );
   const [sendTicketMessage] = useSendTicketMessageMutation();
 
   const insets = useSafeAreaInsets();
   const typingTimeoutRef = useRef(null);
 
   // Extract category info from params
-  console.log({ data });
+  // console.log({ error, params });
 
   // Quick replies based on category
   const quickReplies = [
@@ -373,25 +375,6 @@ const ChatRoomScreen = () => {
     // }, 3500);
   };
 
-  const generateSupportResponse = (userText) => {
-    const lowerText = userText.toLowerCase();
-
-    if (lowerText.includes("payment") || lowerText.includes("subscription")) {
-      return "I understand you're having payment issues. Let me help you with that.\n\nCould you please provide:\n1. Your transaction reference\n2. The date of the transaction\n3. The amount charged\n\nThis will help me investigate and resolve the issue quickly.";
-    } else if (lowerText.includes("points") || lowerText.includes("withdraw")) {
-      return "I can help with your points and withdrawal concerns.\n\nPlease note:\n• Minimum withdrawal is 1000 GT (₦100)\n• Ensure your bank details are correct\n• Withdrawals process within 24 hours\n\nWhat specific issue are you experiencing?";
-    } else if (
-      lowerText.includes("question") ||
-      lowerText.includes("loading")
-    ) {
-      return "If questions aren't loading, please check:\n\n1. Your internet connection\n2. Daily limits (100 questions/day)\n3. Your subscription status\n4. App version (update if needed)\n\nHave you checked these already?";
-    } else if (lowerText.includes("account") || lowerText.includes("profile")) {
-      return "I'm here to help with your account.\n\nWhat specifically do you need help with?\n• Reset password\n• Update profile\n• Verification issues\n• Other account concerns";
-    } else {
-      return "Thank you for providing more details. A member of our support team has been notified and will assist you shortly.\n\nIn the meantime, is there anything else I can help you with?";
-    }
-  };
-
   const handleQuickReply = (reply) => {
     handleSendMessage(reply);
   };
@@ -436,7 +419,6 @@ const ChatRoomScreen = () => {
     socket.on("new_message", ({ message }) => {
       setMessages((prev) => [...prev, message]);
     });
-
     return () => socket.off("new_message");
   }, []);
 
@@ -445,8 +427,8 @@ const ChatRoomScreen = () => {
     socket.on("message_delivered", ({ messageId }) => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === messageId ? { ...msg, status: "delivered" } : msg
-        )
+          msg._id === messageId ? { ...msg, status: "delivered" } : msg,
+        ),
       );
     });
 
@@ -458,8 +440,8 @@ const ChatRoomScreen = () => {
     socket.on("message_read", () => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.sender === "user" ? { ...msg, status: "read" } : msg
-        )
+          msg.sender === "user" ? { ...msg, status: "read" } : msg,
+        ),
       );
     });
 
