@@ -27,10 +27,15 @@ import AppText from "../components/AppText";
 import Screen from "../components/Screen";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
-import { capCapitalize, getFullName } from "../helpers/helperFunctions";
+import {
+  selectUser,
+  useFetchSingleTicketQuery,
+  useSendTicketMessageMutation,
+} from "../context/usersSlice";
+import { capCapitalize, getFullName, socket } from "../helpers/helperFunctions";
 // import Avatar from "../components/Avatar";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // const { width, height } = Dimensions.get("screen");
 
@@ -44,10 +49,10 @@ const MessageStatus = {
 };
 
 // Message Component
-const MessageBubble = ({ message, isCurrentUser, index }) => {
+const MessageBubble = ({ message, isCurrentUser, category, index }) => {
   const isSupport = message.sender === "support";
   const alignment = isCurrentUser ? "flex-end" : "flex-start";
-  const backgroundColor = isCurrentUser ? colors.primary : colors.white;
+  const backgroundColor = isCurrentUser ? category?.color : colors.white;
   const textColor = isCurrentUser ? colors.white : colors.black;
   const enterAnimation = isCurrentUser
     ? SlideInRight.delay(index * 50).springify()
@@ -59,28 +64,28 @@ const MessageBubble = ({ message, isCurrentUser, index }) => {
       layout={LinearTransition.springify()}
       style={[styles.messageContainer, { alignItems: alignment }]}
     >
-      {Boolean(message?.category) && (
+      {Boolean(message?.isHeader) && (
         <View>
           <View style={[styles.headerInfo, styles.headerInfoMsg]}>
             <View
               style={[
                 styles.headerIcon,
-                { backgroundColor: message?.category?.color + "20" },
+                { backgroundColor: category?.color + "20" },
               ]}
             >
               <Ionicons
-                name={message?.category?.icon}
+                name={category?.icon}
                 size={20}
-                color={message?.category?.color}
+                color={category?.color}
               />
             </View>
             <View>
               <AppText fontWeight="bold" size="regular">
-                {message?.category?.title}
+                {category?.title}
               </AppText>
               <View style={styles.statusRow}>
                 <AppText size="xsmall" style={{ color: colors.medium }}>
-                  {message?.category?.description}
+                  {category?.description}
                 </AppText>
               </View>
             </View>
@@ -107,16 +112,20 @@ const MessageBubble = ({ message, isCurrentUser, index }) => {
         )}
 
         {/* Message Text */}
-        <AppText size="regular" style={{ color: textColor, lineHeight: 22 }}>
+        <AppText
+          size="regular"
+          fontWeight="medium"
+          style={{ color: textColor, lineHeight: 22 }}
+        >
           {message.text}
         </AppText>
 
         {/* Timestamp and Status */}
         <View style={styles.messageFooter}>
           <AppText
-            size="xxsmall"
+            size="xsmall"
             style={{
-              color: isCurrentUser ? colors.white + "CC" : colors.medium,
+              color: isCurrentUser ? colors.lighter : colors.medium,
               marginTop: 4,
             }}
           >
@@ -143,7 +152,7 @@ const MessageBubble = ({ message, isCurrentUser, index }) => {
                 <Ionicons
                   name="checkmark-done"
                   size={14}
-                  color={colors.accent}
+                  color={colors.white}
                 />
               )}
               {message.status === MessageStatus.FAILED && (
@@ -258,11 +267,17 @@ const ChatRoomScreen = () => {
   const flatListRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState(null);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
 
+  const { data, isLoading } = useFetchSingleTicketQuery(params?.ticketId);
+  const [sendTicketMessage] = useSendTicketMessageMutation();
+
+  const insets = useSafeAreaInsets();
+  const typingTimeoutRef = useRef(null);
+
   // Extract category info from params
-  const categoryData = params?.data ? JSON.parse(params?.data) : {};
+  console.log({ data });
 
   // Quick replies based on category
   const quickReplies = [
@@ -273,78 +288,6 @@ const ChatRoomScreen = () => {
     "Other issue",
   ];
 
-  // Initialize with welcome message
-  useEffect(() => {
-    if (categoryData) {
-      const starterMessage = {
-        id: "0",
-        sender: "user",
-        text: `${categoryData?.subject?.toUpperCase()}\n\n${
-          categoryData?.message
-        }`,
-        timestamp: new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        category: categoryData?.category,
-        status: MessageStatus.DELIVERED,
-      };
-
-      setMessages([starterMessage]);
-      // Simulate support typing
-      setTimeout(() => {
-        setIsTyping(true);
-      }, 1000);
-
-      setTimeout(() => {
-        setIsTyping(false);
-
-        const supportMessage = {
-          id: (Date.now() + 1).toString(),
-          sender: "support",
-          text: `Thank you ${capCapitalize(
-            getFullName(user)
-          )}.\nWe apologise you're experiencing such issue.\n\nA member of our support team has been notified and will assist you shortly`,
-          timestamp: formatTime(),
-          status: MessageStatus.DELIVERED,
-        };
-
-        setMessages((prev) => [...prev, supportMessage]);
-
-        // Mark user message as read
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === "0" ? { ...msg, status: MessageStatus.READ } : msg
-          )
-        );
-      }, 3500);
-    } else {
-      const welcomeMessage = {
-        id: "0",
-        sender: "support",
-        text: `Hello ${capCapitalize(
-          getFullName(user, true)
-        )}! 👋\n\nThank you for contacting support\n\nHow can we help you today?`,
-        timestamp: new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        status: MessageStatus.DELIVERED,
-      };
-
-      setMessages([welcomeMessage]);
-    }
-  }, []);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [messages]);
-
   const formatTime = () => {
     return new Date().toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -352,7 +295,7 @@ const ChatRoomScreen = () => {
     });
   };
 
-  const handleSendMessage = (text = inputText) => {
+  const handleSendMessage = async (text = inputText) => {
     if (!text.trim()) return;
 
     // Hide quick replies after first message
@@ -370,56 +313,64 @@ const ChatRoomScreen = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInputText("");
 
+    try {
+      const res = await sendTicketMessage({ text: userMessage?.text }).unwrap();
+    } catch (errr) {
+      console.log(errr);
+    }
+
+    // Send via REST (backend emits socket event)
+
     // Simulate message sent
-    setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === userMessage.id
-            ? { ...msg, status: MessageStatus.SENT }
-            : msg
-        )
-      );
-    }, 500);
+    // setTimeout(() => {
+    //   setMessages((prev) =>
+    //     prev.map((msg) =>
+    //       msg.id === userMessage.id
+    //         ? { ...msg, status: MessageStatus.SENT }
+    //         : msg
+    //     )
+    //   );
+    // }, 500);
 
     // Simulate delivered
-    setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === userMessage.id
-            ? { ...msg, status: MessageStatus.DELIVERED }
-            : msg
-        )
-      );
-    }, 1000);
+    // setTimeout(() => {
+    //   setMessages((prev) =>
+    //     prev.map((msg) =>
+    //       msg.id === userMessage.id
+    //         ? { ...msg, status: MessageStatus.DELIVERED }
+    //         : msg
+    //     )
+    //   );
+    // }, 1000);
 
     // Simulate support typing
-    setTimeout(() => {
-      setIsTyping(true);
-    }, 1500);
+    // setTimeout(() => {
+    //   setIsTyping(true);
+    // }, 1500);
 
     // Simulate support response
-    setTimeout(() => {
-      setIsTyping(false);
+    // setTimeout(() => {
+    //   setIsTyping(false);
 
-      const supportMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: "support",
-        text: generateSupportResponse(text),
-        timestamp: formatTime(),
-        status: MessageStatus.DELIVERED,
-      };
+    //   const supportMessage = {
+    //     id: (Date.now() + 1).toString(),
+    //     sender: "support",
+    //     text: generateSupportResponse(text),
+    //     timestamp: formatTime(),
+    //     status: MessageStatus.DELIVERED,
+    //   };
 
-      setMessages((prev) => [...prev, supportMessage]);
+    //   setMessages((prev) => [...prev, supportMessage]);
 
-      // Mark user message as read
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === userMessage.id
-            ? { ...msg, status: MessageStatus.READ }
-            : msg
-        )
-      );
-    }, 3500);
+    //   // Mark user message as read
+    //   setMessages((prev) =>
+    //     prev.map((msg) =>
+    //       msg.id === userMessage.id
+    //         ? { ...msg, status: MessageStatus.READ }
+    //         : msg
+    //     )
+    //   );
+    // }, 3500);
   };
 
   const generateSupportResponse = (userText) => {
@@ -452,9 +403,166 @@ const ChatRoomScreen = () => {
         message={item}
         isCurrentUser={isCurrentUser}
         index={index}
+        category={{
+          icon: params?.categoryIcon,
+          color: params?.categoryColor,
+          description: params?.categoryDescription,
+          title: params?.categoryTitle,
+        }}
       />
     );
   };
+
+  const handleTyping = (text) => {
+    if (!socket) return;
+
+    socket.emit("typing_start", {
+      ticketId: params?.ticketId,
+      sender: "user",
+    });
+
+    clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("typing_stop", {
+        ticketId: params?.ticketId,
+        sender: "user",
+      });
+    }, 1000);
+  };
+
+  // new_message
+  useEffect(() => {
+    socket.on("new_message", ({ message }) => {
+      setMessages((prev) => [...prev, message]);
+    });
+
+    return () => socket.off("new_message");
+  }, []);
+
+  // message_delivered
+  useEffect(() => {
+    socket.on("message_delivered", ({ messageId }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId ? { ...msg, status: "delivered" } : msg
+        )
+      );
+    });
+
+    return () => socket.off("message_delivered");
+  }, []);
+
+  // message_read
+  useEffect(() => {
+    socket.on("message_read", () => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.sender === "user" ? { ...msg, status: "read" } : msg
+        )
+      );
+    });
+
+    return () => socket.off("message_read");
+  }, []);
+
+  // typing_start
+  useEffect(() => {
+    socket.on("typing_start", ({ sender }) => {
+      setTypingUser(sender);
+    });
+
+    return () => socket.off("typing_start");
+  }, []);
+
+  // typing_start
+  useEffect(() => {
+    socket.on("typing_stop", () => {
+      setTypingUser(null);
+    });
+
+    return () => socket.off("typing_start");
+  }, []);
+
+  // Initialize with welcome message
+  // useEffect(() => {
+  //   if (categoryData) {
+  //     const starterMessage = {
+  //       id: "0",
+  //       sender: "user",
+  //       text: `${categoryData?.subject?.toUpperCase()}\n\n${
+  //         categoryData?.message
+  //       }`,
+  //       timestamp: new Date().toLocaleTimeString("en-US", {
+  //         hour: "2-digit",
+  //         minute: "2-digit",
+  //       }),
+  //       category: categoryData?.category,
+  //       status: MessageStatus.DELIVERED,
+  //     };
+
+  //     setMessages([starterMessage]);
+  //     // Simulate support typing
+  //     setTimeout(() => {
+  //       setIsTyping(true);
+  //     }, 1000);
+
+  //     setTimeout(() => {
+  //       setIsTyping(false);
+
+  //       const supportMessage = {
+  //         id: (Date.now() + 1).toString(),
+  //         sender: "support",
+  //         text: `Thank you ${capCapitalize(
+  //           getFullName(user)
+  //         )}.\nWe apologise you're experiencing such issue.\n\nA member of our support team has been notified and will assist you shortly`,
+  //         timestamp: formatTime(),
+  //         status: MessageStatus.DELIVERED,
+  //       };
+
+  //       setMessages((prev) => [...prev, supportMessage]);
+
+  //       // Mark user message as read
+  //       setMessages((prev) =>
+  //         prev.map((msg) =>
+  //           msg.id === "0" ? { ...msg, status: MessageStatus.READ } : msg
+  //         )
+  //       );
+  //     }, 3500);
+  //   } else {
+  //     const welcomeMessage = {
+  //       id: "0",
+  //       sender: "support",
+  //       text: `Hello ${capCapitalize(
+  //         getFullName(user, true)
+  //       )}! 👋\n\nThank you for contacting support\n\nHow can we help you today?`,
+  //       timestamp: new Date().toLocaleTimeString("en-US", {
+  //         hour: "2-digit",
+  //         minute: "2-digit",
+  //       }),
+  //       status: MessageStatus.DELIVERED,
+  //     };
+
+  //     setMessages([welcomeMessage]);
+  //   }
+  // }, []);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
+
+  // Load initial messages
+  useEffect(() => {
+    if (data?.data?.messages) {
+      setMessages(data.data.messages);
+    }
+    socket.emit("join_ticket", params?.ticketId);
+  }, [data]);
 
   return (
     <Screen style={styles.container}>
@@ -468,14 +576,21 @@ const ChatRoomScreen = () => {
           <View
             style={[
               styles.headerIcon,
-              { backgroundColor: colors.primary + "20" },
+              {
+                backgroundColor:
+                  params?.categoryColor + "20" ?? colors.primary + "20",
+              },
             ]}
           >
-            <Ionicons name={"chatbubbles"} size={20} color={colors.primary} />
+            <Ionicons
+              name={params?.categoryIcon ?? "chatbubbles"}
+              size={20}
+              color={params?.categoryColor ?? colors.primary}
+            />
           </View>
           <View style={{ flex: 1 }}>
             <AppText fontWeight="bold" size="regular">
-              Support Chat
+              {params?.categoryTitle ?? "Support Chat"}
             </AppText>
             <View style={styles.statusRow}>
               <View style={styles.onlineDot} />
@@ -485,66 +600,65 @@ const ChatRoomScreen = () => {
             </View>
           </View>
         </View>
-
-        <Pressable style={styles.headerButton}>
-          <Ionicons name="ellipsis-vertical" size={20} color={colors.medium} />
-        </Pressable>
       </View>
 
-      {/* Messages List */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
-        ListFooterComponent={
-          <>
-            {isTyping && <TypingIndicator />}
-            {showQuickReplies && messages.length === 1 && (
-              <View style={styles.quickRepliesContainer}>
-                <AppText
-                  size="xsmall"
-                  fontWeight="semibold"
-                  style={{ color: colors.medium, marginBottom: 10 }}
-                >
-                  Quick Replies:
-                </AppText>
-                {quickReplies.map((reply, index) => (
-                  <QuickReply
-                    key={index}
-                    text={reply}
-                    index={index}
-                    onPress={() => handleQuickReply(reply)}
-                  />
-                ))}
-              </View>
-            )}
-          </>
-        }
-      />
-
-      {/* Input Area */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        // keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
       >
-        <View style={styles.inputContainer}>
-          <Pressable style={styles.attachButton}>
-            <Ionicons name="add-circle" size={28} color={colors.primary} />
-          </Pressable>
+        {/* Messages List */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item._id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
+          ListFooterComponent={
+            <>
+              {typingUser === "support" && <TypingIndicator />}
+              {showQuickReplies && messages.length === 1 && (
+                <View style={styles.quickRepliesContainer}>
+                  <AppText
+                    size="xsmall"
+                    fontWeight="semibold"
+                    style={{ color: colors.medium, marginBottom: 10 }}
+                  >
+                    Quick Replies:
+                  </AppText>
+                  {quickReplies.map((reply, index) => (
+                    <QuickReply
+                      key={index}
+                      text={reply}
+                      index={index}
+                      onPress={() => handleQuickReply(reply)}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          }
+        />
 
+        {/* Input Area */}
+
+        <View
+          style={[styles.inputContainer, { paddingBottom: insets.bottom + 8 }]}
+        >
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
               placeholder="Type your message..."
               placeholderTextColor={colors.medium}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={(val) => {
+                handleTyping();
+                setInputText(val);
+              }}
               multiline
               maxLength={500}
             />
@@ -561,7 +675,7 @@ const ChatRoomScreen = () => {
             <Ionicons
               name="send"
               size={20}
-              color={inputText.trim() ? colors.white : colors.light}
+              color={inputText.trim() ? colors.white : colors.lighter}
             />
           </Pressable>
         </View>
@@ -618,7 +732,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.success,
+    backgroundColor: colors.green,
     marginRight: 6,
   },
   headerButton: {
@@ -716,7 +830,7 @@ const styles = StyleSheet.create({
   },
   input: {
     fontSize: 16,
-    fontFamily: "sf-regular",
+    fontFamily: "sf-medium",
     color: colors.black,
     minHeight: 40,
   },

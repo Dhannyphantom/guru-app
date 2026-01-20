@@ -114,7 +114,7 @@ const QUICK_CONTACTS = [
   {
     id: "facebook",
     title: "Facebook",
-    subtitle: "Chat with us in real-time",
+    subtitle: "Reach out to us on our facebook page",
     icon: "logo-facebook",
     color: colors.facebook,
     action: () => Linking.openURL("https://www.facebook.com/young.skillzz.9/"),
@@ -781,7 +781,7 @@ const ContactSupportScreen = () => {
       if (res?.success) {
         router.push({
           pathname: "/main/support/chat",
-          params: sendData,
+          params: { ...sendData, ticketId: res?.data?._id },
         });
       }
     } catch (errr) {
@@ -798,9 +798,9 @@ const ContactSupportScreen = () => {
         ticketId: ticket._id,
         category: ticket.category || "general",
         categoryTitle: ticket.categoryTitle,
-        categoryDescription: ticket.categoryData?.description,
-        categoryIcon: ticket.categoryData?.icon,
-        categoryColor: ticket.categoryData?.color,
+        categoryDescription: ticket?.categoryDescription,
+        categoryIcon: ticket?.categoryIcon,
+        categoryColor: ticket?.categoryColor,
       },
     });
   };
@@ -888,7 +888,7 @@ const ContactSupportScreen = () => {
                   size="large"
                   style={styles.sectionTitle}
                 >
-                  Your Active Tickets
+                  Ongoing Issues
                 </AppText>
                 {activeTickets.map((ticket, index) => (
                   <ActiveTicketCard
@@ -1117,7 +1117,7 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingHorizontal: 20,
-    marginBottom: 10,
+    // marginBottom: 10,
   },
   sectionTitle: {
     marginBottom: 15,
@@ -1134,7 +1134,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
-    // marginBottom: 12,
+    marginBottom: 20,
     borderLeftWidth: 4,
     borderLeftColor: "#007AFF",
     boxShadow: `2px 8px 18px #007AFF25`,

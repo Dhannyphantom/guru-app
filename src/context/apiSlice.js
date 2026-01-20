@@ -34,6 +34,7 @@ export const apiSlice = createApi({
     "GLOBAL_LEADERBOARD",
     "SCHOOL_LEADERBOARD",
     "SUPPORT_TICKETS",
+    "SUPPORT_TICKET",
   ],
   endpoints: (builder) => ({}),
 });
