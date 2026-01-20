@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unescaped-entities */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Linking,
+  RefreshControl,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
@@ -25,14 +26,19 @@ import Animated, {
 // Import your actual components
 import AppText from "../components/AppText";
 import Screen from "../components/Screen";
-import AppHeader from "../components/AppHeader";
 import AppButton from "../components/AppButton";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
+import {
+  selectUser,
+  useCreateSupportTicketMutation,
+  useFetchMyTicketsQuery,
+} from "../context/usersSlice";
 import { getFullName } from "../helpers/helperFunctions";
 import Avatar from "../components/Avatar";
 import { useRouter } from "expo-router";
+import { NavBack } from "../components/AppIcons";
+import LottieAnimator from "../components/LottieAnimator";
 
 // Support Categories
 const SUPPORT_CATEGORIES = [
@@ -109,13 +115,13 @@ const QUICK_CONTACTS = [
     id: "facebook",
     title: "Facebook",
     subtitle: "Chat with us in real-time",
-    icon: "logo-facebook", // Changed from logo-whatsapp
-    color: colors.facebook, // Kept the same nice green
-    action: "chat", // Special identifier instead of URL
+    icon: "logo-facebook",
+    color: colors.facebook,
+    action: () => Linking.openURL("https://www.facebook.com/young.skillzz.9/"),
   },
 ];
 
-// Common Issues for quick resolution
+// Common Issues
 const COMMON_ISSUES = [
   {
     id: "1",
@@ -142,6 +148,219 @@ const COMMON_ISSUES = [
       "Ensure: Minimum 1000 GT (₦100), Correct bank details, Active subscription",
   },
 ];
+
+// Active Ticket Card Component
+const ActiveTicketCard = ({ ticket, onPress, index }) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.97, { damping: 30 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 30 });
+  };
+
+  const lastMessage = ticket.lastMessage || {};
+  const unreadCount = ticket.unreadCount || 0;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "open":
+        return "#4CAF50";
+      case "in_progress":
+        return "#2196F3";
+      case "waiting_user":
+        return "#FF9800";
+      default:
+        return colors.medium;
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case "open":
+        return "Open";
+      case "in_progress":
+        return "In Progress";
+      case "waiting_user":
+        return "Waiting for you";
+      default:
+        return status;
+    }
+  };
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={styles.activeTicketCard}
+        >
+          <View style={styles.ticketHeader}>
+            <View
+              style={[
+                styles.ticketIcon,
+                {
+                  backgroundColor:
+                    (ticket.categoryColor || colors.primary) + "20",
+                },
+              ]}
+            >
+              <Ionicons
+                name={ticket.categoryIcon || "help-circle"}
+                size={24}
+                color={ticket.categoryColor || colors.primary}
+              />
+            </View>
+            <View style={styles.ticketContent}>
+              <View style={styles.ticketTitleRow}>
+                <AppText fontWeight="bold" size="regular" style={{ flex: 1 }}>
+                  {ticket.categoryTitle || "Support Ticket"}
+                </AppText>
+                {unreadCount > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <AppText
+                      size="xxsmall"
+                      fontWeight="bold"
+                      style={{ color: colors.white }}
+                    >
+                      {unreadCount}
+                    </AppText>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.statusBadge}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: getStatusColor(ticket.status) },
+                  ]}
+                />
+                <AppText size="xsmall" style={{ color: colors.medium }}>
+                  {getStatusText(ticket.status)}
+                </AppText>
+              </View>
+
+              {ticket.subject && (
+                <AppText
+                  size="small"
+                  style={{ color: colors.medium, marginTop: 4 }}
+                  numberOfLines={1}
+                >
+                  {ticket.subject}
+                </AppText>
+              )}
+
+              {lastMessage.text && (
+                <View style={styles.lastMessageContainer}>
+                  <AppText
+                    size="xsmall"
+                    style={{ color: colors.medium, flex: 1 }}
+                    numberOfLines={2}
+                  >
+                    {lastMessage.sender === "support" ? "Support: " : "You: "}
+                    {lastMessage.text}
+                  </AppText>
+                </View>
+              )}
+
+              <AppText
+                size="xxsmall"
+                style={{ color: colors.medium, marginTop: 4 }}
+              >
+                {new Date(ticket.lastMessageAt).toLocaleString()}
+              </AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.light} />
+          </View>
+        </Pressable>
+      </Animated.View>
+    </Animated.View>
+  );
+};
+
+// History Ticket Card Component
+const HistoryTicketCard = ({ ticket, onPress, index }) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.97, { damping: 30 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 30 });
+  };
+
+  const categoryData = ticket.categoryData || {};
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={styles.historyTicketCard}
+        >
+          <View style={styles.historyTicketHeader}>
+            <View
+              style={[
+                styles.historyTicketIcon,
+                {
+                  backgroundColor:
+                    (categoryData.color || colors.primary) + "15",
+                },
+              ]}
+            >
+              <Ionicons
+                name={categoryData.icon || "help-circle"}
+                size={20}
+                color={categoryData.color || colors.primary}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText fontWeight="semibold" size="regular">
+                {ticket.categoryTitle || "Support Ticket"}
+              </AppText>
+              <AppText
+                size="xsmall"
+                style={{ color: colors.medium, marginTop: 2 }}
+              >
+                {new Date(ticket.createdAt).toLocaleDateString()}
+              </AppText>
+            </View>
+            <View style={styles.resolvedBadge}>
+              <Ionicons
+                name="checkmark-circle"
+                size={16}
+                color={colors.green}
+              />
+              <AppText
+                size="xxsmall"
+                fontWeight="semibold"
+                style={{ color: colors.green, marginLeft: 4 }}
+              >
+                Resolved
+              </AppText>
+            </View>
+          </View>
+        </Pressable>
+      </Animated.View>
+    </Animated.View>
+  );
+};
 
 // Category Card Component
 const CategoryCard = ({ item, onPress, index }) => {
@@ -314,7 +533,6 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
 
     setLoading(true);
 
-    // Simulate API call
     setTimeout(() => {
       onSubmit({
         category,
@@ -355,9 +573,7 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
         </View>
 
         <View style={styles.formBody}>
-          {/* User Info Display */}
           <View style={styles.userInfoCard}>
-            {/* <Ionicons name="person" size={20} color={colors.primary} /> */}
             <Avatar size={50} source={user?.avatar?.image} />
             <View style={{ marginLeft: 10, flex: 1 }}>
               <AppText size="xsmall" style={{ color: colors.medium }}>
@@ -376,7 +592,6 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
             </View>
           </View>
 
-          {/* Subject Input */}
           <View style={styles.inputContainer}>
             <AppText
               fontWeight="semibold"
@@ -398,7 +613,6 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
             </AppText>
           </View>
 
-          {/* Message Input */}
           <View style={styles.inputContainer}>
             <AppText
               fontWeight="semibold"
@@ -423,7 +637,6 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
             </AppText>
           </View>
 
-          {/* Tips */}
           <View style={styles.tipsCard}>
             <MaterialCommunityIcons
               name="information"
@@ -449,7 +662,6 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
             </View>
           </View>
 
-          {/* Submit Button */}
           <AppButton
             title={loading ? "Sending..." : "Submit Request"}
             onPress={handleSubmit}
@@ -466,52 +678,135 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
 const ContactSupportScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [expandedIssue, setExpandedIssue] = useState(null);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [activeTab, setActiveTab] = useState("support"); // 'support' or 'history'
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { data: tickets, isLoading } = useFetchMyTicketsQuery();
+  const [createSupportTicket, { isLoading: creating, error: createErr }] =
+    useCreateSupportTicketMutation();
+
+  const activeTickets =
+    tickets?.data?.tickets?.filter((tick) =>
+      ["open", "in_progress", "waiting_user"].includes(tick?.status)
+    ) || [];
+
+  const historyTickets =
+    tickets?.data?.tickets?.filter((tick) =>
+      ["resolved", "closed"].includes(tick?.status)
+    ) || [];
 
   const router = useRouter();
+
+  // Fetch tickets on mount
+  useEffect(() => {
+    // fetchTickets();
+  }, []);
+
+  const fetchTickets = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      // TODO: Replace with actual API call
+      // const response = await fetch('/api/support/tickets');
+      // const data = await response.json();
+      // Mock data for demonstration
+      // setTimeout(() => {
+      //   // const mockActiveTickets = [
+      //   //   {
+      //   //     _id: "1",
+      //   //     categoryTitle: "Payment Issue",
+      //   //     categoryData: {
+      //   //       icon: "card",
+      //   //       color: "#9C27B0",
+      //   //     },
+      //   //     subject: "Subscription payment not reflecting",
+      //   //     status: "in_progress",
+      //   //     unreadCount: 2,
+      //   //     lastMessage: {
+      //   //       sender: "support",
+      //   //       text: "We're looking into this issue. Can you provide your transaction reference?",
+      //   //     },
+      //   //     lastMessageAt: new Date().toISOString(),
+      //   //     createdAt: new Date().toISOString(),
+      //   //   },
+      //   // ];
+      //   // const mockHistoryTickets = [
+      //   //   {
+      //   //     _id: "2",
+      //   //     categoryTitle: "Account Help",
+      //   //     categoryData: {
+      //   //       icon: "person-circle",
+      //   //       color: "#FF9800",
+      //   //     },
+      //   //     status: "resolved",
+      //   //     createdAt: new Date(
+      //   //       Date.now() - 7 * 24 * 60 * 60 * 1000
+      //   //     ).toISOString(),
+      //   //   },
+      //   // ];
+      //   // (mockActiveTickets);
+      // //  (mockHistoryTickets);
+      //   setLoading(false);
+      //   setRefreshing(false);
+      // }, 1000);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
   };
 
-  const handleFormSubmit = (data) => {
-    // return console.log({ data });
+  const handleFormSubmit = async (data) => {
+    //
+    const sendData = {
+      category: data?.category?.id,
+      categoryIcon: data?.category?.icon,
+      categoryColor: data?.category?.color,
+      categoryTitle: data?.category?.title,
+      categoryDescription: data?.category?.description,
+      subject: data?.subject,
+      description: data?.message,
+    };
+    try {
+      const res = await createSupportTicket(sendData).unwrap();
+      if (res?.success) {
+        router.push({
+          pathname: "/main/support/chat",
+          params: sendData,
+        });
+      }
+    } catch (errr) {
+      console.log(errr);
+    }
+
+    // setSelectedCategory(null);
+  };
+
+  const handleTicketPress = (ticket) => {
     router.push({
       pathname: "/main/support/chat",
       params: {
-        data: JSON.stringify(data),
-        category: data?.category?.id,
-        categoryTitle: data?.category?.title,
-        categoryDescription: data?.category?.description,
-        categoryIcon: data?.category?.icon,
-        categoryColor: data?.category?.color,
+        ticketId: ticket._id,
+        category: ticket.category || "general",
+        categoryTitle: ticket.categoryTitle,
+        categoryDescription: ticket.categoryData?.description,
+        categoryIcon: ticket.categoryData?.icon,
+        categoryColor: ticket.categoryData?.color,
       },
     });
-
-    setSelectedCategory(null);
-    // setShowSuccessMessage(true);
-
-    // Hide success message after 3 seconds
-    // setTimeout(() => {
-    //   setShowSuccessMessage(false);
-    // }, 3000);
   };
 
   const toggleIssue = (id) => {
     setExpandedIssue(expandedIssue === id ? null : id);
-  };
-
-  const handleLiveChatPress = () => {
-    router.push({
-      pathname: "/main/support/chat",
-      params: {
-        category: "general",
-        categoryTitle: "Live Chat",
-        categoryDescription: "Chat with our support team in real-time",
-        categoryIcon: "chatbubbles",
-        categoryColor: "#25D366",
-      },
-    });
   };
 
   if (selectedCategory) {
@@ -527,167 +822,403 @@ const ContactSupportScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <AppHeader title="How can we help?" />
+    <Screen style={styles.container}>
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
+        <NavBack color="black" style={styles.nav} />
+        <Pressable
+          style={[styles.tab, activeTab === "support" && styles.activeTab]}
+          onPress={() => setActiveTab("support")}
+        >
+          <AppText
+            fontWeight={activeTab === "support" ? "bold" : "medium"}
+            size="regular"
+            style={{
+              color: activeTab === "support" ? colors.primary : colors.medium,
+            }}
+          >
+            Support
+          </AppText>
+          {activeTickets.length > 0 && (
+            <View style={styles.tabBadge}>
+              <AppText
+                size="xxsmall"
+                fontWeight="bold"
+                style={{ color: colors.white }}
+              >
+                {activeTickets.length}
+              </AppText>
+            </View>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[styles.tab, activeTab === "history" && styles.activeTab]}
+          onPress={() => setActiveTab("history")}
+        >
+          <AppText
+            fontWeight={activeTab === "history" ? "bold" : "medium"}
+            size="regular"
+            style={{
+              color: activeTab === "history" ? colors.primary : colors.medium,
+            }}
+          >
+            History
+          </AppText>
+        </Pressable>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchTickets(true)}
+          />
+        }
       >
-        {/* Success Message */}
-        {showSuccessMessage && (
-          <Animated.View entering={FadeIn} style={styles.successBanner}>
-            <Ionicons
-              name="checkmark-circle"
-              size={24}
-              color={colors.success}
-            />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <AppText fontWeight="bold" size="small">
-                Request submitted successfully!
-              </AppText>
-              <AppText size="xsmall" style={{ color: colors.medium }}>
-                We'll respond to your email within 24 hours
+        {activeTab === "support" ? (
+          <>
+            {/* Active Tickets Section */}
+            {activeTickets.length > 0 && (
+              <View style={styles.section}>
+                <AppText
+                  fontWeight="bold"
+                  size="large"
+                  style={styles.sectionTitle}
+                >
+                  Your Active Tickets
+                </AppText>
+                {activeTickets.map((ticket, index) => (
+                  <ActiveTicketCard
+                    key={ticket._id}
+                    ticket={ticket}
+                    index={index}
+                    onPress={() => handleTicketPress(ticket)}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Header Section */}
+            <View style={styles.headerSection}>
+              <AppText
+                size="regular"
+                style={{ color: colors.medium, marginTop: 8, lineHeight: 24 }}
+              >
+                {activeTickets.length > 0
+                  ? "Need more help? Choose a category or use quick contact options"
+                  : "Choose a category below or use quick contact options to reach our support team"}
               </AppText>
             </View>
-          </Animated.View>
-        )}
 
-        {/* Header Section */}
-        <View style={styles.headerSection}>
-          <AppText
-            size="regular"
-            style={{ color: colors.medium, marginTop: 8, lineHeight: 24 }}
-          >
-            Choose a category below or use quick contact options to reach our
-            support team
-          </AppText>
-        </View>
+            {/* Quick Contact Options */}
+            <View style={styles.section}>
+              <AppText
+                fontWeight="bold"
+                size="large"
+                style={styles.sectionTitle}
+              >
+                Contact Us
+              </AppText>
+              {QUICK_CONTACTS.map((item, index) => (
+                <QuickContactCard key={item.id} item={item} index={index} />
+              ))}
+            </View>
 
-        {/* Quick Contact Options */}
-        <View style={styles.section}>
-          <AppText fontWeight="bold" size="large" style={styles.sectionTitle}>
-            Contact Us
-          </AppText>
-          {QUICK_CONTACTS.map((item, index) => {
-            return (
-              <QuickContactCard
-                key={item.id}
-                item={{
-                  ...item,
-                  action:
-                    item?.id === "livechat"
-                      ? handleLiveChatPress
-                      : item?.action,
+            {/* Support Categories */}
+            <View style={styles.section}>
+              <AppText fontWeight="bold" size="large">
+                What do you need help with?
+              </AppText>
+              <AppText
+                size="regular"
+                style={{
+                  color: colors.medium,
+                  marginBottom: 15,
+                  lineHeight: 24,
                 }}
-                index={index}
-              />
-            );
-          })}
-        </View>
+              >
+                Select an option to start a live chat with the support team
+              </AppText>
+              {SUPPORT_CATEGORIES.map((item, index) => (
+                <CategoryCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  onPress={() => handleCategorySelect(item)}
+                />
+              ))}
+            </View>
 
-        {/* Support Categories */}
-        <View style={styles.section}>
-          <AppText fontWeight="bold" size="large" style={{}}>
-            What do you need help with?
-          </AppText>
-          <AppText
-            size="regular"
-            style={{ color: colors.medium, marginBottom: 15, lineHeight: 24 }}
-          >
-            Select an option to open up a live chat with the support team
-          </AppText>
-          {SUPPORT_CATEGORIES.map((item, index) => (
-            <CategoryCard
-              key={item.id}
-              item={item}
-              index={index}
-              onPress={() => handleCategorySelect(item)}
-            />
-          ))}
-        </View>
+            {/* Common Issues */}
+            <View style={styles.section}>
+              <View style={styles.commonIssuesHeader}>
+                <MaterialCommunityIcons
+                  name="lightbulb-on-outline"
+                  size={24}
+                  color={colors.warning}
+                />
+                <AppText
+                  fontWeight="bold"
+                  size="large"
+                  style={{ marginLeft: 8 }}
+                >
+                  Common Issues
+                </AppText>
+              </View>
+              <AppText
+                size="small"
+                style={{ color: colors.medium, marginBottom: 15 }}
+              >
+                Quick solutions to frequently reported problems
+              </AppText>
+              {COMMON_ISSUES.map((item) => (
+                <CommonIssueItem
+                  key={item.id}
+                  item={item}
+                  isExpanded={expandedIssue === item.id}
+                  onToggle={() => toggleIssue(item.id)}
+                />
+              ))}
+            </View>
 
-        {/* Common Issues */}
-        <View style={styles.section}>
-          <View style={styles.commonIssuesHeader}>
-            <MaterialCommunityIcons
-              name="lightbulb-on-outline"
-              size={24}
-              color={colors.warning}
-            />
-            <AppText fontWeight="bold" size="large" style={{ marginLeft: 8 }}>
-              Common Issues
-            </AppText>
+            {/* Response Time Info */}
+            <View style={styles.responseTimeCard}>
+              <Ionicons name="time" size={24} color={colors.primary} />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <AppText fontWeight="bold" size="regular">
+                  Average Response Time
+                </AppText>
+                <AppText
+                  size="small"
+                  style={{ color: colors.medium, marginTop: 4 }}
+                >
+                  We typically respond within 24 hours on business days
+                  (Mon-Fri, 9AM-5PM)
+                </AppText>
+              </View>
+            </View>
+          </>
+        ) : (
+          // History Tab Content
+          <View style={styles.section}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <LottieAnimator visible />
+                <AppText
+                  size="small"
+                  style={{ color: colors.medium, marginTop: 10 }}
+                >
+                  Loading history...
+                </AppText>
+              </View>
+            ) : historyTickets.length > 0 ? (
+              <>
+                <AppText
+                  fontWeight="bold"
+                  size="large"
+                  style={styles.sectionTitle}
+                >
+                  Resolved Tickets
+                </AppText>
+                <AppText
+                  size="small"
+                  style={{ color: colors.medium, marginBottom: 15 }}
+                >
+                  View your previously resolved support tickets
+                </AppText>
+                {historyTickets.map((ticket, index) => (
+                  <HistoryTicketCard
+                    key={ticket._id}
+                    ticket={ticket}
+                    index={index}
+                    onPress={() => handleTicketPress(ticket)}
+                  />
+                ))}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="file-tray-outline"
+                  size={64}
+                  color={colors.light}
+                />
+                <AppText
+                  fontWeight="semibold"
+                  size="large"
+                  style={{ marginTop: 16, color: colors.medium }}
+                >
+                  No History Yet
+                </AppText>
+                <AppText
+                  size="small"
+                  style={{
+                    color: colors.light,
+                    marginTop: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  Your resolved support tickets will appear here
+                </AppText>
+              </View>
+            )}
           </View>
-          <AppText
-            size="small"
-            style={{ color: colors.medium, marginBottom: 15 }}
-          >
-            Quick solutions to frequently reported problems
-          </AppText>
-          {COMMON_ISSUES.map((item) => (
-            <CommonIssueItem
-              key={item.id}
-              item={item}
-              isExpanded={expandedIssue === item.id}
-              onToggle={() => toggleIssue(item.id)}
-            />
-          ))}
-        </View>
-
-        {/* Response Time Info */}
-        <View style={styles.responseTimeCard}>
-          <Ionicons name="time" size={24} color={colors.primary} />
-          <View style={{ marginLeft: 12, flex: 1 }}>
-            <AppText fontWeight="bold" size="regular">
-              Average Response Time
-            </AppText>
-            <AppText
-              size="small"
-              style={{ color: colors.medium, marginTop: 4 }}
-            >
-              We typically respond within 24 hours on business days (Mon-Fri,
-              9AM-5PM)
-            </AppText>
-          </View>
-        </View>
+        )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.unchange,
+    backgroundColor: "#F5F5F5",
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    marginBottom: 10,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  activeTab: {
+    borderBottomColor: colors.primary,
+  },
+  tabBadge: {
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+    paddingHorizontal: 6,
   },
   scrollContent: {
     paddingBottom: 100,
   },
   headerSection: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
+    // paddingTop: 10,
+    marginBottom: 15,
   },
   section: {
     paddingHorizontal: 20,
-    marginBottom: 30,
+    marginBottom: 10,
   },
   sectionTitle: {
     marginBottom: 15,
   },
+  nav: {
+    position: "absolute",
+    height: "100%",
+    paddingHorizontal: 10,
+    // backgroundColor: "red",
+    marginTop: 8,
+    zIndex: 100,
+  },
+  activeTicketCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    // marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#007AFF",
+    boxShadow: `2px 8px 18px #007AFF25`,
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  ticketIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  ticketContent: {
+    flex: 1,
+  },
+  ticketTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  unreadBadge: {
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    marginLeft: 8,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  lastMessageContainer: {
+    backgroundColor: "#F5F5F5",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  historyTicketCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  historyTicketHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  historyTicketIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  resolvedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   categoryCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    // elevation: 2,
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.08,
-    // shadowRadius: 4,
   },
   categoryIcon: {
     width: 56,
@@ -706,14 +1237,9 @@ const styles = StyleSheet.create({
   quickContactContent: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
-    // elevation: 1,
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: 1 },
-    // shadowOpacity: 0.05,
-    // shadowRadius: 2,
   },
   quickContactIcon: {
     width: 44,
@@ -729,15 +1255,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   commonIssueItem: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     marginBottom: 8,
     overflow: "hidden",
-    // elevation: 1,
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: 1 },
-    // shadowOpacity: 0.05,
-    // shadowRadius: 2,
   },
   commonIssueHeader: {
     flexDirection: "row",
@@ -752,26 +1273,24 @@ const styles = StyleSheet.create({
   },
   responseTimeCard: {
     flexDirection: "row",
-    backgroundColor: colors.primaryLight,
+    backgroundColor: "#E3F2FD",
     marginHorizontal: 20,
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
-  },
-  successBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.success + "15",
-    marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.success,
   },
 
-  // Form Styles
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+  },
   formContainer: {
     flex: 1,
   },
@@ -779,7 +1298,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 20,
     paddingBottom: 30,
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
@@ -803,7 +1322,7 @@ const styles = StyleSheet.create({
   userInfoCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.primaryLight,
+    backgroundColor: "#E3F2FD",
     padding: 14,
     borderRadius: 12,
     marginBottom: 20,
@@ -815,14 +1334,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
     fontFamily: "sf-regular",
     borderWidth: 1,
-    borderColor: colors.extraLight,
-    color: colors.black,
+    borderColor: "#E0E0E0",
+    color: "#000000",
   },
   textArea: {
     minHeight: 140,
@@ -830,12 +1349,12 @@ const styles = StyleSheet.create({
   },
   charCount: {
     textAlign: "right",
-    color: colors.medium,
+    color: "#9E9E9E",
     marginTop: 4,
   },
   tipsCard: {
     flexDirection: "row",
-    backgroundColor: colors.primaryLight,
+    backgroundColor: "#E3F2FD",
     padding: 14,
     borderRadius: 12,
     marginTop: 10,

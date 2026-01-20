@@ -324,6 +324,141 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         timeout: 15000,
       }),
     }),
+    createSupportTicket: builder.mutation({
+      query: (data) => ({
+        url: "/support/ticket",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["SUPPORT_TICKETS"],
+    }),
+
+    fetchMyTickets: builder.query({
+      query: ({ status, category, page = 1, limit = 20 } = {}) => ({
+        url: "/support/tickets",
+        params: { status, category, page, limit },
+      }),
+      providesTags: ["SUPPORT_TICKETS"],
+    }),
+
+    fetchSingleTicket: builder.query({
+      query: (ticketId) => ({
+        url: `/support/ticket/${ticketId}`,
+      }),
+      providesTags: (result, error, ticketId) => [
+        { type: "SUPPORT_TICKET", id: ticketId },
+      ],
+    }),
+
+    sendTicketMessage: builder.mutation({
+      query: ({ ticketId, text, attachments }) => ({
+        url: `/support/ticket/${ticketId}/message`,
+        method: "POST",
+        body: { text, attachments },
+      }),
+      invalidatesTags: (result, error, { ticketId }) => [
+        { type: "SUPPORT_TICKET", id: ticketId },
+      ],
+    }),
+
+    markTicketMessagesRead: builder.mutation({
+      query: (ticketId) => ({
+        url: `/support/ticket/${ticketId}/messages/read`,
+        method: "PUT",
+      }),
+      invalidatesTags: (result, error, ticketId) => [
+        { type: "SUPPORT_TICKET", id: ticketId },
+      ],
+    }),
+
+    rateTicket: builder.mutation({
+      query: ({ ticketId, score, feedback }) => ({
+        url: `/support/ticket/${ticketId}/rate`,
+        method: "POST",
+        body: { score, feedback },
+      }),
+    }),
+
+    deleteTicket: builder.mutation({
+      query: (ticketId) => ({
+        url: `/support/ticket/${ticketId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SUPPORT_TICKETS"],
+    }),
+
+    // =========================
+    // ADMIN ROUTES
+    // =========================
+
+    fetchAllTicketsAdmin: builder.query({
+      query: ({
+        status,
+        category,
+        priority,
+        assignedTo,
+        page = 1,
+        limit = 50,
+        search,
+      } = {}) => ({
+        url: "/support/admin/tickets",
+        params: {
+          status,
+          category,
+          priority,
+          assignedTo,
+          page,
+          limit,
+          search,
+        },
+      }),
+      providesTags: ["ADMIN_SUPPORT_TICKETS"],
+    }),
+
+    adminReplyTicket: builder.mutation({
+      query: ({ ticketId, text }) => ({
+        url: `/support/admin/ticket/${ticketId}/reply`,
+        method: "POST",
+        body: { text },
+      }),
+      invalidatesTags: (result, error, { ticketId }) => [
+        { type: "SUPPORT_TICKET", id: ticketId },
+      ],
+    }),
+
+    assignTicket: builder.mutation({
+      query: ({ ticketId, assignedTo }) => ({
+        url: `/support/admin/ticket/${ticketId}/assign`,
+        method: "PUT",
+        body: { assignedTo },
+      }),
+      invalidatesTags: ["ADMIN_SUPPORT_TICKETS"],
+    }),
+
+    updateTicketStatus: builder.mutation({
+      query: ({ ticketId, status, resolution }) => ({
+        url: `/support/admin/ticket/${ticketId}/status`,
+        method: "PUT",
+        body: { status, resolution },
+      }),
+      invalidatesTags: ["ADMIN_SUPPORT_TICKETS"],
+    }),
+
+    updateTicketPriority: builder.mutation({
+      query: ({ ticketId, priority }) => ({
+        url: `/support/admin/ticket/${ticketId}/priority`,
+        method: "PUT",
+        body: { priority },
+      }),
+      invalidatesTags: ["ADMIN_SUPPORT_TICKETS"],
+    }),
+
+    fetchSupportStats: builder.query({
+      query: () => ({
+        url: "/support/admin/stats",
+      }),
+      providesTags: ["SUPPORT_STATS"],
+    }),
   }),
 });
 
@@ -430,6 +565,13 @@ export const {
   useVerifyAccountMutation,
   useVerifySubscriptionMutation,
   useLazyFetchBanksQuery,
+  useCreateSupportTicketMutation,
+  useFetchMyTicketsQuery,
+  useFetchSingleTicketQuery,
+  useSendTicketMessageMutation,
+  useMarkTicketMessagesReadMutation,
+  useRateTicketMutation,
+  useDeleteTicketMutation,
 } = extendedUserApiSlice;
 
 export default usersSlice.reducer;
