@@ -1410,12 +1410,7 @@ export const DashboardActions = [
     icon: "rocket",
     nav: { screen: "/(protected)/quiz/new_quiz", data: {} },
   },
-  {
-    _id: nanoid(),
-    name: "New Class",
-    icon: "school",
-    nav: { screen: "/school/classrooms", data: {} },
-  },
+
   {
     _id: nanoid(),
     name: "New Assignmet",
@@ -1427,6 +1422,12 @@ export const DashboardActions = [
     name: "New Announcement",
     icon: "notifications",
     modal: "announcement",
+  },
+  {
+    _id: nanoid(),
+    name: "Manage Classes",
+    icon: "school",
+    nav: { screen: "/school/classrooms", data: {} },
   },
   {
     _id: nanoid(),

@@ -16,7 +16,6 @@ import Animated, {
   withSpring,
   FadeInDown,
   FadeIn,
-  //   SlideInRight,
 } from "react-native-reanimated";
 
 import AppText from "../components/AppText";
@@ -27,10 +26,10 @@ import { useSelector } from "react-redux";
 import {
   selectSchool,
   useFetchSchoolClassesQuery,
+  useCreateClassMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,
 } from "../context/schoolSlice";
-// import Avatar from "../components/Avatar";
 import { useRouter } from "expo-router";
 import LottieAnimator from "../components/LottieAnimator";
 import PopMessage from "../components/PopMessage";
@@ -217,8 +216,14 @@ const StatsSummaryCard = ({ totalClasses, totalStudents, totalTeachers }) => {
   );
 };
 
-// Edit Class Modal
-const EditClassModal = ({ visible, onClose, classData, onSave }) => {
+// Edit/Create Class Modal
+const EditClassModal = ({
+  visible,
+  onClose,
+  classData,
+  onSave,
+  isCreating,
+}) => {
   const [alias, setAlias] = useState(classData?.alias || "");
   const [selectedLevel, setSelectedLevel] = useState(
     classData?.level?.toUpperCase() || "",
@@ -228,10 +233,18 @@ const EditClassModal = ({ visible, onClose, classData, onSave }) => {
     if (classData) {
       setAlias(classData.alias || "");
       setSelectedLevel(classData.level?.toUpperCase() || "");
+    } else {
+      // Reset fields when creating new class
+      setAlias("");
+      setSelectedLevel("");
     }
-  }, [classData]);
+  }, [classData, visible]);
 
   const handleSave = () => {
+    if (!selectedLevel) {
+      return; // Prevent saving without a level selected
+    }
+
     onSave({
       classId: classData?._id,
       alias: alias.trim(),
@@ -250,7 +263,7 @@ const EditClassModal = ({ visible, onClose, classData, onSave }) => {
         <View style={styles.editModalContent}>
           <View style={styles.modalHeader}>
             <AppText fontWeight="bold" size="large">
-              Edit Class
+              {isCreating ? "Create Class" : "Edit Class"}
             </AppText>
             <Pressable onPress={onClose}>
               <Ionicons name="close" size={24} color={colors.medium} />
@@ -322,9 +335,10 @@ const EditClassModal = ({ visible, onClose, classData, onSave }) => {
               textColor={colors.medium}
             />
             <AppButton
-              title="Save Changes"
+              title={isCreating ? "Create Class" : "Save Changes"}
               onPress={handleSave}
               contStyle={{ flex: 1 }}
+              disabled={!selectedLevel}
             />
           </View>
         </View>
@@ -416,6 +430,7 @@ const ClassroomScreen = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
 
   const router = useRouter();
@@ -424,6 +439,7 @@ const ClassroomScreen = () => {
   const { data, isLoading, refetch, error } = useFetchSchoolClassesQuery(
     school?._id,
   );
+  const [createClass, { isLoading: creating }] = useCreateClassMutation();
   const [updateClass, { isLoading: updating }] = useUpdateClassMutation();
   const [deleteClass, { isLoading: deleting }] = useDeleteClassMutation();
 
@@ -456,9 +472,8 @@ const ClassroomScreen = () => {
   };
 
   const handleClassPress = (classItem) => {
-    return;
     router.push({
-      pathname: "/main/school/class-details",
+      pathname: "/school/class_detail",
       params: {
         classId: classItem?._id,
         className: classItem.alias || classItem.level.toUpperCase(),
@@ -467,8 +482,15 @@ const ClassroomScreen = () => {
     });
   };
 
+  const handleCreateClass = () => {
+    setSelectedClass(null);
+    setIsCreating(true);
+    setEditModalVisible(true);
+  };
+
   const handleEditClass = (classItem) => {
     setSelectedClass(classItem);
+    setIsCreating(false);
     setEditModalVisible(true);
   };
 
@@ -479,26 +501,43 @@ const ClassroomScreen = () => {
 
   const handleSaveEdit = async (editData) => {
     try {
-      const res = await updateClass({
-        schoolId: school?._id,
-        ...editData,
-      }).unwrap();
+      let res;
+
+      if (isCreating) {
+        // Create new class
+        res = await createClass({
+          schoolId: school?._id,
+          class: editData.level,
+          name: editData.alias,
+        }).unwrap();
+      } else {
+        // Update existing class
+        res = await updateClass({
+          schoolId: school?._id,
+          ...editData,
+        }).unwrap();
+      }
 
       if (res.success) {
         setPopper({
           vis: true,
           timer: 2000,
-          msg: "Class updated successfully",
+          msg: isCreating
+            ? "Class created successfully"
+            : "Class updated successfully",
           type: "success",
         });
         setEditModalVisible(false);
         setSelectedClass(null);
+        setIsCreating(false);
       }
     } catch (error) {
       setPopper({
         vis: true,
         timer: 2000,
-        msg: error?.data?.message || "Failed to update class",
+        msg:
+          error?.data?.message ||
+          (isCreating ? "Failed to create class" : "Failed to update class"),
         type: "failed",
       });
     }
@@ -546,10 +585,7 @@ const ClassroomScreen = () => {
             Manage your school classes
           </AppText>
         </View>
-        <Pressable
-          onPress={() => router.push("/school/classes")}
-          style={styles.addButton}
-        >
+        <Pressable onPress={handleCreateClass} style={styles.addButton}>
           <Ionicons name="add" size={24} color={colors.white} />
         </Pressable>
       </View>
@@ -639,7 +675,7 @@ const ClassroomScreen = () => {
             {!searchQuery && (
               <AppButton
                 title="Create Class"
-                onPress={() => router.push("/main/school/new-class")}
+                onPress={handleCreateClass}
                 contStyle={{ marginTop: 20, width: width * 0.6 }}
               />
             )}
@@ -647,15 +683,17 @@ const ClassroomScreen = () => {
         )}
       </ScrollView>
 
-      {/* Edit Modal */}
+      {/* Edit/Create Modal */}
       <EditClassModal
         visible={editModalVisible}
         onClose={() => {
           setEditModalVisible(false);
           setSelectedClass(null);
+          setIsCreating(false);
         }}
         classData={selectedClass}
         onSave={handleSaveEdit}
+        isCreating={isCreating}
       />
 
       {/* Delete Confirmation Modal */}
@@ -670,7 +708,11 @@ const ClassroomScreen = () => {
       />
 
       {/* Loading Overlay */}
-      <LottieAnimator visible={updating || deleting} absolute wTransparent />
+      <LottieAnimator
+        visible={updating || deleting || creating}
+        absolute
+        wTransparent
+      />
 
       {/* Pop Message */}
       <PopMessage popData={popper} setPopData={setPopper} />
@@ -708,7 +750,6 @@ const styles = StyleSheet.create({
     marginVertical: 15,
     padding: 16,
     borderRadius: 16,
-    // ele
   },
   statBox: {
     flex: 1,
@@ -753,7 +794,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    //    ele
   },
   classHeader: {
     flexDirection: "row",
