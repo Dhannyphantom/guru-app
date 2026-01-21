@@ -291,7 +291,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         };
       },
     }),
-    createClass: builder.mutation({
+    createClassx: builder.mutation({
       query: (data) => {
         return {
           url: "/school/class",
@@ -299,6 +299,82 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
+    }),
+    // ==========================================
+    // CLASSES (CRUD)
+    // ==========================================
+    // FETCH SCHOOL CLASSES
+    fetchSchoolClasses: builder.query({
+      query: (schoolId) => ({
+        url: `/school/${schoolId}/classes`,
+        timeout: 15000,
+      }),
+      providesTags: ["SCHOOL_CLASSES"],
+    }),
+
+    // CREATE CLASS (single or "all")
+    createClass: builder.mutation({
+      query: ({ schoolId, ...body }) => ({
+        url: `/school/${schoolId}/classes`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+
+    // UPDATE CLASS
+    updateClass: builder.mutation({
+      query: ({ schoolId, classId, ...body }) => ({
+        url: `/school/${schoolId}/classes/${classId}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+
+    // DELETE CLASS
+    deleteClass: builder.mutation({
+      query: ({ schoolId, classId }) => ({
+        url: `/school/${schoolId}/classes/${classId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+    // ADD STUDENT TO CLASS
+    addStudentToClass: builder.mutation({
+      query: ({ schoolId, classId, studentId }) => ({
+        url: `/school/${schoolId}/classes/${classId}/students`,
+        method: "POST",
+        body: { studentId },
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+
+    // REMOVE STUDENT FROM CLASS
+    removeStudentFromClass: builder.mutation({
+      query: ({ schoolId, classId, studentId }) => ({
+        url: `/school/${schoolId}/classes/${classId}/students/${studentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+    // ADD TEACHER TO CLASS
+    addTeacherToClass: builder.mutation({
+      query: ({ schoolId, classId, teacherId }) => ({
+        url: `/school/${schoolId}/classes/${classId}/teachers`,
+        method: "POST",
+        body: { teacherId },
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+
+    // REMOVE TEACHER FROM CLASS
+    removeTeacherFromClass: builder.mutation({
+      query: ({ schoolId, classId, teacherId }) => ({
+        url: `/school/${schoolId}/classes/${classId}/teachers/${teacherId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
     }),
   }),
 });
@@ -313,7 +389,7 @@ export const schoolSlice = createSlice({
       (state, action) => {
         state.school = action.payload.data;
         state.verified = action.payload.isVerified;
-      }
+      },
     );
   },
 });
@@ -328,7 +404,15 @@ export const {
   useCreateSchoolMutation,
   useLazyFetchSchoolQuery,
   useFetchSchoolQuery,
+  useFetchSchoolClassesQuery,
   useCreateClassMutation,
+  useCreateClassxMutation,
+  useUpdateClassMutation,
+  useDeleteClassMutation,
+  useAddStudentToClassMutation,
+  useRemoveStudentFromClassMutation,
+  useAddTeacherToClassMutation,
+  useRemoveTeacherFromClassMutation,
   useCreateAssignmentMutation,
   useLazyFetchClassesQuery,
   useCreateAnnouncementMutation,

@@ -1414,7 +1414,7 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "New Class",
     icon: "school",
-    nav: { screen: "/school/classes", data: {} },
+    nav: { screen: "/school/classrooms", data: {} },
   },
   {
     _id: nanoid(),
