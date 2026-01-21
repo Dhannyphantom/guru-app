@@ -39,6 +39,7 @@ import Avatar from "../components/Avatar";
 import { useRouter } from "expo-router";
 import { NavBack } from "../components/AppIcons";
 import LottieAnimator from "../components/LottieAnimator";
+import PopMessage from "../components/PopMessage";
 
 // Support Categories
 const SUPPORT_CATEGORIES = [
@@ -520,30 +521,24 @@ const CommonIssueItem = ({ item, isExpanded, onToggle }) => {
 };
 
 // Contact Form Component
-const ContactForm = ({ category, onClose, onSubmit }) => {
+const ContactForm = ({ category, onClose, submitting, onSubmit }) => {
   const user = useSelector(selectUser);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const isValid = subject.trim().length > 3 && message.trim().length > 10;
 
   const handleSubmit = async () => {
     if (!isValid) return;
 
-    setLoading(true);
-
-    setTimeout(() => {
-      onSubmit({
-        category,
-        subject,
-        message,
-        userEmail: user?.email,
-        userName: `${user?.firstName} ${user?.lastName}`,
-        userId: user?._id,
-      });
-      setLoading(false);
-    }, 1500);
+    onSubmit({
+      category,
+      subject,
+      message,
+      userEmail: user?.email,
+      userName: `${user?.firstName} ${user?.lastName}`,
+      userId: user?._id,
+    });
   };
 
   return (
@@ -663,9 +658,9 @@ const ContactForm = ({ category, onClose, onSubmit }) => {
           </View>
 
           <AppButton
-            title={loading ? "Sending..." : "Submit Request"}
+            title={submitting ? "Sending..." : "Submit Request"}
             onPress={handleSubmit}
-            disabled={!isValid || loading}
+            disabled={!isValid || submitting}
             contStyle={{ marginTop: 20, marginBottom: 30 }}
           />
         </View>
@@ -679,21 +674,21 @@ const ContactSupportScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [expandedIssue, setExpandedIssue] = useState(null);
   const [activeTab, setActiveTab] = useState("support"); // 'support' or 'history'
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [popData, setPopData] = useState({ vis: true });
 
-  const { data: tickets, isLoading } = useFetchMyTicketsQuery();
+  const { data: tickets, isLoading, refetch } = useFetchMyTicketsQuery();
   const [createSupportTicket, { isLoading: creating, error: createErr }] =
     useCreateSupportTicketMutation();
 
   const activeTickets =
     tickets?.data?.tickets?.filter((tick) =>
-      ["open", "in_progress", "waiting_user"].includes(tick?.status)
+      ["open", "in_progress", "waiting_user"].includes(tick?.status),
     ) || [];
 
   const historyTickets =
     tickets?.data?.tickets?.filter((tick) =>
-      ["resolved", "closed"].includes(tick?.status)
+      ["resolved", "closed"].includes(tick?.status),
     ) || [];
 
   const router = useRouter();
@@ -706,57 +701,17 @@ const ContactSupportScreen = () => {
   const fetchTickets = async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
-    } else {
-      setLoading(true);
     }
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/support/tickets');
-      // const data = await response.json();
-      // Mock data for demonstration
-      // setTimeout(() => {
-      //   // const mockActiveTickets = [
-      //   //   {
-      //   //     _id: "1",
-      //   //     categoryTitle: "Payment Issue",
-      //   //     categoryData: {
-      //   //       icon: "card",
-      //   //       color: "#9C27B0",
-      //   //     },
-      //   //     subject: "Subscription payment not reflecting",
-      //   //     status: "in_progress",
-      //   //     unreadCount: 2,
-      //   //     lastMessage: {
-      //   //       sender: "support",
-      //   //       text: "We're looking into this issue. Can you provide your transaction reference?",
-      //   //     },
-      //   //     lastMessageAt: new Date().toISOString(),
-      //   //     createdAt: new Date().toISOString(),
-      //   //   },
-      //   // ];
-      //   // const mockHistoryTickets = [
-      //   //   {
-      //   //     _id: "2",
-      //   //     categoryTitle: "Account Help",
-      //   //     categoryData: {
-      //   //       icon: "person-circle",
-      //   //       color: "#FF9800",
-      //   //     },
-      //   //     status: "resolved",
-      //   //     createdAt: new Date(
-      //   //       Date.now() - 7 * 24 * 60 * 60 * 1000
-      //   //     ).toISOString(),
-      //   //   },
-      //   // ];
-      //   // (mockActiveTickets);
-      // //  (mockHistoryTickets);
-      //   setLoading(false);
-      //   setRefreshing(false);
-      // }, 1000);
+      await refetch().unwrap();
     } catch (error) {
-      console.error("Error fetching tickets:", error);
-      setLoading(false);
+      setPopData({
+        vis: true,
+        type: "failed",
+        msg: error?.data?.message ?? "Chat fetch error",
+      });
+    } finally {
       setRefreshing(false);
     }
   };
@@ -785,7 +740,11 @@ const ContactSupportScreen = () => {
         });
       }
     } catch (errr) {
-      console.log(errr);
+      setPopData({
+        vis: true,
+        type: "failed",
+        msg: errr?.data?.message ?? "Error creating issue. Try again later",
+      });
     }
 
     // setSelectedCategory(null);
@@ -814,6 +773,7 @@ const ContactSupportScreen = () => {
       <Screen style={styles.container}>
         <ContactForm
           category={selectedCategory}
+          submitting={creating}
           onClose={() => setSelectedCategory(null)}
           onSubmit={handleFormSubmit}
         />
@@ -1004,7 +964,7 @@ const ContactSupportScreen = () => {
         ) : (
           // History Tab Content
           <View style={styles.section}>
-            {loading ? (
+            {isLoading ? (
               <View style={styles.loadingContainer}>
                 <LottieAnimator visible />
                 <AppText
@@ -1067,6 +1027,7 @@ const ContactSupportScreen = () => {
           </View>
         )}
       </ScrollView>
+      <PopMessage popData={popData} setPopData={setPopData} />
     </Screen>
   );
 };
