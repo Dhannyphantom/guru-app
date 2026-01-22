@@ -27,6 +27,52 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         params: { type },
       }),
     }),
+    getMyQuestions: builder.query({
+      query: ({ subjectId, topicId, page = 1, limit = 20 } = {}) => {
+        const params = new URLSearchParams();
+
+        if (subjectId) params.append("subjectId", subjectId);
+        if (topicId) params.append("topicId", topicId);
+        params.append("page", page.toString());
+        params.append("limit", limit.toString());
+
+        return {
+          url: `/instance/my_questions?${params.toString()}`,
+          timeout: 15000,
+        };
+      },
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        // Create cache key based on filters only (not page)
+        const { subjectId, topicId } = queryArgs;
+        return `${endpointName}-${subjectId || "all"}-${topicId || "all"}`;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        // If page is 1, replace cache entirely (new filter or refresh)
+        if (arg?.page === 1) {
+          return newItems;
+        }
+
+        // Otherwise, append new questions to existing ones
+        return {
+          ...newItems,
+          data: [...(currentCache?.data || []), ...(newItems?.data || [])],
+          pagination: newItems.pagination,
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        // Refetch when page changes
+        return currentArg?.page !== previousArg?.page;
+      },
+      providesTags: (result, error, arg) => [
+        "MY_QUESTIONS",
+        {
+          type: "MY_QUESTIONS",
+          id: `${arg.subjectId || "all"}-${arg.topicId || "all"}`,
+        },
+      ],
+      keepUnusedDataFor: 300, // 5 minutes
+    }),
+
     fetchInstance: builder.query({
       query: ({ route, schoolId, topicId, subjectId }) => ({
         url: `/instance/${route}?topicId=${topicId}&subjectId=${subjectId}`,
@@ -136,6 +182,8 @@ export const {
   useCreateSubjectMutation,
   useLazyFetchCategoriesQuery,
   useFetchCategoriesQuery,
+  useFetchSubjTopicsQuery,
+  useGetMyQuestionsQuery,
   useFetchSubjectsQuery,
   useCreateQuestionMutation,
   useSubmitPremiumQuizMutation,

@@ -205,7 +205,7 @@ export const SubjectItem = ({ data, loading, isEdit }) => {
     } else {
       router.push({
         pathname: "/topics",
-        params: { item: JSON.stringify(data) },
+        params: { name: data?.name, _id: data?._id },
       });
     }
   };

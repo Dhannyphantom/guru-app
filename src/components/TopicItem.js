@@ -3,19 +3,28 @@ import { Dimensions, Pressable, StyleSheet, View } from "react-native";
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import { ProgressBar } from "./AppDetails";
-import { useNavigation } from "@react-navigation/native";
 import AnimatedPressable from "./AnimatedPressable";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
-const TopicItem = ({ data, index, subject, disabled = true, onPress }) => {
-  const navigation = useNavigation();
+const TopicItem = ({ data, index, subject, disabled = false, onPress }) => {
+  const router = useRouter();
 
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else {
-      navigation.navigate("Questions", { ...data, subject });
+      //  ("Questions", { ...data, subject });
+      router.push({
+        pathname: "/study",
+        params: {
+          topicId: data?._id,
+          topicName: data?.name,
+          subjectName: subject?.name,
+          subjectId: subject?._id,
+        },
+      });
     }
   };
 
@@ -41,8 +50,8 @@ const TopicItem = ({ data, index, subject, disabled = true, onPress }) => {
         </View>
         <ProgressBar
           barHeight={12}
-          value={data?.answeredNum}
-          max={data?.questionsNum}
+          value={data?.qBankQuestions}
+          max={data?.totalQuestions >= 1 ? data?.totalQuestions : 1}
           hideProgressText
           style={{ marginTop: 10 }}
         />
@@ -70,17 +79,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   number: {
-    backgroundColor: colors.primaryDeeper,
+    backgroundColor: colors.primary + 40,
     width: 35,
     height: 35,
     borderRadius: 100,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderBottomWidth: 3,
   },
 
   numberText: {
-    color: colors.white,
+    color: colors.primaryDeeper,
   },
   rowWide: {
     flexDirection: "row",
