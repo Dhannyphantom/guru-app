@@ -322,6 +322,16 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
 
+    // CREATE CLASS (single or "all")
+    transferStudents: builder.mutation({
+      query: ({ schoolId, classId, ...body }) => ({
+        url: `/school/${schoolId}/classes/${classId}/transfer`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+
     // UPDATE CLASS
     updateClass: builder.mutation({
       query: ({ schoolId, classId, ...body }) => ({
@@ -409,6 +419,7 @@ export const {
   useCreateClassxMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,
+  useTransferStudentsMutation,
   useAddStudentToClassMutation,
   useRemoveStudentFromClassMutation,
   useAddTeacherToClassMutation,

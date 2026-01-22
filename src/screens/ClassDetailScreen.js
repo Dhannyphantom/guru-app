@@ -8,15 +8,17 @@ import {
   Modal,
   TextInput,
   Dimensions,
-  FlatList,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   FadeInDown,
   FadeIn,
+  ZoomIn,
+  FadeOut,
+  ZoomOut,
 } from "react-native-reanimated";
 
 import AppText from "../components/AppText";
@@ -29,16 +31,33 @@ import {
   useFetchSchoolClassesQuery,
   useRemoveStudentFromClassMutation,
   useAddStudentToClassMutation,
+  useTransferStudentsMutation,
 } from "../context/schoolSlice";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import LottieAnimator from "../components/LottieAnimator";
 import PopMessage from "../components/PopMessage";
 import { schoolClasses } from "../helpers/dataStore";
+import { StatusBar } from "expo-status-bar";
+import Avatar from "../components/Avatar";
+import { getFullName } from "../helpers/helperFunctions";
+import AppHeader from "../components/AppHeader";
 
 const { width } = Dimensions.get("screen");
 
+const getClassColor = (level) => {
+  const colorsObj = {
+    "jss 1": colors.primary,
+    "jss 2": colors.accent,
+    "jss 3": "#9C27B0",
+    "sss 1": "#FF9800",
+    "sss 2": "#F44336",
+    "sss 3": "#00BCD4",
+  };
+  return colorsObj[level?.toLowerCase()] || colors.primary;
+};
+
 // Student Card Component
-const StudentCard = ({ student, onUpgrade, onDowngrade, onRemove, index }) => {
+const StudentCard = ({ student, onUpgrade, onRemove, index }) => {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -62,19 +81,14 @@ const StudentCard = ({ student, onUpgrade, onDowngrade, onRemove, index }) => {
           style={styles.studentCard}
         >
           <View style={styles.studentInfo}>
-            <View style={styles.studentAvatar}>
-              <AppText
-                fontWeight="bold"
-                size="large"
-                style={{ color: colors.white }}
-              >
-                {student.firstName?.[0]}
-                {student.lastName?.[0]}
-              </AppText>
-            </View>
+            <Avatar source={student?.avatar?.image} size={50} />
             <View style={styles.studentDetails}>
-              <AppText fontWeight="semibold" size="regular">
-                {student.firstName} {student.lastName}
+              <AppText
+                style={{ textTransform: "capitalize" }}
+                fontWeight="semibold"
+                size="regular"
+              >
+                {getFullName(student)}
               </AppText>
               <AppText
                 size="small"
@@ -90,17 +104,9 @@ const StudentCard = ({ student, onUpgrade, onDowngrade, onRemove, index }) => {
               onPress={() => onUpgrade(student)}
               style={[styles.iconButton, { backgroundColor: "#4CAF50" + "20" }]}
             >
-              <Ionicons name="arrow-up" size={18} color="#4CAF50" />
+              <Ionicons name="repeat" size={18} color="#4CAF50" />
             </Pressable>
-            <Pressable
-              onPress={() => onDowngrade(student)}
-              style={[
-                styles.iconButton,
-                { backgroundColor: "#FF9800" + "20", marginLeft: 8 },
-              ]}
-            >
-              <Ionicons name="arrow-down" size={18} color="#FF9800" />
-            </Pressable>
+
             <Pressable
               onPress={() => onRemove(student)}
               style={[
@@ -159,11 +165,12 @@ const TransferModal = ({
   onClose,
   student,
   students,
+  classes = [],
   currentLevel,
   type,
   onConfirm,
 }) => {
-  const [targetLevel, setTargetLevel] = useState("");
+  const [targetLevel, setTargetLevel] = useState({});
   const [transferAll, setTransferAll] = useState(false);
 
   React.useEffect(() => {
@@ -173,23 +180,10 @@ const TransferModal = ({
     }
   }, [visible]);
 
-  const availableLevels = schoolClasses.filter((level) => {
-    const currentIndex = schoolClasses.findIndex(
-      (l) => l.name === currentLevel,
-    );
-    const levelIndex = schoolClasses.findIndex((l) => l.name === level.name);
-
-    if (type === "upgrade") {
-      return levelIndex > currentIndex;
-    } else {
-      return levelIndex < currentIndex;
-    }
-  });
-
   const handleConfirm = () => {
     if (!targetLevel) return;
     onConfirm({
-      student: transferAll ? null : student,
+      studentId: student?._id,
       targetLevel,
       transferAll,
     });
@@ -201,14 +195,22 @@ const TransferModal = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <Animated.View entering={FadeIn} style={styles.transferModalContent}>
+      <Animated.View
+        entering={FadeIn}
+        exiting={FadeOut}
+        style={styles.modalOverlay}
+      >
+        <Animated.View
+          entering={ZoomIn.springify()}
+          exiting={ZoomOut}
+          style={styles.transferModalContent}
+        >
           <View style={styles.modalHeader}>
             <AppText fontWeight="bold" size="large">
-              {type === "upgrade" ? "Upgrade" : "Downgrade"} Student
+              Transfer Student
               {transferAll ? "s" : ""}
             </AppText>
             <Pressable onPress={onClose}>
@@ -219,18 +221,16 @@ const TransferModal = ({
           <View style={styles.modalBody}>
             {!transferAll && student && (
               <View style={styles.studentPreview}>
-                <View style={[styles.studentAvatar, { width: 40, height: 40 }]}>
-                  <AppText fontWeight="bold" style={{ color: colors.white }}>
-                    {student.firstName?.[0]}
-                    {student.lastName?.[0]}
-                  </AppText>
-                </View>
+                <Avatar source={student?.avatar?.image} size={45} />
                 <View style={{ marginLeft: 12, flex: 1 }}>
-                  <AppText fontWeight="semibold">
-                    {student.firstName} {student.lastName}
+                  <AppText
+                    fontWeight="semibold"
+                    style={{ textTransform: "capitalize" }}
+                  >
+                    {getFullName(student)}
                   </AppText>
                   <AppText size="small" style={{ color: colors.medium }}>
-                    Current: {currentLevel}
+                    Current: {currentLevel?.toUpperCase()}
                   </AppText>
                 </View>
               </View>
@@ -246,8 +246,7 @@ const TransferModal = ({
                 )}
               </View>
               <AppText style={{ marginLeft: 10, flex: 1 }}>
-                {type === "upgrade" ? "Upgrade" : "Downgrade"} all students (
-                {studentCount})
+                Transfer all students ({studentCount})
               </AppText>
             </Pressable>
 
@@ -256,33 +255,50 @@ const TransferModal = ({
               size="regular"
               style={styles.inputLabel}
             >
-              Select Target Class
+              Select Transfer Class
             </AppText>
 
-            {availableLevels.length > 0 ? (
+            {classes?.length > 0 ? (
               <View style={styles.levelOptions}>
-                {availableLevels.map((level) => (
+                {classes?.map((level) => (
                   <Pressable
                     key={level._id}
-                    onPress={() => setTargetLevel(level.name)}
+                    onPress={() => setTargetLevel(level)}
                     style={[
                       styles.levelOption,
-                      targetLevel === level.name && styles.levelOptionActive,
+                      targetLevel?._id === level._id &&
+                        styles.levelOptionActive,
                     ]}
                   >
                     <AppText
                       size="small"
                       fontWeight={
-                        targetLevel === level.name ? "bold" : "regular"
+                        targetLevel?._id === level._id ? "bold" : "regular"
                       }
                       style={{
+                        textTransform: "uppercase",
                         color:
-                          targetLevel === level.name
+                          targetLevel?._id === level._id
                             ? colors.primary
                             : colors.medium,
                       }}
                     >
-                      {level.name}
+                      {level.level}
+                      {": "}
+                      <AppText
+                        fontWeight={
+                          targetLevel?._id === level._id ? "bold" : "regular"
+                        }
+                        style={{
+                          textTransform: "capitalize",
+                          color:
+                            targetLevel?._id === level._id
+                              ? colors.primary
+                              : colors.medium,
+                        }}
+                      >
+                        {level.alias}
+                      </AppText>
                     </AppText>
                   </Pressable>
                 ))}
@@ -308,19 +324,19 @@ const TransferModal = ({
               title="Cancel"
               onPress={onClose}
               contStyle={{ flex: 1, marginRight: 10 }}
+              type="warn"
               backgroundColor={colors.light}
               textColor={colors.medium}
             />
             <AppButton
-              title={`${type === "upgrade" ? "Upgrade" : "Downgrade"}`}
+              title={"Transfer"}
               onPress={handleConfirm}
               contStyle={{ flex: 1 }}
-              disabled={!targetLevel || availableLevels.length === 0}
-              backgroundColor={type === "upgrade" ? "#4CAF50" : "#FF9800"}
+              disabled={!targetLevel || classes?.length === 0}
             />
           </View>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -391,19 +407,20 @@ const ClassDetailScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("students");
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
-  const [downgradeModalVisible, setDowngradeModalVisible] = useState(false);
   const [removeModalVisible, setRemoveModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [popper, setPopper] = useState({ vis: false });
 
-  const router = useRouter();
+  // const router = useRouter();
   const school = useSelector(selectSchool);
 
   const { data, isLoading, refetch } = useFetchSchoolClassesQuery(school?._id);
   const [removeStudent, { isLoading: removing }] =
     useRemoveStudentFromClassMutation();
   const [addStudent, { isLoading: adding }] = useAddStudentToClassMutation();
+  const [transferStudent, { isLoading: transferring }] =
+    useTransferStudentsMutation();
 
   const classes = data?.data?.classes || [];
   const currentClass = classes.find((cls) => cls._id === classId);
@@ -431,23 +448,18 @@ const ClassDetailScreen = () => {
     setUpgradeModalVisible(true);
   };
 
-  const handleDowngrade = (student) => {
-    setSelectedStudent(student);
-    setDowngradeModalVisible(true);
-  };
-
   const handleRemove = (student) => {
     setSelectedStudent(student);
     setRemoveModalVisible(true);
   };
 
   const handleConfirmTransfer = async ({
-    student,
+    studentId,
     targetLevel,
     transferAll,
   }) => {
     try {
-      const targetClass = classes.find((cls) => cls.level === targetLevel);
+      const targetClass = classes.find((cls) => cls._id === targetLevel?._id);
 
       if (!targetClass) {
         setPopper({
@@ -459,22 +471,30 @@ const ClassDetailScreen = () => {
         return;
       }
 
-      const studentsToTransfer = transferAll ? students : [student];
+      await transferStudent({
+        schoolId: school?._id,
+        classId,
+        studentId,
+        targetLevelId: targetLevel?._id,
+        upgradeAll: transferAll,
+      });
 
-      // Remove from current class and add to target class
-      for (const std of studentsToTransfer) {
-        await removeStudent({
-          schoolId: school?._id,
-          classId: currentClass._id,
-          studentId: std._id,
-        }).unwrap();
+      const studentsToTransfer = transferAll ? students : [studentId];
 
-        await addStudent({
-          schoolId: school?._id,
-          classId: targetClass._id,
-          studentId: std._id,
-        }).unwrap();
-      }
+      // // Remove from current class and add to target class
+      // for (const std of studentsToTransfer) {
+      //   await removeStudent({
+      //     schoolId: school?._id,
+      //     classId: currentClass._id,
+      //     studentId: std._id,
+      //   }).unwrap();
+
+      //   await addStudent({
+      //     schoolId: school?._id,
+      //     classId: targetClass._id,
+      //     studentId: std._id,
+      //   }).unwrap();
+      // }
 
       setPopper({
         vis: true,
@@ -484,7 +504,6 @@ const ClassDetailScreen = () => {
       });
 
       setUpgradeModalVisible(false);
-      setDowngradeModalVisible(false);
       setSelectedStudent(null);
     } catch (error) {
       setPopper({
@@ -523,24 +542,13 @@ const ClassDetailScreen = () => {
     }
   };
 
-  const getClassColor = (level) => {
-    const colors = {
-      jss1: "#4CAF50",
-      jss2: "#2196F3",
-      jss3: "#9C27B0",
-      sss1: "#FF9800",
-      sss2: "#F44336",
-      sss3: "#00BCD4",
-    };
-    return colors[level?.toLowerCase()] || "#607D8B";
-  };
-
   const classColor = getClassColor(classLevel);
 
   return (
-    <Screen style={styles.container}>
+    <View style={styles.container}>
+      <AppHeader title={`${classLevel?.toUpperCase()} (${className})`} />
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: classColor }]}>
+      {/* <View style={[styles.header, { backgroundColor: classColor }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.white} />
         </Pressable>
@@ -554,35 +562,38 @@ const ClassDetailScreen = () => {
           </AppText>
           <AppText
             size="regular"
-            style={{ color: colors.white + "CC", marginTop: 4 }}
+            fontWeight="medium"
+            style={{ color: "#ffffff" + "CC", marginTop: 4 }}
           >
             {classLevel?.toUpperCase()}
           </AppText>
         </View>
         <View style={{ width: 40 }} />
-      </View>
+      </View> */}
 
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
-        <View style={[styles.statCard, { backgroundColor: "#4CAF50" + "20" }]}>
-          <Ionicons name="people" size={24} color="#4CAF50" />
-          <AppText fontWeight="bold" size="xlarge" style={{ marginTop: 8 }}>
-            {students.length}
-          </AppText>
-          <AppText size="small" style={{ color: colors.medium }}>
-            Students
-          </AppText>
+        <View style={[styles.statCard, { backgroundColor: classColor + "20" }]}>
+          <Ionicons name="people" size={24} color={classColor} />
+          <View>
+            <AppText fontWeight="bold" size="xlarge">
+              {students.length}
+            </AppText>
+            <AppText size="small" style={{ color: colors.medium }}>
+              Students
+            </AppText>
+          </View>
         </View>
-        <View
-          style={[styles.statCard, { backgroundColor: colors.primary + "20" }]}
-        >
-          <Ionicons name="person" size={24} color={colors.primary} />
-          <AppText fontWeight="bold" size="xlarge" style={{ marginTop: 8 }}>
-            {teachers.length}
-          </AppText>
-          <AppText size="small" style={{ color: colors.medium }}>
-            Teachers
-          </AppText>
+        <View style={[styles.statCard, { backgroundColor: classColor + "10" }]}>
+          <Ionicons name="person" size={24} color={classColor} />
+          <View>
+            <AppText fontWeight="bold" size="xlarge">
+              {teachers.length}
+            </AppText>
+            <AppText size="small" style={{ color: colors.medium }}>
+              Teachers
+            </AppText>
+          </View>
         </View>
       </View>
 
@@ -590,12 +601,15 @@ const ClassDetailScreen = () => {
       <View style={styles.tabsContainer}>
         <Pressable
           onPress={() => setActiveTab("students")}
-          style={[styles.tab, activeTab === "students" && styles.activeTab]}
+          style={[
+            styles.tab,
+            activeTab === "students" && { backgroundColor: classColor + 15 },
+          ]}
         >
           <AppText
             fontWeight={activeTab === "students" ? "bold" : "regular"}
             style={{
-              color: activeTab === "students" ? colors.primary : colors.medium,
+              color: activeTab === "students" ? classColor : colors.medium,
             }}
           >
             Students ({students.length})
@@ -603,12 +617,15 @@ const ClassDetailScreen = () => {
         </Pressable>
         <Pressable
           onPress={() => setActiveTab("teachers")}
-          style={[styles.tab, activeTab === "teachers" && styles.activeTab]}
+          style={[
+            styles.tab,
+            activeTab === "teachers" && { backgroundColor: classColor + 15 },
+          ]}
         >
           <AppText
             fontWeight={activeTab === "teachers" ? "bold" : "regular"}
             style={{
-              color: activeTab === "teachers" ? colors.primary : colors.medium,
+              color: activeTab === "teachers" ? classColor : colors.medium,
             }}
           >
             Teachers ({teachers.length})
@@ -617,7 +634,7 @@ const ClassDetailScreen = () => {
       </View>
 
       {/* Search Bar */}
-      {activeTab === "students" && (
+      {activeTab === "students" && students?.length > 0 && (
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
             <Ionicons name="search" size={20} color={colors.medium} />
@@ -664,7 +681,6 @@ const ClassDetailScreen = () => {
                   student={student}
                   index={index}
                   onUpgrade={handleUpgrade}
-                  onDowngrade={handleDowngrade}
                   onRemove={handleRemove}
                 />
               ))}
@@ -733,23 +749,10 @@ const ClassDetailScreen = () => {
           setSelectedStudent(null);
         }}
         student={selectedStudent}
+        classes={school?.classes}
         students={students}
         currentLevel={classLevel}
         type="upgrade"
-        onConfirm={handleConfirmTransfer}
-      />
-
-      {/* Downgrade Modal */}
-      <TransferModal
-        visible={downgradeModalVisible}
-        onClose={() => {
-          setDowngradeModalVisible(false);
-          setSelectedStudent(null);
-        }}
-        student={selectedStudent}
-        students={students}
-        currentLevel={classLevel}
-        type="downgrade"
         onConfirm={handleConfirmTransfer}
       />
 
@@ -769,7 +772,8 @@ const ClassDetailScreen = () => {
 
       {/* Pop Message */}
       <PopMessage popData={popper} setPopData={setPopper} />
-    </Screen>
+      <StatusBar style="dark" />
+    </View>
   );
 };
 
@@ -800,8 +804,8 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     paddingHorizontal: 20,
-    marginTop: -30,
     gap: 15,
+    marginTop: 10,
   },
   statCard: {
     flex: 1,
@@ -809,6 +813,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
+    flexDirection: "row",
+    gap: 15,
   },
   tabsContainer: {
     flexDirection: "row",
