@@ -9,13 +9,21 @@ import {
   TextInput,
   Dimensions,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  FontAwesome,
+  FontAwesome5,
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   FadeInDown,
   FadeIn,
+  BounceInLeft,
+  FadeOut,
+  FadeInLeft,
 } from "react-native-reanimated";
 
 import AppText from "../components/AppText";
@@ -33,7 +41,9 @@ import {
 import { useRouter } from "expo-router";
 import LottieAnimator from "../components/LottieAnimator";
 import PopMessage from "../components/PopMessage";
-import { schoolClasses } from "../helpers/dataStore";
+import { getClassColor, PAD_BOTTOM, schoolClasses } from "../helpers/dataStore";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NavBack } from "../components/AppIcons";
 
 const { width } = Dimensions.get("screen");
 
@@ -51,18 +61,6 @@ const ClassCard = ({ classItem, onPress, onEdit, onDelete, index }) => {
 
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 30 });
-  };
-
-  const getClassColor = (level) => {
-    const colors = {
-      jss1: "#4CAF50",
-      jss2: "#2196F3",
-      jss3: "#9C27B0",
-      sss1: "#FF9800",
-      sss2: "#F44336",
-      sss3: "#00BCD4",
-    };
-    return colors[level?.toLowerCase()] || "#607D8B";
   };
 
   const classColor = getClassColor(classItem.level);
@@ -121,32 +119,31 @@ const ClassCard = ({ classItem, onPress, onEdit, onDelete, index }) => {
                 </View>
               </View>
             </View>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onEdit(classItem);
-              }}
-              style={styles.actionButton}
-            >
-              <Ionicons
-                name="create-outline"
-                size={20}
-                color={colors.primary}
-              />
-            </Pressable>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onDelete(classItem);
-              }}
-              style={[styles.actionButton, { marginLeft: 8 }]}
-            >
-              <Ionicons name="trash-outline" size={20} color={colors.heart} />
-            </Pressable>
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onEdit(classItem);
+                }}
+                style={styles.actionButton}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </Pressable>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDelete(classItem);
+                }}
+                style={[styles.actionButton, { marginLeft: 8 }]}
+              >
+                <Ionicons name="trash-outline" size={20} color={colors.heart} />
+              </Pressable>
+            </View>
           </View>
         </Pressable>
       </Animated.View>
@@ -256,11 +253,15 @@ const EditClassModal = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.editModalContent}>
+      <Animated.View
+        entering={FadeIn}
+        exiting={FadeOut}
+        style={styles.modalOverlay}
+      >
+        <Animated.View entering={FadeInLeft} style={styles.editModalContent}>
           <View style={styles.modalHeader}>
             <AppText fontWeight="bold" size="large">
               {isCreating ? "Create Class" : "Edit Class"}
@@ -271,6 +272,24 @@ const EditClassModal = ({
           </View>
 
           <View style={styles.modalBody}>
+            <AppText
+              fontWeight="semibold"
+              size="regular"
+              style={[styles.inputLabel]}
+            >
+              Class Alias (E.g JSS 2B, The Elites)
+            </AppText>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., The Overcomers, SS2 Gold"
+              placeholderTextColor={colors.medium}
+              value={alias}
+              onChangeText={setAlias}
+              maxLength={50}
+            />
+            <AppText size="xxsmall" style={styles.charCount}>
+              {alias.length}/50
+            </AppText>
             <AppText
               fontWeight="semibold"
               size="regular"
@@ -305,25 +324,6 @@ const EditClassModal = ({
                 </Pressable>
               ))}
             </View>
-
-            <AppText
-              fontWeight="semibold"
-              size="regular"
-              style={[styles.inputLabel, { marginTop: 20 }]}
-            >
-              Class Alias (E.g JSS 2B, The Elites)
-            </AppText>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., The Overcomers, SS2 Gold"
-              placeholderTextColor={colors.medium}
-              value={alias}
-              onChangeText={setAlias}
-              maxLength={50}
-            />
-            <AppText size="xxsmall" style={styles.charCount}>
-              {alias.length}/50
-            </AppText>
           </View>
 
           <View style={styles.modalActions}>
@@ -331,8 +331,9 @@ const EditClassModal = ({
               title="Cancel"
               onPress={onClose}
               contStyle={{ flex: 1, marginRight: 10 }}
-              backgroundColor={colors.light}
-              textColor={colors.medium}
+              // backgroundColor={colors.light}
+              // textColor={colors.medium}
+              type="white"
             />
             <AppButton
               title={isCreating ? "Create Class" : "Save Changes"}
@@ -341,8 +342,8 @@ const EditClassModal = ({
               disabled={!selectedLevel}
             />
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -356,8 +357,15 @@ const DeleteConfirmModal = ({ visible, onClose, classData, onConfirm }) => {
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <Animated.View entering={FadeIn} style={styles.deleteModalContent}>
+      <Animated.View
+        entering={FadeIn}
+        exiting={FadeOut}
+        style={styles.modalOverlay}
+      >
+        <Animated.View
+          entering={BounceInLeft.damping(20)}
+          style={styles.deleteModalContent}
+        >
           <View style={styles.deleteIcon}>
             <Ionicons name="warning" size={48} color={colors.heart} />
           </View>
@@ -408,19 +416,30 @@ const DeleteConfirmModal = ({ visible, onClose, classData, onConfirm }) => {
               onPress={onClose}
               contStyle={{ flex: 1, marginRight: 10 }}
               backgroundColor={colors.light}
+              type="white"
               textColor={colors.medium}
             />
             <AppButton
               title="Delete"
               onPress={onConfirm}
+              type="warn"
               contStyle={{ flex: 1 }}
               backgroundColor={colors.heart}
             />
           </View>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Modal>
   );
+};
+
+const sorter = {
+  "jss 1": 0,
+  "jss 2": 1,
+  "jss 3": 2,
+  "sss 1": 3,
+  "sss 2": 4,
+  "sss 3": 5,
 };
 
 // Main Classroom Screen
@@ -435,15 +454,17 @@ const ClassroomScreen = () => {
 
   const router = useRouter();
   const school = useSelector(selectSchool);
+  const insets = useSafeAreaInsets();
 
-  const { data, isLoading, refetch, error } = useFetchSchoolClassesQuery(
-    school?._id,
-  );
+  const { data, isLoading, refetch } = useFetchSchoolClassesQuery(school?._id);
   const [createClass, { isLoading: creating }] = useCreateClassMutation();
   const [updateClass, { isLoading: updating }] = useUpdateClassMutation();
   const [deleteClass, { isLoading: deleting }] = useDeleteClassMutation();
 
-  const classes = data?.data?.classes || [];
+  const classesx = data?.data?.classes || [];
+  const classes = classesx
+    ?.slice()
+    ?.sort?.((a, b) => sorter[a?.level] - sorter[b?.level]);
 
   // Filter classes based on search
   const filteredClasses = classes.filter((cls) => {
@@ -571,22 +592,25 @@ const ClassroomScreen = () => {
   };
 
   return (
-    <Screen style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <AppText fontWeight="bold" size="xxlarge">
-            Classrooms
-          </AppText>
-          <AppText
-            size="regular"
-            style={{ color: colors.medium, marginTop: 4 }}
-          >
-            Manage your school classes
-          </AppText>
+      <View style={[styles.header, { paddingTop: insets.top + 5 }]}>
+        <View style={{ flexDirection: "row" }}>
+          <NavBack color="black" style={{ paddingRight: 10 }} />
+          <View>
+            <AppText fontWeight="bold" size="xxlarge">
+              Classrooms
+            </AppText>
+            <AppText
+              size="regular"
+              style={{ color: colors.medium, marginTop: 4 }}
+            >
+              Manage your school classes
+            </AppText>
+          </View>
         </View>
         <Pressable onPress={handleCreateClass} style={styles.addButton}>
-          <Ionicons name="add" size={24} color={colors.white} />
+          <FontAwesome5 name="plus" size={20} color={colors.white} />
         </Pressable>
       </View>
 
@@ -716,7 +740,7 @@ const ClassroomScreen = () => {
 
       {/* Pop Message */}
       <PopMessage popData={popper} setPopData={setPopper} />
-    </Screen>
+    </View>
   );
 };
 
@@ -783,7 +807,7 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: PAD_BOTTOM,
   },
   classesContainer: {
     paddingHorizontal: 20,

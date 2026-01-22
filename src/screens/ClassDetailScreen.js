@@ -33,28 +33,16 @@ import {
   useAddStudentToClassMutation,
   useTransferStudentsMutation,
 } from "../context/schoolSlice";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import LottieAnimator from "../components/LottieAnimator";
 import PopMessage from "../components/PopMessage";
-import { schoolClasses } from "../helpers/dataStore";
+import { getClassColor } from "../helpers/dataStore";
 import { StatusBar } from "expo-status-bar";
 import Avatar from "../components/Avatar";
 import { getFullName } from "../helpers/helperFunctions";
 import AppHeader from "../components/AppHeader";
 
 const { width } = Dimensions.get("screen");
-
-const getClassColor = (level) => {
-  const colorsObj = {
-    "jss 1": colors.primary,
-    "jss 2": colors.accent,
-    "jss 3": "#9C27B0",
-    "sss 1": "#FF9800",
-    "sss 2": "#F44336",
-    "sss 3": "#00BCD4",
-  };
-  return colorsObj[level?.toLowerCase()] || colors.primary;
-};
 
 // Student Card Component
 const StudentCard = ({ student, onUpgrade, onRemove, index }) => {

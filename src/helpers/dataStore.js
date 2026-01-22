@@ -42,6 +42,18 @@ export const appData = {
 
 export const ngLocale = nigeriaLocale;
 
+export const getClassColor = (level) => {
+  const colorsObj = {
+    "jss 1": colors.primary,
+    "jss 2": colors.accent,
+    "jss 3": "#9C27B0",
+    "sss 1": "#FF9800",
+    "sss 2": "#F44336",
+    "sss 3": "#00BCD4",
+  };
+  return colorsObj[level?.toLowerCase()] || colors.primary;
+};
+
 export const dummySubjects = [
   {
     _id: nanoid(),
