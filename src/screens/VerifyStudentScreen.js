@@ -94,6 +94,7 @@ const VerifyStudentScreen = () => {
             hideBtn={!isSchoolVerified}
             onPress={handleVerification}
             isUser
+            hideSub
             type="student"
             userID={user?._id}
             data={item}

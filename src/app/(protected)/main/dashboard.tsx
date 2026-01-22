@@ -1,5 +1,7 @@
-import SchoolDashboardScreen from "@/src/screens/SchoolDashboardScreen";
+// import SchoolDashboardScreen from "@/src/screens/SchoolDashboardScreen";
+import { Redirect } from "expo-router";
+// import { useEffect } from "react";
 
 export default function SchoolDashboardPage() {
-  return <SchoolDashboardScreen />;
+  return <Redirect href={"/school"} />;
 }

@@ -302,9 +302,14 @@ export const SubjectCategory = ({ data = [], loading }) => {
   const renderCategories = ({ item }) => {
     return (
       <AnimatedPressable
-        onPress={() => router.push({ params: { item }, pathname: "/subjects" })}
+        onPress={() =>
+          router.push({
+            params: { name: item?.name, _id: item?._id },
+            pathname: "/subjects",
+          })
+        }
         style={{
-          width: Platform.OS == "web" ? 200 : width * 0.33,
+          width: Platform.OS === "web" ? 200 : width * 0.33,
           alignItems: "center",
           marginBottom: 15,
           marginRight: 15,
@@ -316,8 +321,8 @@ export const SubjectCategory = ({ data = [], loading }) => {
             // padding: 20,
             borderRadius: 12,
             marginBottom: 6,
-            width: Platform.OS == "web" ? 200 : width * 0.3,
-            height: Platform.OS == "web" ? 200 : width * 0.3,
+            width: Platform.OS === "web" ? 200 : width * 0.3,
+            height: Platform.OS === "web" ? 200 : width * 0.3,
 
             justifyContent: "center",
             alignItems: "center",

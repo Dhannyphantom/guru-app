@@ -63,6 +63,7 @@ const FriendCard = ({
   btnStyle,
   userID,
   hideBtn = false,
+  hideSub = false,
   isUser,
   onPress,
 }) => {
@@ -109,10 +110,10 @@ const FriendCard = ({
         btnTxt = isStudent
           ? "Verify"
           : isFollow
-          ? "Following"
-          : isInvite
-          ? "Invite"
-          : "Pending";
+            ? "Following"
+            : isInvite
+              ? "Invite"
+              : "Pending";
         btnType = isStudent ? "primary" : "white";
 
         break;
@@ -152,7 +153,10 @@ const FriendCard = ({
           ellipsizeMode="tail"
           style={styles.school}
         >
-          {data?.school?.verified ? data?.school?.name : "Not Affiliated"}
+          {data?.school?.verified
+            ? data?.school?.name
+            : (userObj?.class?.level?.toUpperCase() ??
+              (hideSub ? "" : "Not Affiliated"))}
         </AppText>
       </View>
 
