@@ -116,7 +116,7 @@ const RenderQuiz = ({ setVisible, data }) => {
     .every((item) => item === true);
 
   const acceptedInvites = quizInfo.invites?.filter(
-    (inv) => inv?.status === "accepted"
+    (inv) => inv?.status === "accepted",
   );
 
   const readyInvites =
@@ -221,7 +221,7 @@ const RenderQuiz = ({ setVisible, data }) => {
             if (finished) {
               animProgress.value = withTiming(0.85, { duration: 35000 });
             }
-          }
+          },
         );
       }
 
@@ -241,6 +241,7 @@ const RenderQuiz = ({ setVisible, data }) => {
 
       try {
         const res = await fetchPremiumQuiz(sendData).unwrap();
+        console.log(JSON.stringify(sendData, null, 2));
 
         if (isMultiplayer) {
           socket.emit("mode_topics", {
@@ -260,7 +261,21 @@ const RenderQuiz = ({ setVisible, data }) => {
             runOnJS(setQuizInfo)({ ...quizInfo, view: "start" });
           }
         });
-      } catch (_error) {}
+      } catch (errr) {
+        animProgress.value = withTiming(1, { duration: 800 });
+        setPopper({
+          vis: true,
+          msg: errr?.data?.message ?? "Something went wrong",
+          type: "failed",
+          timer: 10000,
+          cb: () => {
+            if (!isMultiplayer) {
+              animProgress.value = 0;
+              setQuizInfo((prev) => ({ ...prev, view: "study" }));
+            }
+          },
+        });
+      }
     }
   };
 
@@ -275,7 +290,7 @@ const RenderQuiz = ({ setVisible, data }) => {
     if (isMultiplayer) {
       const newValue = Math.min(
         (readyInvites?.length || 0) / (acceptedInvites?.length || 1),
-        1
+        1,
       );
       animProgress.value = withTiming(newValue, { duration: 2000 });
     }

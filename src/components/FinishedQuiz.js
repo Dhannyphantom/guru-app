@@ -30,7 +30,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
 
   const [submitQuiz, { isLoading, isError, error }] = useSubmitQuizMutation();
   const [leaderboard, setLeaderboard] = useState(session?.leaderboard ?? []);
-  const [submitPremiumQuiz, { isLoading: premLoading }] =
+  const [submitPremiumQuiz, { isLoading: premLoading, data: results }] =
     useSubmitPremiumQuizMutation();
 
   const percentage = Math.round((stat?.point / stat?.total) * 100);
@@ -57,7 +57,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           totalPoints += question.point;
         } else {
           totalPoints += question.point;
-          statPoints -= 15;
+          statPoints -= 2;
           // setStat({ ...stat, point: statPoints });
         }
       });
@@ -178,25 +178,29 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           >
             You earned{" "}
             <AppText size={"xxlarge"} fontWeight="black">
-              {stat?.point}
+              {results?.data?.pointsEarned}
             </AppText>
             <AppText
               size={"small"}
               style={{ color: colors.medium }}
               fontWeight="black"
             >
-              /{stat?.total}
+              /{results?.data?.totalQuestions * 5}
             </AppText>{" "}
             quiz points
           </AppText>
           <View style={{ flex: 1 }}>
             <View style={styles.stats}>
               <QuizStat
-                value={stat?.answeredCorrectly}
-                subValue={`of ${session?.totalQuestions ?? 0}`}
+                value={results?.data?.correctAnswers}
+                subValue={`of ${results?.data?.totalQuestions ?? 0}`}
                 msg={"Correct answers"}
               />
-              <QuizStat value={percentage} subValue={`%`} msg={"Quiz score"} />
+              <QuizStat
+                value={results?.data?.accuracy}
+                subValue={`%`}
+                msg={"Quiz score"}
+              />
             </View>
             <View style={styles.correctionView}>
               <View style={styles.sideBar} />
@@ -233,7 +237,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           </View>
           <View style={styles.statMain}>
             <QuizStat
-              value={stat?.point}
+              value={results?.data?.pointsEarned}
               bgColor={colors.warning}
               border={colors.warningLight}
               subValue={"GT"}
@@ -256,6 +260,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
       )}
       {/* <View style={styles.btnContainer}> */}
       <View style={styles.btns}>
+        {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
         <AppButton title={"Close"} type="white" onPress={hideModal} />
         <AppButton
           title={`${stat.vis ? "Hide" : ""} My Stats`}

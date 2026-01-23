@@ -8,6 +8,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useGetMyQuestionsQuery } from "../context/instanceSlice";
 import { useState } from "react";
 import LottieAnimator from "../components/LottieAnimator";
+import { PAD_BOTTOM } from "../helpers/dataStore";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -22,11 +23,15 @@ const QuestionStudyScreen = () => {
     limit: 50,
   });
 
+  //   console.log(data);
+
   //   const questions = dummyQuestionsView.find(
   //     (item) => item.subject?.toLowerCase() == data?.subject?.toLowerCase(),
   //   )?.questions;
-  //   const sendData = [{ _id: nanoid(), questions, subject: data?.subject }];
-  const sendData = [];
+  const sendData = [
+    { _id: "67", questions: data?.data, subject: route?.subjectName },
+  ];
+  //   const sendData = [];
   return (
     <View style={styles.container}>
       <AppHeader title={`${route?.subjectName} Review`} />
@@ -34,7 +39,11 @@ const QuestionStudyScreen = () => {
         Topic: {route?.topicName}
       </AppText>
       <View style={styles.separator} />
-      <QuizCorrections data={sendData} isSingle />
+      <QuizCorrections
+        data={sendData}
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+        isSingle
+      />
       <LottieAnimator visible={isLoading} absolute />
     </View>
   );

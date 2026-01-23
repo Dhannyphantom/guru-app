@@ -18,25 +18,35 @@ export default function DashboardPage() {
 
   if (!profileCompleted.bool) {
     // setPopper(profileCompleted.pop);
-    return <Redirect href={"/profile"} />;
+    return (
+      <Redirect href={{ pathname: "/profile", params: { check: "profile" } }} />
+    );
   } else {
     if (user?.accountType === "student") {
       // Check if school has active sub
       if (hasJoined) {
-        if (!userSubbed) {
+        if (userSubbed) {
           return <Redirect href={"/main/session"} />;
         } else {
           return (
             <Redirect
-              href={{ pathname: "/profile", params: { checkSub: "true" } }}
+              href={{ pathname: "/profile", params: { check: "subscription" } }}
             />
           );
         }
       } else {
-        return <Redirect href={"/school"} />;
+        return (
+          <Redirect
+            href={{ pathname: "/school", params: { check: "school_join" } }}
+          />
+        );
       }
     } else if (user?.accountType === "teacher" && !hasJoined) {
-      return <Redirect href={"/school"} />;
+      return (
+        <Redirect
+          href={{ pathname: "/school", params: { check: "school_join" } }}
+        />
+      );
     } else if (
       user?.accountType === "teacher" &&
       Boolean(school) &&

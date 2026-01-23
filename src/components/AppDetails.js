@@ -131,7 +131,7 @@ export const DailyTask = ({ stats }) => {
               Daily Task
             </AppText>
             <AppText fontWeight="light">
-              {stats?.daily?.questionsRemaining} questions left
+              {Math.max(stats?.daily?.questionsRemaining, 0)} questions left
             </AppText>
           </View>
           <View style={{ alignItems: "center" }}>
@@ -152,7 +152,7 @@ export const DailyTask = ({ stats }) => {
         </View>
         <ProgressBar
           barHeight={20}
-          value={stats?.daily?.questionsAnswered}
+          value={Math.min(stats?.daily?.questionsAnswered, 100)}
           max={100}
         />
       </View>

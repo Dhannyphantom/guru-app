@@ -1,3 +1,5 @@
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react/display-name */
 import {
   Dimensions,
   FlatList,
@@ -6,188 +8,112 @@ import {
   View,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons, Feather } from "@expo/vector-icons";
-
-import { capFirstLetter, formatPoints } from "../helpers/helperFunctions";
-
+import { capFirstLetter } from "../helpers/helperFunctions";
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import Animated, {
-  Extrapolation,
-  interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { useEffect, useState } from "react";
-import { nanoid } from "@reduxjs/toolkit";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 const { width, height } = Dimensions.get("screen");
-const ITEM_HEIGHT = 30;
 
-const EmptyList = () => {
-  return (
-    <View style={styles.emptyList}>
-      <AppText fontWeight="bold" style={styles.emptyListTxt}>
-        You haven't answered any quiz questions under this topic
-      </AppText>
-    </View>
+// Memoized empty list component
+const EmptyList = memo(() => (
+  <View style={styles.emptyList}>
+    <AppText fontWeight="bold" style={styles.emptyListTxt}>
+      You haven't answered any quiz questions under this topic
+    </AppText>
+  </View>
+));
+
+// Memoized answer display
+const AnswerDisplay = memo(({ correct, name }) => (
+  <View style={styles.row}>
+    <Ionicons
+      name={correct ? "checkmark-circle" : "close-circle"}
+      color={correct ? colors.greenDark : colors.heartDark}
+      size={14}
+    />
+    <AppText style={styles.answerText} size="small" fontWeight="black">
+      {capFirstLetter(name)}
+    </AppText>
+  </View>
+));
+
+// Simplified question component with better animation
+const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const heightAnim = useSharedValue(0);
+  const rotation = useSharedValue(0);
+
+  const correctAnswer = useMemo(
+    () => question?.answers?.find((item) => item.correct),
+    [question?.answers],
   );
-};
 
-const AnswerDisplay = ({ correct, name = "" }) => {
-  return (
-    <View style={styles.row}>
-      <Ionicons
-        name={correct ? "checkmark-circle" : "close-circle"}
-        color={correct ? colors.greenDark : colors.heartDark}
-        size={14}
-      />
-      <AppText
-        style={{
-          color: colors.greenDark,
-          marginLeft: 3,
-        }}
-        size={"small"}
-        fontWeight="black"
-      >
-        {capFirstLetter(name)}
-        {/* {capFirstLetter(correctAnswer?.name ?? "")} */}
-      </AppText>
-    </View>
+  const isCorrect = useMemo(
+    () => correctAnswer?._id === question?.answered?._id,
+    [correctAnswer?._id, question?.answered?._id],
   );
-};
 
-export const RenderQuestion = ({
-  question,
-  showAnswers,
-  isSingle,
-  onPress,
-  itemNum,
-}) => {
-  // const viewLength = ITEM_HEIGHT * question?.answers?.length;
-  // const viewLengthPrimary = ITEM_HEIGHT * 2;
-  const [initialHeight, setInitialHeight] = useState(0);
-  const [changed, setChanged] = useState(false);
+  // Move animation updates to useEffect
+  useEffect(() => {
+    heightAnim.value = withTiming(isExpanded ? 1 : 0, { duration: 300 });
+    rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 300 });
+  }, [isExpanded]);
 
-  // const [initialHeight, setInitialHeight] = useState(
-  //   isSingle ? 0 : showAnswers ? viewLength : viewLengthPrimary
-  // );
+  const toggleExpand = useCallback(() => {
+    setIsExpanded((prev) => !prev);
+  }, []);
 
-  const [toggle, setToggle] = useState(!isSingle);
+  const arrowStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
 
-  const correctAnswer = question?.answers.find((item) => item.correct);
-  const isCorrect = correctAnswer?._id === question?.answered?._id;
+  const answerContainerStyle = useAnimatedStyle(() => ({
+    maxHeight: heightAnim.value === 0 ? 0 : 1000,
+    opacity: heightAnim.value,
+    overflow: "hidden",
+  }));
 
-  const rHeight = useSharedValue(null);
-  // const maxHeight = useSharedValue(0);
-  // const rHeight = useSharedValue(isSingle ? 0 : initialHeight);
-
-  const rStyle = useAnimatedStyle(() => {
-    return {
-      height: rHeight.value,
-      opacity: interpolate(rHeight.value, [0, initialHeight], [0.5, 1]),
-      transform: [
-        { scale: interpolate(rHeight.value, [0, initialHeight], [0.5, 1]) },
-      ],
-    };
-  });
-
-  const arrowRStyle = useAnimatedStyle(() => {
-    let rotate = interpolate(
-      rHeight.value,
-      [0, initialHeight],
-      [0, 180],
-      Extrapolation.CLAMP
+  // Render answers based on expansion state
+  const renderAnswers = useMemo(() => {
+    return (
+      <>
+        <AnswerDisplay name={correctAnswer?.name ?? ""} correct={true} />
+        {!isCorrect && (
+          <AnswerDisplay
+            name={question?.answered?.name ?? ""}
+            correct={false}
+          />
+        )}
+      </>
     );
-
-    rotate = Number.isNaN(rotate) && !isSingle ? 270 : rotate;
-    return {
-      transform: [
-        {
-          rotate: `${rotate}deg`,
-        },
-      ],
-    };
-  });
-
-  const handleContentLayout = (e) => {
-    if (changed) return;
-    setInitialHeight(e?.nativeEvent?.layout?.height);
-    setChanged(true);
-    // setTimeout(() => {
-    rHeight.value = withTiming(0, { duration: 2000 });
-    // }, 1000);
-    // setCurrHeight(0)
-    // maxHeight.value = e?.nativeEvent?.layout?.height;
-
-    // setInitialHeight(showAnswers ? viewLength : viewLengthPrimary);
-  };
-
-  const toggleShowAnswer = () => {
-    // return console.log("Hello");
-    if (toggle) {
-      rHeight.value = withTiming(0, { duration: 450 }, (finished) => {
-        if (finished) runOnJS(setToggle)(false);
-      });
-    } else {
-      rHeight.value = withTiming(initialHeight, { damping: 20 }, (finished) => {
-        if (finished) runOnJS(setToggle)(true);
-      });
-    }
-  };
+  }, [correctAnswer?.name, isCorrect, question?.answered?.name]);
 
   return (
     <View style={[styles.questionMain, { marginLeft: isSingle ? 10 : 35 }]}>
       {isSingle && (
         <View style={styles.index}>
-          <AppText fontWeight="bold" style={{ color: colors.white }}>
+          <AppText fontWeight="bold" style={styles.indexText}>
             {itemNum}
           </AppText>
         </View>
       )}
       <View style={styles.correctionQuestionStyle}>
-        <Pressable onPress={onPress} style={styles.questionTile}>
+        <View style={styles.questionTile}>
           <AppText style={styles.questionTitle} fontWeight="semibold">
             {capFirstLetter(question?.question)}
           </AppText>
-          {/* ANIMATE */}
-          <Animated.View
-            onLayout={handleContentLayout}
-            style={[styles.questionAnswer, rStyle]}
-          >
-            {showAnswers ? (
-              <>
-                {question?.answers?.map((quest) => {
-                  return (
-                    <AnswerDisplay
-                      name={quest?.name}
-                      correct={quest?.correct}
-                      key={quest._id}
-                    />
-                  );
-                })}
-              </>
-            ) : (
-              <>
-                <AnswerDisplay
-                  name={correctAnswer?.name ?? ""}
-                  correct={true}
-                />
-
-                {!isCorrect && (
-                  <AnswerDisplay
-                    name={question?.answered?.name ?? ""}
-                    correct={false}
-                  />
-                )}
-              </>
-            )}
+          <Animated.View style={[styles.questionAnswer, answerContainerStyle]}>
+            {renderAnswers}
           </Animated.View>
-        </Pressable>
-        <Pressable onPress={toggleShowAnswer} style={styles.btnArrow}>
-          <Animated.View style={arrowRStyle}>
+        </View>
+        <Pressable onPress={toggleExpand} style={styles.btnArrow} hitSlop={8}>
+          <Animated.View style={arrowStyle}>
             <Feather
               name="arrow-down-circle"
               size={25}
@@ -198,75 +124,84 @@ export const RenderQuestion = ({
       </View>
     </View>
   );
-};
+});
 
-const QuestionViewToggle = ({ item, isSingle }) => {
+// Memoized question list
+const QuestionViewToggle = memo(({ item, isSingle }) => {
+  const questions = item?.questions || [];
+
   return (
     <>
-      {item?.questions?.map((question, idx) => {
-        return (
-          <RenderQuestion
-            key={`${idx}+${nanoid()}`}
-            question={question}
-            isSingle={isSingle}
-            itemNum={idx + 1}
-          />
-        );
-      })}
+      {questions.map((question, idx) => (
+        <RenderQuestion
+          key={question._id || `q-${idx}`}
+          question={question}
+          isSingle={isSingle}
+          itemNum={idx + 1}
+        />
+      ))}
     </>
   );
-};
+});
 
-const QuizCorrections = ({ data, isSingle = false }) => {
-  const renderCorrections = ({ item }) => {
-    return (
-      <>
-        {isSingle ? (
+const QuizCorrections = ({ data, contentContainerStyle, isSingle = false }) => {
+  const renderCorrections = useCallback(
+    ({ item }) => {
+      if (isSingle) {
+        return (
           <>
-            <QuestionViewToggle item={item} />
-            {!Boolean(item?.questions) && <EmptyList />}
+            <QuestionViewToggle item={item} isSingle={isSingle} />
+            {!item?.questions?.length && <EmptyList />}
           </>
-        ) : (
-          <>
-            <View style={styles.correction}>
-              <MaterialCommunityIcons
-                name="dots-circle"
-                color={colors.lightly}
-                size={20}
-                style={{ backgroundColor: colors.unchange, padding: 6 }}
-              />
-              <AppText
-                size={"xlarge"}
-                style={{ textTransform: "capitalize", marginLeft: 6 }}
-                fontWeight="bold"
-              >
-                {item.subject?.name}
-              </AppText>
-            </View>
-            <QuestionViewToggle isSingle={isSingle} item={item} />
-          </>
-        )}
-      </>
-    );
-  };
+        );
+      }
+
+      return (
+        <>
+          <View style={styles.correction}>
+            <MaterialCommunityIcons
+              name="dots-circle"
+              color={colors.lightly}
+              size={20}
+              style={styles.correctionIcon}
+            />
+            <AppText size="xlarge" style={styles.subjectText} fontWeight="bold">
+              {item.subject?.name}
+            </AppText>
+          </View>
+          <QuestionViewToggle isSingle={isSingle} item={item} />
+        </>
+      );
+    },
+    [isSingle],
+  );
+
+  const keyExtractor = useCallback((item) => item._id ?? item.subject, []);
 
   return (
     <View style={styles.container}>
       <FlatList
-        // data={[{ subject: "Biology", questions: [] }]}
         data={data}
-        keyExtractor={(item) => item._id ?? item.subject}
+        keyExtractor={keyExtractor}
         ListEmptyComponent={EmptyList}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={[styles.listContent, contentContainerStyle]}
         renderItem={renderCorrections}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
       />
     </View>
   );
 };
 
-export default QuizCorrections;
+export default memo(QuizCorrections);
 
 const styles = StyleSheet.create({
+  answerText: {
+    color: colors.greenDark,
+    marginLeft: 3,
+  },
   btnArrow: {
     backgroundColor: colors.primaryLight,
     justifyContent: "center",
@@ -277,17 +212,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   correction: {
-    // marginRight: 10,
     flexDirection: "row",
     alignItems: "center",
     left: 0,
   },
-  correctionItem: {
-    // flex: 1,
+  correctionIcon: {
+    backgroundColor: colors.unchange,
+    padding: 6,
   },
-  correctionQuestion: { marginLeft: 26, width: "80%" },
   correctionQuestionStyle: {
-    // width: "90%",
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 10,
@@ -296,7 +229,6 @@ const styles = StyleSheet.create({
     width: width * 0.78,
     elevation: 2,
     overflow: "hidden",
-    // maxWidth: width * 0.7,
   },
   emptyList: {
     flex: 1,
@@ -310,7 +242,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     width: "65%",
   },
-
   index: {
     width: 35,
     height: 35,
@@ -319,6 +250,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.primary,
     margin: 10,
+  },
+  indexText: {
+    color: colors.white,
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   row: {
     flexDirection: "row",
@@ -341,5 +278,9 @@ const styles = StyleSheet.create({
   questionAnswer: {
     backgroundColor: colors.unchange,
     padding: 12,
+  },
+  subjectText: {
+    textTransform: "capitalize",
+    marginLeft: 6,
   },
 });
