@@ -4,6 +4,7 @@ import {
   Dimensions,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -17,8 +18,41 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import AppModal from "./AppModal";
+import AppButton from "./AppButton";
 
 const { width, height } = Dimensions.get("screen");
+
+const ShowExplanation = ({ data, closeModal }) => {
+  return (
+    <View style={styles.box}>
+      <AppText fontWeight="black" size="large" style={styles.boxQuestion}>
+        Question:{" "}
+        <AppText fontWeight="bold" size="large">
+          {data?.question}
+        </AppText>
+      </AppText>
+      <View style={styles.boxSeperator} />
+      <ScrollView
+        indicatorStyle="black"
+        contentContainerStyle={{ paddingBottom: 10 }}
+      >
+        <View style={styles.boxMain}>
+          <AppText
+            style={styles.boxText}
+            fontWeight="medium"
+          >{`${data?.explanation}`}</AppText>
+        </View>
+      </ScrollView>
+      <AppButton
+        style={styles.boxBtn}
+        type="white"
+        title={"Got It!"}
+        onPress={closeModal}
+      />
+    </View>
+  );
+};
 
 // Memoized empty list component
 const EmptyList = memo(() => (
@@ -46,6 +80,7 @@ const AnswerDisplay = memo(({ correct, name }) => (
 // Simplified question component with better animation
 const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [modal, setModal] = useState({ vis: false, data: null });
   const heightAnim = useSharedValue(0);
   const rotation = useSharedValue(0);
 
@@ -96,23 +131,44 @@ const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
 
   return (
     <View style={[styles.questionMain, { marginLeft: isSingle ? 10 : 35 }]}>
-      {isSingle && (
-        <View
-          style={[
-            styles.index,
-            { backgroundColor: isCorrect ? colors.primary : colors.heartDark },
-          ]}
-        >
-          <AppText fontWeight="bold" style={styles.indexText}>
-            {itemNum}
-          </AppText>
-        </View>
-      )}
+      <View
+        style={[
+          styles.index,
+          { backgroundColor: isCorrect ? colors.primary : colors.heartDark },
+        ]}
+      >
+        <AppText fontWeight="heavy" style={styles.indexText}>
+          {itemNum}
+        </AppText>
+      </View>
+
       <View style={styles.correctionQuestionStyle}>
         <View style={styles.questionTile}>
           <AppText style={styles.questionTitle} fontWeight="semibold">
             {capFirstLetter(question?.question)}
           </AppText>
+          {question?.explanation && (
+            <Pressable
+              style={styles.explain}
+              onPress={() =>
+                setModal({
+                  vis: true,
+                  data: {
+                    question: question?.question,
+                    explanation: question?.explanation,
+                  },
+                })
+              }
+            >
+              <AppText
+                size="xsmall"
+                fontWeight="semibold"
+                style={{ color: colors.primaryDeep }}
+              >
+                See Explanation
+              </AppText>
+            </Pressable>
+          )}
           <Animated.View style={[styles.questionAnswer, answerContainerStyle]}>
             {renderAnswers}
           </Animated.View>
@@ -127,6 +183,15 @@ const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
           </Animated.View>
         </Pressable>
       </View>
+      <AppModal
+        visible={modal.vis}
+        Component={() => (
+          <ShowExplanation
+            data={modal?.data}
+            closeModal={() => setModal({ vis: false, data: null })}
+          />
+        )}
+      />
     </View>
   );
 });
@@ -212,6 +277,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: "15%",
+  },
+  box: {
+    width: width * 0.95,
+    backgroundColor: colors.extraLight,
+    padding: 20,
+    minHeight: height * 0.2,
+    maxHeight: height * 0.8,
+    borderRadius: 20,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
+  },
+  boxSeperator: {
+    width: "95%",
+    height: 3,
+    backgroundColor: colors.white,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  boxMain: {
+    marginBottom: 15,
+  },
+  boxText: {
+    lineHeight: 30,
+  },
+  explain: {
+    backgroundColor: colors.primary + 18,
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderBottomWidth: 3,
+    borderRadius: 100,
+    padding: 6,
+    paddingHorizontal: 12,
+    alignSelf: "flex-start",
+    marginLeft: 10,
   },
   container: {
     flex: 1,

@@ -165,12 +165,6 @@ const FindFriendsModal = ({ closeModal }) => {
         <WebLayout style={{ width: "45%", alignSelf: null }}>
           <AppText fontWeight="bold" size={"large"} style={styles.headerTxt}>
             Students you may know
-            {friends?.data?.pagination?.total && (
-              <AppText style={styles.countText}>
-                {" "}
-                ({friends.data.pagination.total})
-              </AppText>
-            )}
           </AppText>
 
           <WebLayout scroll={false}>
