@@ -1,6 +1,13 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Dimensions, StyleSheet, TextInput, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 
 import AppText from "../components/AppText";
 import QuizCorrections from "../components/QuizCorrections";
@@ -23,6 +30,9 @@ import AppButton from "../components/AppButton";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PromptModal from "../components/PromptModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import PopMessage from "../components/PopMessage";
+import { PAD_BOTTOM } from "../helpers/dataStore";
+import { Ionicons } from "@expo/vector-icons";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -32,6 +42,8 @@ const QUIT_PROMPT = {
   btn: "Quit",
   type: "quit",
 };
+
+const MINIMUM_QUESTIONS = 5;
 
 /**
  * Get randomized questions from specific subjects and topics
@@ -111,10 +123,25 @@ const getStats = (session) => {
   };
 };
 
-const ViewBox = ({ index = 0, value }) => {
+const ViewBox = ({ index = 0, value, color, text = "" }) => {
   return (
-    <Animated.View entering={FadeInUp.delay(index * 800)}>
-      <AppText>{value}</AppText>
+    <Animated.View
+      style={[
+        styles.box,
+        {
+          backgroundColor: `${color}20`,
+          boxShadow: `2px 8px 18px ${colors}60`,
+          borderColor: color,
+        },
+      ]}
+      entering={FadeInUp.delay(index * 800)}
+    >
+      <AppText fontWeight="black" style={{ color }} size="xxlarge">
+        {value}
+      </AppText>
+      <AppText fontWeight="semibold" style={{ color: colors.medium }}>
+        {text}
+      </AppText>
     </Animated.View>
   );
 };
@@ -122,22 +149,35 @@ const ViewBox = ({ index = 0, value }) => {
 const QuestionStudyScreen = () => {
   const route = useLocalSearchParams();
   const [screen, setScreen] = useState(0);
-  const [count, setCount] = useState("1");
+  const [count, setCount] = useState(`${MINIMUM_QUESTIONS}`);
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [qBank, setQBank] = useState({});
   const [bools, setBools] = useState({ loading: true });
+  const [popData, setPopData] = useState({ vis: false });
   const [questions, setQuestions] = useState([]);
   const [session, setSession] = useState({
     totalQuestions: 1,
     questions: [],
   });
 
-  const insets = useSafeAreaInsets();
-  const stats = getStats(session);
-
   const { data, error, refetch } = useGetMyQuestionsQuery();
 
+  const insets = useSafeAreaInsets();
+  const stats = getStats(session);
+  const statsScore = Math.floor(
+    (stats?.answeredCorrectly / parseInt(count)) * 100,
+  );
+
   const handleStart = () => {
+    const limit = parseInt(count) || MINIMUM_QUESTIONS;
+    if (limit < MINIMUM_QUESTIONS || limit > questions?.totalAvailable) {
+      setPopData({
+        vis: true,
+        msg: "Exceeded question range",
+        type: "failed",
+      });
+      return;
+    }
     setScreen(1);
   };
 
@@ -164,34 +204,6 @@ const QuestionStudyScreen = () => {
     setBools({ ...bools, loading: false });
   };
 
-  const handleCountChange = (val) => {
-    const min = 5; // Set your minimum value
-    const max = questions?.totalAvailable; // Set your maximum value
-
-    // Allow empty string for user to clear and type
-    if (val === "") {
-      setCount("");
-      return;
-    }
-
-    // Parse the input value
-    const numValue = parseInt(val, 10);
-
-    // Check if it's a valid number
-    if (isNaN(numValue)) {
-      return; // Don't update if not a number
-    }
-
-    // Clamp the value between min and max
-    if (numValue < min) {
-      setCount(min.toString());
-    } else if (numValue > max) {
-      setCount(max.toString());
-    } else {
-      setCount(numValue.toString());
-    }
-  };
-
   useEffect(() => {
     loadQuestions();
   }, [data]);
@@ -214,14 +226,19 @@ const QuestionStudyScreen = () => {
     <View style={styles.container}>
       {screen === 0 && (
         <Animated.View entering={SlideInLeft} exiting={SlideOutLeft}>
-          <AppHeader title={`${route?.subjectName} Review`} />
+          <AppHeader title={`${route?.subjectName} Practice`} />
           <AppText fontWeight="medium" style={styles.topic}>
             Topic: {route?.topicName}
           </AppText>
           <View style={styles.separator} />
           {questions?.totalAvailable < 5 ? (
-            <View>
-              <AppText>
+            <View style={styles.empty}>
+              <LottieAnimator
+                name="person_float"
+                style={{ width: width * 0.65, height: width * 0.65 }}
+                visible
+              />
+              <AppText fontWeight="medium">
                 Sorry, You haven't answered enough questions yet{" "}
               </AppText>
             </View>
@@ -237,12 +254,25 @@ const QuestionStudyScreen = () => {
               >
                 Enter the number of questions you wish to practice
               </AppText>
+              <AppText
+                style={{ marginTop: 10 }}
+                fontWeight="light"
+                size="xsmall"
+              >
+                You can practice a minimum of{" "}
+                <AppText fontWeight="heavy">{MINIMUM_QUESTIONS}</AppText> and
+                maximum of{" "}
+                <AppText fontWeight="heavy">
+                  {questions?.totalAvailable}
+                </AppText>{" "}
+                questions
+              </AppText>
               <TextInput
-                placeholder="Number of "
+                placeholder="Questions No."
                 value={count}
                 placeholderTextColor={colors.medium}
                 keyboardType="numeric"
-                onChangeText={handleCountChange}
+                onChangeText={(val) => setCount(val)}
                 style={styles.input}
               />
               <AppButton title={"Start Quiz"} onPress={handleStart} />
@@ -278,26 +308,68 @@ const QuestionStudyScreen = () => {
         <Animated.View
           entering={SlideInRight.springify().damping(60)}
           exiting={SlideOutRight}
-          style={{
-            flex: 1,
-            paddingTop: insets.top,
-            marginBottom: insets.bottom + 10,
-          }}
+          style={{ marginBottom: insets.bottom + 10 }}
         >
-          <AppHeader title={`${route?.subjectName} Review`} />
+          <AppHeader title={`${route?.subjectName} Practice`} />
           <AppText fontWeight="medium" style={styles.topic}>
             Topic: {route?.topicName}
           </AppText>
           <View style={styles.separator} />
-          <LottieAnimator
-            name="congrats"
-            loop={false}
-            style={{ width: width * 0.6, height: width * 0.6 }}
+          <FlatList
+            data={["Practice"]}
+            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+            renderItem={() => (
+              <>
+                <View style={styles.review}>
+                  <View style={styles.row}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      color={colors.medium}
+                    />
+                    <AppText
+                      fontWeight="medium"
+                      style={{ color: colors.medium }}
+                    >
+                      This is a free practice session and tokens (GT) are not
+                      added to your account
+                    </AppText>
+                  </View>
+                  <LottieAnimator
+                    name="congrats"
+                    loop={false}
+                    style={{ width: width * 0.6, height: width * 0.6 }}
+                  />
+                  <View style={styles.boxes}>
+                    <ViewBox
+                      value={stats?.answeredCorrectly}
+                      color={colors.accent}
+                      text="Correct"
+                    />
+                    <ViewBox
+                      value={parseInt(count)}
+                      color={colors.warning}
+                      text="Total"
+                    />
+                    <ViewBox
+                      value={`${statsScore}%`}
+                      color={statsScore < 50 ? colors.heartDark : colors.accent}
+                      text="Score"
+                    />
+                  </View>
+                </View>
+                <View>
+                  <AppText
+                    fontWeight="bold"
+                    size="large"
+                    style={{ marginLeft: 20, marginBottom: 20 }}
+                  >
+                    Review Corrections
+                  </AppText>
+                  <QuizCorrections data={session?.questions} isSingle />
+                </View>
+              </>
+            )}
           />
-          <View>
-            <ViewBox value={stats?.answeredCorrectly} />
-            <ViewBox value={stats?.statPoints} />
-          </View>
         </Animated.View>
       )}
 
@@ -307,6 +379,7 @@ const QuestionStudyScreen = () => {
         setPrompt={(data) => setPrompt(data)}
         onPress={handlePrompt}
       />
+      <PopMessage popData={popData} setPopData={setPopData} />
     </View>
   );
 };
@@ -314,8 +387,22 @@ const QuestionStudyScreen = () => {
 export default QuestionStudyScreen;
 
 const styles = StyleSheet.create({
+  boxes: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    marginBottom: 30,
+  },
+  box: {
+    padding: 25,
+    alignItems: "center",
+    borderWidth: 3,
+    borderBottomWidth: 8,
+    borderRadius: 20,
+  },
   container: {
     flex: 1,
+    // backgroundColor: colors.white,
   },
   card: {
     width: width * 0.8,
@@ -323,6 +410,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.unchange,
     alignSelf: "center",
     borderRadius: 6,
+  },
+  empty: {
+    alignItems: "center",
   },
   input: {
     backgroundColor: "white",
@@ -332,6 +422,15 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     fontFamily: "sf-black",
     fontSize: 30,
+  },
+  review: {
+    alignItems: "center",
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginHorizontal: 20,
   },
   topic: {
     marginLeft: 15,

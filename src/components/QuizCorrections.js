@@ -97,7 +97,12 @@ const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
   return (
     <View style={[styles.questionMain, { marginLeft: isSingle ? 10 : 35 }]}>
       {isSingle && (
-        <View style={styles.index}>
+        <View
+          style={[
+            styles.index,
+            { backgroundColor: isCorrect ? colors.primary : colors.heartDark },
+          ]}
+        >
           <AppText fontWeight="bold" style={styles.indexText}>
             {itemNum}
           </AppText>
