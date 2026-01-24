@@ -13,7 +13,7 @@ import progressAnim from "../../assets/animations/progress.json";
 import timerAnim from "../../assets/animations/timer.json";
 import congratAnim from "../../assets/animations/medal_congrats.json";
 import circleProgress from "../../assets/animations/circle_progress.json";
-import successAnim from "../../assets/animations/correct.json";
+import successAnim from "../../assets/animations/correct2.json";
 import avatarAnim from "../../assets/animations/avatar2.json";
 import waitingAnin from "../../assets/animations/please_wait.json";
 

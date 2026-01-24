@@ -17,7 +17,7 @@ const TopicItem = ({ data, index, subject, disabled = false, onPress }) => {
     } else {
       //  ("Questions", { ...data, subject });
       router.push({
-        pathname: "/study",
+        pathname: "/main/study",
         params: {
           topicId: data?._id,
           topicName: data?.name,

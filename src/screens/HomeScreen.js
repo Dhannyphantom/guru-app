@@ -43,6 +43,7 @@ import Animated, { LinearTransition } from "react-native-reanimated";
 import {
   useFetchCategoriesQuery,
   useFetchSubjectsQuery,
+  useGetMyQuestionsQuery,
 } from "../context/instanceSlice";
 
 const { width, height } = Dimensions.get("screen");
@@ -57,6 +58,7 @@ const HomeScreen = () => {
   const { data: stats } = useFetchUserStatsQuery();
   useFetchFriendsQuery();
   const [updateUserProfile] = useUpdateUserProfileMutation();
+  useGetMyQuestionsQuery();
   const { data: categories, isLoading: fetchingCategories } =
     useFetchCategoriesQuery();
   const { data: subjects, isLoading: fetchingSubjects } =
