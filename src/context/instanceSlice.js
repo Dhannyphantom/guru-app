@@ -13,13 +13,31 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     fetchCategories: builder.query({
       query: () => "/instance/category",
+      transformResponse: async (res) => {
+        await AsyncStorage.setItem("categories", JSON.stringify(res?.data));
+        return res;
+      },
     }),
     fetchSubjectCategories: builder.query({
       query: (categoryId) =>
         `/instance/subject_category?categoryId=${categoryId}`,
+      transformResponse: async (res) => {
+        await AsyncStorage.setItem(
+          `subjects_${res?.meta?.categoryId}`,
+          JSON.stringify(res?.data),
+        );
+        return res;
+      },
     }),
     fetchSubjTopics: builder.query({
       query: (id) => `/instance/topic?subjectId=${id}`,
+      transformResponse: async (res) => {
+        await AsyncStorage.setItem(
+          `topics_${res?.id}`,
+          JSON.stringify(res?.data),
+        );
+        return res;
+      },
     }),
 
     fetchSubjects: builder.query({
@@ -27,6 +45,10 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: "/instance/subjects",
         params: { type },
       }),
+      transformResponse: async (res) => {
+        await AsyncStorage.setItem("subjects", JSON.stringify(res?.data));
+        return res;
+      },
     }),
     getMyQuestions: builder.query({
       query: () => {

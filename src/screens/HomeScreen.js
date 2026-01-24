@@ -45,6 +45,7 @@ import {
   useFetchSubjectsQuery,
   useGetMyQuestionsQuery,
 } from "../context/instanceSlice";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -52,6 +53,8 @@ const HomeScreen = () => {
   const [bools, setBools] = useState({ friendsModal: false });
   const [invite, setInvite] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cache, setCache] = useState({});
+
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
   const { refetch } = useFetchUserQuery();
@@ -116,6 +119,20 @@ const HomeScreen = () => {
     setInvite(null);
   };
 
+  const fetchCache = async () => {
+    let subjectList = await AsyncStorage.getItem("subjects");
+    if (subjectList) {
+      subjectList = JSON.parse(subjectList);
+    }
+
+    let catList = await AsyncStorage.getItem("categories");
+    if (catList) {
+      catList = JSON.parse(catList);
+    }
+
+    setCache({ ...cache, categories: catList, subjects: subjectList });
+  };
+
   useEffect(() => {
     initializeSocket();
   }, [user]);
@@ -143,6 +160,7 @@ const HomeScreen = () => {
   useEffect(() => {
     try {
       refetch();
+      fetchCache();
       registerForPushNotificationsAsync().then((token) => {
         updateUserProfile({ expoPushToken: token }).unwrap();
       });
@@ -190,12 +208,12 @@ const HomeScreen = () => {
             </WebLayout>
 
             <SubjectCategory
-              data={categories?.data}
+              data={categories?.data ?? cache?.categories}
               loading={fetchingCategories}
             />
             <Subjects
               title={"My Subjects"}
-              data={subjects?.data}
+              data={subjects?.data ?? cache?.subjects}
               loading={fetchingSubjects}
             />
           </WebLayout>

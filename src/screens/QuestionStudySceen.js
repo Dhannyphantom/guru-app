@@ -13,6 +13,7 @@ import LottieAnimator from "../components/LottieAnimator";
 // import { PAD_BOTTOM } from "../helpers/dataStore";
 import QuestionDisplay from "../components/QuestionDisplay";
 import Animated, {
+  FadeInUp,
   SlideInLeft,
   SlideInRight,
   SlideOutLeft,
@@ -85,10 +86,43 @@ function getRandomizedQuestions(data, options = {}) {
   };
 }
 
+const getStats = (session) => {
+  let answeredCorrectly = 0,
+    statPoints = 0,
+    totalPoints = 0;
+
+  session?.questions.forEach((quest) => {
+    quest.questions.forEach((question) => {
+      totalPoints += question.point;
+      if (question?.answered?.correct) {
+        answeredCorrectly += 1;
+        statPoints += question.point;
+      } else {
+        statPoints -= 2;
+        // setStat({ ...stat, point: statPoints });
+      }
+    });
+  });
+
+  return {
+    answeredCorrectly,
+    statPoints,
+    totalPoints,
+  };
+};
+
+const ViewBox = ({ index = 0, value }) => {
+  return (
+    <Animated.View entering={FadeInUp.delay(index * 800)}>
+      <AppText>{value}</AppText>
+    </Animated.View>
+  );
+};
+
 const QuestionStudyScreen = () => {
   const route = useLocalSearchParams();
   const [screen, setScreen] = useState(0);
-  const [count, setCount] = useState("5");
+  const [count, setCount] = useState("1");
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [qBank, setQBank] = useState({});
   const [bools, setBools] = useState({ loading: true });
@@ -99,6 +133,7 @@ const QuestionStudyScreen = () => {
   });
 
   const insets = useSafeAreaInsets();
+  const stats = getStats(session);
 
   const { data, error, refetch } = useGetMyQuestionsQuery();
 
@@ -157,10 +192,6 @@ const QuestionStudyScreen = () => {
     }
   };
 
-  //   const questions = dummyQuestionsView.find(
-  //     (item) => item.subject?.toLowerCase() == data?.subject?.toLowerCase(),
-  //   )?.questions;
-
   useEffect(() => {
     loadQuestions();
   }, [data]);
@@ -176,7 +207,7 @@ const QuestionStudyScreen = () => {
       });
       setQuestions(qData);
     }
-  }, [count, qBank]);
+  }, [count, screen, qBank]);
 
   //   const sendData = [];
   return (
@@ -219,11 +250,6 @@ const QuestionStudyScreen = () => {
           )}
         </Animated.View>
       )}
-      {/* <QuizCorrections
-        data={sendData}
-        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
-        isSingle
-      /> */}
       {screen === 1 && (
         <Animated.View
           entering={SlideInRight.springify().damping(60)}
@@ -243,8 +269,35 @@ const QuestionStudyScreen = () => {
               },
             ]}
             setQuizSession={setSession}
+            setQuizInfoView={() => setScreen(2)}
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
           />
+        </Animated.View>
+      )}
+      {screen === 2 && (
+        <Animated.View
+          entering={SlideInRight.springify().damping(60)}
+          exiting={SlideOutRight}
+          style={{
+            flex: 1,
+            paddingTop: insets.top,
+            marginBottom: insets.bottom + 10,
+          }}
+        >
+          <AppHeader title={`${route?.subjectName} Review`} />
+          <AppText fontWeight="medium" style={styles.topic}>
+            Topic: {route?.topicName}
+          </AppText>
+          <View style={styles.separator} />
+          <LottieAnimator
+            name="congrats"
+            loop={false}
+            style={{ width: width * 0.6, height: width * 0.6 }}
+          />
+          <View>
+            <ViewBox value={stats?.answeredCorrectly} />
+            <ViewBox value={stats?.statPoints} />
+          </View>
         </Animated.View>
       )}
 
