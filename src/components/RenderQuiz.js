@@ -76,7 +76,9 @@ const RenderQuiz = ({ setVisible, data }) => {
   });
 
   const { data: subjects, isLoading: subjLoad } =
-    useFetchSubjectCategoriesQuery(quizInfo?.category?._id);
+    useFetchSubjectCategoriesQuery(quizInfo?.category?._id, {
+      skip: !Boolean(quizInfo?.category?._id),
+    });
 
   const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation();
   const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
@@ -398,6 +400,14 @@ const RenderQuiz = ({ setVisible, data }) => {
               autoPlay={false}
               loop={false}
               style={{ width: width * 0.99, height: 100 }}
+            />
+            <AppButton
+              title={"Go Back"}
+              type="white"
+              // onPress={async () => await fetchQuiz()}
+              onPress={() =>
+                setQuizInfo((prev) => ({ ...prev, view: "study" }))
+              }
             />
             <AppButton
               title={"Cancel Session"}

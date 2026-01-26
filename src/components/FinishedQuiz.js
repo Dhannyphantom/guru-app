@@ -25,6 +25,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
     vis: false,
     answeredCorrectly: 0,
     point: 0,
+    isFinal: false,
     total: 0,
   });
 
@@ -89,7 +90,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
         ...data,
         ...session,
       };
-      console.log({ sendData });
+
       try {
         await submitPremiumQuiz(sendData).unwrap();
       } catch (error) {
@@ -112,8 +113,12 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   }, [session]);
 
   useEffect(() => {
-    socket.on("leaderboard_update", ({ leaderboard }) => {
+    socket.on("leaderboard_update", ({ leaderboard, isFinal, stats }) => {
       setLeaderboard(leaderboard);
+      if (isFinal === true) {
+        console.log({ stats });
+        setStat({ ...stats[user?._id], isFinal });
+      }
     });
 
     return () => socket.off("leaderboard_update");
@@ -121,7 +126,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
 
   return (
     <View style={styles.container}>
-      {isMultiplayer ? (
+      {isMultiplayer && !stat?.vis ? (
         <View
           style={{
             backgroundColor: colors.accent,
@@ -167,7 +172,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           />
         </View>
       ) : stat.vis ? (
-        <View style={styles.main}>
+        <View style={[styles.main, { marginTop: insets.top }]}>
           <AppText style={styles.headerText} fontWeight="black" size={30}>
             Quiz Stats
           </AppText>
@@ -178,26 +183,26 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           >
             You earned{" "}
             <AppText size={"xxlarge"} fontWeight="black">
-              {results?.data?.pointsEarned}
+              {results?.data?.pointsEarned ?? stat?.pointsEarned}
             </AppText>
             <AppText
               size={"small"}
               style={{ color: colors.medium }}
               fontWeight="black"
             >
-              /{results?.data?.totalQuestions * 5}
+              /{(results?.data?.totalQuestions ?? stat?.totalQuestions) * 5}
             </AppText>{" "}
             quiz points
           </AppText>
           <View style={{ flex: 1 }}>
             <View style={styles.stats}>
               <QuizStat
-                value={results?.data?.correctAnswers}
+                value={results?.data?.correctAnswers ?? stat?.correctAnswers}
                 subValue={`of ${results?.data?.totalQuestions ?? 0}`}
                 msg={"Correct answers"}
               />
               <QuizStat
-                value={results?.data?.accuracy}
+                value={results?.data?.accuracy ?? stat?.accuracy}
                 subValue={`%`}
                 msg={"Quiz score"}
               />
@@ -205,11 +210,11 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
             <View style={styles.correctionView}>
               <View style={styles.sideBar} />
               <AppText
-                style={{ marginLeft: 2, marginBottom: 10 }}
+                style={{ marginLeft: 14, marginBottom: 5 }}
                 fontWeight="heavy"
                 size={"xxlarge"}
               >
-                Corrections:
+                Questions Review:
               </AppText>
               <QuizCorrections data={session?.questions} />
             </View>
@@ -259,17 +264,36 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
         </>
       )}
       {/* <View style={styles.btnContainer}> */}
-      <View style={styles.btns}>
-        {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
-        <AppButton title={"Close"} type="white" onPress={hideModal} />
-        <AppButton
-          title={`${stat.vis ? "Hide" : ""} My Stats`}
-          type="accent"
-          style={{ alignSelf: "center" }}
-          onPress={() => setStat({ ...stat, vis: !stat.vis })}
-        />
-        {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
-      </View>
+      {isMultiplayer && stat?.isFinal ? (
+        <View style={styles.btns}>
+          {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
+          <AppButton title={"Close"} type="white" onPress={hideModal} />
+          <AppButton
+            title={`${stat.vis ? "Hide" : ""} My Stats`}
+            type="accent"
+            style={{ alignSelf: "center" }}
+            onPress={() => setStat({ ...stat, vis: !stat.vis })}
+          />
+          {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
+        </View>
+      ) : (
+        <View>
+          <AppText>Waiting for the remaining players</AppText>
+        </View>
+      )}
+      {!isMultiplayer && (
+        <View style={styles.btns}>
+          {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
+          <AppButton title={"Close"} type="white" onPress={hideModal} />
+          <AppButton
+            title={`${stat.vis ? "Hide" : ""} My Stats`}
+            type="accent"
+            style={{ alignSelf: "center" }}
+            onPress={() => setStat({ ...stat, vis: !stat.vis })}
+          />
+          {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
+        </View>
+      )}
       {/* </View> */}
     </View>
   );
@@ -292,9 +316,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", alignItems: "center" },
   correctionView: {
     flex: 1,
-    marginTop: 25,
+    marginTop: 15,
     maxHeight: height * 0.5,
-    paddingLeft: 12,
+    // paddingLeft: 12,
     // backgroundColor: "red",
   },
   footer: {
@@ -320,7 +344,7 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
-    width: width * 0.95,
+    width,
     backgroundColor: colors.unchange,
     borderRadius: 20,
     marginBottom: 15,
@@ -335,7 +359,7 @@ const styles = StyleSheet.create({
     color: colors.medium,
   },
   sideBar: {
-    width: 6,
+    width: 3,
     height: "95%",
     position: "absolute",
     backgroundColor: colors.lightly,

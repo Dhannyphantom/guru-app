@@ -26,7 +26,7 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
   if (index < 3) return null;
 
   let pointText = formatPoints(
-    item.points ?? item.totalPoints ?? item?.questionsCount
+    item.points ?? item.totalPoints ?? item?.questionsCount,
   );
   if (isPro) pointText = pointText?.slice(0, -3);
 
@@ -205,7 +205,7 @@ const LeaderboardScreen = () => {
     refetch: proRefetch,
   } = useFetchProLeaderboardQuery(
     { limit: LIMIT, offset },
-    { skip: !shouldFetchPro }
+    { skip: !shouldFetchPro },
   );
 
   // School leaderboard
@@ -217,7 +217,7 @@ const LeaderboardScreen = () => {
     refetch: schoolRefetch,
   } = useFetchSchoolLeaderboardQuery(
     { limit: LIMIT, offset },
-    { skip: !shouldFetchSchool }
+    { skip: !shouldFetchSchool },
   );
 
   // Global leaderboard
@@ -229,7 +229,7 @@ const LeaderboardScreen = () => {
     refetch: globalRefetch,
   } = useFetchGlobalLeaderboardQuery(
     { limit: LIMIT, offset },
-    { skip: !shouldFetchGlobal }
+    { skip: !shouldFetchGlobal },
   );
 
   // Determine which data to use

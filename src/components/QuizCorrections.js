@@ -130,7 +130,7 @@ const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
   }, [correctAnswer?.name, isCorrect, question?.answered?.name]);
 
   return (
-    <View style={[styles.questionMain, { marginLeft: isSingle ? 10 : 35 }]}>
+    <View style={[styles.questionMain, { marginLeft: isSingle ? 10 : 20 }]}>
       <View
         style={[
           styles.index,
@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
   correctionIcon: {
     backgroundColor: colors.unchange,
     padding: 6,
+    marginLeft: 12,
   },
   correctionQuestionStyle: {
     flexDirection: "row",
