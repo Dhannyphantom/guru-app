@@ -191,6 +191,10 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: "/users/user_stats",
         timeout: 15000,
       }),
+      transformResponse: async (res) => {
+        await AsyncStorage.setItem("user_stat", JSON.stringify(res?.data));
+        return res;
+      },
       providesTags: ["FETCH_REWARDS"],
     }),
     fetchTransactions: builder.query({

@@ -102,7 +102,7 @@ const QuestionDisplay = ({
   const totalQuestions = useMemo(() => {
     return questionStore.reduce(
       (sum, s) => sum + (s.questions?.length || 0),
-      0
+      0,
     );
   }, [questionStore]);
 
@@ -130,10 +130,10 @@ const QuestionDisplay = ({
           : {
               ...subj,
               questions: subj.questions.map((q, qIdx) =>
-                qIdx !== active.question ? q : { ...q, answered: value }
+                qIdx !== active.question ? q : { ...q, answered: value },
               ),
-            }
-      )
+            },
+      ),
     );
   };
 
@@ -190,9 +190,10 @@ const QuestionDisplay = ({
         });
         if (isMultiplayer) {
           socket.emit("answer_question", {
-            answer: currentQuestion?.answered,
+            // answer: currentQuestion?.answered,
+            question: currentQuestion,
             row,
-            point: currentQuestion.point,
+            // point: currentQuestion.point,
             sessionId,
             user: getUserProfile(user),
           });
@@ -210,9 +211,10 @@ const QuestionDisplay = ({
       });
       if (isMultiplayer) {
         socket.emit("answer_question", {
-          answer: currentQuestion?.answered,
+          // answer: currentQuestion?.answered,
+          question: currentQuestion,
           row: 0,
-          point: -2,
+          // point: -2,
           sessionId,
           user: getUserProfile(user),
         });
@@ -391,7 +393,7 @@ export const QuizQuestion = ({
       onUpdateQuestion?.({ question: text });
       onTouch?.("question");
     },
-    [onUpdateQuestion, onTouch]
+    [onUpdateQuestion, onTouch],
   );
 
   // Handle answer updates
@@ -411,7 +413,7 @@ export const QuizQuestion = ({
       onUpdateQuestion?.({ answers: newAnswers });
       onTouch?.("answers");
     },
-    [answers, onUpdateQuestion, onTouch]
+    [answers, onUpdateQuestion, onTouch],
   );
 
   // Handle image toggle
@@ -431,7 +433,7 @@ export const QuizQuestion = ({
     (imageData) => {
       onUpdateQuestion?.({ image: imageData });
     },
-    [onUpdateQuestion]
+    [onUpdateQuestion],
   );
 
   return (

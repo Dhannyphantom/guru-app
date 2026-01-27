@@ -12,21 +12,37 @@ const AppText = ({
   animatedStyle,
   ...otherProps
 }) => {
-  let fontSize;
+  let fontSize,
+    weight = fontWeight;
 
-  if (typeof size === "number") {
+  const stylesObj = { ...style };
+
+  if (style?.fontSize > 0) {
+    fontSize = scaleFont(style?.fontSize - 4);
+  } else if (typeof size === "number") {
     fontSize = scaleFont(size);
   } else {
     fontSize = FONT_SIZES[size];
   }
+
+  if (style?.fontWeight === "600") {
+    weight = "semibold";
+  } else if (style?.fontWeight === "700") {
+    weight = "bold";
+  } else if (style?.fontWeight === "800") {
+    weight = "black";
+  }
+
+  delete stylesObj?.fontWeight;
+  delete stylesObj?.fontSize;
 
   return animated ? (
     <Animated.Text
       animatedProps={animatedProps}
       style={[
         styles.text,
-        { fontSize, fontFamily: `sf-${fontWeight}` },
-        style,
+        { fontSize, fontFamily: `sf-${weight}` },
+        stylesObj,
         animatedStyle,
       ]}
       {...otherProps}
@@ -35,7 +51,7 @@ const AppText = ({
     </Animated.Text>
   ) : (
     <Text
-      style={[styles.text, { fontSize, fontFamily: `sf-${fontWeight}` }, style]}
+      style={[styles.text, { fontSize, fontFamily: `sf-${weight}` }, stylesObj]}
       // numberOfLines={2}
       // ellipsizeMode="middle"
       {...otherProps}

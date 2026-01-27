@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
-  Dimensions,
+  // Dimensions,
   FlatList,
   Pressable,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+// import { BlurView } from "expo-blur";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
@@ -46,19 +47,23 @@ import {
   useGetMyQuestionsQuery,
 } from "../context/instanceSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import PopMessage from "../components/PopMessage";
 
-const { width, height } = Dimensions.get("screen");
+// const { width, height } = Dimensions.get("screen");
 
 const HomeScreen = () => {
   const [bools, setBools] = useState({ friendsModal: false });
   const [invite, setInvite] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [popper, setPopper] = useState({ vis: false });
   const [cache, setCache] = useState({});
 
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
   const { refetch } = useFetchUserQuery();
-  const { data: stats } = useFetchUserStatsQuery();
+  const { data: stats, refetch: reftechStat } = useFetchUserStatsQuery(null, {
+    refetchOnFocus: true,
+  });
   useFetchFriendsQuery();
   const [updateUserProfile] = useUpdateUserProfileMutation();
   useGetMyQuestionsQuery();
@@ -78,7 +83,9 @@ const HomeScreen = () => {
     setRefreshing(true);
     try {
       await refetch();
+      await reftechStat().unwrap();
     } catch (_errr) {
+      console.log(_errr);
     } finally {
       setRefreshing(false);
     }
@@ -90,6 +97,9 @@ const HomeScreen = () => {
   };
 
   const handleInvite = (type) => {
+    const inviteObj = { ...invite };
+    setCache((prev) => ({ ...prev, invite: inviteObj }));
+
     if (type === "accept") {
       socket.emit("join_session", {
         sessionId: invite?.sessionId,
@@ -99,15 +109,6 @@ const HomeScreen = () => {
         sessionId: invite?.sessionId,
         user: getUserProfile(user),
         status: "accepted",
-      });
-      router.push({
-        pathname: "/main/session",
-        params: {
-          isLobby: true,
-          status: "accepted",
-          host: JSON.stringify(invite?.host),
-          lobbyId: invite?.sessionId,
-        },
       });
     } else if (type === "reject") {
       socket.emit("invite_response", {
@@ -130,11 +131,18 @@ const HomeScreen = () => {
       catList = JSON.parse(catList);
     }
 
-    setCache({ ...cache, categories: catList, subjects: subjectList });
+    let stat = await AsyncStorage.getItem("user_stat");
+    if (stat) {
+      stat = JSON.parse(stat);
+    }
+
+    setCache({ ...cache, categories: catList, subjects: subjectList, stat });
   };
 
   useEffect(() => {
-    initializeSocket();
+    if (user) {
+      initializeSocket();
+    }
   }, [user]);
 
   useEffect(() => {
@@ -148,6 +156,33 @@ const HomeScreen = () => {
   }, []);
 
   useEffect(() => {
+    socket.on("active_session", ({ active, host, sessionId }) => {
+      // update invites list
+
+      if (active === true) {
+        router.push({
+          pathname: "/main/session",
+          params: {
+            isLobby: true,
+            status: "accepted",
+            host: JSON.stringify(host),
+            lobbyId: sessionId,
+          },
+        });
+      } else {
+        setPopper({
+          vis: true,
+          type: "failed",
+          timer: 2500,
+          msg: "Quiz session has expired. Start or Join an active one",
+        });
+      }
+    });
+
+    return () => socket.off("active_session");
+  }, []);
+
+  useEffect(() => {
     socket.on("un_invite", (session) => {
       // update invites list
 
@@ -156,6 +191,13 @@ const HomeScreen = () => {
 
     return () => socket.off("un_invite");
   }, []);
+
+  useEffect(() => {
+    if (stats?.invite) {
+      console.log("Invite set!!1");
+      setInvite(stats?.invite);
+    }
+  }, [stats]);
 
   useEffect(() => {
     try {
@@ -200,7 +242,7 @@ const HomeScreen = () => {
                 justifyContent: "space-around",
               }}
             >
-              <DailyTask stats={stats?.data} />
+              <DailyTask stats={stats?.data ?? cache?.stat} />
               <Invited data={invite} onPress={handleInvite} />
               <Animated.View layout={LinearTransition}>
                 <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />
@@ -224,6 +266,7 @@ const HomeScreen = () => {
         visible={bools.friendsModal}
         setter={(bool) => setBools({ ...bools, friendsModal: bool })}
       />
+      <PopMessage popData={popper} setPopData={setPopper} />
       <StatusBar style="dark" />
     </Screen>
   );

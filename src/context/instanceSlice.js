@@ -70,6 +70,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_INSTANCE"],
     }),
+
+    fetchAnalytics: builder.query({
+      query: () => ({
+        url: "/analytics",
+        timeout: 35000,
+      }),
+      // providesTags: ["FETCH_INSTANCE"],
+    }),
     createCategory: builder.mutation({
       query: (data) => {
         const formData = getFormData(data, "categories", true);
@@ -181,6 +189,7 @@ export const {
   useFetchSubjectCategoriesQuery,
   useFetchPremiumQuizMutation,
   useUpdateInstanceMutation,
+  useFetchAnalyticsQuery,
   useLazyFetchInstanceQuery,
   useLazyFetchSubjTopicsQuery,
   useCreateTopicMutation,
