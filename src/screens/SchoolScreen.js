@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 
@@ -47,6 +47,8 @@ import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
 import Quiz from "../components/Quiz";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
+import PopMessage from "../components/PopMessage";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -490,15 +492,15 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
 
 const SchoolScreen = ({ route }) => {
   const user = useSelector(selectUser);
-  const params = JSON.parse(JSON.stringify(route));
 
-  const shouldRefresh = params?.refresh;
+  const shouldRefresh = route?.refresh === "true";
 
   const [bools, setBools] = useState({ loading: true });
+  const [popData, setPopData] = useState({ vis: false });
   const [fetchSchool, { data: school, isLoading }] = useLazyFetchSchoolQuery();
 
   const hasJoined = Boolean(
-    school?.data && school?.isVerified && school?.data?.subscription?.isActive
+    school?.data && school?.isVerified && school?.data?.subscription?.isActive,
   );
 
   const isStudent = user?.accountType === "student";
@@ -514,6 +516,28 @@ const SchoolScreen = ({ route }) => {
       setBools({ ...bools, loading: false });
     }
   };
+
+  useFocusEffect(
+    // Callback should be wrapped in `React.useCallback` to avoid running the effect too often.
+    useCallback(() => {
+      // Invoked whenever the route is focused.
+      if (route?.check === "school_join") {
+        setPopData({
+          vis: true,
+          msg: isStudent
+            ? "Join your school now by searching for it"
+            : "Create your school profile now or Join one if created already",
+          timer: 1000,
+          type: "failed",
+        });
+      }
+
+      // Return function is invoked whenever the route gets out of focus.
+      return () => {
+        // log("This route is now unfocused.");
+      };
+    }, [route?.check]),
+  );
 
   useEffect(() => {
     getSchoolData();
@@ -563,6 +587,7 @@ const SchoolScreen = ({ route }) => {
         wTransparent
         absolute
       />
+      <PopMessage popData={popData} setPopData={setPopData} />
       <StatusBar style="dark" />
     </View>
   );

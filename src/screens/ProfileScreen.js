@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
 import Screen from "../components/Screen";
@@ -34,7 +34,7 @@ import getRefresher from "../components/Refresher";
 import PopMessage from "../components/PopMessage";
 import { selectSchool } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -73,6 +73,7 @@ const ProfileScreen = () => {
 
   const dispatch = useDispatch();
   const router = useRouter();
+  const route = useLocalSearchParams();
   const user = useSelector(selectUser) ?? {};
   const school = useSelector(selectSchool);
   const [fetchUser] = useLazyFetchUserQuery();
@@ -128,6 +129,21 @@ const ProfileScreen = () => {
       setRefreshing(false);
     }
   };
+
+  useFocusEffect(
+    // Callback should be wrapped in `React.useCallback` to avoid running the effect too often.
+    useCallback(() => {
+      // Invoked whenever the route is focused.
+      if (route?.check === "profile" && !profile.bool) {
+        setPopper(profile.pop);
+      }
+
+      // Return function is invoked whenever the route gets out of focus.
+      return () => {
+        // log("This route is now unfocused.");
+      };
+    }, [profile, route]),
+  );
 
   return (
     <Screen style={styles.container}>

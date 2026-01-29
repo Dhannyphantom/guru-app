@@ -60,7 +60,7 @@ const Header = ({ user }) => {
             <AppText
               style={{ ...styles.headerText, color: colors.primaryDeep }}
               fontWeight="heavy"
-              size={"xxlarge"}
+              size={"large"}
             >
               @{user.username}
             </AppText>
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.unchange,
   },
   header: {
-    // flex: null,
+    flex: null,
     // width,
     // height: height * 0.22,
     backgroundColor: colors.light,
@@ -236,11 +236,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     // justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 15,
+    paddingTop: 5,
   },
 
   headerText: {
     color: colors.medium,
+    marginRight: 30,
   },
   headerBack: {
     paddingLeft: 15,

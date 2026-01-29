@@ -7,6 +7,7 @@ import {
   Dimensions,
   RefreshControl,
   TouchableOpacity,
+  Pressable,
 } from "react-native";
 import Animated, {
   FadeInDown,
@@ -211,7 +212,7 @@ const TabButton = ({ label, icon, active, onPress }) => {
 
   return (
     <Animated.View style={animatedStyle}>
-      <TouchableOpacity
+      <Pressable
         onPress={handlePress}
         style={[styles.tabButton, active && styles.tabButtonActive]}
       >
@@ -228,7 +229,7 @@ const TabButton = ({ label, icon, active, onPress }) => {
         >
           {label}
         </AppText>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 };
