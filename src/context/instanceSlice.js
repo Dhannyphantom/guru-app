@@ -115,7 +115,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
-      // invalidatesTags: ["FETCH_QUIZ"],
+      invalidatesTags: ["USER_STAT"],
     }),
     fetchSubjectsTopics: builder.mutation({
       query: (subjects) => {

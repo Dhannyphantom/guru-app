@@ -195,7 +195,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         await AsyncStorage.setItem("user_stat", JSON.stringify(res?.data));
         return res;
       },
-      providesTags: ["FETCH_REWARDS"],
+      providesTags: ["USER_STAT"],
     }),
     fetchTransactions: builder.query({
       query: (params) => ({

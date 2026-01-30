@@ -41,7 +41,10 @@ export default function TabLayout() {
         options={{ title: "Dashboard", href: null }}
       />
       <Tabs.Screen name="school" options={{ tabBarLabel: "School" }} />
-      <Tabs.Screen name="profile" options={{ tabBarLabel: "Profile" }} />
+      <Tabs.Screen
+        name="profile"
+        options={{ tabBarLabel: "Profile", lazy: false }}
+      />
     </Tabs>
   );
 }

@@ -27,10 +27,13 @@ import { subInitials, subUserSchema } from "../helpers/yupSchemas";
 const { width, height } = Dimensions.get("screen");
 
 const DisplayPayments = ({ hideModal, data }) => {
-  const [verifySubscription, { isLoading }] = useVerifySubscriptionMutation();
+  const [verifySubscription, { isLoading, data: subbed }] =
+    useVerifySubscriptionMutation();
 
   const isSchool = data?.type === "school";
   const user = useSelector(selectUser);
+
+  console.log({ data, subbed });
 
   const [bools, setBools] = useState({
     loading: true,
@@ -148,9 +151,16 @@ const DisplayPayments = ({ hideModal, data }) => {
                   >
                     Subcription Successful
                   </AppText>
-                  <AppText fontWeight="light" style={{ textAlign: "center" }}>
-                    You have successfully added a 30 days subscription to your
-                    account. Congratulations!
+                  <AppText
+                    fontWeight="light"
+                    style={{
+                      textAlign: "center",
+                      marginTop: 10,
+                      marginBottom: 40,
+                    }}
+                  >
+                    You have successfully added a {subbed?.data?.days || "N"}{" "}
+                    days subscription to your account. Congratulations!
                   </AppText>
                 </Animated.View>
               )}
@@ -177,7 +187,9 @@ const DisplayPayments = ({ hideModal, data }) => {
                           account_type: data?.type,
                           name: getFullName(user),
                           days: values["sub_amount"]?.days,
-                          schoolId: isSchool ? data?.schoolId : "",
+                          schoolId: isSchool
+                            ? (data?.schoolId ?? data?.school?._id)
+                            : "",
                         },
                       }}
                       customButton={(props) => (

@@ -49,7 +49,13 @@ const EmptyFriends = ({ friendsLength }) => {
       {friendsLength > 0 ? (
         <AppText>You haven&apos;t sent any invite yet</AppText>
       ) : (
-        <AppText>You don&apos;t have any mutual friends yet</AppText>
+        <View style={{ marginHorizontal: width * 0.1 }}>
+          <AppText>You don&apos;t have any mutual friends yet</AppText>
+          <AppText style={{ marginTop: 6 }}>
+            Find and follow your friends or classmates and have them follow you
+            back{" "}
+          </AppText>
+        </View>
       )}
     </View>
   );
@@ -137,7 +143,7 @@ const ModeSelection = ({ setState, setPop, sessionId, lobby, isLobby }) => {
 
   const onItemPress = (isSolo) => {
     if (isSolo) {
-      setState({ view: "category", bar: 2, mode: "solo" });
+      setState({ view: "category", bar: 2, mode: "solo", sessionId: null });
     } else {
       setState({ mode: "friends" });
       setShowFriendList(true);
@@ -564,7 +570,7 @@ const ModeSelection = ({ setState, setPop, sessionId, lobby, isLobby }) => {
             <AppText
               fontWeight="black"
               size={"xxlarge"}
-              style={[styles.modeTxt, { color: colors.accentDeeper }]}
+              style={{ ...styles.modeTxt, color: colors.accentDeeper }}
             >
               Play with friends
             </AppText>

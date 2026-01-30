@@ -23,9 +23,10 @@ import { StatusBar } from "expo-status-bar";
 import FindFriendsBoard from "../components/FindFriendsBoard";
 import SubStatus from "../components/SubStatus";
 import PopFriends from "../components/PopFriends";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   selectUser,
+  updateToken,
   useFetchFriendsQuery,
   useFetchUserQuery,
   useFetchUserStatsQuery,
@@ -60,7 +61,7 @@ const HomeScreen = () => {
 
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
-  const { refetch } = useFetchUserQuery();
+  const { refetch, error, isError } = useFetchUserQuery();
   const { data: stats, refetch: reftechStat } = useFetchUserStatsQuery(null, {
     refetchOnFocus: true,
   });
@@ -74,6 +75,7 @@ const HomeScreen = () => {
 
   const user = useSelector(selectUser);
   const router = useRouter();
+  const dispatch = useDispatch();
 
   const toggleFriendsModal = (bool) => {
     setBools({ ...bools, friendsModal: bool });
@@ -201,13 +203,31 @@ const HomeScreen = () => {
 
   useEffect(() => {
     try {
-      refetch();
+      // refetch();
       fetchCache();
       registerForPushNotificationsAsync().then((token) => {
         updateUserProfile({ expoPushToken: token }).unwrap();
       });
     } catch (_errr) {}
   }, []);
+
+  useEffect(() => {
+    if (isError) {
+      console.log({ isError, error });
+      if (error?.data?.includes("User data not found")) {
+        setPopper({
+          vis: true,
+          msg: error?.data,
+          type: "failed",
+          cb: async () => {
+            await AsyncStorage.removeItem("token");
+            dispatch(updateToken(null));
+            router.replace("/(auth)/login");
+          },
+        });
+      }
+    }
+  }, [error]);
 
   return (
     <Screen style={styles.container}>

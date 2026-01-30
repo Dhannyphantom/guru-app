@@ -297,7 +297,7 @@ const LeaderboardScreen = () => {
 
   // Footer component
   const renderFooter = useCallback(() => {
-    if (!isFetching || refreshing) return null;
+    if (!isFetching || refreshing || isLoading) return null;
 
     return (
       <View style={styles.footerLoader}>
@@ -419,6 +419,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: height * 0.5,
     backgroundColor: colors.unchange,
   },
   loadingText: {

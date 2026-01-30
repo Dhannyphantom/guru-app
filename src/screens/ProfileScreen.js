@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
 import Screen from "../components/Screen";
@@ -35,6 +35,14 @@ import PopMessage from "../components/PopMessage";
 import { selectSchool } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  ZoomIn,
+} from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -49,16 +57,48 @@ export const ProfileLink = ({
   title,
   icon = "person",
   iconColor = colors.primary,
+  yoyo,
   onPress,
 }) => {
+  const scaler = useSharedValue(1);
+
+  const aniStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scaler.value }],
+    };
+  });
+
+  useEffect(() => {
+    if (yoyo) {
+      scaler.value = withRepeat(
+        withTiming(0.85, { duration: 700 }),
+        Infinity,
+        true,
+      );
+    }
+  }, []);
+
   return (
     <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.link}>
       <View style={styles.linkIcon}>
-        <Ionicons name={icon} size={15} color={iconColor} />
+        <Ionicons
+          name={icon}
+          size={15}
+          color={yoyo ? colors.heart : iconColor}
+        />
       </View>
-      <AppText style={styles.linkText} fontWeight="semibold">
-        {title}
-      </AppText>
+      <Animated.View style={yoyo ? [styles.yoyo, aniStyle] : {}}>
+        <AppText
+          style={{
+            ...styles.linkText,
+            color: yoyo ? colors.heart : colors.black,
+          }}
+          fontWeight="semibold"
+        >
+          {title}
+        </AppText>
+      </Animated.View>
+
       <View style={styles.linkNavContainer}>
         <Ionicons name="chevron-forward" size={18} color={colors.medium} />
       </View>
@@ -142,7 +182,7 @@ const ProfileScreen = () => {
       return () => {
         // log("This route is now unfocused.");
       };
-    }, [profile, route]),
+    }, [profile.bool, profile.pop, route?.check]),
   );
 
   return (
@@ -245,6 +285,7 @@ const ProfileScreen = () => {
           <ProfileLink
             title={"Subscription"}
             icon="wallet"
+            yoyo={!user?.subscription?.isActive}
             onPress={() => handleNav("/profile/subscription")}
           />
           {!isPro && (
@@ -359,5 +400,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
+  },
+  yoyo: {
+    backgroundColor: colors.heart + 20,
+    padding: 7,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderBottomWidth: 4,
+    borderColor: colors.heart,
+    paddingHorizontal: 15,
   },
 });

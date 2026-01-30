@@ -15,7 +15,7 @@ import AppHeader from "../components/AppHeader";
 import colors from "../helpers/colors";
 import { useLocalSearchParams } from "expo-router";
 import { useGetMyQuestionsQuery } from "../context/instanceSlice";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LottieAnimator from "../components/LottieAnimator";
 // import { PAD_BOTTOM } from "../helpers/dataStore";
 import QuestionDisplay from "../components/QuestionDisplay";
@@ -33,6 +33,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import { PAD_BOTTOM } from "../helpers/dataStore";
 import { Ionicons } from "@expo/vector-icons";
+import { useSelector } from "react-redux";
+import { selectUser } from "../context/usersSlice";
+import CountdownTimer from "../components/CountdownTimer";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -44,6 +47,8 @@ const QUIT_PROMPT = {
 };
 
 const MINIMUM_QUESTIONS = 5;
+const A_DAY = 1000 * 60 * 60;
+const TIME_INTERVAL = 3;
 
 /**
  * Get randomized questions from specific subjects and topics
@@ -153,6 +158,7 @@ const QuestionStudyScreen = () => {
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [qBank, setQBank] = useState({});
   const [bools, setBools] = useState({ loading: true });
+  const [timer, setTimer] = useState(null); //14400
   const [popData, setPopData] = useState({ vis: false });
   const [questions, setQuestions] = useState([]);
   const [session, setSession] = useState({
@@ -164,21 +170,51 @@ const QuestionStudyScreen = () => {
 
   const insets = useSafeAreaInsets();
   const stats = getStats(session);
+  const user = useSelector(selectUser);
+  const timerRef = useRef();
+  const hasActiveSub = user?.subcription?.isActive;
+
+  const maxCount = hasActiveSub
+    ? questions?.totalAvailable
+    : Math.min(questions?.totalAvailable, 10);
+
   const statsScore = Math.floor(
     (stats?.answeredCorrectly / parseInt(count)) * 100,
   );
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const limit = parseInt(count) || MINIMUM_QUESTIONS;
-    if (limit < MINIMUM_QUESTIONS || limit > questions?.totalAvailable) {
+    if (limit < MINIMUM_QUESTIONS || limit > maxCount) {
       setPopData({
         vis: true,
-        msg: "Exceeded question range",
+        msg:
+          limit > maxCount && !hasActiveSub
+            ? "Subscribe to answer more questions"
+            : "Exceeded question range",
         type: "failed",
       });
       return;
     }
+
+    const quizTimer = await AsyncStorage.getItem("free_quiz");
+    if (quizTimer && !hasActiveSub) {
+      const now = new Date();
+      const quizTime = new Date(quizTimer);
+      const diff = (now - quizTime) / A_DAY;
+      if (diff < TIME_INTERVAL) {
+        setPopData({
+          vis: true,
+          msg: "Subscribe now to skip waiting time",
+          type: "failed",
+        });
+      }
+      return;
+    }
+
     setScreen(1);
+    if (!hasActiveSub) {
+      await AsyncStorage.setItem("free_quiz", new Date().toISOString());
+    }
   };
 
   const handlePrompt = (type) => {
@@ -202,6 +238,21 @@ const QuestionStudyScreen = () => {
       setQBank(data);
     }
     setBools({ ...bools, loading: false });
+
+    // Check timer;
+    if (!hasActiveSub) {
+      const quizTimer = await AsyncStorage.getItem("free_quiz");
+      if (quizTimer) {
+        const now = new Date();
+        const quizTime = new Date(quizTimer);
+        const diff = (now - quizTime) / A_DAY;
+        if (diff < TIME_INTERVAL) {
+          setTimer(diff * 60 * 60);
+        } else {
+          setTimer(null);
+        }
+      }
+    }
   };
 
   useEffect(() => {
@@ -275,6 +326,16 @@ const QuestionStudyScreen = () => {
                 onChangeText={(val) => setCount(val)}
                 style={styles.input}
               />
+              {timer && (
+                <CountdownTimer
+                  ref={timerRef}
+                  time={timer}
+                  onComplete={() => console.log(false, 1)}
+                  // onPause={() => ("Paused")}
+                  onSkip={(elapsed) => console.log(true, elapsed)}
+                  // onStop={() => ("Stopped")}
+                />
+              )}
               <AppButton title={"Start Quiz"} onPress={handleStart} />
             </View>
           )}

@@ -183,15 +183,17 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           >
             You earned{" "}
             <AppText size={"xxlarge"} fontWeight="black">
-              {results?.data?.pointsEarned ?? stat?.pointsEarned}
+              {Number(
+                results?.data?.pointsEarned ?? stat?.pointsEarned,
+              ).toFixed(1)}
             </AppText>
-            <AppText
+            {/* <AppText
               size={"small"}
               style={{ color: colors.medium }}
               fontWeight="black"
             >
               /{(results?.data?.totalQuestions ?? stat?.totalQuestions) * 5}
-            </AppText>{" "}
+            </AppText>{" "} */}{" "}
             quiz points
           </AppText>
           <View style={{ flex: 1 }}>
@@ -242,7 +244,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           </View>
           <View style={styles.statMain}>
             <QuizStat
-              value={results?.data?.pointsEarned}
+              value={Number(results?.data?.pointsEarned).toFixed(1)}
               bgColor={colors.warning}
               border={colors.warningLight}
               subValue={"GT"}
@@ -264,7 +266,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
         </>
       )}
       {/* <View style={styles.btnContainer}> */}
-      {isMultiplayer && stat?.isFinal ? (
+      {isMultiplayer && stat?.isFinal && (
         <View style={styles.btns}>
           {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
           <AppButton title={"Close"} type="white" onPress={hideModal} />
@@ -276,11 +278,14 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           />
           {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
         </View>
-      ) : (
+      )}
+
+      {isMultiplayer && !stat?.isFinal && (
         <View>
           <AppText>Waiting for the remaining players</AppText>
         </View>
       )}
+
       {!isMultiplayer && (
         <View style={styles.btns}>
           {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}

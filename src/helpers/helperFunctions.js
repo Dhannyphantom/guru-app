@@ -60,7 +60,7 @@ export const getUserProfile = (user) => ({
 export const launchGallery = async (
   aspect = [4, 4],
   multiple = false,
-  allowsEditing = true
+  allowsEditing = true,
 ) => {
   const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
 
@@ -290,7 +290,7 @@ export const getCurrencyAmount = (number) => {
 
 export const formatPoints = (number) => {
   // if (number && typeof number == "number") {
-  return `${number} GT`;
+  return `${Number(number).toFixed(1)} GT`;
   // return `${Number(number).toLocaleString()} TK`;
   // } else {
   //   return null;
@@ -483,8 +483,8 @@ export const getFormData = (data, bucket, isArray) => {
   if (isArray) {
     const hasURI = Boolean(
       data?.find(
-        (objj) => objj?.hasOwnProperty("image") && Boolean(objj?.image?.uri)
-      )
+        (objj) => objj?.hasOwnProperty("image") && Boolean(objj?.image?.uri),
+      ),
     );
     formData.append(
       "data",
@@ -492,7 +492,7 @@ export const getFormData = (data, bucket, isArray) => {
         data,
         media: hasURI,
         bucket,
-      })
+      }),
     );
 
     data.forEach(async (item) => {
@@ -513,7 +513,7 @@ export const getFormData = (data, bucket, isArray) => {
         ...data,
         media: hasURI,
         bucket,
-      })
+      }),
     );
     formData.append("media_file", {
       uri: data?.image?.uri,
