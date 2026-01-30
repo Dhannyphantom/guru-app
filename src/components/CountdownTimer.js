@@ -10,11 +10,9 @@ import {
 import { StyleSheet } from "react-native";
 import AppText from "./AppText";
 import Animated, {
-  BounceIn,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -43,6 +41,7 @@ const CountdownTimer = forwardRef(
       onSkip,
       onStop,
       textStyle,
+      style,
     },
     ref,
   ) => {
@@ -152,10 +151,10 @@ const CountdownTimer = forwardRef(
     }, [autoStart]);
 
     return (
-      <Animated.View style={animatedStyle}>
+      <Animated.View style={[animatedStyle, style]}>
         <AppText
           weight="semibold"
-          size="xsmall"
+          size="xlarge"
           style={[styles.text, textStyle]}
         >
           {formatTime(remaining)}

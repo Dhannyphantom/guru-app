@@ -3,6 +3,7 @@
 import {
   Dimensions,
   FlatList,
+  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -36,8 +37,26 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import CountdownTimer from "../components/CountdownTimer";
+import {
+  RewardedAd,
+  RewardedAdEventType,
+  AdEventType,
+  TestIds,
+} from "react-native-google-mobile-ads";
 
 const { width, height } = Dimensions.get("screen");
+
+const rewardedAdUnitId = __DEV__
+  ? TestIds.REWARDED
+  : Platform.OS === "android"
+    ? "ca-app-pub-3603875446667492/6857042910"
+    : "ca-app-pub-3603875446667492/1000907548";
+
+// ca-app-pub-3603875446667492/6857042910  - Android Real Ad Unit ID
+// ca-app-pub-3603875446667492/1000907548 - iOS Real Ad Unit ID
+
+// ca-app-pub-3603875446667492/8194175311 - iOS IT Ad Unit ID
+// ca-app-pub-3603875446667492/8333776119 - Android IT Ad Unit ID
 
 const QUIT_PROMPT = {
   title: "Exit Quiz",
@@ -47,8 +66,11 @@ const QUIT_PROMPT = {
 };
 
 const MINIMUM_QUESTIONS = 5;
-const A_DAY = 1000 * 60 * 60;
-const TIME_INTERVAL = 3;
+// const TIME_INTERVAL = 3 * 60 * 60 * 1000;
+
+const TIME_INTERVAL = 3; // hours
+const ONE_HOUR = 60 * 60 * 1000; // ms
+const TOTAL_TIME = TIME_INTERVAL * ONE_HOUR;
 
 /**
  * Get randomized questions from specific subjects and topics
@@ -157,14 +179,16 @@ const QuestionStudyScreen = () => {
   const [count, setCount] = useState(`${MINIMUM_QUESTIONS}`);
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [qBank, setQBank] = useState({});
-  const [bools, setBools] = useState({ loading: true });
+  const [bools, setBools] = useState({ loading: true, showLoadAd: true });
   const [timer, setTimer] = useState(null); //14400
   const [popData, setPopData] = useState({ vis: false });
   const [questions, setQuestions] = useState([]);
+  const [adError, setAdError] = useState(null);
   const [session, setSession] = useState({
     totalQuestions: 1,
     questions: [],
   });
+  const [adLoaded, setAdLoaded] = useState(false);
 
   const { data, error, refetch } = useGetMyQuestionsQuery();
 
@@ -172,6 +196,7 @@ const QuestionStudyScreen = () => {
   const stats = getStats(session);
   const user = useSelector(selectUser);
   const timerRef = useRef();
+  const rewardedRef = useRef(null);
   const hasActiveSub = user?.subcription?.isActive;
 
   const maxCount = hasActiveSub
@@ -189,7 +214,7 @@ const QuestionStudyScreen = () => {
         vis: true,
         msg:
           limit > maxCount && !hasActiveSub
-            ? "Subscribe to answer more questions"
+            ? "Subscribe to practice more questions"
             : "Exceeded question range",
         type: "failed",
       });
@@ -198,10 +223,11 @@ const QuestionStudyScreen = () => {
 
     const quizTimer = await AsyncStorage.getItem("free_quiz");
     if (quizTimer && !hasActiveSub) {
-      const now = new Date();
-      const quizTime = new Date(quizTimer);
-      const diff = (now - quizTime) / A_DAY;
-      if (diff < TIME_INTERVAL) {
+      const now = Date.now(); // ms
+      const quizTime = new Date(quizTimer).getTime(); // ms
+      const elapsed = now - quizTime; // ms
+
+      if (elapsed < TOTAL_TIME) {
         setPopData({
           vis: true,
           msg: "Subscribe now to skip waiting time",
@@ -229,6 +255,23 @@ const QuestionStudyScreen = () => {
     }
   };
 
+  const handleAdReward = async () => {
+    await AsyncStorage.removeItem("free_quiz");
+    setTimer(null);
+
+    setPopData({
+      vis: true,
+      msg: "Waiting time skipped 🎉",
+      timer: 2000,
+      type: "success",
+    });
+
+    setBools({ ...bools, loading: false, showLoadAd: true });
+
+    // Reload ad for next time
+    rewardedRef.current?.load();
+  };
+
   const loadQuestions = async () => {
     const qCache = await AsyncStorage.getItem("qBank");
     if (qCache) {
@@ -243,17 +286,25 @@ const QuestionStudyScreen = () => {
     if (!hasActiveSub) {
       const quizTimer = await AsyncStorage.getItem("free_quiz");
       if (quizTimer) {
-        const now = new Date();
-        const quizTime = new Date(quizTimer);
-        const diff = (now - quizTime) / A_DAY;
-        if (diff < TIME_INTERVAL) {
-          setTimer(diff * 60 * 60);
+        const now = Date.now(); // ms
+        const quizTime = new Date(quizTimer).getTime(); // ms
+        const elapsed = now - quizTime; // ms
+        const remaining = TOTAL_TIME - elapsed; // ms
+
+        if (remaining > 0) {
+          // convert ms → seconds
+          setTimer(Math.floor(remaining / 1000));
         } else {
           setTimer(null);
         }
       }
     }
   };
+
+  console.log({ adError });
+
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
     loadQuestions();
@@ -271,6 +322,64 @@ const QuestionStudyScreen = () => {
       setQuestions(qData);
     }
   }, [count, screen, qBank]);
+
+  useEffect(() => {
+    const rewarded = RewardedAd.createForAdRequest(rewardedAdUnitId, {
+      requestNonPersonalizedAdsOnly: true,
+    });
+
+    const retryLoadAd = () => {
+      if (retryCount.current >= MAX_RETRIES) return;
+
+      retryCount.current += 1;
+
+      setTimeout(() => {
+        rewarded.load();
+      }, retryCount.current * 2000);
+    };
+
+    rewardedRef.current = rewarded;
+    const unsubscribeLoaded = rewarded.addAdEventListener(
+      RewardedAdEventType.LOADED,
+      () => {
+        if (bools.showLoadAd === false) {
+          rewarded.show();
+        }
+        setAdLoaded(true);
+      },
+    );
+
+    const unsubscribeEarned = rewarded.addAdEventListener(
+      RewardedAdEventType.EARNED_REWARD,
+      (reward) => {
+        handleAdReward();
+
+        console.log("User earned reward of ", reward);
+      },
+    );
+
+    const unsubscribeError = rewarded.addAdEventListener(
+      AdEventType.ERROR,
+      (error) => {
+        console.log("Rewarded ad failed to load:", error);
+        setAdLoaded(false);
+        setAdError(true);
+        retryLoadAd();
+      },
+    );
+
+    // Start loading the rewarded ad straight away
+    if (!hasActiveSub) {
+      rewarded.load();
+    }
+
+    // Unsubscribe from events on unmount
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeEarned();
+      unsubscribeError();
+    };
+  }, []);
 
   //   const sendData = [];
   return (
@@ -312,10 +421,7 @@ const QuestionStudyScreen = () => {
               >
                 You can practice a minimum of{" "}
                 <AppText fontWeight="heavy">{MINIMUM_QUESTIONS}</AppText> and
-                maximum of{" "}
-                <AppText fontWeight="heavy">
-                  {questions?.totalAvailable}
-                </AppText>{" "}
+                maximum of <AppText fontWeight="heavy">{maxCount}</AppText>{" "}
                 questions
               </AppText>
               <TextInput
@@ -326,14 +432,42 @@ const QuestionStudyScreen = () => {
                 onChangeText={(val) => setCount(val)}
                 style={styles.input}
               />
+              <View>
+                {timer && (
+                  <CountdownTimer
+                    ref={timerRef}
+                    time={timer}
+                    autoStart={true}
+                    style={{ alignItems: "center", marginBottom: 25 }}
+                    onComplete={() => console.log(false, 1)}
+                    // onPause={() => ("Paused")}
+                    onSkip={(elapsed) => console.log(true, elapsed)}
+                    // onStop={() => ("Stopped")}
+                  />
+                )}
+              </View>
               {timer && (
-                <CountdownTimer
-                  ref={timerRef}
-                  time={timer}
-                  onComplete={() => console.log(false, 1)}
-                  // onPause={() => ("Paused")}
-                  onSkip={(elapsed) => console.log(true, elapsed)}
-                  // onStop={() => ("Stopped")}
+                <AppButton
+                  title={
+                    adLoaded || bools.showLoadAd
+                      ? "Watch Ad to skip time"
+                      : "Loading Ad..."
+                  }
+                  type="accent"
+                  disabled={!adLoaded && !bools.showLoadAd}
+                  icon={{ left: true, name: "play", type: "I" }}
+                  onPress={() => {
+                    if (bools.showLoadAd) {
+                      setBools({ ...bools, showLoadAd: false });
+                      if (adLoaded) {
+                        rewardedRef.current?.show();
+                      } else {
+                        rewardedRef.current?.load();
+                      }
+                    } else {
+                      rewardedRef.current?.show();
+                    }
+                  }}
                 />
               )}
               <AppButton title={"Start Quiz"} onPress={handleStart} />
