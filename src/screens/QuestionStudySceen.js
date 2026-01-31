@@ -206,7 +206,7 @@ const QuestionStudyScreen = () => {
   const timerRef = useRef();
   const rewardedRef = useRef(null);
   const interstitialRef = useRef(null);
-  const hasActiveSub = user?.subcription?.isActive;
+  const hasActiveSub = user?.subscription?.isActive;
 
   const maxCount = hasActiveSub
     ? questions?.totalAvailable
