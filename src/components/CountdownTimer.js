@@ -151,7 +151,7 @@ const CountdownTimer = forwardRef(
     }, [autoStart]);
 
     return (
-      <Animated.View style={[animatedStyle, style]}>
+      <Animated.View style={[animatedStyle, style]} pointerEvents="none">
         <AppText
           weight="semibold"
           size="xlarge"

@@ -61,6 +61,12 @@ const SearchBar = ({
         }}
         style={styles.input}
       />
+      {(onClose && text.length < 1 && !loading) ||
+        (showClose && (
+          <Pressable onPress={onCloseSearch} style={styles.search}>
+            <Ionicons name="close-circle" size={24} color={colors.medium} />
+          </Pressable>
+        ))}
       {onClickSearch && text?.length > 1 && !loading && (
         <AnimatedPressable
           onPress={() => onClickSearch(text)}
@@ -69,12 +75,6 @@ const SearchBar = ({
           <Ionicons name="search" size={18} color={colors.primaryLighter} />
         </AnimatedPressable>
       )}
-      {(onClose && text.length < 1 && !loading) ||
-        (showClose && (
-          <Pressable onPress={onCloseSearch} style={styles.search}>
-            <Ionicons name="close-circle" size={24} color={colors.medium} />
-          </Pressable>
-        ))}
       <LottieAnimator visible={loading} size={60} />
     </View>
   );

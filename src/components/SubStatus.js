@@ -11,7 +11,7 @@ const SubStatus = ({ isSubscribed = false }) => {
   switch (isSubscribed) {
     case true:
       text = "PREMIUM";
-      color = colors.primaryDeeper;
+      color = colors.accentDeep;
       break;
 
     case false:
@@ -30,7 +30,7 @@ const SubStatus = ({ isSubscribed = false }) => {
         {text}
       </AppText>
       {isSubscribed && (
-        <Octicons name="verified" size={16} color={colors.green} />
+        <Octicons name="verified" size={16} color={colors.accentDeep} />
       )}
     </View>
   );

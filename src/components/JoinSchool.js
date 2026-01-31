@@ -110,6 +110,7 @@ export const SearchSchool = ({
         loading={loading?.search}
         placeholder="Enter your school name..."
         onInputFocus={() => onSearch("focus")}
+        showClose={true}
         onClose={showSearch ? () => onSearch("blur") : null}
         onClickSearch={(val) => onSearch("callback", val)}
       />
@@ -377,5 +378,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     textAlign: "left",
     marginLeft: 3,
+    marginRight: 20,
   },
 });

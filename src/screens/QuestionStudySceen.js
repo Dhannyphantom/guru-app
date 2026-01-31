@@ -41,6 +41,7 @@ import {
   RewardedAd,
   RewardedAdEventType,
   AdEventType,
+  InterstitialAd,
   TestIds,
 } from "react-native-google-mobile-ads";
 
@@ -51,6 +52,12 @@ const rewardedAdUnitId = __DEV__
   : Platform.OS === "android"
     ? "ca-app-pub-3603875446667492/6857042910"
     : "ca-app-pub-3603875446667492/1000907548";
+
+const interstitialAdUnitId = __DEV__
+  ? TestIds.INTERSTITIAL
+  : Platform.OS === "android"
+    ? "ca-app-pub-3603875446667492/8333776119" // Android interstitial
+    : "ca-app-pub-3603875446667492/8194175311"; // iOS interstitial
 
 // ca-app-pub-3603875446667492/6857042910  - Android Real Ad Unit ID
 // ca-app-pub-3603875446667492/1000907548 - iOS Real Ad Unit ID
@@ -189,6 +196,7 @@ const QuestionStudyScreen = () => {
     questions: [],
   });
   const [adLoaded, setAdLoaded] = useState(false);
+  const [interstitialLoaded, setInterstitialLoaded] = useState(false);
 
   const { data, error, refetch } = useGetMyQuestionsQuery();
 
@@ -197,6 +205,7 @@ const QuestionStudyScreen = () => {
   const user = useSelector(selectUser);
   const timerRef = useRef();
   const rewardedRef = useRef(null);
+  const interstitialRef = useRef(null);
   const hasActiveSub = user?.subcription?.isActive;
 
   const maxCount = hasActiveSub
@@ -301,8 +310,6 @@ const QuestionStudyScreen = () => {
     }
   };
 
-  console.log({ adError });
-
   const retryCount = useRef(0);
   const MAX_RETRIES = 3;
 
@@ -324,6 +331,7 @@ const QuestionStudyScreen = () => {
   }, [count, screen, qBank]);
 
   useEffect(() => {
+    if (hasActiveSub) return;
     const rewarded = RewardedAd.createForAdRequest(rewardedAdUnitId, {
       requestNonPersonalizedAdsOnly: true,
     });
@@ -353,15 +361,12 @@ const QuestionStudyScreen = () => {
       RewardedAdEventType.EARNED_REWARD,
       (reward) => {
         handleAdReward();
-
-        console.log("User earned reward of ", reward);
       },
     );
 
     const unsubscribeError = rewarded.addAdEventListener(
       AdEventType.ERROR,
       (error) => {
-        console.log("Rewarded ad failed to load:", error);
         setAdLoaded(false);
         setAdError(true);
         retryLoadAd();
@@ -369,9 +374,7 @@ const QuestionStudyScreen = () => {
     );
 
     // Start loading the rewarded ad straight away
-    if (!hasActiveSub) {
-      rewarded.load();
-    }
+    rewarded.load();
 
     // Unsubscribe from events on unmount
     return () => {
@@ -381,11 +384,52 @@ const QuestionStudyScreen = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (hasActiveSub) return;
+
+    const interstitial = InterstitialAd.createForAdRequest(
+      interstitialAdUnitId,
+      { requestNonPersonalizedAdsOnly: true },
+    );
+
+    interstitialRef.current = interstitial;
+
+    const unsubscribeLoaded = interstitial.addAdEventListener(
+      AdEventType.LOADED,
+      () => {
+        setInterstitialLoaded(true);
+      },
+    );
+
+    const unsubscribeClosed = interstitial.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setInterstitialLoaded(false);
+        screen === 1 && setScreen(2); // 🔑 show quiz results AFTER ad
+      },
+    );
+
+    const unsubscribeError = interstitial.addAdEventListener(
+      AdEventType.ERROR,
+      () => {
+        setInterstitialLoaded(false);
+        screen === 1 && setScreen(2); // fallback to results if ad fails
+      },
+    );
+
+    interstitial.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeClosed();
+      unsubscribeError();
+    };
+  }, []);
   //   const sendData = [];
   return (
     <View style={styles.container}>
       {screen === 0 && (
-        <Animated.View entering={SlideInLeft} exiting={SlideOutLeft}>
+        <Animated.View exiting={SlideOutLeft}>
           <AppHeader title={`${route?.subjectName} Practice`} />
           <AppText fontWeight="medium" style={styles.topic}>
             Topic: {route?.topicName}
@@ -439,9 +483,9 @@ const QuestionStudyScreen = () => {
                     time={timer}
                     autoStart={true}
                     style={{ alignItems: "center", marginBottom: 25 }}
-                    onComplete={() => console.log(false, 1)}
+                    onComplete={() => {}}
                     // onPause={() => ("Paused")}
-                    onSkip={(elapsed) => console.log(true, elapsed)}
+                    onSkip={(elapsed) => {}}
                     // onStop={() => ("Stopped")}
                   />
                 )}
@@ -455,7 +499,15 @@ const QuestionStudyScreen = () => {
                   }
                   type="accent"
                   disabled={!adLoaded && !bools.showLoadAd}
-                  icon={{ left: true, name: "play", type: "I" }}
+                  icon={{
+                    left: true,
+                    name: "play",
+                    type: "I",
+                    color:
+                      adLoaded || bools.showLoadAd
+                        ? colors.white
+                        : colors.accent + 80,
+                  }}
                   onPress={() => {
                     if (bools.showLoadAd) {
                       setBools({ ...bools, showLoadAd: false });
@@ -494,7 +546,16 @@ const QuestionStudyScreen = () => {
               },
             ]}
             setQuizSession={setSession}
-            setQuizInfoView={() => setScreen(2)}
+            setQuizInfoView={() => {
+              setScreen(2);
+              setTimeout(() => {
+                try {
+                  interstitialRef.current?.show();
+                } catch (_err) {
+                  // setScreen(2);
+                }
+              }, 1000);
+            }}
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
           />
         </Animated.View>

@@ -58,6 +58,7 @@ export const ProfileLink = ({
   icon = "person",
   iconColor = colors.primary,
   yoyo,
+  yoyoColor = colors.heart,
   onPress,
 }) => {
   const scaler = useSharedValue(1);
@@ -81,17 +82,23 @@ export const ProfileLink = ({
   return (
     <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.link}>
       <View style={styles.linkIcon}>
-        <Ionicons
-          name={icon}
-          size={15}
-          color={yoyo ? colors.heart : iconColor}
-        />
+        <Ionicons name={icon} size={15} color={yoyo ? yoyoColor : iconColor} />
       </View>
-      <Animated.View style={yoyo ? [styles.yoyo, aniStyle] : {}}>
+      <Animated.View
+        style={
+          yoyo
+            ? [
+                styles.yoyo,
+                { backgroundColor: yoyoColor + 20, borderColor: yoyoColor },
+                aniStyle,
+              ]
+            : {}
+        }
+      >
         <AppText
           style={{
             ...styles.linkText,
-            color: yoyo ? colors.heart : colors.black,
+            color: yoyo ? yoyoColor : colors.black,
           }}
           fontWeight="semibold"
         >
@@ -169,21 +176,6 @@ const ProfileScreen = () => {
       setRefreshing(false);
     }
   };
-
-  useFocusEffect(
-    // Callback should be wrapped in `React.useCallback` to avoid running the effect too often.
-    useCallback(() => {
-      // Invoked whenever the route is focused.
-      if (route?.check === "profile" && !profile.bool) {
-        setPopper(profile.pop);
-      }
-
-      // Return function is invoked whenever the route gets out of focus.
-      return () => {
-        // log("This route is now unfocused.");
-      };
-    }, [profile.bool, profile.pop, route?.check]),
-  );
 
   return (
     <Screen style={styles.container}>
@@ -280,6 +272,8 @@ const ProfileScreen = () => {
           <ProfileLink
             title={`${profile.bool ? "Edit" : "Complete"} Profile`}
             onPress={() => router.push("/profile/edit")}
+            yoyo={!profile.bool}
+            yoyoColor={colors.warning}
             icon="options"
           />
           <ProfileLink
@@ -402,12 +396,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   yoyo: {
-    backgroundColor: colors.heart + 20,
     padding: 7,
     borderRadius: 100,
     borderWidth: 1,
     borderBottomWidth: 4,
-    borderColor: colors.heart,
     paddingHorizontal: 15,
   },
 });

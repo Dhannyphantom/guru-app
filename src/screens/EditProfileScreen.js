@@ -100,7 +100,6 @@ const EditProfileScreen = () => {
         msg: "Your profile has been updated successfully",
         timer: 3000,
         type: "success",
-        cb: () => router.back(),
       });
     }
   }, [isSuccess, router]);
@@ -135,7 +134,7 @@ const EditProfileScreen = () => {
                     const dataNG = ngLocale.find(
                       (item) =>
                         item.state?.toLowerCase() ==
-                        values["state"]?.name?.toLowerCase()
+                        values["state"]?.name?.toLowerCase(),
                     );
                     const dataArr = dataNG?.lgas?.map((item) => ({
                       _id: nanoid(),
