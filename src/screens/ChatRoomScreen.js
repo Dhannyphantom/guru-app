@@ -951,7 +951,7 @@ const ChatRoomScreen = () => {
                 setInputText(val);
               }}
               multiline
-              editable={!isResolved && !isPro}
+              editable={!(!isResolved && !isPro)}
               maxLength={500}
             />
           </View>

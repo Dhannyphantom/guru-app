@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-export const baseUrl = "http://192.168.170.9:3800";
+export const baseUrl = "http://192.168.119.9:3800";
 // export const baseUrl = "http://10.255.11.44:3800";
 // export const baseUrl = "https://guru-server-0muf.onrender.com";
 // export const baseUrl = "http://10.255.174.69:3800";

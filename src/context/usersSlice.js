@@ -426,6 +426,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: { text },
       }),
       invalidatesTags: (result, error, { ticketId }) => [
+        "ADMIN_SUPPORT_TICKETS",
         { type: "SUPPORT_TICKET", id: ticketId },
       ],
     }),

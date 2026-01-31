@@ -11,7 +11,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import AppButton, { FormikButton } from "../components/AppButton";
-import Screen from "../components/Screen";
+// import Screen from "../components/Screen";
 
 import AppModal from "../components/AppModal";
 import colors from "../helpers/colors";
@@ -34,7 +34,6 @@ import {
   exitingAnim,
   PAD_BOTTOM,
   renewSubList,
-  subHistories,
 } from "../helpers/dataStore";
 import {
   calculatePointsAmount,
@@ -826,7 +825,7 @@ const SubscriptionScreen = () => {
                     fontWeight="black"
                   >
                     {isSchool
-                      ? `${terms} TERM${terms > 1 ? "S" : ""}`
+                      ? `${Math.max(0, terms)} TERM${terms > 1 ? "S" : ""}`
                       : formatPoints(user.points)}
                   </AppText>
 
@@ -854,7 +853,7 @@ const SubscriptionScreen = () => {
                     fontWeight="black"
                   >
                     {isSchool
-                      ? school?.students?.length ?? 0
+                      ? (school?.students?.length ?? 0)
                       : calculatePointsAmount(user.points).format}
                   </AppText>
                 </View>

@@ -167,7 +167,7 @@ export const dateFormatter = (date, type, xtraData) => {
         total,
         terms: Math.ceil(total / 90),
       };
-      break;
+
     case "feed":
       const timer = currentTimer - dateTime;
       //
