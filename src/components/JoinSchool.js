@@ -8,7 +8,10 @@ import { selectUser } from "../context/usersSlice";
 import Animated, {
   LinearTransition,
   useAnimatedScrollHandler,
+  useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withTiming,
 } from "react-native-reanimated";
 import colors from "../helpers/colors";
 import { useEffect, useState } from "react";
@@ -24,6 +27,7 @@ import ListEmpty from "./ListEmpty";
 import PopMessage from "./PopMessage";
 import { hasCompletedProfile } from "../helpers/helperFunctions";
 import getRefresher from "./Refresher";
+import { PAD_BOTTOM } from "../helpers/dataStore";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -33,10 +37,28 @@ export const SchoolList = ({ item, onPress, status = "" }) => {
   const subscription = status === "subscription";
   const statusText = pending ? "pending" : `Awaiting ${status}`;
 
+  const scaler = useSharedValue(1);
+
+  const aniStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scaleX: scaler.value }],
+    };
+  });
+
+  useEffect(() => {
+    if (status) {
+      scaler.value = withRepeat(
+        withTiming(0.85, { duration: 700 }),
+        Infinity,
+        true,
+      );
+    }
+  }, []);
+
   return (
     <AnimatedPressable
       disabled={pending || verification}
-      onPress={() => onPress(item)}
+      onPress={() => onPress?.(item)}
       style={styles.list}
     >
       <View>
@@ -68,7 +90,7 @@ export const SchoolList = ({ item, onPress, status = "" }) => {
           </AppText>
         </View>
         {status && (
-          <View style={styles.listRow}>
+          <Animated.View style={[styles.listRow, aniStyle]}>
             <Ionicons
               name="hourglass-outline"
               color={pending ? colors.primary : colors.warningDark}
@@ -84,7 +106,7 @@ export const SchoolList = ({ item, onPress, status = "" }) => {
             >
               {statusText}
             </AppText>
-          </View>
+          </Animated.View>
         )}
       </View>
     </AnimatedPressable>
@@ -242,6 +264,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
         data={["JOIN"]}
         onScroll={scrollHandler}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         refreshControl={getRefresher({ refreshing, onRefresh })}
         renderItem={() => (
           <View style={styles.container}>
@@ -297,6 +320,17 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
                 />
               </View>
             )}
+            <View style={[styles.row, { marginTop: 10 }]}>
+              <Ionicons
+                name="information-circle"
+                size={20}
+                color={colors.primary}
+              />
+              <AppText style={styles.text} fontWeight="medium">
+                If your school subscription is expired, Notify your school rep
+                or homeroom teacher to renew your school subscription
+              </AppText>
+            </View>
           </View>
         )}
       />

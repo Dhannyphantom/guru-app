@@ -120,7 +120,6 @@ const ProfileScreen = () => {
 
   const dispatch = useDispatch();
   const router = useRouter();
-  const route = useLocalSearchParams();
   const user = useSelector(selectUser) ?? {};
   const school = useSelector(selectSchool);
   const [fetchUser] = useLazyFetchUserQuery();
@@ -138,7 +137,7 @@ const ProfileScreen = () => {
   const handlePrompt = async (type) => {
     switch (type) {
       case "sign_out":
-        await AsyncStorage.removeItem("token");
+        await AsyncStorage.multiRemove(["token", "user", "user_stat"]);
         dispatch(updateToken(null));
         break;
 
