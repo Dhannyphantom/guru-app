@@ -550,7 +550,7 @@ const QuestionStudyScreen = () => {
               setScreen(2);
               setTimeout(() => {
                 try {
-                  interstitialRef.current?.show();
+                  !hasActiveSub && interstitialRef.current?.show();
                 } catch (_err) {
                   // setScreen(2);
                 }

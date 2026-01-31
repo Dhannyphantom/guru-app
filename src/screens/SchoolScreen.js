@@ -7,7 +7,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, memo, useMemo, useState } from "react";
+
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 
@@ -24,7 +25,10 @@ import resultImg from "../../assets/images/result.png";
 import timerImg from "../../assets/images/clock.png";
 
 import Animated, {
+  Extrapolation,
+  interpolate,
   useAnimatedScrollHandler,
+  useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
 import AppModal from "../components/AppModal";
@@ -47,8 +51,8 @@ import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
 import Quiz from "../components/Quiz";
 import { useRouter } from "expo-router";
-import { useFocusEffect } from "expo-router";
 import PopMessage from "../components/PopMessage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -444,10 +448,10 @@ const SchoolActions = ({ data }) => {
 
 const SchoolProfile = ({ data, fetchSchoolData }) => {
   const translationY = useSharedValue(0);
-
+  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await fetchSchoolData();
@@ -456,31 +460,92 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [fetchSchoolData]);
 
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    translationY.value = event.contentOffset.y;
+  const Rstyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      translationY.value,
+      [0, 200],
+      [-(insets.top + 60), 0],
+      Extrapolation.CLAMP,
+    );
+
+    const opaciter = interpolate(
+      translationY.value,
+      [0, 200],
+      [0, 1],
+      Extrapolation.CLAMP,
+    );
+
+    return {
+      transform: [{ translateY: scale }],
+      opacity: opaciter,
+    };
   });
+
+  // Optimize scroll handler - use runOnJS sparingly
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      "worklet";
+      translationY.value = event.contentOffset.y;
+    },
+  });
+
+  // Memoize action data
+  const actionData = useMemo(
+    () => ({
+      quiz: data?.quizCount,
+      assignments: data?.assignmentCount,
+      classes: data?.classCount,
+    }),
+    [data?.quizCount, data?.assignmentCount, data?.classCount],
+  );
 
   return (
     <>
-      <SchoolHeader
-        data={{ name: data.name, lga: data.lga, state: data.state }}
-        scrollY={translationY}
-      />
+      {/* <SchoolHeader data={headerData} scrollY={translationY} /> */}
+      {/* <Animated.FlatList
+        data={["School"]}
+        keyExtractor={keyExtractor}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16} // Critical for smooth animation
+       
+        renderItem={renderItem}
+        removeClippedSubviews={true} // Performance boost
+        maxToRenderPerBatch={1}
+        windowSize={3}
+        initialNumToRender={1}
+        // Important: Disable nested scrolling if not needed
+        nestedScrollEnabled={false}
+      /> */}
+      <Animated.View
+        style={[
+          styles.headerSticker,
+          {
+            paddingTop: insets.top + 10,
+          },
+          Rstyle,
+        ]}
+      >
+        <Ionicons name="school" color={colors.primary} size={30} />
+        <AppText style={styles.headerTxt} fontWeight="heavy" size="large">
+          {data?.name}
+        </AppText>
+      </Animated.View>
       <Animated.FlatList
         data={["School"]}
         onScroll={scrollHandler}
+        scrollEventThrottle={16}
         refreshControl={getRefresher({ refreshing, onRefresh })}
+        ListHeaderComponent={
+          <SchoolHeader
+            data={{ name: data.name, lga: data.lga, state: data.state }}
+            scrollY={translationY}
+          />
+        }
         renderItem={() => (
           <View>
-            <SchoolActions
-              data={{
-                quiz: data?.quizCount,
-                assignments: data?.assignmentCount,
-                classes: data?.classCount,
-              }}
-            />
+            <SchoolActions data={actionData} />
             <Authors data={data?.teachers} />
             <ClassMates data={data?.students} />
           </View>
@@ -489,6 +554,8 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     </>
   );
 };
+
+const SchoolProfileMemo = memo(SchoolProfile);
 
 const SchoolScreen = ({ route }) => {
   const user = useSelector(selectUser);
@@ -552,7 +619,10 @@ const SchoolScreen = ({ route }) => {
   return (
     <View style={styles.container}>
       {(isStudent || isTeacher) && hasJoined && (
-        <SchoolProfile data={school?.data} fetchSchoolData={getSchoolData} />
+        <SchoolProfileMemo
+          data={school?.data}
+          fetchSchoolData={getSchoolData}
+        />
       )}
       {isStudent && !hasJoined && (
         <JoinSchool schoolData={school?.data} fetchSchoolData={getSchoolData} />
@@ -656,6 +726,22 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     flexDirection: "row",
     alignItems: "center",
+  },
+  headerTxt: {
+    textTransform: "capitalize",
+    // margin: 15,
+  },
+  headerSticker: {
+    backgroundColor: colors.white,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 400,
+    alignItems: "center",
+    gap: 8,
+    flexDirection: "row",
+    padding: 15,
   },
   list: {
     width: width * 0.96,

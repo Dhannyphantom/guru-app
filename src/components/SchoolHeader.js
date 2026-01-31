@@ -1,16 +1,12 @@
-import { Dimensions, ImageBackground, StyleSheet, View } from "react-native";
+import { Dimensions, ImageBackground, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
 import Animated, {
   Extrapolation,
   interpolate,
-  useAnimatedProps,
   useAnimatedStyle,
 } from "react-native-reanimated";
-
-const AnimatedImageBackground =
-  Animated.createAnimatedComponent(ImageBackground);
 
 import schoolBg from "../../assets/images/school_yard.jpg";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,15 +19,18 @@ const HEADER_HEIGHT_SMALL = height * 0.16;
 
 const SchoolHeader = ({ data, scrollY }) => {
   const Rstyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      scrollY.value,
+      [0, 200],
+      [1, HEADER_HEIGHT_SMALL / HEADER_HEIGHT],
+      Extrapolation.CLAMP,
+    );
+
     return {
-      height: interpolate(
-        scrollY?.value,
-        [0, 200],
-        [HEADER_HEIGHT, HEADER_HEIGHT_SMALL],
-        Extrapolation.CLAMP
-      ),
+      transform: [{ scaleY: scale }],
     };
   });
+
   const locRStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -39,8 +38,8 @@ const SchoolHeader = ({ data, scrollY }) => {
           translateY: interpolate(
             scrollY?.value,
             [0, 200],
-            [0, -20],
-            Extrapolation.CLAMP
+            [0, -40],
+            Extrapolation.CLAMP,
           ),
         },
         {
@@ -48,56 +47,67 @@ const SchoolHeader = ({ data, scrollY }) => {
             scrollY?.value,
             [0, 200],
             [1, 0.7],
-            Extrapolation.CLAMP
+            Extrapolation.CLAMP,
           ),
         },
       ],
     };
   });
 
-  const animatedProps = useAnimatedProps(() => {
-    return {
-      size: interpolate(
-        scrollY?.value,
-        [0, 200],
-        [30, 20],
-        Extrapolation.CLAMP
-      ),
-    };
-  });
+  const textScale = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: interpolate(
+          scrollY.value,
+          [0, 200],
+          [1, 0.75],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
 
   return (
     <Animated.View style={[styles.header, Rstyle]}>
-      <AnimatedImageBackground
+      <ImageBackground
         blurRadius={5}
         style={styles.headerImg}
         source={schoolBg}
       >
         {data?.name && (
-          <AppText
-            style={styles.headerTxt}
-            animated
-            animatedProps={animatedProps}
-            fontWeight="black"
-            size={30}
-          >
-            {data?.name}
-          </AppText>
+          <Animated.View style={[{ width, alignItems: "center" }, textScale]}>
+            <AppText size={30} style={styles.headerTxt} fontWeight="black">
+              {data.name}
+            </AppText>
+          </Animated.View>
         )}
         {data?.lga && (
           <Animated.View style={[styles.location, locRStyle]}>
-            <Ionicons name="location" size={18} color={colors.white} />
-            <AppText
-              style={{ ...styles.headerTxt, ...styles.locationTxt }}
-              animated
-              animatedProps={animatedProps}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              fontWeight="black"
-              size={"xlarge"}
+            <Animated.View
+              style={[
+                {
+                  width,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "row",
+                  gap: 2,
+                },
+                textScale,
+              ]}
             >
-              {data?.lga}, {data?.state} State
-            </AppText>
+              <Ionicons name="location" size={18} color={colors.white} />
+              <AppText
+                style={{ ...styles.headerTxt, width: null }}
+                animated
+                // animatedProps={animatedProps}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                fontWeight="black"
+                size={"xlarge"}
+              >
+                {data?.lga}, {data?.state} State
+              </AppText>
+            </Animated.View>
           </Animated.View>
         )}
         <LinearGradient
@@ -105,7 +115,7 @@ const SchoolHeader = ({ data, scrollY }) => {
           locations={[0, 1]}
           colors={["rgba(255,255,255,0)", colors.unchange]}
         />
-      </AnimatedImageBackground>
+      </ImageBackground>
     </Animated.View>
   );
 };
@@ -122,10 +132,8 @@ const styles = StyleSheet.create({
   },
   header: {
     width,
-    height: height * 0.32,
-    // height: height * 0.3,
-    // justifyContent: "center",
-    // alignItems: "center",
+    height: HEADER_HEIGHT,
+    overflow: "hidden",
   },
   headerGradient: {
     position: "absolute",
@@ -134,7 +142,7 @@ const styles = StyleSheet.create({
     width,
   },
   headerTxt: {
-    width: "80%",
+    width: "85%",
     textAlign: "center",
     color: colors.white,
     textShadowColor: "rgba(0,0,0,0.8)",
@@ -144,22 +152,23 @@ const styles = StyleSheet.create({
       width: 1,
       height: 2,
     },
-    textShadowRadius: 2,
+    textShadowRadius: 1,
   },
   location: {
-    flexDirection: "row",
+    // backgroundColor: "red",
+    // flexDirection: "row",
     alignItems: "center",
     // width: "80%",
-    maxWidth: "80%",
+    // maxWidth: "80%",
     alignSelf: "center",
     marginTop: 20,
   },
   locationTxt: {
-    width: null,
-    marginLeft: 5,
-    textAlign: "center",
-    color: colors.white,
-    textShadowRadius: 5,
-    textShadowColor: "rgba(0,0,0,0.8)",
+    // width: null,
+    // marginLeft: 5,
+    // textAlign: "center",
+    // color: colors.white,
+    // textShadowRadius: 2,
+    // textShadowColor: "rgba(0,0,0,0.8)",
   },
 });
