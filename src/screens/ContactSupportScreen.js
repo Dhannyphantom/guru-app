@@ -18,7 +18,6 @@ import Animated, {
   withSpring,
   withTiming,
   interpolate,
-  FadeIn,
   FadeInDown,
   SlideInRight,
 } from "react-native-reanimated";
@@ -675,7 +674,7 @@ const ContactSupportScreen = () => {
   const [expandedIssue, setExpandedIssue] = useState(null);
   const [activeTab, setActiveTab] = useState("support"); // 'support' or 'history'
   const [refreshing, setRefreshing] = useState(false);
-  const [popData, setPopData] = useState({ vis: true });
+  const [popData, setPopData] = useState({ vis: false });
 
   const { data: tickets, isLoading, refetch } = useFetchMyTicketsQuery();
   const [createSupportTicket, { isLoading: creating, error: createErr }] =

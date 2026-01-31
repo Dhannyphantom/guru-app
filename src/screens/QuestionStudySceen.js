@@ -4,7 +4,6 @@ import {
   Dimensions,
   FlatList,
   Platform,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -22,7 +21,6 @@ import LottieAnimator from "../components/LottieAnimator";
 import QuestionDisplay from "../components/QuestionDisplay";
 import Animated, {
   FadeInUp,
-  SlideInLeft,
   SlideInRight,
   SlideOutLeft,
   SlideOutRight,
@@ -45,7 +43,7 @@ import {
   TestIds,
 } from "react-native-google-mobile-ads";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const rewardedAdUnitId = __DEV__
   ? TestIds.REWARDED
@@ -198,7 +196,7 @@ const QuestionStudyScreen = () => {
   const [adLoaded, setAdLoaded] = useState(false);
   const [interstitialLoaded, setInterstitialLoaded] = useState(false);
 
-  const { data, error, refetch } = useGetMyQuestionsQuery();
+  const { data } = useGetMyQuestionsQuery();
 
   const insets = useSafeAreaInsets();
   const stats = getStats(session);
@@ -550,7 +548,9 @@ const QuestionStudyScreen = () => {
               setScreen(2);
               setTimeout(() => {
                 try {
-                  !hasActiveSub && interstitialRef.current?.show();
+                  !hasActiveSub &&
+                    interstitialLoaded &&
+                    interstitialRef.current?.show();
                 } catch (_err) {
                   // setScreen(2);
                 }

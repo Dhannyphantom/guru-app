@@ -465,7 +465,7 @@ const CategorySection = ({
     return category.questions.filter(
       (q) =>
         q.question.toLowerCase().includes(query) ||
-        q.answer.toLowerCase().includes(query)
+        q.answer.toLowerCase().includes(query),
     );
   }, [category.questions, searchQuery]);
 
@@ -533,7 +533,7 @@ const FAQScreen = () => {
         ? cat.questions.filter(
             (q) =>
               q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              q.answer.toLowerCase().includes(searchQuery.toLowerCase())
+              q.answer.toLowerCase().includes(searchQuery.toLowerCase()),
           )
         : cat.questions;
       return sum + filtered.length;
@@ -627,12 +627,12 @@ const FAQScreen = () => {
                 }
               />
               <AppText
-                style={[
-                  styles.filterChipText,
-                  (selectedCategory === item.id ||
+                style={{
+                  ...styles.filterChipText,
+                  ...((selectedCategory === item.id ||
                     (selectedCategory === null && item.id === "all")) &&
-                    styles.filterChipTextActive,
-                ]}
+                    styles.filterChipTextActive),
+                }}
                 fontWeight={
                   selectedCategory === item.id ||
                   (selectedCategory === null && item.id === "all")
@@ -795,6 +795,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
+    gap: 5,
     paddingVertical: 8,
     marginRight: 8,
     borderRadius: 20,
