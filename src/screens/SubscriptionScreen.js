@@ -67,7 +67,7 @@ import { StatusBar } from "expo-status-bar";
 
 const { width, height } = Dimensions.get("screen");
 
-const PROGRESS_SIZE = width * 0.6;
+const PROGRESS_SIZE = width * 0.45;
 const maxProgress = 295;
 
 export const WithdrawModal = ({
@@ -814,42 +814,129 @@ const SubscriptionScreen = () => {
           <>
             <LinearGradient
               colors={[colors.primary, colors.primaryDeeper]}
-              start={{ x: 0.2, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.card}
             >
-              <View style={styles.cardDetails}>
-                <View>
+              {/* Decorative elements */}
+              <View style={styles.cardDecoration}>
+                <View style={styles.decorativeCircle1} />
+                <View style={styles.decorativeCircle2} />
+              </View>
+
+              {/* Card Header */}
+              <View style={styles.cardHeader}>
+                <View style={styles.cardBrand}>
+                  <MaterialCommunityIcons
+                    name={isSchool ? "school" : "wallet"}
+                    size={24}
+                    color={colors.white}
+                  />
                   <AppText
-                    style={{ color: colors.light }}
-                    size={30}
+                    style={{ color: colors.white, marginLeft: 8 }}
+                    size={16}
+                    fontWeight="bold"
+                  >
+                    {isSchool ? "School Account" : "Guru Wallet"}
+                  </AppText>
+                </View>
+                <MaterialCommunityIcons
+                  name="contactless-payment"
+                  size={28}
+                  color={colors.primaryLighter}
+                />
+              </View>
+
+              {/* Main Content Area */}
+              <View style={styles.cardContent}>
+                {/* Left side - Main balance/points */}
+                <View style={styles.cardLeft}>
+                  <AppText
+                    style={{ color: colors.primaryLighter, marginBottom: 8 }}
+                    size={13}
+                    fontWeight="medium"
+                  >
+                    {isSchool ? "ACTIVE SUBSCRIPTION" : "AVAILABLE POINTS"}
+                  </AppText>
+                  <AppText
+                    style={{ color: colors.white, marginBottom: 4 }}
+                    size={isSchool ? 36 : 30}
                     fontWeight="black"
                   >
                     {isSchool
                       ? `${Math.max(0, terms)} TERM${terms > 1 ? "S" : ""}`
-                      : formatPoints(user.points)}
+                      : formatPoints(user?.points)}
                   </AppText>
-
                   <AppText
                     style={{ color: colors.primaryLighter }}
-                    size={15}
-                    fontWeight="black"
+                    size={12}
+                    fontWeight="medium"
                   >
                     {isSchool
-                      ? "subscription"
-                      : "Total: " + formatPoints(user.totalPoints)}
+                      ? "subscription active"
+                      : `Total Earned: ${formatPoints(user.totalPoints)}`}
                   </AppText>
                 </View>
-                <View>
+
+                {/* Right side - Progress indicator */}
+                <View style={styles.cardRight}>
+                  <View style={styles.progressContainer}>
+                    <LottieAnimator
+                      name="circle_progress"
+                      speed={1.5}
+                      animRef={lottieRef}
+                      autoPlay={false}
+                      size={PROGRESS_SIZE}
+                      loop={false}
+                      style={
+                        {
+                          // width: PROGRESS_SIZE,
+                          // height: PROGRESS_SIZE,
+                          // backgroundColor: "red",
+                        }
+                      }
+                    />
+                    <View style={styles.progressOverlay}>
+                      <AppText
+                        // size={28}
+                        size="xxlarge"
+                        style={{
+                          color: colors.white,
+                          textAlign: "center",
+                        }}
+                        fontWeight="black"
+                      >
+                        {isActive ? sub : 0}
+                      </AppText>
+                      <AppText
+                        size={12}
+                        style={{
+                          color: colors.primaryLighter,
+                          textAlign: "center",
+                          marginTop: -4,
+                        }}
+                        fontWeight="bold"
+                      >
+                        days left
+                      </AppText>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card Footer */}
+              <View style={styles.cardFooter}>
+                <View style={styles.cardFooterItem}>
                   <AppText
                     style={{ color: colors.primaryLighter }}
-                    size={15}
-                    fontWeight="heavy"
+                    size={11}
+                    fontWeight="medium"
                   >
-                    {isSchool ? "Acitve Sudents:" : "Account Balance:"}
+                    {isSchool ? "ACTIVE STUDENTS" : "CASH BALANCE"}
                   </AppText>
                   <AppText
-                    style={{ color: colors.white }}
-                    size={28}
+                    style={{ color: colors.white, marginTop: 4 }}
+                    size={20}
                     fontWeight="black"
                   >
                     {isSchool
@@ -857,38 +944,38 @@ const SubscriptionScreen = () => {
                       : calculatePointsAmount(user.points).format}
                   </AppText>
                 </View>
-              </View>
-              <View style={styles.circleView}>
-                <LottieAnimator
-                  name="circle_progress"
-                  speed={1.5}
-                  animRef={lottieRef}
-                  autoPlay={false}
-                  loop={false}
-                  style={{
-                    width: PROGRESS_SIZE,
-                    height: PROGRESS_SIZE,
-                  }}
-                />
-                <View
-                  style={{
-                    position: "absolute",
-                  }}
-                >
+                <View style={styles.cardFooterDivider} />
+                <View style={styles.cardFooterItem}>
                   <AppText
-                    size={"xxlarge"}
-                    style={{
-                      color: colors.primaryLighter,
-                      textAlign: "center",
-                    }}
-                    fontWeight="black"
+                    style={{ color: colors.primaryLighter }}
+                    size={11}
+                    fontWeight="medium"
                   >
-                    {isActive ? sub : 0}
-                    {"\n"} days
+                    {isSchool ? "STATUS" : "ACCOUNT TYPE"}
+                  </AppText>
+                  <AppText
+                    style={{ color: colors.white, marginTop: 4 }}
+                    size={14}
+                    fontWeight="bold"
+                  >
+                    {isSchool
+                      ? isActive
+                        ? "Active"
+                        : "Inactive"
+                      : isActive
+                        ? "Premium"
+                        : "Freemium"}
                   </AppText>
                 </View>
               </View>
+
+              {/* Card chip decoration */}
+              <View style={styles.cardChip}>
+                <View style={styles.chipLine1} />
+                <View style={styles.chipLine2} />
+              </View>
             </LinearGradient>
+
             <View style={styles.btns}>
               <AppButton
                 type="accent"
@@ -987,16 +1074,127 @@ const styles = StyleSheet.create({
   },
   card: {
     width: width * 0.95,
-    minHeight: height * 0.2,
-    maxHeight: height * 0.22,
-    backgroundColor: colors.lightly,
+    minHeight: height * 0.28,
     alignSelf: "center",
     marginBottom: 20,
     marginTop: 10,
-    borderRadius: 20,
-    elevation: 3,
+    borderRadius: 24,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    padding: 24,
+    overflow: "hidden",
+    position: "relative",
+  },
+  cardDecoration: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: "100%",
+    height: "100%",
+  },
+  decorativeCircle1: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.primaryLight,
+    opacity: 0.1,
+  },
+  decorativeCircle2: {
+    position: "absolute",
+    bottom: -40,
+    left: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.white,
+    opacity: 0.05,
+  },
+  cardHeader: {
     flexDirection: "row",
-    // paddingLeft: 20,
+    justifyContent: "space-between",
+    alignItems: "center",
+    zIndex: 1,
+  },
+  cardBrand: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cardContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    zIndex: 1,
+  },
+  cardLeft: {
+    // flex: 1,
+    // backgroundColor: "red",
+    width: width * 0.95 - PROGRESS_SIZE,
+
+    // paddingRight: 12,
+  },
+  cardRight: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressContainer: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressOverlay: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryLight,
+    opacity: 0.8,
+    zIndex: 1,
+  },
+  cardFooterItem: {
+    flex: 1,
+  },
+  cardFooterDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.primaryLight,
+    opacity: 0.3,
+    marginHorizontal: 16,
+  },
+  cardChip: {
+    position: "absolute",
+    top: 20,
+    right: 24,
+    width: 40,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: colors.white,
+    opacity: 0.15,
+    padding: 6,
+    justifyContent: "space-between",
+  },
+  chipLine1: {
+    width: "100%",
+    height: 2,
+    backgroundColor: colors.primary,
+    borderRadius: 1,
+  },
+  chipLine2: {
+    width: "70%",
+    height: 2,
+    backgroundColor: colors.primary,
+    borderRadius: 1,
   },
   cardMini: {
     width: width * 0.4,
@@ -1011,14 +1209,10 @@ const styles = StyleSheet.create({
   },
   cardDetails: {
     width: "48%",
-    // flex: 0.5,
     justifyContent: "space-around",
     marginVertical: 20,
-    // // left: 10,
-    // backgroundColor: "red",
     marginLeft: 15,
   },
-
   circleView: {
     flex: 1,
     justifyContent: "center",
@@ -1028,7 +1222,6 @@ const styles = StyleSheet.create({
     width: width * 0.3,
   },
   formBtn: {
-    // flex: 1,
     justifyContent: "flex-end",
   },
   info: {
@@ -1066,9 +1259,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  subHistoryDetail: {
-    // alignItems: "flex-end",
-  },
+  subHistoryDetail: {},
   title: {
     marginTop: 5,
     marginBottom: 15,
@@ -1090,7 +1281,6 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   withdrawBtns: {
-    // marginTop: 40,
     marginHorizontal: width * 0.1,
   },
 });
