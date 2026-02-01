@@ -17,7 +17,7 @@ Yup.addMethod(Yup.string, "oneWord", function () {
       } else {
         return true;
       }
-    }
+    },
   );
 });
 
@@ -50,11 +50,11 @@ Yup.addMethod(Yup.string, "strongPassword", function () {
     `Password must contain an uppercase, lowercase and a number`,
     function (value) {
       const strongRegex = new RegExp(
-        "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.{8,})"
+        "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.{8,})",
       );
       return strongRegex.test(value);
       // (?=.*[!@#\$%\^&\*])
-    }
+    },
   );
 });
 
@@ -65,7 +65,7 @@ const loginInitials = {
 
 const registerInitials = {
   username: "",
-  email: "",
+  contact: "",
   password: "",
 };
 
@@ -85,7 +85,11 @@ const editProfileSchema = Yup.object().shape({
     })
     .required()
     .label("LGA"),
-
+  email: Yup.string()
+    .email()
+    .optional()
+    .trim("Whitespaces not allowed")
+    .label("Email"),
   class: Yup.object()
     .shape({
       name: Yup.string()
@@ -122,7 +126,7 @@ const editProfileSchema = Yup.object().shape({
         .label("Gender")
         .matches(
           /^male$|^female$/i,
-          "Gender should either be a male or female "
+          "Gender should either be a male or female ",
         )
         .trim()
         .lowercase(),
@@ -137,7 +141,11 @@ const editProfileSchema = Yup.object().shape({
     })
     .optional(),
   country: Yup.string().required().trim().lowercase(),
-  contact: Yup.string().required(),
+  contact: Yup.string()
+    .required("Phone number is required")
+    .transform((v) => v.replace(/\s+/g, ""))
+    .matches(/^[789]\d{9}$/, "Enter a valid phone number (e.g. 7081234567)")
+    .label("Phone Number"),
   state: Yup.object()
     .shape({
       name: Yup.string().required().label("State").trim().lowercase(),
@@ -175,11 +183,11 @@ const validationSchemaRegister = Yup.object().shape({
     .max(20)
     .trim()
     .label("Username"),
-  email: Yup.string()
-    .email()
-    .required()
-    .trim("Whitespaces not allowed")
-    .label("Email"),
+  contact: Yup.string()
+    .required("Phone number is required")
+    .transform((v) => v.replace(/\s+/g, ""))
+    .matches(/^[789]\d{9}$/, "Enter a valid phone number (e.g. 7081234567)")
+    .label("Phone Number"),
   password: Yup.string().min(8).strongPassword().required().label("Password"),
 });
 
@@ -249,7 +257,7 @@ export const createQuestInitials = {
 export const createNewQuestInitials = {
   question: "",
   timer: 40,
-  point: 40,
+  point: 5,
   answers: [],
   image: {},
   _id: "",
@@ -260,7 +268,7 @@ export const createSchoolInitials = {
   state: { _id: "1", name: "kogi" },
   lga: { _id: "1", name: "kabba/bunu" },
   email: "st.augustines101@gmail.com",
-  contact: "07036284939",
+  contact: "7036284939",
   type: { _id: "1", name: "private" },
   levels: [
     { id: "1", name: "junior secondary" },
@@ -283,7 +291,11 @@ export const createSchoolSchema = Yup.object().shape({
     .required()
     .label("School Type"),
   email: Yup.string().email().required().label("School Email"),
-  contact: Yup.string().required().label("School Contact"),
+  contact: Yup.string()
+    .required("Phone number is required")
+    .transform((v) => v.replace(/\s+/g, ""))
+    .matches(/^[789]\d{9}$/, "Enter a valid phone number (e.g. 7081234567)")
+    .label("School Contact"),
   levels: Yup.array()
     .min(1, "Add at least an educational level")
     .required()
@@ -483,7 +495,7 @@ export const newAssignmentSchema = Yup.object().shape({
       Yup.object().shape({
         name: Yup.string().required().label("Class"),
         _id: Yup.string().optional(),
-      })
+      }),
     )
     .required()
     .min(1, "Add at least a class")
@@ -502,7 +514,7 @@ export const newAnnouncementSchema = Yup.object().shape({
       Yup.object().shape({
         name: Yup.string().lowercase().required().label("Class Level"),
         _id: Yup.string().optional(),
-      })
+      }),
     )
     .required()
     .min(1, "Add at least a class")
@@ -558,7 +570,7 @@ export const proSubjectSchema = Yup.object().shape({
           _id: Yup.string().required().label("Subject"),
         })
         .required()
-        .label("Subject")
+        .label("Subject"),
     )
     .min(1, "Add at least a subject")
     .label("Subjects"),

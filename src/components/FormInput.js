@@ -32,6 +32,7 @@ import AnimatedPressable from "./AnimatedPressable";
 import PopUpModal from "./PopUpModal";
 import ListEmpty from "./ListEmpty";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scaleFont } from "../helpers/scaleFont";
 
 const { width, height } = Dimensions.get("screen");
 const RENDER_NUMBER = 15;
@@ -107,7 +108,7 @@ const DropComponent = ({
         placeholder: dropData.name,
       });
       setSearch({ data });
-      let setData = getId ? dropData : dropData?.value ?? dropData?.name;
+      let setData = getId ? dropData : (dropData?.value ?? dropData?.name);
       if (name === "bank")
         setData = { code: dropData.code, name: dropData.name };
       setFieldValue(name, setData);
@@ -119,7 +120,7 @@ const DropComponent = ({
 
   const handleSearchCallback = (searchVal) => {
     const newList = data.filter((list) =>
-      list?.name?.toLowerCase()?.includes(searchVal?.toLowerCase())
+      list?.name?.toLowerCase()?.includes(searchVal?.toLowerCase()),
     );
 
     setSearch({ ...search, data: newList });
@@ -176,7 +177,7 @@ const DropComponent = ({
                 {idx + 1 !==
                   Math.min(
                     search?.data?.length || renderList.length,
-                    RENDER_NUMBER
+                    RENDER_NUMBER,
                   ) && <View style={styles.separator} />}
               </Pressable>
             );
@@ -380,11 +381,11 @@ const DayMonthYearSelector = ({
       day: 1,
       month: "January",
       year: null,
-    }
+    },
   );
 
   const monthIdx = calenderMonths.findIndex(
-    (obj) => obj.name == selected.month
+    (obj) => obj.name == selected.month,
   );
 
   const daysList = Array(calenderMonths[monthIdx].days)
@@ -397,8 +398,8 @@ const DayMonthYearSelector = ({
     range && Boolean(range[0])
       ? range
       : futureYear
-      ? fututeYearsList
-      : yearsList;
+        ? fututeYearsList
+        : yearsList;
 
   const handleSelectDate = () => {
     if (!selected.year || !selected.month || !selected.day) return;
@@ -590,6 +591,7 @@ export const FormikInput = ({
   getId,
   rangeYrs,
   keyboardType,
+  LeftComponent,
   data,
   hideText,
   fetcher,
@@ -622,6 +624,7 @@ export const FormikInput = ({
           onBlur={() => setFieldTouched(name)}
           onChangeText={handleChange(name)}
           disabled={disabled}
+          LeftComponent={LeftComponent}
           style={style}
           isLoading={isLoading}
           keyboardType={name === "email" ? "email-address" : keyboardType}
@@ -671,6 +674,7 @@ const FormInput = ({
   isLoading,
   disabled,
   headerText,
+  LeftComponent,
   secureTextEntry,
   style,
   ...otherProps
@@ -681,13 +685,14 @@ const FormInput = ({
       {headerText && <FormHeader text={headerText} />}
 
       <View style={[styles.container, style]}>
+        {LeftComponent && <LeftComponent />}
         <TextInput
           style={styles.input}
           placeholder={placeholder}
           placeholderTextColor={colors.medium}
           secureTextEntry={visible}
           editable={!disabled}
-          // keyboardType="web-search"
+          // keyboardType="numeric"
           {...otherProps}
         />
         {secureTextEntry && (
@@ -725,6 +730,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingHorizontal: 15,
     flexDirection: "row",
+    alignItems: "center",
   },
   dropdown: {
     width: Platform.OS === "web" ? "100%" : null,
@@ -780,7 +786,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: "sf-medium",
-    fontSize: 17,
+    fontSize: scaleFont(13),
     outlineStyle: "none",
     color: "black",
   },

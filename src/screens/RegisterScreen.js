@@ -120,7 +120,7 @@ const SelectAccountType = () => {
         } else {
           return obj;
         }
-      })
+      }),
     );
   };
 
@@ -185,25 +185,18 @@ const Referral = ({ closeModal, updateReferral }) => {
           Referral Prompt
         </AppText>
         {/* <ReferralSvg /> */}
-        {/* <ReferralSvg width={width * 0.5} height={200} /> */}
+        {/* <ReferralSvg /> */}
         <View style={{ marginTop: 15 }}>
           <FormInput
-            placeholder="Enter @username"
+            placeholder="Enter referral token"
             headerText={"Who referred you"}
             value={username}
             onChangeText={(val) => setUsername(val)}
           />
         </View>
         <View style={styles.referBtns}>
-          <AnimatedPressable
-            style={{ ...styles.referIcon, backgroundColor: colors.warningDark }}
-            onPress={closeModal}
-          >
-            <Ionicons name="close" size={18} color={colors.white} />
-          </AnimatedPressable>
-          <AnimatedPressable onPress={saveReferral} style={styles.referIcon}>
-            <Ionicons name="arrow-forward" size={18} color={colors.white} />
-          </AnimatedPressable>
+          <AppButton title={"Close"} type="warn" onPress={closeModal} />
+          <AppButton title={"Claim Reward"} onPress={saveReferral} />
         </View>
       </Animated.View>
       <PopMessage popData={popper} setPopData={setPopper} />
@@ -245,7 +238,7 @@ const RegisterScreen = () => {
       setErrMsg(
         typeof err?.status == "string" && err?.status?.includes("FETCH_ERROR")
           ? "Network request failed, Poor internet connection"
-          : err?.error ?? "Something went wrong"
+          : (err?.error ?? "Something went wrong"),
       );
     }
   };
@@ -317,7 +310,7 @@ const RegisterScreen = () => {
                           <FormikInput
                             name="username"
                             placeholder={`${capFirstLetter(
-                              accountType
+                              accountType,
                             )} Username`}
                           />
                           <FormikInput name="email" placeholder="Email" />
@@ -376,7 +369,25 @@ const RegisterScreen = () => {
                         name="username"
                         placeholder={`${capFirstLetter(accountType)} Username`}
                       />
-                      <FormikInput name="email" placeholder="Email" />
+                      {isPro ? (
+                        <FormInput name="email" placeholder="Email" />
+                      ) : (
+                        <FormikInput
+                          name="contact"
+                          keyboardType="numeric"
+                          LeftComponent={() => (
+                            <View>
+                              <AppText
+                                fontWeight="bold"
+                                style={{ color: colors.medium }}
+                              >
+                                +234
+                              </AppText>
+                            </View>
+                          )}
+                          placeholder="Phone Number"
+                        />
+                      )}
                       <FormikInput
                         secureTextEntry
                         name="password"
@@ -536,6 +547,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     // marginHorizontal: 15,
     marginBottom: 20,
+    marginTop: 10,
   },
   referIcon: {
     width: 50,

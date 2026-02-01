@@ -124,7 +124,7 @@ const CreateSchoolScreen = () => {
             const dataNG = ngLocale.find(
               (item) =>
                 item.state?.toLowerCase() ==
-                values["state"]?.name?.toLowerCase()
+                values["state"]?.name?.toLowerCase(),
             );
             const dataArr = dataNG?.lgas?.map((item) => ({
               _id: nanoid(),
@@ -180,6 +180,16 @@ const CreateSchoolScreen = () => {
                 <FormikInput
                   headerText={"School Official Contact"}
                   name={"contact"}
+                  LeftComponent={() => (
+                    <View>
+                      <AppText
+                        fontWeight="bold"
+                        style={{ color: colors.medium }}
+                      >
+                        +234
+                      </AppText>
+                    </View>
+                  )}
                   placeholder={"Phone number"}
                 />
                 <FormikButton

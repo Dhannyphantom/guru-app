@@ -57,6 +57,7 @@ const EditProfileScreen = () => {
 
   const editProfileInitials = {
     address: user?.address ?? "",
+    email: user?.email ?? "",
     firstName: user?.firstName ?? "",
     lastName: user?.lastName ?? "",
     state: { _id: "1", name: user?.state } ?? "",
@@ -167,6 +168,13 @@ const EditProfileScreen = () => {
                             type="dropdown"
                           />
                         )}
+                        <FormikInput
+                          name={"email"}
+                          placeholder={`${
+                            user.email ?? "Enter your email address"
+                          }`}
+                          headerText={"Email:"}
+                        />
                         {isStudent && (
                           <FormikInput
                             name={"class"}
@@ -231,6 +239,16 @@ const EditProfileScreen = () => {
                           name={"contact"}
                           keyboardType="numeric"
                           headerText={"Contact:"}
+                          LeftComponent={() => (
+                            <View>
+                              <AppText
+                                fontWeight="bold"
+                                style={{ color: colors.medium }}
+                              >
+                                +234
+                              </AppText>
+                            </View>
+                          )}
                           placeholder={`${
                             user?.contact ?? "Enter your contact info"
                           }`}
