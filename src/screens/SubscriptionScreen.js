@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-expressions */
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -84,13 +85,13 @@ export const WithdrawModal = ({
   const { data, isLoading: isBundling, refetch } = useFetchDataBundlesQuery();
   const [rechargeAirtime, { isLoading: isRecharging, data: recharger }] =
     useRechargeAirtimeMutation();
-  const [renewSubscription, { isLoading: isRenewing, data: renewer }] =
+  const [renewSubscription, { isLoading: isRenewing }] =
     useRenewSubscriptionMutation();
   const [buyData, { isLoading: isBuying, data: bundler }] =
     useBuyDataMutation();
 
   const user = useSelector(selectUser);
-  const router = useRouter();
+  // const router = useRouter();
 
   const [amount, setAmount] = useState("");
   const [contact, setContact] = useState(user?.contact);
@@ -311,7 +312,7 @@ export const WithdrawModal = ({
             msg: "Account verification failed",
           });
         }
-      } catch (error) {
+      } catch (_error) {
         setPopper({
           vis: true,
           type: "failed",

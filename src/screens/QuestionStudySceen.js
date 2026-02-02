@@ -443,6 +443,13 @@ const QuestionStudyScreen = () => {
               <AppText fontWeight="medium">
                 Sorry, You haven't answered enough questions yet{" "}
               </AppText>
+              <AppText
+                fontWeight="medium"
+                style={{ textAlign: "center", width: "80%", marginTop: 20 }}
+              >
+                You can start a quiz session now by navigating back and then
+                clicking the Rocket Icon
+              </AppText>
             </View>
           ) : (
             <View style={styles.card}>

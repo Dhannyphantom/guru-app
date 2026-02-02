@@ -23,11 +23,16 @@ import contactImg from "../../assets/images/abc.png";
 import friendsImg from "../../assets/images/online-learning.png";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
-import { selectUser, useFindMoreFriendsQuery } from "../context/usersSlice";
+import {
+  selectUser,
+  useFindMoreFriendsQuery,
+  useStudentActionMutation,
+} from "../context/usersSlice";
 import WebLayout from "./WebLayout";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import LottieAnimator from "./LottieAnimator";
+import PromptModal from "./PromptModal";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -62,14 +67,21 @@ const ActionItem = ({ image, onPress, title, message }) => {
 const FindFriendsModal = ({ closeModal }) => {
   const user = useSelector(selectUser);
   const router = useRouter();
+  const [studentActions] = useStudentActionMutation();
 
   // Pagination state
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [prompt, setPrompt] = useState({ vis: false });
+  const [followList, setFollowList] = useState([]);
   const LIMIT = 20;
 
   // Fetch friends with pagination
-  const { data: friends, isFetching } = useFindMoreFriendsQuery({
+  const {
+    data: friends,
+    isFetching,
+    refetch,
+  } = useFindMoreFriendsQuery({
     limit: LIMIT,
     offset,
   });
@@ -79,6 +91,42 @@ const FindFriendsModal = ({ closeModal }) => {
   const handleNav = (screen) => {
     closeModal();
     router.push(screen);
+  };
+
+  const handleStudentAction = async (student, type) => {
+    if (["Follow"].includes(type)) {
+      try {
+        setFollowList([...followList, student?._id]);
+        await studentActions({
+          type: "follow",
+          user: student?._id,
+        }).unwrap();
+      } catch (_errr) {
+        setFollowList((prev) => prev.filter((id) => id !== student?._id));
+      }
+    } else if (["Following"].includes(type)) {
+      setPrompt({
+        vis: true,
+        data: {
+          title: "Unfollow Student",
+          msg: `Are you sure you want to unfollow ${student?.username}?`,
+          btn: "Unfollow",
+          type: "unfollow",
+        },
+        cb: async () => {
+          try {
+            setFollowList((prev) => prev.filter((id) => id !== student?._id));
+            await studentActions({
+              type: "unfollow",
+              user: student?._id,
+            }).unwrap();
+          } catch (_errr) {
+            setFollowList([...followList, student?._id]);
+          }
+        },
+      });
+      return;
+    }
   };
 
   // Load more function
@@ -97,9 +145,10 @@ const FindFriendsModal = ({ closeModal }) => {
   }, [isFetching, hasMore, friends]);
 
   // Refresh function (pull to refresh)
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setOffset(0);
     setHasMore(true);
+    await refetch();
   }, []);
 
   // Footer component
@@ -173,7 +222,17 @@ const FindFriendsModal = ({ closeModal }) => {
                 data={friends?.data?.suggestions ?? []}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={{ paddingBottom: 55 }}
-                renderItem={({ item }) => <FriendCard data={item} />}
+                renderItem={({ item }) => (
+                  <FriendCard
+                    data={{
+                      ...item,
+                      status: followList.includes(item?.user?._id ?? item?._id)
+                        ? "following"
+                        : item.status,
+                    }}
+                    onPress={handleStudentAction}
+                  />
+                )}
                 // Infinite scroll props
                 onEndReached={handleLoadMore}
                 onEndReachedThreshold={0.5} // Trigger when 50% from bottom
@@ -194,6 +253,7 @@ const FindFriendsModal = ({ closeModal }) => {
           </WebLayout>
         </WebLayout>
       </WebLayout>
+      <PromptModal prompt={prompt} setPrompt={setPrompt} />
     </View>
   );
 };

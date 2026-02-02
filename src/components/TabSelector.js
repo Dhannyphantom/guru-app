@@ -30,7 +30,7 @@ const TabSelector = ({ options = [], initialIndex = 0, onChange }) => {
       backgroundColor: interpolateColor(
         indicatorIndex.value,
         inputRange,
-        outputRange
+        outputRange,
       ),
       borderColor: interpolateColor(indicatorIndex.value, inputRange, outRange),
     };
@@ -72,7 +72,7 @@ const TabSelector = ({ options = [], initialIndex = 0, onChange }) => {
               <AppText
                 fontWeight={isActive ? "black" : "bold"}
                 size={isActive ? "large" : null}
-                style={[styles.label, { color: isActive ? "#fff" : "#777" }]}
+                style={{ ...styles.label, color: isActive ? "#fff" : "#777" }}
               >
                 {item.label}
               </AppText>
