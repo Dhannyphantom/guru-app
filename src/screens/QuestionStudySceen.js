@@ -33,7 +33,10 @@ import PopMessage from "../components/PopMessage";
 import { PAD_BOTTOM } from "../helpers/dataStore";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
+import {
+  selectUser,
+  useUpdateUserActivityMutation,
+} from "../context/usersSlice";
 import CountdownTimer from "../components/CountdownTimer";
 import {
   RewardedAd,
@@ -197,6 +200,7 @@ const QuestionStudyScreen = () => {
   const [interstitialLoaded, setInterstitialLoaded] = useState(false);
 
   const { data } = useGetMyQuestionsQuery();
+  const [updateUserActivity] = useUpdateUserActivityMutation();
 
   const insets = useSafeAreaInsets();
   const stats = getStats(session);
@@ -277,6 +281,27 @@ const QuestionStudyScreen = () => {
 
     // Reload ad for next time
     rewardedRef.current?.load();
+  };
+
+  const handleQuizFinish = async () => {
+    setScreen(2);
+    setTimeout(() => {
+      try {
+        !hasActiveSub && interstitialLoaded && interstitialRef.current?.show();
+      } catch (_err) {
+        // setScreen(2);
+      }
+    }, 1000);
+
+    try {
+      await updateUserActivity().unwrap();
+    } catch (_errr) {
+      setPopData({
+        vis: true,
+        msg: "Unable to sync quiz activity. Ensure good internet access",
+        type: "failed",
+      });
+    }
   };
 
   const loadQuestions = async () => {
@@ -551,18 +576,7 @@ const QuestionStudyScreen = () => {
               },
             ]}
             setQuizSession={setSession}
-            setQuizInfoView={() => {
-              setScreen(2);
-              setTimeout(() => {
-                try {
-                  !hasActiveSub &&
-                    interstitialLoaded &&
-                    interstitialRef.current?.show();
-                } catch (_err) {
-                  // setScreen(2);
-                }
-              }, 1000);
-            }}
+            setQuizInfoView={handleQuizFinish}
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
           />
         </Animated.View>

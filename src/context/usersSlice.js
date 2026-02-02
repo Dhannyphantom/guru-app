@@ -134,6 +134,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SEARCH_STUDENTS", "FETCH_FRIENDS"],
     }),
+    updateUserActivity: builder.mutation({
+      query: (data) => ({
+        url: "/users/activity",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["USER"],
+    }),
     updateUserProfile: builder.mutation({
       query: (user) => ({
         url: "/users/updateProfile",
@@ -556,6 +564,7 @@ export const {
   useFetchRewardsQuery,
   useFetchDataBundlesQuery,
   useFetchGlobalLeaderboardQuery,
+  useUpdateUserActivityMutation,
   useBuyDataMutation,
   useLazyFetchUserQuery,
   useRechargeAirtimeMutation,
