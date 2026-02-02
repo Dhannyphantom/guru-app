@@ -1,5 +1,6 @@
 import {
   Dimensions,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -239,6 +240,7 @@ const DropdownInput = ({
     disabled || (disabledDrops.includes(name) && !values["state"]);
 
   const handleShowDropLists = () => {
+    Keyboard.dismiss();
     setActive({ ...active, modal: true });
   };
 

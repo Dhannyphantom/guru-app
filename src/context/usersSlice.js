@@ -47,6 +47,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: formData,
         };
       },
+      invalidatesTags: ["USER"],
     }),
     signInUser: builder.mutation({
       query: (user) => ({
@@ -522,12 +523,6 @@ export const usersSlice = createSlice({
       extendedUserApiSlice.endpoints.fetchUserStats.matchFulfilled,
       (state, action) => {
         state.stat = action.payload.data;
-      },
-    );
-    builder.addMatcher(
-      extendedUserApiSlice.endpoints.updateUserAvatar.matchFulfilled,
-      (state, action) => {
-        state.user = { ...state.user, avatar: action.payload.avatar };
       },
     );
     builder.addMatcher(

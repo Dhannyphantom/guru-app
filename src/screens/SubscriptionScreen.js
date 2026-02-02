@@ -813,232 +813,253 @@ const SubscriptionScreen = () => {
         contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         renderItem={() => (
           <>
-            <LinearGradient
-              colors={[colors.primary, colors.primaryDeeper]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.card}
-            >
-              {/* Decorative elements */}
-              <View style={styles.cardDecoration}>
-                <View style={styles.decorativeCircle1} />
-                <View style={styles.decorativeCircle2} />
-              </View>
-
-              {/* Card Header */}
-              <View style={styles.cardHeader}>
-                <View style={styles.cardBrand}>
-                  <MaterialCommunityIcons
-                    name={isSchool ? "school" : "wallet"}
-                    size={24}
-                    color={colors.white}
-                  />
-                  <AppText
-                    style={{ color: colors.white, marginLeft: 8 }}
-                    size={16}
-                    fontWeight="bold"
-                  >
-                    {isSchool ? "School Account" : "Guru Wallet"}
-                  </AppText>
-                </View>
-                <MaterialCommunityIcons
-                  name="contactless-payment"
-                  size={28}
-                  color={colors.primaryLighter}
+            {isSchool && !Boolean(school?.name) ? (
+              <View style={{ flex: 1, alignItems: "center", marginTop: 50 }}>
+                <LottieAnimator
+                  name="person_float"
+                  style={{ width: width * 0.65, height: width * 0.65 }}
+                  visible
                 />
+                <AppText>
+                  Please create a school account for your school
+                </AppText>
               </View>
+            ) : (
+              <>
+                <LinearGradient
+                  colors={[colors.primary, colors.primaryDeeper]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.card}
+                >
+                  {/* Decorative elements */}
+                  <View style={styles.cardDecoration}>
+                    <View style={styles.decorativeCircle1} />
+                    <View style={styles.decorativeCircle2} />
+                  </View>
 
-              {/* Main Content Area */}
-              <View style={styles.cardContent}>
-                {/* Left side - Main balance/points */}
-                <View style={styles.cardLeft}>
-                  <AppText
-                    style={{ color: colors.primaryLighter, marginBottom: 8 }}
-                    size={13}
-                    fontWeight="medium"
-                  >
-                    {isSchool ? "ACTIVE SUBSCRIPTION" : "AVAILABLE POINTS"}
-                  </AppText>
-                  <AppText
-                    style={{ color: colors.white, marginBottom: 4 }}
-                    size={isSchool ? 36 : 30}
-                    fontWeight="black"
-                  >
-                    {isSchool
-                      ? `${Math.max(0, terms)} TERM${terms > 1 ? "S" : ""}`
-                      : formatPoints(user?.points)}
-                  </AppText>
-                  <AppText
-                    style={{ color: colors.primaryLighter }}
-                    size={12}
-                    fontWeight="medium"
-                  >
-                    {isSchool
-                      ? "subscription active"
-                      : `Total Earned: ${formatPoints(user.totalPoints)}`}
-                  </AppText>
-                </View>
-
-                {/* Right side - Progress indicator */}
-                <View style={styles.cardRight}>
-                  <View style={styles.progressContainer}>
-                    <LottieAnimator
-                      name="circle_progress"
-                      speed={1.5}
-                      animRef={lottieRef}
-                      autoPlay={false}
-                      size={PROGRESS_SIZE}
-                      loop={false}
-                      style={
-                        {
-                          // width: PROGRESS_SIZE,
-                          // height: PROGRESS_SIZE,
-                          // backgroundColor: "red",
-                        }
-                      }
-                    />
-                    <View style={styles.progressOverlay}>
+                  {/* Card Header */}
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardBrand}>
+                      <MaterialCommunityIcons
+                        name={isSchool ? "school" : "wallet"}
+                        size={24}
+                        color={colors.white}
+                      />
                       <AppText
-                        // size={28}
-                        size="xxlarge"
-                        style={{
-                          color: colors.white,
-                          textAlign: "center",
-                        }}
-                        fontWeight="black"
-                      >
-                        {isActive ? sub : 0}
-                      </AppText>
-                      <AppText
-                        size={12}
-                        style={{
-                          color: colors.primaryLighter,
-                          textAlign: "center",
-                          marginTop: -4,
-                        }}
+                        style={{ color: colors.white, marginLeft: 8 }}
+                        size={16}
                         fontWeight="bold"
                       >
-                        days left
+                        {isSchool ? "School Account" : "Guru Wallet"}
+                      </AppText>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="contactless-payment"
+                      size={28}
+                      color={colors.primaryLighter}
+                    />
+                  </View>
+
+                  {/* Main Content Area */}
+                  <View style={styles.cardContent}>
+                    {/* Left side - Main balance/points */}
+                    <View style={styles.cardLeft}>
+                      <AppText
+                        style={{
+                          color: colors.primaryLighter,
+                          marginBottom: 8,
+                        }}
+                        size={13}
+                        fontWeight="medium"
+                      >
+                        {isSchool ? "ACTIVE SUBSCRIPTION" : "AVAILABLE POINTS"}
+                      </AppText>
+                      <AppText
+                        style={{ color: colors.white, marginBottom: 4 }}
+                        size={isSchool ? 36 : 30}
+                        fontWeight="black"
+                      >
+                        {isSchool
+                          ? `${Math.max(0, terms)} TERM${terms > 1 ? "S" : ""}`
+                          : formatPoints(user?.points)}
+                      </AppText>
+                      <AppText
+                        style={{ color: colors.primaryLighter }}
+                        size={12}
+                        fontWeight="medium"
+                      >
+                        {isSchool
+                          ? "subscription active"
+                          : `Total Earned: ${formatPoints(user.totalPoints)}`}
+                      </AppText>
+                    </View>
+
+                    {/* Right side - Progress indicator */}
+                    <View style={styles.cardRight}>
+                      <View style={styles.progressContainer}>
+                        <LottieAnimator
+                          name="circle_progress"
+                          speed={1.5}
+                          animRef={lottieRef}
+                          autoPlay={false}
+                          size={PROGRESS_SIZE}
+                          loop={false}
+                          style={
+                            {
+                              // width: PROGRESS_SIZE,
+                              // height: PROGRESS_SIZE,
+                              // backgroundColor: "red",
+                            }
+                          }
+                        />
+                        <View style={styles.progressOverlay}>
+                          <AppText
+                            // size={28}
+                            size="xxlarge"
+                            style={{
+                              color: colors.white,
+                              textAlign: "center",
+                            }}
+                            fontWeight="black"
+                          >
+                            {isActive ? sub : 0}
+                          </AppText>
+                          <AppText
+                            size={12}
+                            style={{
+                              color: colors.primaryLighter,
+                              textAlign: "center",
+                              marginTop: -4,
+                            }}
+                            fontWeight="bold"
+                          >
+                            days left
+                          </AppText>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Card Footer */}
+                  <View style={styles.cardFooter}>
+                    <View style={styles.cardFooterItem}>
+                      <AppText
+                        style={{ color: colors.primaryLighter }}
+                        size={11}
+                        fontWeight="medium"
+                      >
+                        {isSchool ? "ACTIVE STUDENTS" : "CASH BALANCE"}
+                      </AppText>
+                      <AppText
+                        style={{ color: colors.white, marginTop: 4 }}
+                        size={20}
+                        fontWeight="black"
+                      >
+                        {isSchool
+                          ? (school?.students?.length ?? 0)
+                          : calculatePointsAmount(user.points).format}
+                      </AppText>
+                    </View>
+                    <View style={styles.cardFooterDivider} />
+                    <View style={styles.cardFooterItem}>
+                      <AppText
+                        style={{ color: colors.primaryLighter }}
+                        size={11}
+                        fontWeight="medium"
+                      >
+                        {isSchool ? "STATUS" : "ACCOUNT TYPE"}
+                      </AppText>
+                      <AppText
+                        style={{ color: colors.white, marginTop: 4 }}
+                        size={14}
+                        fontWeight="bold"
+                      >
+                        {isSchool
+                          ? isActive
+                            ? "Active"
+                            : "Inactive"
+                          : isActive
+                            ? "Premium"
+                            : "Freemium"}
                       </AppText>
                     </View>
                   </View>
-                </View>
-              </View>
 
-              {/* Card Footer */}
-              <View style={styles.cardFooter}>
-                <View style={styles.cardFooterItem}>
-                  <AppText
-                    style={{ color: colors.primaryLighter }}
-                    size={11}
-                    fontWeight="medium"
-                  >
-                    {isSchool ? "ACTIVE STUDENTS" : "CASH BALANCE"}
-                  </AppText>
-                  <AppText
-                    style={{ color: colors.white, marginTop: 4 }}
-                    size={20}
-                    fontWeight="black"
-                  >
-                    {isSchool
-                      ? (school?.students?.length ?? 0)
-                      : calculatePointsAmount(user.points).format}
-                  </AppText>
-                </View>
-                <View style={styles.cardFooterDivider} />
-                <View style={styles.cardFooterItem}>
-                  <AppText
-                    style={{ color: colors.primaryLighter }}
-                    size={11}
-                    fontWeight="medium"
-                  >
-                    {isSchool ? "STATUS" : "ACCOUNT TYPE"}
-                  </AppText>
-                  <AppText
-                    style={{ color: colors.white, marginTop: 4 }}
-                    size={14}
-                    fontWeight="bold"
-                  >
-                    {isSchool
-                      ? isActive
-                        ? "Active"
-                        : "Inactive"
-                      : isActive
-                        ? "Premium"
-                        : "Freemium"}
-                  </AppText>
-                </View>
-              </View>
+                  {/* Card chip decoration */}
+                  <View style={styles.cardChip}>
+                    <View style={styles.chipLine1} />
+                    <View style={styles.chipLine2} />
+                  </View>
+                </LinearGradient>
 
-              {/* Card chip decoration */}
-              <View style={styles.cardChip}>
-                <View style={styles.chipLine1} />
-                <View style={styles.chipLine2} />
-              </View>
-            </LinearGradient>
-
-            <View style={styles.btns}>
-              <AppButton
-                type="accent"
-                title={"Subscribe"}
-                icon={{ name: "wallet", left: true }}
-                style={{ paddingHorizontal: 40 }}
-                onPress={openSubsciptionModal}
-              />
-              {!isSchool && (
-                <AppButton
-                  title={"Withdraw"}
-                  icon={{ name: "cash-remove", left: true }}
-                  style={{ paddingHorizontal: 40 }}
-                  onPress={handleWithdrawal}
-                />
-              )}
-            </View>
-
-            <View style={styles.history}>
-              <AppText fontWeight="bold" size={"xlarge"} style={{ margin: 15 }}>
-                History
-              </AppText>
-              <FlatList
-                data={history?.transactions}
-                keyExtractor={(item) => item._id}
-                contentContainerStyle={{ paddingBottom: height * 0.42 }}
-                ListEmptyComponent={() => (
-                  <ListEmpty vis={!isLoading} message="No history data" />
-                )}
-                renderItem={({ item }) => <SubHistory item={item} />}
-              />
-            </View>
-
-            <AppModal
-              visible={bools.modal}
-              setVisible={() => setBools({ ...bools, modal: false })}
-              fitContent={bools.type === "display"} // Add this line
-              Component={() => {
-                if (bools.type === "display") {
-                  return (
-                    <DisplayPayments
-                      hideModal={() => setBools({ ...bools, modal: false })}
-                      data={{
-                        type: isSchool ? "school" : "student",
-                        schoolId: school?._id,
-                      }} // Add data prop
+                <View style={styles.btns}>
+                  <AppButton
+                    type="accent"
+                    title={"Subscribe"}
+                    icon={{ name: "wallet", left: true }}
+                    style={{ paddingHorizontal: 40 }}
+                    onPress={openSubsciptionModal}
+                  />
+                  {!isSchool && (
+                    <AppButton
+                      title={"Withdraw"}
+                      icon={{ name: "cash-remove", left: true }}
+                      style={{ paddingHorizontal: 40 }}
+                      onPress={handleWithdrawal}
                     />
-                  );
-                } else if (bools.type === "withdraw") {
-                  return (
-                    <>
-                      <WithdrawModal
-                        closeModal={() => setBools({ ...bools, modal: false })}
-                        setPopData={(data) => setPopper(data)}
-                      />
-                    </>
-                  );
-                }
-              }}
-            />
+                  )}
+                </View>
+
+                <View style={styles.history}>
+                  <AppText
+                    fontWeight="bold"
+                    size={"xlarge"}
+                    style={{ margin: 15 }}
+                  >
+                    History
+                  </AppText>
+                  <FlatList
+                    data={history?.transactions}
+                    keyExtractor={(item) => item._id}
+                    contentContainerStyle={{ paddingBottom: height * 0.42 }}
+                    ListEmptyComponent={() => (
+                      <ListEmpty vis={!isLoading} message="No history data" />
+                    )}
+                    renderItem={({ item }) => <SubHistory item={item} />}
+                  />
+                </View>
+              </>
+            )}
           </>
         )}
+      />
+      <AppModal
+        visible={bools.modal}
+        setVisible={() => setBools({ ...bools, modal: false })}
+        fitContent={bools.type === "display"} // Add this line
+        Component={() => {
+          if (bools.type === "display") {
+            return (
+              <DisplayPayments
+                hideModal={() => setBools({ ...bools, modal: false })}
+                data={{
+                  type: isSchool ? "school" : "student",
+                  schoolId: school?._id,
+                }} // Add data prop
+              />
+            );
+          } else if (bools.type === "withdraw") {
+            return (
+              <>
+                <WithdrawModal
+                  closeModal={() => setBools({ ...bools, modal: false })}
+                  setPopData={(data) => setPopper(data)}
+                />
+              </>
+            );
+          }
+        }}
       />
       <PopMessage popData={popper} setPopData={setPopper} />
       <StatusBar style="dark" />

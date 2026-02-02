@@ -190,7 +190,10 @@ const QuestionStudyScreen = () => {
   const [bools, setBools] = useState({ loading: true, showLoadAd: true });
   const [timer, setTimer] = useState(null); //14400
   const [popData, setPopData] = useState({ vis: false });
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState({
+    questions: [],
+    totalAvailable: 0,
+  });
   const [adError, setAdError] = useState(null);
   const [session, setSession] = useState({
     totalQuestions: 1,
@@ -332,6 +335,8 @@ const QuestionStudyScreen = () => {
       }
     }
   };
+
+  console.log({ questions, maxCount });
 
   const retryCount = useRef(0);
   const MAX_RETRIES = 3;
@@ -576,6 +581,7 @@ const QuestionStudyScreen = () => {
               },
             ]}
             setQuizSession={setSession}
+            hardReset={() => setScreen(0)}
             setQuizInfoView={handleQuizFinish}
             handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
           />

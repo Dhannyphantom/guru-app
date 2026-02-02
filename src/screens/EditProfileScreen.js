@@ -71,6 +71,7 @@ const EditProfileScreen = () => {
   };
 
   const handleImagePicker = (image) => {
+    console.log({ image });
     if (image.error) {
       setErrMsg(image.error);
     } else {
@@ -81,7 +82,14 @@ const EditProfileScreen = () => {
   const handleFormSubmit = async (formValues) => {
     try {
       await updateUserProfile(formValues).unwrap();
-    } catch (err) {}
+    } catch (err) {
+      setErrMsg(
+        err?.data?.includes("duplicate key error")
+          ? "Email already exists"
+          : err?.data || "An error occurred",
+      );
+      console.log(err);
+    }
   };
 
   const handleImagePickerError = (bool) => {
@@ -109,6 +117,11 @@ const EditProfileScreen = () => {
     <>
       <View style={styles.container}>
         <AppHeader title="Edit Profile" />
+        {errMsg && (
+          <AppText size="small" fontWeight="medium" style={styles.error}>
+            {errMsg}
+          </AppText>
+        )}
         <KeyboardAvoidingView
           keyboardVerticalOffset={10}
           behavior="padding"
@@ -165,6 +178,7 @@ const EditProfileScreen = () => {
                             data={teacherPreffix}
                             numDisplayItems={3}
                             headerText={"Name preffix"}
+                            useDefaultModalHeight
                             type="dropdown"
                           />
                         )}
@@ -173,7 +187,7 @@ const EditProfileScreen = () => {
                           placeholder={`${
                             user.email ?? "Enter your email address"
                           }`}
-                          headerText={"Email:"}
+                          headerText={"Email (Optional):"}
                         />
                         {isStudent && (
                           <FormikInput
