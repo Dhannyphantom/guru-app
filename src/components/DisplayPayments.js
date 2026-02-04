@@ -139,7 +139,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                   style={{ alignItems: "center" }}
                 >
                   <LottieAnimator
-                    name="success"
+                    name="payment"
                     style={{ width: width * 0.7, height: height * 0.4 }}
                   />
                   <AppText
