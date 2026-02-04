@@ -13,7 +13,8 @@ import progressAnim from "../../assets/animations/progress.json";
 import timerAnim from "../../assets/animations/timer.json";
 import congratAnim from "../../assets/animations/medal_congrats.json";
 import circleProgress from "../../assets/animations/circle_progress.json";
-import successAnim from "../../assets/animations/correct2.json";
+import successAnim from "../../assets/animations/success_animation.json";
+import paymentAnim from "../../assets/animations/payment_success.json";
 import avatarAnim from "../../assets/animations/avatar2.json";
 import waitingAnin from "../../assets/animations/please_wait.json";
 
@@ -61,6 +62,9 @@ const LottieAnimator = ({
       break;
     case "success":
       lottieAnim = successAnim;
+      break;
+    case "payment":
+      lottieAnim = paymentAnim;
       break;
     case "student_hi":
       lottieAnim = studentHiAnim;
