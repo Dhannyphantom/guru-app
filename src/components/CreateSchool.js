@@ -24,7 +24,6 @@ import {
 } from "../context/schoolSlice";
 import PopMessage from "./PopMessage";
 import getRefresher from "./Refresher";
-import DisplayPayments from "./DisplayPayments";
 import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
@@ -39,7 +38,6 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
   const [bools, setBools] = useState({
     search: false,
     searched: false,
-    subModal: false,
   });
   const [school, setSchool] = useState(null);
   const [popper, setPopper] = useState({ vis: false });
@@ -109,13 +107,12 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
     }
   };
 
-  const onModalClose = (refresh) => {
-    setBools({ ...bools, subModal: false });
-  };
-
   const handleSchoolSub = (item) => {
     // return console.log({ item });
-    setBools({ ...bools, subModal: true, data: { type: "school", school } });
+    router.push({
+      pathname: "/school/subscribe",
+      params: { type: "school", data: JSON.stringify(school) },
+    });
   };
 
   const createActions = (type) => {
@@ -240,13 +237,6 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
               </AppText>
             </View>
           </View>
-        )}
-      />
-      <AppModal
-        visible={bools.subModal}
-        setVisible={(bool) => setBools({ ...bools, subModal: bool })}
-        Component={() => (
-          <DisplayPayments hideModal={onModalClose} data={bools?.data} />
         )}
       />
       <PopMessage popData={popper} setPopData={setPopper} />

@@ -101,7 +101,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
+      invalidatesTags: ["USER", "SCHOOL", "FETCH_TRANSACTIONS"],
     }),
     renewSubscription: builder.mutation({
       query: (data) => ({

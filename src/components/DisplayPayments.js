@@ -33,8 +33,6 @@ const DisplayPayments = ({ hideModal, data }) => {
   const isSchool = data?.type === "school";
   const user = useSelector(selectUser);
 
-  console.log({ data, subbed });
-
   const [bools, setBools] = useState({
     loading: true,
     status: "pending",
@@ -65,11 +63,11 @@ const DisplayPayments = ({ hideModal, data }) => {
         if (result.success) {
           setBools({ ...bools, status: "success" });
 
-          setPopper({
-            vis: true,
-            type: "success",
-            msg: `Payment successful!`,
-          });
+          // setPopper({
+          //   vis: true,
+          //   type: "success",
+          //   msg: `Payment successful!`,
+          // });
         }
       } else if (response?.status === "cancelled") {
         setPopper({
@@ -188,7 +186,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                           name: getFullName(user),
                           days: values["sub_amount"]?.days,
                           schoolId: isSchool
-                            ? (data?.schoolId ?? data?.school?._id)
+                            ? (data?.schoolId ?? data?.data?._id)
                             : "",
                         },
                       }}
@@ -265,10 +263,10 @@ const styles = StyleSheet.create({
   },
   webViewContainer: {
     flex: 1,
-    padding: 15,
+    padding: 8,
     // backgroundColor: colors.white,
-    justifyContent: "center",
-    alignItems: "center",
+    // justifyContent: "center",
+    // alignItems: "center",
   },
   webView: {
     // borderRadius: 30,

@@ -41,6 +41,7 @@ import CreateSchool from "../components/CreateSchool";
 import Counter from "../components/Counter";
 import {
   selectSchool,
+  useFetchSchoolQuery,
   useLazyFetchSchoolQuery,
   useLazyFetchSchoolQuizQuery,
 } from "../context/schoolSlice";
@@ -562,9 +563,8 @@ const SchoolScreen = ({ route }) => {
 
   const shouldRefresh = route?.refresh === "true";
 
-  const [bools, setBools] = useState({ loading: true });
   const [popData, setPopData] = useState({ vis: false });
-  const [fetchSchool, { data: school, isLoading }] = useLazyFetchSchoolQuery();
+  const { data: school, isLoading, refetch } = useFetchSchoolQuery();
 
   const hasJoined = Boolean(
     school?.data && school?.isVerified && school?.data?.subscription?.isActive,
@@ -576,11 +576,9 @@ const SchoolScreen = ({ route }) => {
 
   const getSchoolData = async () => {
     try {
-      await fetchSchool().unwrap();
-    } catch (err) {
-      console.log(err);
+      await refetch().unwrap();
+    } catch (_err) {
     } finally {
-      setBools({ ...bools, loading: false });
     }
   };
 
@@ -652,11 +650,7 @@ const SchoolScreen = ({ route }) => {
           </AppText>
         </View>
       )}
-      <LottieAnimator
-        visible={isLoading || bools.loading}
-        wTransparent
-        absolute
-      />
+      <LottieAnimator visible={isLoading} wTransparent absolute />
       <PopMessage popData={popData} setPopData={setPopData} />
       <StatusBar style="dark" />
     </View>

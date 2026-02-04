@@ -58,7 +58,6 @@ import {
 } from "../helpers/yupSchemas";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import getRefresher from "../components/Refresher";
-import DisplayPayments from "../components/DisplayPayments";
 import { selectSchool } from "../context/schoolSlice";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AppHeader from "../components/AppHeader";
@@ -738,7 +737,6 @@ const SubscriptionScreen = () => {
   const [bools, setBools] = useState({
     modal: false,
     uri: null,
-    type: "display",
   });
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
@@ -764,10 +762,10 @@ const SubscriptionScreen = () => {
         type: "failed",
       });
     }
-    setBools({
-      ...bools,
-      modal: true,
-      type: "display",
+
+    router.push({
+      pathname: fromSchool ? "/school/subscribe" : "/profile/subscribe",
+      params: { type: isSchool ? "school" : "student", schoolId: school?._id },
     });
   };
 
@@ -1037,28 +1035,13 @@ const SubscriptionScreen = () => {
       <AppModal
         visible={bools.modal}
         setVisible={() => setBools({ ...bools, modal: false })}
-        fitContent={bools.type === "display"} // Add this line
         Component={() => {
-          if (bools.type === "display") {
-            return (
-              <DisplayPayments
-                hideModal={() => setBools({ ...bools, modal: false })}
-                data={{
-                  type: isSchool ? "school" : "student",
-                  schoolId: school?._id,
-                }} // Add data prop
-              />
-            );
-          } else if (bools.type === "withdraw") {
-            return (
-              <>
-                <WithdrawModal
-                  closeModal={() => setBools({ ...bools, modal: false })}
-                  setPopData={(data) => setPopper(data)}
-                />
-              </>
-            );
-          }
+          return (
+            <WithdrawModal
+              closeModal={() => setBools({ ...bools, modal: false })}
+              setPopData={(data) => setPopper(data)}
+            />
+          );
         }}
       />
       <PopMessage popData={popper} setPopData={setPopper} />

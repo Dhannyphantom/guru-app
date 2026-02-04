@@ -22,54 +22,58 @@ import LottieAnimator from "../components/LottieAnimator";
 import colors from "../helpers/colors";
 import AppText from "../components/AppText";
 import { useCreateSchoolMutation } from "../context/schoolSlice";
-import DisplayPayments from "../components/DisplayPayments";
 import PopMessage from "../components/PopMessage";
 import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("screen");
 
 const CreationModal = ({ hideModal, data }) => {
-  const [screen, setScreen] = useState(0);
+  const router = useRouter();
 
   return (
     <>
-      {screen == 0 && (
-        <Animated.View style={styles.created}>
-          <LottieAnimator
-            visible
-            name="success"
-            style={{ alignSelf: "center" }}
-            size={width * 0.7}
-          />
-          <AppText size={"large"} fontWeight="bold" style={styles.createdTitle}>
-            Your school{" "}
-            <AppText
-              style={{
-                textTransform: "capitalize",
-                color: colors.primaryDeep,
-              }}
-              size={"xlarge"}
-              fontWeight="black"
-            >
-              {data?.school?.name}
-            </AppText>{" "}
-            school profile has successfully been created
-          </AppText>
-          <AppText fontWeight="bold" style={styles.createdTxt}>
-            Subscribe now to give your students and teachers access to Guru
-          </AppText>
+      <Animated.View style={styles.created}>
+        <LottieAnimator
+          visible
+          name="success"
+          style={{ alignSelf: "center" }}
+          size={width * 0.7}
+        />
+        <AppText size={"large"} fontWeight="bold" style={styles.createdTitle}>
+          Your school{" "}
+          <AppText
+            style={{
+              textTransform: "capitalize",
+              color: colors.primaryDeep,
+            }}
+            size={"xlarge"}
+            fontWeight="black"
+          >
+            {data?.school?.name}
+          </AppText>{" "}
+          school profile has successfully been created
+        </AppText>
+        <AppText fontWeight="bold" style={styles.createdTxt}>
+          Subscribe now to give your students and teachers access to Guru
+        </AppText>
 
-          <View>
-            <AppButton title={"Subscribe Now"} onPress={() => setScreen(1)} />
-            <AppButton
-              title={"Maybe Later"}
-              type="accent"
-              onPress={hideModal}
-            />
-          </View>
-        </Animated.View>
-      )}
-      {screen == 1 && <DisplayPayments hideModal={hideModal} data={data} />}
+        <View>
+          <AppButton
+            title={"Subscribe Now"}
+            onPress={() => {
+              hideModal?.();
+              router.push({
+                pathname: "/school/subscribe",
+                params: {
+                  type: "school",
+                  data: JSON.stringify(data?.school),
+                },
+              });
+            }}
+          />
+          <AppButton title={"Maybe Later"} type="accent" onPress={hideModal} />
+        </View>
+      </Animated.View>
     </>
   );
 };

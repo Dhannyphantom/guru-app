@@ -22,6 +22,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: "/school/fetch",
         timeout: 15000,
       }),
+      providesTags: ["SCHOOL"],
     }),
     fetchSchoolInstance: builder.query({
       query: (data) => ({
