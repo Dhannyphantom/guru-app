@@ -24,8 +24,20 @@ import ListEmpty from "./ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
-const TopicList = ({ data, onPress, closeModal }) => {
+const TopicList = ({ data, onPress, fetcher, closeModal }) => {
+  const [refreshing, setRefreshing] = useState(false);
   const hasTopic = Boolean(data?.topics[0]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetcher?.();
+    } catch (errr) {
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <View style={styles.topicModal}>
       <AppText fontWeight="heavy" size={"large"}>
@@ -35,6 +47,8 @@ const TopicList = ({ data, onPress, closeModal }) => {
         <FlatList
           data={data?.topics}
           keyExtractor={(item) => item._id}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
           ListEmptyComponent={
             <ListEmpty style={{ width: null }} vis message="No Topics Found!" />
           }
@@ -64,8 +78,9 @@ const TopicList = ({ data, onPress, closeModal }) => {
                   <View style={styles.progress}>
                     <ProgressBar
                       barHeight={11}
+                      value={item?.qBankQuestions}
                       // value={item?.answeredNum}
-                      // max={item?.questionsNum}
+                      max={item?.totalQuestions}
                       tint={item?.visible ? colors.primary : colors.medium}
                       hideProgressText
                       // style={{ marginTop: 10 }}
@@ -142,7 +157,7 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
               visible: false,
             };
           }
-        }
+        },
       );
 
       setBools({ ...bools, data: copier[subjectIdx] });
@@ -202,6 +217,7 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
         </View>
         <View style={{ marginLeft: 40 }}>
           {item.topics?.map((obj) => {
+            //  { q: obj?.progress, t: obj?.totalQuestions });
             if (obj.visible) {
               return (
                 <AnimatedPressable
@@ -254,10 +270,13 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
     const subjectList = subjects?.map((item) => item._id);
 
     try {
-      const res = await fetchTopics({ subjects: subjectList }).unwrap();
+      const res = await fetchTopics({
+        subjects: subjectList,
+        category: quizInfo.category?._id,
+      }).unwrap();
       const newSubjects = subjects?.map((subject) => {
         const subjectData = res?.data?.find(
-          (resSubject) => resSubject?._id === subject?._id
+          (resSubject) => resSubject?._id === subject?._id,
         );
         if (subjectData) {
           return {
@@ -299,6 +318,7 @@ const RenderStudySubjectTopic = ({ quizInfo, setQuizInfo }) => {
         Component={() => (
           <TopicList
             data={bools?.data}
+            fetcher={getTopics}
             closeModal={() => setBools({ ...bools, topicModal: false })}
             onPress={updateTopics}
           />
@@ -334,6 +354,8 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 6,
     maxHeight: height * 0.8,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
+    paddingBottom: 15,
   },
   topicItemMain: {
     // paddingVertical: 15,
