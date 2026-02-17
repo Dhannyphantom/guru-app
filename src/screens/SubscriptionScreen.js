@@ -811,7 +811,7 @@ const SubscriptionScreen = () => {
         contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         renderItem={() => (
           <>
-            {isSchool && !Boolean(school?.name) ? (
+            {!Boolean(school?.name) ? (
               <View style={{ flex: 1, alignItems: "center", marginTop: 50 }}>
                 <LottieAnimator
                   name="person_float"
@@ -819,7 +819,7 @@ const SubscriptionScreen = () => {
                   visible
                 />
                 <AppText>
-                  Please create a school account for your school
+                  Please Create or Join a school to fully access Guru
                 </AppText>
               </View>
             ) : (

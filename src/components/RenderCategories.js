@@ -34,7 +34,7 @@ const RenderCategories = ({
       case "category":
         if (
           checkLevel &&
-          isCategoryAllowedForUser(user?.class?.level, item?.name)
+          !isCategoryAllowedForUser(user?.class?.level, item?.name)
         ) {
           return levelErr?.();
         }

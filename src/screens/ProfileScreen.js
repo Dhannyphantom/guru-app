@@ -242,7 +242,9 @@ const ProfileScreen = () => {
           )}
           {user?.gender && (
             <AppText style={styles.accountType} fontWeight="bold">
-              {user?.gender} {user?.accountType}
+              {user?.gender}{" "}
+              {user?.accountType === "student" ? user?.class?.level : ""}{" "}
+              {user?.accountType}
             </AppText>
           )}
           {!isPro && (
