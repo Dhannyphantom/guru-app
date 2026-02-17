@@ -1,8 +1,12 @@
-import { Dimensions, Image, StyleSheet, View } from "react-native";
+import { Dimensions, StyleSheet, View } from "react-native";
 
 import AppText from "../components/AppText";
 import AnimatedPressable from "./AnimatedPressable";
 import colors from "../helpers/colors";
+import { useSelector } from "react-redux";
+import { selectUser } from "../context/usersSlice";
+import { isCategoryAllowedForUser } from "../helpers/helperFunctions";
+import { Image } from "expo-image";
 
 const { width } = Dimensions.get("screen");
 
@@ -12,10 +16,13 @@ const RenderCategories = ({
   item,
   quizInfo,
   disabled,
+  checkLevel,
+  levelErr,
   size = SIZE,
   style,
   setQuizInfo,
 }) => {
+  const user = useSelector(selectUser);
   const isSelected =
     quizInfo?.view === "category"
       ? quizInfo?.category?._id === item._id
@@ -25,6 +32,12 @@ const RenderCategories = ({
   const handleItemPress = () => {
     switch (quizInfo.view) {
       case "category":
+        if (
+          checkLevel &&
+          isCategoryAllowedForUser(user?.class?.level, item?.name)
+        ) {
+          return levelErr?.();
+        }
         setQuizInfo({
           ...quizInfo,
           category: item,
@@ -36,7 +49,7 @@ const RenderCategories = ({
       case "subjects":
         const currLength = quizInfo?.subjects?.length;
         const copier = [...quizInfo.subjects];
-        const findIdx = copier.findIndex((subj) => subj?._id == item._id);
+        const findIdx = copier.findIndex((subj) => subj?._id === item._id);
         if (findIdx >= 0) {
           // a match
           copier.splice(findIdx, 1);
@@ -83,7 +96,7 @@ const RenderCategories = ({
         style={{
           textAlign: "center",
           marginTop: 10,
-          textTransform: quizInfo?.view == "category" ? null : "capitalize",
+          textTransform: quizInfo?.view === "category" ? null : "capitalize",
           color: isSelected ? colors.primaryDeeper : colors.black,
         }}
       >

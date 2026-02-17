@@ -186,7 +186,7 @@ const validationSchemaRegister = Yup.object().shape({
   contact: Yup.string()
     .required("Phone number is required")
     .transform((v) => v.replace(/\s+/g, ""))
-    .matches(/^[789]\d{9}$/, "Enter a valid phone number (e.g. 7081234567)")
+    .matches(/^[789]\d{9}$/, "Enter a valid phone number (e.g. 80XXXXXXXX)")
     .label("Phone Number"),
   password: Yup.string().min(8).strongPassword().required().label("Password"),
 });
@@ -196,7 +196,7 @@ const validationSchemaLogin = Yup.object().shape({
     .oneWord()
     .required()
     .trim("Whitespaces not allowed")
-    .label("Email or username")
+    .label("User Info")
     .min(4)
     .max(100),
   password: Yup.string().min(8).strongPassword().required().label("Password"),

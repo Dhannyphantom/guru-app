@@ -141,7 +141,7 @@ const LoginScreen = () => {
                     >
                       <FormikInput
                         name="username"
-                        placeholder="Email or Username"
+                        placeholder="Email or Phone No. or Username"
                       />
                       <FormikInput
                         name="password"
@@ -190,7 +190,7 @@ const LoginScreen = () => {
                 <View style={{ alignItems: "center" }}>
                   <FormikInput
                     name="username"
-                    placeholder="Email or Username"
+                    placeholder="Email | Phone No. | Username"
                   />
                   <FormikInput
                     name="password"

@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     // alignItems: "center",
   },
   headerText: {
-    marginLeft: 8,
+    marginLeft: 10,
     marginBottom: 4,
     color: colors.medium,
     alignSelf: "flex-start",

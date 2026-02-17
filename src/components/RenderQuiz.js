@@ -456,6 +456,14 @@ const RenderQuiz = ({ setVisible, data }) => {
                         <RenderCategories
                           item={item}
                           quizInfo={quizInfo}
+                          checkLevel
+                          levelErr={() =>
+                            setPopper({
+                              vis: true,
+                              type: "failed",
+                              msg: "You're not eligible for this category",
+                            })
+                          }
                           setQuizInfo={(valObj) =>
                             setQuizInfo({ ...quizInfo, ...valObj })
                           }

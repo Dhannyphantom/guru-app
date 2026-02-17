@@ -39,6 +39,46 @@ export const getName = (user) => {
   }`;
 };
 
+export const isSameSchoolLevel = (me, otherUser) => {
+  if (!me?.class?.level || !otherUser?.class?.level) return false;
+
+  const getLevelGroup = (level) => {
+    const normalized = level.toLowerCase().trim();
+    if (normalized.startsWith("jss")) return "junior";
+    if (normalized.startsWith("sss")) return "senior";
+    return null;
+  };
+
+  const myLevelGroup = getLevelGroup(me.class.level);
+  const otherLevelGroup = getLevelGroup(otherUser.class.level);
+
+  return myLevelGroup && myLevelGroup === otherLevelGroup;
+};
+
+export const isCategoryAllowedForUser = (level, categoryName) => {
+  if (!level || !categoryName) return false;
+
+  const normalizedLevel = level.toLowerCase().trim();
+  const normalizedCategory = categoryName.toLowerCase().trim();
+
+  const isSeniorStudent = normalizedLevel.startsWith("sss");
+  const isJuniorStudent = normalizedLevel.startsWith("jss");
+
+  const seniorCategories = ["waec", "neco", "jamb", "senior school"];
+
+  const juniorCategories = ["junior school"];
+
+  if (isSeniorStudent && seniorCategories.includes(normalizedCategory)) {
+    return true;
+  }
+
+  if (isJuniorStudent && juniorCategories.includes(normalizedCategory)) {
+    return true;
+  }
+
+  return false;
+};
+
 export const getFullName = (user, usernameFallback) => {
   if (user?.firstName && user?.lastName) {
     return `${user?.firstName} ${user?.lastName}`;

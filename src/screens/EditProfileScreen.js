@@ -32,6 +32,7 @@ import {
 import { nanoid } from "@reduxjs/toolkit";
 import AppText from "../components/AppText";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 const bithYears = Array(45)
   .fill(0)
@@ -71,7 +72,6 @@ const EditProfileScreen = () => {
   };
 
   const handleImagePicker = (image) => {
-    console.log({ image });
     if (image.error) {
       setErrMsg(image.error);
     } else {
@@ -88,7 +88,6 @@ const EditProfileScreen = () => {
           ? "Email already exists"
           : err?.data || "An error occurred",
       );
-      console.log(err);
     }
   };
 
@@ -156,7 +155,7 @@ const EditProfileScreen = () => {
                     }));
 
                     return (
-                      <View style={{ flex: 1 }}>
+                      <View style={{ flex: 1, width }}>
                         <FormikInput
                           name={"firstName"}
                           placeholder={`${
@@ -190,19 +189,43 @@ const EditProfileScreen = () => {
                           headerText={"Email (Optional):"}
                         />
                         {isStudent && (
-                          <FormikInput
-                            name={"class"}
-                            disabled={user?.class?.hasChanged && user?.verified}
-                            placeholder={
-                              user?.class?.level
-                                ? `${user.class?.level?.toUpperCase()}`
-                                : "Select your current class"
-                            }
-                            data={schoolClasses}
-                            // numDisplayItems={2}
-                            headerText={"Class level"}
-                            type="dropdown"
-                          />
+                          <>
+                            <FormikInput
+                              name={"class"}
+                              disabled={
+                                user?.class?.hasChanged && user?.verified
+                              }
+                              placeholder={
+                                user?.class?.level
+                                  ? `${user.class?.level?.toUpperCase()}`
+                                  : "Select your current class"
+                              }
+                              data={schoolClasses}
+                              // numDisplayItems={2}
+                              headerText={"Class level"}
+                              type="dropdown"
+                            />
+                            <View style={styles.info}>
+                              <Ionicons
+                                name="information-circle-outline"
+                                size={14}
+                                color={colors.medium}
+                              />
+                              <AppText
+                                style={{ color: colors.medium, width: "90%" }}
+                                size="xsmall"
+                                fontWeight="light"
+                              >
+                                Ensure you provide your accurate current class
+                                as you{" "}
+                                <AppText size="small" fontWeight="heavy">
+                                  CANNOT
+                                </AppText>{" "}
+                                change this later. Only your Teachers can update
+                                student class info{" "}
+                              </AppText>
+                            </View>
+                          </>
                         )}
 
                         {!isTeacher && (
@@ -303,6 +326,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.heart,
     marginVertical: 10,
+  },
+  info: {
+    flexDirection: "row",
+    marginHorizontal: 15,
+    gap: 2,
+    bottom: 10,
   },
   main: {
     alignItems: "center",
