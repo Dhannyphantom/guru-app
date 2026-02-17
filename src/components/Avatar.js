@@ -54,8 +54,8 @@ const RenderUserDetail = ({
   const [verifySchoolInstance, { isLoading }] =
     useVerifySchoolInstanceMutation();
 
-  const isVerification = profile?.type == "verify";
-  const isStudent = profile?.user?.accountType == "student";
+  const isVerification = profile?.type === "verify";
+  const isStudent = profile?.user?.accountType === "student";
 
   const handleCloseModal = async () => {
     setVisible(false);
@@ -243,7 +243,10 @@ const RenderUserDetail = ({
               type="award"
               style={{ marginRight: 30, backgroundColor: colors.unchange }}
             />
-            <Points value={4302} style={{ backgroundColor: colors.unchange }} />
+            <Points
+              value={profile?.user?.point}
+              style={{ backgroundColor: colors.unchange }}
+            />
           </View>
         )}
         {isVerification ? (
