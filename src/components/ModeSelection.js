@@ -91,6 +91,7 @@ const ModeSelection = ({ setState, setPop, sessionId, lobby, isLobby }) => {
   const sortedInvites = sortInvites([...invites]);
 
   const onInviteFriend = (friend) => {
+    // Check friend class
     const checker = invites.find((item) => item?._id === friend._id);
     if (checker) {
       // Probably wants to remove user
