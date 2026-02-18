@@ -275,6 +275,7 @@ export const hasCompletedProfile = (user) => {
   if (
     !user?.email ||
     !user?.address ||
+    (user?.accountType === "student" && !user?.class?.level) ||
     !user?.birthday ||
     !user?.contact ||
     !user?.country ||

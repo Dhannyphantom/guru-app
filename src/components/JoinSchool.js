@@ -218,6 +218,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
     if (!profile.bool) {
       return setPopper(profile.pop);
     }
+
     try {
       const res = await joinSchool(item?._id).unwrap();
       if (res.status == "success") {

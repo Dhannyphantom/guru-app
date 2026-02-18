@@ -413,8 +413,8 @@ const UpgradeConfirmModal = ({
                 ?{"\n\n"}
                 All students in their respective class will be moved to the next
                 level (e.g., JSS 1 → JSS 2 → JSS 3 → SS 1).{"\n\n"}
-                This action CANNOT be undone and should be done annually after
-                an academic session
+                This action CANNOT be undone and should ONLY be done annually
+                after an academic session
               </>
             ) : (
               <>
@@ -442,7 +442,7 @@ const UpgradeConfirmModal = ({
             >
               Important: Students currently in{" "}
               {type === "up" ? "SSS 3" : "JSS 1"} will be automatically
-              graduated and will no longer have access to Guru but remain as
+              graduated and will no longer have access to Guru but remain as a
               school alumni.
             </AppText>
           </View>
