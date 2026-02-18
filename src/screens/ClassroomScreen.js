@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  KeyboardAvoidingView,
 } from "react-native";
 import {
   FontAwesome,
@@ -24,10 +25,11 @@ import Animated, {
   BounceInLeft,
   FadeOut,
   FadeInLeft,
+  LinearTransition,
 } from "react-native-reanimated";
 
 import AppText from "../components/AppText";
-import Screen from "../components/Screen";
+// import Screen from "../components/Screen";
 import AppButton from "../components/AppButton";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
@@ -134,7 +136,7 @@ const ClassCard = ({ classItem, onPress, onEdit, onDelete, index }) => {
                   color={colors.primary}
                 />
               </Pressable>
-              <Pressable
+              {/* <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
                   onDelete(classItem);
@@ -142,7 +144,7 @@ const ClassCard = ({ classItem, onPress, onEdit, onDelete, index }) => {
                 style={[styles.actionButton, { marginLeft: 8 }]}
               >
                 <Ionicons name="trash-outline" size={20} color={colors.heart} />
-              </Pressable>
+              </Pressable> */}
             </View>
           </View>
         </Pressable>
@@ -261,88 +263,98 @@ const EditClassModal = ({
         exiting={FadeOut}
         style={styles.modalOverlay}
       >
-        <Animated.View entering={FadeInLeft} style={styles.editModalContent}>
-          <View style={styles.modalHeader}>
-            <AppText fontWeight="bold" size="large">
-              {isCreating ? "Create Class" : "Edit Class"}
-            </AppText>
-            <Pressable onPress={onClose}>
-              <Ionicons name="close" size={24} color={colors.medium} />
-            </Pressable>
-          </View>
-
-          <View style={styles.modalBody}>
-            <AppText
-              fontWeight="semibold"
-              size="regular"
-              style={[styles.inputLabel]}
-            >
-              Class Alias (E.g JSS 2B, The Elites)
-            </AppText>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., The Overcomers, SS2 Gold"
-              placeholderTextColor={colors.medium}
-              value={alias}
-              onChangeText={setAlias}
-              maxLength={50}
-            />
-            <AppText size="xxsmall" style={styles.charCount}>
-              {alias.length}/50
-            </AppText>
-            <AppText
-              fontWeight="semibold"
-              size="regular"
-              style={styles.inputLabel}
-            >
-              Class Level
-            </AppText>
-            <View style={styles.levelOptions}>
-              {schoolClasses.map((level) => (
-                <Pressable
-                  key={level._id}
-                  onPress={() => setSelectedLevel(level.name)}
-                  style={[
-                    styles.levelOption,
-                    selectedLevel === level.name && styles.levelOptionActive,
-                  ]}
-                >
-                  <AppText
-                    size="small"
-                    fontWeight={
-                      selectedLevel === level.name ? "bold" : "regular"
-                    }
-                    style={{
-                      color:
-                        selectedLevel === level.name
-                          ? colors.primary
-                          : colors.medium,
-                    }}
-                  >
-                    {level.name}
-                  </AppText>
-                </Pressable>
-              ))}
+        <KeyboardAvoidingView
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          behavior="padding"
+        >
+          <Animated.View
+            layout={LinearTransition.springify()}
+            entering={FadeInLeft}
+            style={styles.editModalContent}
+          >
+            <View style={styles.modalHeader}>
+              <AppText fontWeight="bold" size="large">
+                {isCreating ? "Create Class" : "Edit Class"}
+              </AppText>
+              <Pressable onPress={onClose}>
+                <Ionicons name="close" size={24} color={colors.medium} />
+              </Pressable>
             </View>
-          </View>
 
-          <View style={styles.modalActions}>
-            <AppButton
-              title="Cancel"
-              onPress={onClose}
-              contStyle={{ flex: 1, marginRight: 10 }}
-              // backgroundColor={colors.light}
-              // textColor={colors.medium}
-              type="white"
-            />
-            <AppButton
-              title={isCreating ? "Create Class" : "Save Changes"}
-              onPress={handleSave}
-              contStyle={{ flex: 1 }}
-              disabled={!selectedLevel}
-            />
-          </View>
-        </Animated.View>
+            <View style={styles.modalBody}>
+              <AppText
+                fontWeight="semibold"
+                size="regular"
+                style={styles.inputLabel}
+              >
+                Class Alias (E.g JSS 2B, The Elites)
+              </AppText>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., The Overcomers, SS2 Gold"
+                placeholderTextColor={colors.medium}
+                value={alias}
+                onChangeText={setAlias}
+                maxLength={50}
+              />
+              <AppText size="xxsmall" style={styles.charCount}>
+                {alias.length}/50
+              </AppText>
+              <AppText
+                fontWeight="semibold"
+                size="regular"
+                style={styles.inputLabel}
+              >
+                Class Level
+              </AppText>
+              <View style={styles.levelOptions}>
+                {schoolClasses.map((level) => (
+                  <Pressable
+                    key={level._id}
+                    disabled={!isCreating}
+                    onPress={() => setSelectedLevel(level.name)}
+                    style={[
+                      styles.levelOption,
+                      selectedLevel === level.name && styles.levelOptionActive,
+                    ]}
+                  >
+                    <AppText
+                      size="small"
+                      fontWeight={
+                        selectedLevel === level.name ? "bold" : "regular"
+                      }
+                      style={{
+                        color:
+                          selectedLevel === level.name
+                            ? colors.primary
+                            : colors.medium,
+                      }}
+                    >
+                      {level.name}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <AppButton
+                title="Cancel"
+                onPress={onClose}
+                contStyle={{ flex: 1, marginRight: 10 }}
+                // backgroundColor={colors.light}
+                // textColor={colors.medium}
+                type="white"
+              />
+              <AppButton
+                title={isCreating ? "Create Class" : "Save Changes"}
+                onPress={handleSave}
+                contStyle={{ flex: 1 }}
+                disabled={!selectedLevel}
+              />
+            </View>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </Animated.View>
     </Modal>
   );
@@ -445,7 +457,6 @@ const sorter = {
 // Main Classroom Screen
 const ClassroomScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -465,15 +476,6 @@ const ClassroomScreen = () => {
   const classes = classesx
     ?.slice()
     ?.sort?.((a, b) => sorter[a?.level] - sorter[b?.level]);
-
-  // Filter classes based on search
-  const filteredClasses = classes.filter((cls) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      cls.level?.toLowerCase().includes(searchLower) ||
-      cls.alias?.toLowerCase().includes(searchLower)
-    );
-  });
 
   // Calculate stats
   const totalClasses = classes.length;
@@ -609,9 +611,9 @@ const ClassroomScreen = () => {
             </AppText>
           </View>
         </View>
-        <Pressable onPress={handleCreateClass} style={styles.addButton}>
+        {/* <Pressable onPress={handleCreateClass} style={styles.addButton}>
           <FontAwesome5 name="plus" size={20} color={colors.white} />
-        </Pressable>
+        </Pressable> */}
       </View>
 
       {/* Stats Summary */}
@@ -622,25 +624,6 @@ const ClassroomScreen = () => {
           totalTeachers={totalTeachers}
         />
       )}
-
-      {/* Search Bar */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color={colors.medium} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search classes..."
-            placeholderTextColor={colors.medium}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color={colors.medium} />
-            </Pressable>
-          )}
-        </View>
-      </View>
 
       {/* Classes List */}
       <ScrollView
@@ -660,9 +643,9 @@ const ClassroomScreen = () => {
               Loading classes...
             </AppText>
           </View>
-        ) : filteredClasses.length > 0 ? (
+        ) : classes.length > 0 ? (
           <View style={styles.classesContainer}>
-            {filteredClasses.map((classItem, index) => (
+            {classes.map((classItem, index) => (
               <ClassCard
                 key={classItem?._id}
                 classItem={classItem}
@@ -681,28 +664,8 @@ const ClassroomScreen = () => {
               size="large"
               style={{ marginTop: 16, color: colors.medium }}
             >
-              {searchQuery ? "No Classes Found" : "No Classes Yet"}
+              Fetching classses...
             </AppText>
-            <AppText
-              size="small"
-              style={{
-                color: colors.light,
-                marginTop: 8,
-                textAlign: "center",
-                paddingHorizontal: 40,
-              }}
-            >
-              {searchQuery
-                ? "Try searching with a different keyword"
-                : "Create your first classroom to get started"}
-            </AppText>
-            {!searchQuery && (
-              <AppButton
-                title="Create Class"
-                onPress={handleCreateClass}
-                contStyle={{ marginTop: 20, width: width * 0.6 }}
-              />
-            )}
           </View>
         )}
       </ScrollView>
