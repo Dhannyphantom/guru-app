@@ -380,6 +380,10 @@ const SchoolActions = ({ data }) => {
           params: { data: JSON.stringify(item?.nav?.data) },
         });
       } else {
+        if (item?.name === "Classes" && user?.accountType === "teacher") {
+          router.push("/school/classrooms");
+          return;
+        }
         // open modal
         setModal({ ...modal, visible: true, data: { name: item.name } });
       }

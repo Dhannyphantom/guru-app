@@ -22,7 +22,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import AppText from "../components/AppText";
-import Screen from "../components/Screen";
+// import Screen from "../components/Screen";
 import AppButton from "../components/AppButton";
 import colors from "../helpers/colors";
 import { useSelector } from "react-redux";
@@ -272,21 +272,24 @@ const TransferModal = ({
                       }}
                     >
                       {level.level}
-                      {": "}
-                      <AppText
-                        fontWeight={
-                          targetLevel?._id === level._id ? "bold" : "regular"
-                        }
-                        style={{
-                          textTransform: "capitalize",
-                          color:
-                            targetLevel?._id === level._id
-                              ? colors.primary
-                              : colors.medium,
-                        }}
-                      >
-                        {level.alias}
-                      </AppText>
+
+                      {level?.alias && (
+                        <AppText
+                          fontWeight={
+                            targetLevel?._id === level._id ? "bold" : "regular"
+                          }
+                          style={{
+                            textTransform: "capitalize",
+                            color:
+                              targetLevel?._id === level._id
+                                ? colors.primary
+                                : colors.medium,
+                          }}
+                        >
+                          {": "}
+                          {level.alias}
+                        </AppText>
+                      )}
                     </AppText>
                   </Pressable>
                 ))}
@@ -406,7 +409,7 @@ const ClassDetailScreen = () => {
   const { data, isLoading, refetch } = useFetchSchoolClassesQuery(school?._id);
   const [removeStudent, { isLoading: removing }] =
     useRemoveStudentFromClassMutation();
-  const [addStudent, { isLoading: adding }] = useAddStudentToClassMutation();
+  // const [addStudent, { isLoading: adding }] = useAddStudentToClassMutation();
   const [transferStudent, { isLoading: transferring }] =
     useTransferStudentsMutation();
 
@@ -461,9 +464,9 @@ const ClassDetailScreen = () => {
 
       await transferStudent({
         schoolId: school?._id,
-        classId,
+        classLevel,
         studentId,
-        targetLevelId: targetLevel?._id,
+        targetLevel: targetLevel?.level,
         upgradeAll: transferAll,
       });
 
@@ -756,7 +759,11 @@ const ClassDetailScreen = () => {
       />
 
       {/* Loading Overlay */}
-      <LottieAnimator visible={removing || adding} absolute wTransparent />
+      <LottieAnimator
+        visible={removing || transferring}
+        absolute
+        wTransparent
+      />
 
       {/* Pop Message */}
       <PopMessage popData={popper} setPopData={setPopper} />

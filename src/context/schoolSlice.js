@@ -325,8 +325,8 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
 
     // CREATE CLASS (single or "all")
     transferStudents: builder.mutation({
-      query: ({ schoolId, classId, ...body }) => ({
-        url: `/school/${schoolId}/classes/${classId}/transfer`,
+      query: ({ schoolId, classLevel, ...body }) => ({
+        url: `/school/${schoolId}/classes/${classLevel}/transfer`,
         method: "POST",
         body,
       }),
