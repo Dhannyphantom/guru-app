@@ -204,13 +204,18 @@ export const WithdrawModal = ({
           setState({ ...state, status: "success" });
         }
       } catch (errr) {
+        console.log(errr);
+        const txt =
+          ": Ensure good network connection and that the phone number and network you provided are correct";
         setPopper({
           vis: true,
+          timer: 1200,
           type: "failed",
-          timer: 1400,
-          msg: errr?.data?.message ?? "Transaction failed",
+          msg:
+            errr?.data?.message + txt ??
+            errr?.error + txt ??
+            `Transaction Failed: ${txt}`,
         });
-        console.log(errr);
       }
     }
   };
@@ -286,11 +291,16 @@ export const WithdrawModal = ({
         setState({ ...state, status: "success" });
       }
     } catch (errr) {
+      const txt =
+        ": Ensure good network connection and that the phone number and network you provided are correct";
       setPopper({
         vis: true,
         timer: 1200,
         type: "failed",
-        msg: errr?.data?.message ?? errr?.error ?? "Transaction Failed",
+        msg:
+          errr?.data?.message + txt ??
+          errr?.error + txt ??
+          `Transaction Failed: ${txt}`,
       });
     }
   };
