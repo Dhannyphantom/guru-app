@@ -333,6 +333,15 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
 
+    shiftClasses: builder.mutation({
+      query: ({ schoolId, action }) => ({
+        url: `/school/${schoolId}/class-shift`,
+        method: "POST",
+        body: { action }, // "upgrade" | "downgrade"
+      }),
+      invalidatesTags: ["SCHOOL_CLASSES"],
+    }),
+
     // UPDATE CLASS
     updateClass: builder.mutation({
       query: ({ schoolId, classId, ...body }) => ({
@@ -428,6 +437,7 @@ export const {
   useCreateAssignmentMutation,
   useLazyFetchClassesQuery,
   useCreateAnnouncementMutation,
+  useShiftClassesMutation,
   useCreateSchoolQuizMutation,
   useFetchAnnouncementsQuery,
   useChangeSchoolQuizMutation,

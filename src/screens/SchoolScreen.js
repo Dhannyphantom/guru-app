@@ -108,7 +108,6 @@ const ClassMates = ({ data = [] }) => {
       <View style={styles.classmatesSection}>
         <FlatList
           data={data}
-          // data={dummyLeaderboards}
           keyExtractor={(item) => item._id}
           renderItem={renderClassmates}
           ListEmptyComponent={() => (

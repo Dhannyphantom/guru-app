@@ -21,7 +21,6 @@ import {
   // A_DAY,
   // assignmentHistory,
   gradesList,
-  // dummyLeaderboards,
   PAD_BOTTOM,
   // schoolQuizHistory,
 } from "../helpers/dataStore";

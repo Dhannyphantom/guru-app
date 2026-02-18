@@ -8,11 +8,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
-import {
-  dummyLeaderboards,
-  getGradeData,
-  gradesArr,
-} from "../helpers/dataStore";
+import { getGradeData, gradesArr } from "../helpers/dataStore";
 import AppHeader from "../components/AppHeader";
 import Avatar from "../components/Avatar";
 import colors from "../helpers/colors";

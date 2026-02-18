@@ -19,7 +19,6 @@ import React, {
   useState,
   useMemo,
 } from "react";
-// import { dummyQuestions } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import LottieAnimator from "./LottieAnimator";
 import {

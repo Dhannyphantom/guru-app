@@ -6,22 +6,20 @@ import {
   Pressable,
   StyleSheet,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
 import PopUpModal from "./PopUpModal";
-import AnimatedPressable from "./AnimatedPressable";
+// import AnimatedPressable from "./AnimatedPressable";
 import colors from "../helpers/colors";
 import SearchBar from "./SearchBar";
-import { dummyLeaderboards } from "../helpers/dataStore";
 import FriendCard from "./FriendCard";
 
 // FILES
-import contactImg from "../../assets/images/abc.png";
+import contactImg from "../../assets/images/bell.png";
 import friendsImg from "../../assets/images/online-learning.png";
-import { useNavigation } from "@react-navigation/native";
+// import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import {
   selectUser,

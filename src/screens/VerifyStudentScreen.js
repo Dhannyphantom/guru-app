@@ -2,7 +2,6 @@ import { Dimensions, FlatList, StyleSheet, View } from "react-native";
 
 import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
-import { dummyLeaderboards } from "../helpers/dataStore";
 import FriendCard from "../components/FriendCard";
 import {
   selectSchool,

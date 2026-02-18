@@ -39,6 +39,7 @@ import {
   useCreateClassMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,
+  useShiftClassesMutation,
 } from "../context/schoolSlice";
 import { useRouter } from "expo-router";
 import LottieAnimator from "../components/LottieAnimator";
@@ -361,7 +362,13 @@ const EditClassModal = ({
 };
 
 // Delete Confirmation Modal
-const DeleteConfirmModal = ({ visible, onClose, classData, onConfirm }) => {
+const UpgradeConfirmModal = ({
+  visible,
+  onClose,
+  type,
+  classData,
+  onConfirm,
+}) => {
   return (
     <Modal
       visible={visible}
@@ -386,7 +393,7 @@ const DeleteConfirmModal = ({ visible, onClose, classData, onConfirm }) => {
             size="xlarge"
             style={{ textAlign: "center", marginTop: 16 }}
           >
-            Delete Class?
+            {type === "up" ? "Upgrade All Classes" : "Downgrade All Classes"}
           </AppText>
           <AppText
             size="regular"
@@ -397,45 +404,63 @@ const DeleteConfirmModal = ({ visible, onClose, classData, onConfirm }) => {
               lineHeight: 24,
             }}
           >
-            Are you sure you want to delete{" "}
-            <AppText fontWeight="bold">
-              {classData?.alias || classData?.level?.toUpperCase()}
-            </AppText>
-            ?{"\n\n"}This action cannot be undone.
+            {type === "up" ? (
+              <>
+                Are you sure you want to upgrade{" "}
+                <AppText fontWeight="bold">
+                  {classData?.alias || classData?.level?.toUpperCase()}
+                </AppText>
+                ?{"\n\n"}
+                All students in their respective class will be moved to the next
+                level (e.g., JSS 1 → JSS 2 → JSS 3 → SS 1).{"\n\n"}
+                This action CANNOT be undone and should be done annually after
+                an academic session
+              </>
+            ) : (
+              <>
+                Are you sure you want to downgrade{" "}
+                <AppText fontWeight="bold">
+                  {classData?.alias || classData?.level?.toUpperCase()}
+                </AppText>
+                ?{"\n\n"}
+                All students in their respective class will be moved to the
+                previous level (e.g., SS 1 → JSS 3 → JSS 2 → JSS 1).{"\n\n"}
+                This should only be done to undo an accidental upgrade
+              </>
+            )}
           </AppText>
 
-          {(classData?.students?.length > 0 ||
-            classData?.teachers?.length > 0) && (
-            <View style={styles.warningBox}>
-              <MaterialCommunityIcons
-                name="alert"
-                size={20}
-                color={colors.warning}
-              />
-              <AppText
-                size="small"
-                style={{ color: colors.medium, marginLeft: 8, flex: 1 }}
-              >
-                This class has {classData?.students?.length || 0} students and{" "}
-                {classData?.teachers?.length || 0} teachers assigned.
-              </AppText>
-            </View>
-          )}
+          <View style={styles.warningBox}>
+            <MaterialCommunityIcons
+              name="alert"
+              size={20}
+              color={colors.warning}
+            />
+            <AppText
+              size="small"
+              style={{ color: colors.medium, marginLeft: 8, flex: 1 }}
+            >
+              Important: Students currently in{" "}
+              {type === "up" ? "SSS 3" : "JSS 1"} will be automatically
+              graduated and will no longer have access to Guru but remain as
+              school alumni.
+            </AppText>
+          </View>
 
           <View style={styles.modalActions}>
             <AppButton
               title="Cancel"
               onPress={onClose}
-              contStyle={{ flex: 1, marginRight: 10 }}
+              // contStyle={{ flex: 1, marginRight: 10 }}
               backgroundColor={colors.light}
               type="white"
               textColor={colors.medium}
             />
             <AppButton
-              title="Delete"
+              title={type === "up" ? "Upgrade Class" : "Downgrade Class"}
               onPress={onConfirm}
-              type="warn"
-              contStyle={{ flex: 1 }}
+              type={type === "up" ? "primary" : "warn"}
+              // contStyle={{ flex: 1 }}
               backgroundColor={colors.heart}
             />
           </View>
@@ -458,7 +483,10 @@ const sorter = {
 const ClassroomScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState({
+    vis: false,
+    type: null,
+  });
   const [selectedClass, setSelectedClass] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
@@ -470,7 +498,7 @@ const ClassroomScreen = () => {
   const { data, isLoading, refetch } = useFetchSchoolClassesQuery(school?._id);
   const [createClass, { isLoading: creating }] = useCreateClassMutation();
   const [updateClass, { isLoading: updating }] = useUpdateClassMutation();
-  const [deleteClass, { isLoading: deleting }] = useDeleteClassMutation();
+  const [shiftClasses, { isLoading: shifting }] = useShiftClassesMutation();
 
   const classesx = data?.data?.classes || [];
   const classes = classesx
@@ -505,21 +533,10 @@ const ClassroomScreen = () => {
     });
   };
 
-  const handleCreateClass = () => {
-    setSelectedClass(null);
-    setIsCreating(true);
-    setEditModalVisible(true);
-  };
-
   const handleEditClass = (classItem) => {
     setSelectedClass(classItem);
     setIsCreating(false);
     setEditModalVisible(true);
-  };
-
-  const handleDeleteClass = (classItem) => {
-    setSelectedClass(classItem);
-    setDeleteModalVisible(true);
   };
 
   const handleSaveEdit = async (editData) => {
@@ -566,30 +583,40 @@ const ClassroomScreen = () => {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmUpgrade = async () => {
     try {
-      const res = await deleteClass({
+      const res = await shiftClasses({
         schoolId: school?._id,
-        classId: selectedClass._id,
+        action: upgradeModalVisible.type === "up" ? "upgrade" : "downgrade",
       }).unwrap();
 
       if (res.success) {
         setPopper({
           vis: true,
           timer: 2000,
-          msg: "Class deleted successfully",
+          msg: `Class ${upgradeModalVisible.type === "up" ? "upgraded" : "downgraded"} successfully`,
           type: "success",
         });
-        setDeleteModalVisible(false);
+        setUpgradeModalVisible({ vis: false, type: null });
         setSelectedClass(null);
       }
     } catch (error) {
       setPopper({
         vis: true,
         timer: 2000,
-        msg: error?.data?.message || "Failed to delete class",
+        msg: error?.data?.message || "Failed to upgrade or downgrade class",
         type: "failed",
       });
+    }
+  };
+
+  const handleUpgradeClass = (direction) => {
+    if (direction === "up") {
+      setSelectedClass(null);
+      setUpgradeModalVisible({ vis: true, type: "up" });
+    } else {
+      setSelectedClass(null);
+      setUpgradeModalVisible({ vis: true, type: "down" });
     }
   };
 
@@ -611,9 +638,34 @@ const ClassroomScreen = () => {
             </AppText>
           </View>
         </View>
-        {/* <Pressable onPress={handleCreateClass} style={styles.addButton}>
-          <FontAwesome5 name="plus" size={20} color={colors.white} />
-        </Pressable> */}
+        <View style={{ flexDirection: "row" }}>
+          <Pressable
+            onPress={() => handleUpgradeClass("up")}
+            style={styles.addButton}
+          >
+            <FontAwesome5
+              name="angle-double-up"
+              size={20}
+              color={colors.accent}
+            />
+            <AppText size="xsmall" fontWeight="bold">
+              Sessional Upgrade
+            </AppText>
+          </Pressable>
+          {/* <Pressable
+            onPress={() => handleUpgradeClass("down")}
+            style={styles.addButton}
+          >
+            <FontAwesome5
+              name="angle-double-down"
+              size={20}
+              color={colors.heart}
+            />
+            <AppText size="small" fontWeight="bold">
+              Downgrade
+            </AppText> */}
+          {/* </Pressable> */}
+        </View>
       </View>
 
       {/* Stats Summary */}
@@ -652,7 +704,6 @@ const ClassroomScreen = () => {
                 index={index}
                 onPress={() => handleClassPress(classItem)}
                 onEdit={handleEditClass}
-                onDelete={handleDeleteClass}
               />
             ))}
           </View>
@@ -684,19 +735,20 @@ const ClassroomScreen = () => {
       />
 
       {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        visible={deleteModalVisible}
+      <UpgradeConfirmModal
+        visible={upgradeModalVisible.vis}
         onClose={() => {
-          setDeleteModalVisible(false);
+          setUpgradeModalVisible({ vis: false, type: null });
           setSelectedClass(null);
         }}
         classData={selectedClass}
-        onConfirm={handleConfirmDelete}
+        type={upgradeModalVisible.type}
+        onConfirm={handleConfirmUpgrade}
       />
 
       {/* Loading Overlay */}
       <LottieAnimator
-        visible={updating || deleting || creating}
+        visible={updating || shifting || creating}
         absolute
         wTransparent
       />
@@ -722,12 +774,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
+    // width: 48,
+    // height: 48,
+    // borderRadius: 24,
+    // backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
+    padding: 5,
+    paddingHorizontal: 10,
   },
   statsCard: {
     flexDirection: "row",
@@ -903,6 +957,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderTopWidth: 1,
     borderTopColor: "#E0E0E0",
+    justifyContent: "space-between",
   },
   deleteIcon: {
     width: 80,
