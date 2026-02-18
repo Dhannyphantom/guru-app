@@ -286,7 +286,6 @@ export const WithdrawModal = ({
         setState({ ...state, status: "success" });
       }
     } catch (errr) {
-      console.log({ errr });
       setPopper({
         vis: true,
         timer: 1200,
@@ -340,6 +339,22 @@ export const WithdrawModal = ({
                   style={styles.withdrawHeaderTxt}
                   fontWeight="bold"
                 >
+                  Balance
+                </AppText>
+                <AppText
+                  size="xxxlarge"
+                  fontWeight="heavy"
+                  style={styles.withdrawTxt}
+                >
+                  {balance.format}
+                </AppText>
+              </View>
+              <View style={styles.cardMini}>
+                <AppText
+                  size={"large"}
+                  style={styles.withdrawHeaderTxt}
+                  fontWeight="bold"
+                >
                   Points
                 </AppText>
                 <AppText
@@ -355,23 +370,6 @@ export const WithdrawModal = ({
                   >
                     GT
                   </AppText>
-                </AppText>
-              </View>
-
-              <View style={styles.cardMini}>
-                <AppText
-                  size={"large"}
-                  style={styles.withdrawHeaderTxt}
-                  fontWeight="bold"
-                >
-                  Balance
-                </AppText>
-                <AppText
-                  size="xxxlarge"
-                  fontWeight="heavy"
-                  style={styles.withdrawTxt}
-                >
-                  {balance.format}
                 </AppText>
               </View>
             </View>
@@ -394,6 +392,16 @@ export const WithdrawModal = ({
                   placeholder="Enter phone number"
                   maxLength={20}
                   headerText={"Phone Number:"}
+                  LeftComponent={() => (
+                    <View>
+                      <AppText
+                        fontWeight="bold"
+                        style={{ color: colors.medium }}
+                      >
+                        +234
+                      </AppText>
+                    </View>
+                  )}
                   value={contact}
                   onChangeText={(val) => setContact(val)}
                 />
@@ -459,6 +467,16 @@ export const WithdrawModal = ({
                           keyboardType="numeric"
                           placeholder="Enter phone number"
                           maxLength={20}
+                          LeftComponent={() => (
+                            <View>
+                              <AppText
+                                fontWeight="bold"
+                                style={{ color: colors.medium }}
+                              >
+                                +234
+                              </AppText>
+                            </View>
+                          )}
                           name={"phoneNumber"}
                           headerText={"Phone Number:"}
                         />
@@ -588,7 +606,11 @@ export const WithdrawModal = ({
         {isSuccess && (
           <Animated.View
             entering={enterAnimOther}
-            style={{ alignItems: "center" }}
+            style={{
+              alignItems: "center",
+              backgroundColor: colors.white,
+              marginBottom: 15,
+            }}
           >
             <LottieAnimator
               name="success"

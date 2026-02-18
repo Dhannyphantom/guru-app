@@ -200,7 +200,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
             <View style={styles.stats}>
               <QuizStat
                 value={results?.data?.correctAnswers ?? stat?.correctAnswers}
-                subValue={`of ${results?.data?.totalQuestions ?? 0}`}
+                subValue={`of ${results?.data?.totalQuestions ?? session?.questions?.length ?? "..."}`}
                 msg={"Correct answers"}
               />
               <QuizStat
@@ -271,7 +271,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
           <AppButton title={"Close"} type="white" onPress={hideModal} />
           <AppButton
-            title={`${stat.vis ? "Hide" : ""} My Stats`}
+            title={`${stat.vis ? "Hide" : ""} Corrections`}
             type="accent"
             style={{ alignSelf: "center" }}
             onPress={() => setStat({ ...stat, vis: !stat.vis })}
@@ -291,7 +291,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
           <AppButton title={"Close"} type="white" onPress={hideModal} />
           <AppButton
-            title={`${stat.vis ? "Hide" : ""} My Stats`}
+            title={`${stat.vis ? "Hide" : ""} Corrections`}
             type="accent"
             style={{ alignSelf: "center" }}
             onPress={() => setStat({ ...stat, vis: !stat.vis })}

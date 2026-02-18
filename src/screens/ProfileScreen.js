@@ -278,7 +278,7 @@ const ProfileScreen = () => {
             icon="options"
           />
           <ProfileLink
-            title={"Subscription"}
+            title={"Subscriptions & Withdrawals"}
             icon="wallet"
             yoyo={!user?.subscription?.isActive}
             onPress={() => handleNav("/profile/subscription")}
