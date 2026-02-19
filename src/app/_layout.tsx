@@ -7,6 +7,9 @@ import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import mobileAds, { MaxAdContentRating } from "react-native-google-mobile-ads";
+import { useAppUpdate } from "../hooks/useAppUpdate";
+import { baseUrl } from "../context/apiSlice";
+import ForceUpdateScreen from "../screens/ForceUpdateScreen";
 
 mobileAds()
   .setRequestConfiguration({
@@ -32,7 +35,7 @@ mobileAds()
   .initialize()
   .then((adapterStatuses) => {
     //
-    console.log("Initialization complete!");
+    // console.log("Initialization complete!");
   });
 
 SplashScreen.preventAutoHideAsync();
@@ -43,6 +46,12 @@ const Main = () => {
   const [appIsReady, setAppIsReady] = useState<boolean>(false);
 
   const dispatch = useDispatch();
+  const { status, message, forceUpdate, openStore } = useAppUpdate({
+    endpoint: `${baseUrl}/admin/app_version`,
+    androidPackageName: "com.phantom.guru",
+    iosAppId: "6XXXXXXXXX",
+    checkOnResume: true,
+  });
 
   useEffect(() => {
     async function prepare() {
@@ -80,6 +89,10 @@ const Main = () => {
 
   if (!appIsReady) {
     return null;
+  }
+
+  if (forceUpdate) {
+    return <ForceUpdateScreen onUpdate={openStore} message={message} />;
   }
 
   return (
