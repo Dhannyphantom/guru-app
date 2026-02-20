@@ -193,7 +193,7 @@ const SchoolQuiz = ({ item, onPress }) => {
 
   const handlePress = () => {
     if (item?.status === "active") {
-      onPress && onPress(item, "start");
+      onPress?.(item, "start");
     }
   };
 
@@ -287,7 +287,6 @@ const SchoolModal = ({ closeModal }) => {
   const isTeacher = user?.accountType === "teacher";
   const router = useRouter();
 
-  const [quizModal, setQuizModal] = useState({ vis: false, data: null });
   const [refreshing, setRefreshing] = useState(false);
 
   const [fetchSchoolQuiz, { data: quizzes, isLoading }] =
@@ -305,15 +304,25 @@ const SchoolModal = ({ closeModal }) => {
   };
 
   const onQuizAction = (item) => {
-    setQuizModal({
-      vis: true,
-      data: {
+    closeModal?.();
+    router.push({
+      pathname: "/main/session",
+      params: {
         view: "quiz",
         type: "school",
         schoolId: school?._id,
         quizId: item?._id,
       },
     });
+    // setQuizModal({
+    //   vis: true,
+    //   data: {
+    //     view: "quiz",
+    //     type: "school",
+    //     schoolId: school?._id,
+    //     quizId: item?._id,
+    //   },
+    // });
   };
 
   const getQuizData = async (refresh) => {
@@ -391,11 +400,11 @@ const SchoolModal = ({ closeModal }) => {
         />
       )}
       <LottieAnimator visible={Boolean(isLoading)} absolute wTransparent />
-      <Quiz
+      {/* <Quiz
         startQuiz={quizModal?.vis}
         data={quizModal?.data}
         setStartQuiz={(bool) => setQuizModal({ vis: bool })}
-      />
+      /> */}
     </Screen>
   );
 };

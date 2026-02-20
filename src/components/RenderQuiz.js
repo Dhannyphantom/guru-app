@@ -61,10 +61,13 @@ const initials = {
   bar: 1,
 };
 
-const RenderQuiz = ({ setVisible, data }) => {
+const RenderQuiz = ({ setVisible }) => {
   // data = {view, type}
   const { data: categories, isLoading: catLoad } = useFetchCategoriesQuery();
-  const { isLobby, host, lobbyId } = useLocalSearchParams();
+  const { isLobby, host, lobbyId, view, type, schoolId, quizId } =
+    useLocalSearchParams();
+
+  // console.log({ view, type, schoolId, quizId });
 
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [quizInfo, setQuizInfo] = useState(initials);
@@ -203,14 +206,22 @@ const RenderQuiz = ({ setVisible, data }) => {
   };
 
   const fetchQuiz = async () => {
-    if (data?.type === "school") {
+    if (type === "school") {
+      animProgress.value = 0;
       try {
-        await getQuizQuestions({
-          quizId: data?.quizId,
-          type: data?.type,
-          schoolId: data?.schoolId,
+        const res = await getQuizQuestions({
+          quizId,
+          type,
+          schoolId,
         }).unwrap();
-      } catch (_err) {}
+
+        animProgress.value = withTiming(1, { duration: 1000 }, (finished) => {
+          if (finished && Boolean(res?.data)) {
+            //
+            runOnJS(setQuizInfo)({ ...quizInfo, view: "start" });
+          }
+        });
+      } catch (err) {}
     } else {
       animProgress.value = withTiming(0, { duration: 1 });
       // Student Premium Quiz
@@ -282,11 +293,11 @@ const RenderQuiz = ({ setVisible, data }) => {
   };
 
   useEffect(() => {
-    if (data?.view) {
-      setQuizInfo({ ...quizInfo, view: data?.view });
+    if (view) {
+      setQuizInfo({ ...quizInfo, view: view });
       fetchQuiz();
     }
-  }, [data]);
+  }, [view]);
 
   useEffect(() => {
     if (isMultiplayer) {
@@ -352,7 +363,7 @@ const RenderQuiz = ({ setVisible, data }) => {
           session={session}
           sessionId={quizInfo.sessionId ?? lobbyId}
           data={
-            data?.type === "school"
+            type === "school"
               ? { type: "school", mode: quizInfo?.mode }
               : { type: "premium", mode: quizInfo?.mode }
           }

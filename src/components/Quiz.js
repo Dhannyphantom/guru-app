@@ -1,4 +1,4 @@
-import { Modal, StyleSheet, View } from "react-native";
+import { Modal, StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
@@ -14,6 +14,7 @@ const Quiz = ({ data, startQuiz, setStartQuiz }) => {
           visible={startQuiz}
           onRequestClose={null}
           statusBarTranslucent
+          style={{ backgroundColor: "red" }}
           transparent
           animationType="none"
         >
