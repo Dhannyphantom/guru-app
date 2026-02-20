@@ -364,7 +364,7 @@ const RenderQuiz = ({ setVisible }) => {
           sessionId={quizInfo.sessionId ?? lobbyId}
           data={
             type === "school"
-              ? { type: "school", mode: quizInfo?.mode }
+              ? { type: "school", schoolId, quizId, mode: quizInfo?.mode }
               : { type: "premium", mode: quizInfo?.mode }
           }
           retry={() => setQuizInfo({ ...quizInfo, view: "start" })}

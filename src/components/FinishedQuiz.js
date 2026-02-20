@@ -20,6 +20,15 @@ import { selectUser } from "../context/usersSlice";
 
 const { width, height } = Dimensions.get("screen");
 
+const calculateQuestionCount = (session) => {
+  let count = 0;
+  session.forEach((sess) => {
+    count += sess?.questions?.length;
+  });
+
+  return count;
+};
+
 const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   const [stat, setStat] = useState({
     vis: false,
@@ -81,9 +90,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
     if (data?.type === "school") {
       try {
         await submitQuiz({ ...data, ...session }).unwrap();
-      } catch (error) {
-        console.log(error);
-      }
+      } catch (_error) {}
     } else {
       // upload premium
       const sendData = {
@@ -184,7 +191,9 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
             You earned{" "}
             <AppText size={"xxlarge"} fontWeight="black">
               {Number(
-                results?.data?.pointsEarned ?? stat?.pointsEarned,
+                results?.data?.pointsEarned ??
+                  stat?.pointsEarned ??
+                  stat?.point,
               ).toFixed(1)}
             </AppText>
             {/* <AppText
@@ -199,12 +208,16 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           <View style={{ flex: 1 }}>
             <View style={styles.stats}>
               <QuizStat
-                value={results?.data?.correctAnswers ?? stat?.correctAnswers}
-                subValue={`of ${results?.data?.totalQuestions ?? session?.questions?.length ?? "..."}`}
+                value={
+                  results?.data?.correctAnswers ??
+                  stat?.correctAnswers ??
+                  stat?.answeredCorrectly
+                }
+                subValue={`of ${results?.data?.totalQuestions ?? calculateQuestionCount(session?.questions) ?? "..."}`}
                 msg={"Correct answers"}
               />
               <QuizStat
-                value={results?.data?.accuracy ?? stat?.accuracy}
+                value={results?.data?.accuracy ?? stat?.accuracy ?? stat?.total}
                 subValue={`%`}
                 msg={"Quiz score"}
               />
@@ -244,7 +257,9 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           </View>
           <View style={styles.statMain}>
             <QuizStat
-              value={Number(results?.data?.pointsEarned).toFixed(1)}
+              value={Number(results?.data?.pointsEarned ?? stat?.point).toFixed(
+                1,
+              )}
               bgColor={colors.warning}
               border={colors.warningLight}
               subValue={"GT"}
