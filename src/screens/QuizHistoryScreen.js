@@ -2,7 +2,7 @@ import { Dimensions, FlatList, StyleSheet, View } from "react-native";
 
 import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
-import { schoolQuizHistory } from "../helpers/dataStore";
+// import { schoolQuizHistory } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import Counter from "../components/Counter";
 import { useFetchQuizHistoryQuery } from "../context/schoolSlice";

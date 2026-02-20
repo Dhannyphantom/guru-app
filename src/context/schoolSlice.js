@@ -53,7 +53,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
     fetchQuizHistory: builder.query({
       query: (params) => ({
-        url: `/school/quiz/history`,
+        url: `/school/quiz_session_students`,
         timeout: 15000,
         params,
       }),

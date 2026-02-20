@@ -26,6 +26,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   selectSchool,
   useFetchAssignmentHistoryQuery,
+  useFetchQuizHistoryQuery,
 } from "../context/schoolSlice";
 import { useSelector } from "react-redux";
 import LottieAnimator from "../components/LottieAnimator";
@@ -34,7 +35,7 @@ import getRefresher from "../components/Refresher";
 
 const { width, height } = Dimensions.get("screen");
 
-const StudentScore = ({ item, index, isAssignment }) => {
+const StudentScore = ({ item, index, isAssignment, totalScore }) => {
   const router = useRouter();
 
   // ("AssignmentReview", { item, uploaded: true })
@@ -54,7 +55,7 @@ const StudentScore = ({ item, index, isAssignment }) => {
           {index + 1}
         </AppText>
         <Avatar
-          name={getFullName(item?.student)}
+          name={item?.name ?? getFullName(item?.student)}
           source={item?.student?.avatar?.image}
           horizontal
         />
@@ -91,7 +92,7 @@ const StudentScore = ({ item, index, isAssignment }) => {
               size={"small"}
               style={{ color: colors.medium }}
             >
-              /50
+              /{totalScore}
             </AppText>
           </AppText>
         )}
@@ -108,11 +109,27 @@ const QuizReviewScreen = () => {
 
   const assignmentId = route?.assignmentId;
 
-  const { data, isLoading, refetch } = useFetchAssignmentHistoryQuery({
-    assignmentId,
-    schoolId: school?._id,
-    historyId,
-  });
+  const { data, isLoading, refetch } = useFetchAssignmentHistoryQuery(
+    {
+      assignmentId,
+      schoolId: school?._id,
+      historyId,
+    },
+    { skip: !isAssignment },
+  );
+
+  const {
+    data: quizData,
+    isLoading: quizLoading,
+    refetch: quizRefetch,
+  } = useFetchQuizHistoryQuery(
+    {
+      quizId: assignmentId,
+      schoolId: school?._id,
+      sessionId: historyId,
+    },
+    { skip: isAssignment },
+  );
 
   const [bools, setBools] = useState({ search: false });
   const [refreshing, setRefreshing] = useState(false);
@@ -161,9 +178,14 @@ const QuizReviewScreen = () => {
       )}
       <Animated.FlatList
         layout={LinearTransition.damping(20)}
-        data={data?.data?.participants}
+        data={data?.data?.participants ?? quizData?.students ?? []}
         renderItem={({ item, index }) => (
-          <StudentScore index={index} item={item} isAssignment={isAssignment} />
+          <StudentScore
+            index={index}
+            item={item}
+            totalScore={quizData?.totalScore}
+            isAssignment={isAssignment}
+          />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={getRefresher({ refreshing, onRefresh })}

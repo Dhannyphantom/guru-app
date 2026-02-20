@@ -53,7 +53,7 @@ export const TQuizItem = ({ item, assId, isAssignment }) => {
       <View style={styles.itemMain}>
         <View style={styles.itemCount}>
           <Counter
-            count={item.percentageScore}
+            count={item.percentageScore ?? item?.percentage}
             fontSize={width * 0.18 * 0.28}
             size={width * 0.18}
             percentage
@@ -62,7 +62,7 @@ export const TQuizItem = ({ item, assId, isAssignment }) => {
             fontWeight="heavy"
             style={{ color: colors.medium, marginTop: 6 }}
           >
-            Passed
+            Score
           </AppText>
         </View>
       </View>
@@ -73,7 +73,7 @@ export const TQuizItem = ({ item, assId, isAssignment }) => {
         >
           {isAssignment ? "Date" : "Quiz Date"}:{" \t"}
           <AppText size={"large"} fontWeight="heavy">
-            {dateFormatter(item?.createdAt, "fullDate")}
+            {dateFormatter(item?.createdAt ?? item?.date, "fullDate")}
           </AppText>
         </AppText>
         <AppText
@@ -141,7 +141,6 @@ const TeacherQuizScreen = () => {
 
     if (isActive) {
       // END QUIZ
-      console.log({ status });
       try {
         await changeSchoolQuiz({
           status,
@@ -159,12 +158,13 @@ const TeacherQuizScreen = () => {
           timer: 3000,
         });
       } catch (err) {
+        console.log(err);
         setPopper({
           vis: true,
           msg: "Something went wrong",
           timer: 4000,
           type: "failed",
-          cb: () => router.back(),
+          // cb: () => router.back(),
         });
       }
     } else if (isReview) {
@@ -272,8 +272,8 @@ const TeacherQuizScreen = () => {
                   isActive
                     ? "Finish Quiz"
                     : isReview
-                    ? "Release Quiz Scores"
-                    : "Start Quiz"
+                      ? "Release Quiz Scores"
+                      : "Start Quiz"
                 }
               />
 
@@ -305,11 +305,14 @@ const TeacherQuizScreen = () => {
         <FlatList
           data={history?.data}
           keyExtractor={(item) => item._id}
+          refreshControl={getRefresher({ refreshing, onRefresh })}
           ListEmptyComponent={() => (
             <ListEmpty message="No quiz history yet" style={styles.empty} />
           )}
           contentContainerStyle={{ paddingBottom: height * 0.125 }}
-          renderItem={({ item, index }) => <TQuizItem item={item} />}
+          renderItem={({ item, index }) => (
+            <TQuizItem item={item} assId={routeData?._id} />
+          )}
         />
         <LottieAnimator visible={isLoading} absolute />
       </View>
