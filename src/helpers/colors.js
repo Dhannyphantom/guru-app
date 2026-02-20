@@ -1,6 +1,6 @@
 export default {
   // primary: "#4285f5",
-  // primary: "#494AE3",
+  // primary: "hsl(240, 73%, 59%)",
   primary: "#689F38",
   primaryLight: "#C5E1A5",
   primaryLighter: "#DCEDC8",

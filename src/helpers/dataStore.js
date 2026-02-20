@@ -4,10 +4,8 @@ import homeworkImg from "../../assets/images/homework.png";
 import bellImg from "../../assets/images/bell.png";
 import quizImage from "../../assets/images/quiz.png";
 
-import seniorImage from "../../assets/images/school.png";
 import classroomImg from "../../assets/images/online-learning.png";
 import resultImg from "../../assets/images/result.png";
-import timerImg from "../../assets/images/clock.png";
 import goldMedalImg from "../../assets/images/gold-medal.png";
 import colors from "./colors";
 import {
@@ -584,45 +582,6 @@ export const rewards = [
     _id: nanoid(),
     title: "You invited Sara West_@shallywest",
     point: 1000,
-  },
-];
-
-export const schoolQuiz = [
-  {
-    _id: nanoid(),
-    status: "pending",
-    icon: timerImg,
-    teacher: {
-      name: "Peter Parker",
-    },
-    date: new Date(2024, 10, 20),
-    expiry: new Date(2024, 10, 21),
-    message: "Take this quiz to assess today's Biology",
-    subject: "Biology",
-  },
-  {
-    _id: nanoid(),
-    status: "result_pending",
-    icon: resultImg,
-    teacher: {
-      name: "Peter Parker",
-    },
-    date: new Date(2024, 10, 20),
-    expiry: new Date(2024, 10, 21),
-    message: "Take this quiz to assess today's Biology",
-    subject: "Biology",
-  },
-  {
-    _id: nanoid(),
-    status: "result",
-    icon: goldMedalImg,
-    teacher: {
-      name: "Peter Parker",
-    },
-    date: new Date(2024, 10, 20),
-    expiry: new Date(2024, 10, 21),
-    message: "Take this quiz to assess today's Biology",
-    subject: "Biology",
   },
 ];
 

@@ -20,10 +20,6 @@ import { schoolActions } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
 import AppButton from "../components/AppButton";
 
-import classroomImg from "../../assets/images/online-learning.png";
-import resultImg from "../../assets/images/result.png";
-import timerImg from "../../assets/images/clock.png";
-
 import Animated, {
   Extrapolation,
   interpolate,
@@ -42,7 +38,7 @@ import Counter from "../components/Counter";
 import {
   selectSchool,
   useFetchSchoolQuery,
-  useLazyFetchSchoolQuery,
+  // useLazyFetchSchoolQuery,
   useLazyFetchSchoolQuizQuery,
 } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
@@ -170,82 +166,122 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
 };
 
 const SchoolQuiz = ({ item, onPress }) => {
-  let statusText, btnText, iconImg;
+  let statusText, btnText, badgeColor, badgeBg;
+
   switch (item?.status) {
     case "active":
-      statusText = "pending";
-      btnText = "START QUIZ";
-      iconImg = timerImg;
-
+      statusText = "Pending";
+      btnText = "Start Quiz";
+      badgeColor = colors.primaryDeeper;
+      badgeBg = colors.primaryLighter;
       break;
+
     case "result":
-      btnText = "SEE RESULT";
-      statusText = "result";
-      iconImg = resultImg;
-
+      statusText = "Result";
+      btnText = "See Result";
+      badgeColor = colors.success;
+      badgeBg = colors.successLight;
       break;
+
     case "review":
     case "submitted":
-      statusText = `quiz ${item?.status}`;
-      iconImg = classroomImg;
+      statusText = "In Review";
+      badgeColor = colors.warning;
+      badgeBg = colors.warningLight;
       break;
   }
 
   const handlePress = () => {
-    if (item?.status == "active") {
+    if (item?.status === "active") {
       onPress && onPress(item, "start");
     }
   };
 
   return (
-    <View style={styles.modalQuizItem}>
-      <Image source={iconImg} style={styles.modalQuizItemImg} />
-      <AppText size={20} fontWeight="bold" style={styles.modalQuizItemSbj}>
-        {item?.subject?.name} Quiz
-      </AppText>
-      <AppText size={40} fontWeight="black" style={styles.modalQuizItemStat}>
-        {statusText}
-      </AppText>
-      <View style={styles.separator} />
-      <Avatar
-        size={width * 0.3}
-        source={item?.teacher?.avatar?.image}
-        textStyle={styles.modalQuizItemAvatar}
-        border={{ width: 2, color: colors.primaryDeep }}
-        name={`${item?.teacher?.preffix} ${item?.teacher?.firstName} ${item?.teacher?.lastName}`}
-      />
-      <AppText fontWeight="bold" style={styles.modalQuizItemDate}>
-        {dateFormatter(item.date, "feed")}
-      </AppText>
-      {item?.status != "review" ? (
-        <AppText
-          fontWeight="medium"
-          size={"large"}
-          style={styles.modalQuizItemMsg}
-        >
-          {item?.title}
-        </AppText>
-      ) : (
-        <AppText
-          fontWeight="bold"
-          size={"large"}
-          style={styles.modalQuizItemRev}
-        >
-          In review...
-        </AppText>
-      )}
-      {Boolean(btnText) && (
-        <AppButton
-          style={styles.modalQuizItemBtn}
-          title={btnText}
-          onPress={handlePress}
+    <View style={styles.quizCard} onPress={handlePress}>
+      {/* Top Row */}
+      <View style={styles.quizHeader}>
+        <View style={styles.quizIconCont}>
+          <Image source={item?.subject?.image} style={styles.quizIcon} />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <AppText
+            fontWeight="heavy"
+            style={{ textTransform: "capitalize" }}
+            size="large"
+          >
+            {item?.subject?.name}
+          </AppText>
+
+          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+            <AppText
+              size="small"
+              fontWeight="bold"
+              style={{ color: badgeColor }}
+            >
+              {statusText}
+            </AppText>
+          </View>
+        </View>
+        {/* Button */}
+        {Boolean(btnText) && (
+          <AppButton
+            title={btnText}
+            contStyle={styles.quizBtn}
+            onPress={handlePress}
+          />
+        )}
+      </View>
+
+      {/* Teacher Row */}
+      <View style={styles.quizTeacherRow}>
+        <Avatar
+          size={40}
+          source={item?.teacher?.avatar?.image}
+          border={{ width: 1, color: colors.primaryDeep }}
+          name={`${item?.teacher?.username}`}
         />
-      )}
+
+        <View style={{ marginLeft: 10 }}>
+          <AppText
+            fontWeight="bold"
+            style={{ textTransform: "capitalize" }}
+            size="small"
+          >
+            {item?.teacher?.preffix} {item?.teacher?.firstName}{" "}
+            {item?.teacher?.lastName}
+          </AppText>
+          <AppText size="xsmall" style={{ color: colors.medium }}>
+            {dateFormatter(item.date, "feed")}
+          </AppText>
+        </View>
+
+        {/* Title */}
+        <View style={{ flex: 1, alignItems: "flex-end" }}>
+          <AppText
+            fontWeight="medium"
+            size="small"
+            style={{ color: colors.medium }}
+            // numberOfLines={2}
+          >
+            Quiz Title
+          </AppText>
+          <AppText
+            fontWeight="bold"
+            size="large"
+            style={styles.quizTitle}
+            // numberOfLines={2}
+          >
+            {item?.title}
+          </AppText>
+        </View>
+      </View>
     </View>
   );
 };
 
-const SchoolModal = ({ data, closeModal }) => {
+const SchoolModal = ({ closeModal }) => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
   const isTeacher = user?.accountType === "teacher";
@@ -323,6 +359,7 @@ const SchoolModal = ({ data, closeModal }) => {
             keyExtractor={(item) => item._id}
             ListEmptyComponent={() => (
               <ListEmpty
+                vis={!isLoading}
                 message={
                   "You don't have any quiz yet.\nCreate one now for your students"
                 }
@@ -342,6 +379,7 @@ const SchoolModal = ({ data, closeModal }) => {
           keyExtractor={(item) => item._id}
           ListEmptyComponent={() => (
             <ListEmpty
+              vis={!isLoading}
               message={
                 "There are not quiz for you yet.\nWait for your teachers to start one"
               }
@@ -816,6 +854,59 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: colors.extraLight,
     marginVertical: 30,
+  },
+  quizCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 15,
+    marginVertical: 8,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
+
+    width: width * 0.9,
+  },
+
+  quizHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  quizIconCont: {
+    width: 55,
+    height: 55,
+    borderRadius: 12,
+    backgroundColor: colors.extraLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+
+  quizIcon: {
+    width: 30,
+    height: 30,
+  },
+
+  badge: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 50,
+    alignSelf: "flex-start",
+  },
+
+  quizTeacherRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 15,
+  },
+
+  quizTitle: {
+    // marginTop: 12,
+    // color: colors.medium,
+  },
+
+  quizBtn: {
+    marginTop: 15,
   },
   teacherQuiz: {
     backgroundColor: colors.light,
