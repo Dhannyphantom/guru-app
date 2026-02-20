@@ -5,16 +5,19 @@ import AppHeader from "../components/AppHeader";
 // import { schoolQuizHistory } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import Counter from "../components/Counter";
-import { useFetchQuizHistoryQuery } from "../context/schoolSlice";
+import {
+  selectSchool,
+  useFetchUserQuizHistoryQuery,
+} from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import ListEmpty from "../components/ListEmpty";
+import { useSelector } from "react-redux";
+import { dateFormatter } from "../helpers/helperFunctions";
 
 const { width, height } = Dimensions.get("screen");
 
 export const QuizItem = ({ item, index, isAssignment }) => {
-  const percent = Math.floor(
-    (item.answeredCorrectly / item.numberOfQuestions) * 100,
-  );
+  const percent = Math.floor((item.score / item.totalScore) * 100);
   let bgColor, borderColor;
   if (percent < 50) {
     bgColor = colors.heartDeep;
@@ -29,13 +32,16 @@ export const QuizItem = ({ item, index, isAssignment }) => {
   return (
     <View style={styles.item}>
       <Counter count={index + 1} style={styles.number} size={width * 0.1} />
-      <View>
+      <View style={{ flex: 1 }}>
         <AppText
           size={"xlarge"}
           fontWeight="black"
           style={styles.itemHeaderTxt}
         >
           {item.subject}
+        </AppText>
+        <AppText fontWeight="heavy" style={{ marginBottom: 10 }}>
+          {item.quizTitle}
         </AppText>
         <AppText style={styles.itemPropTxt} size={"large"} fontWeight="heavy">
           Teacher:{"  "}
@@ -46,13 +52,13 @@ export const QuizItem = ({ item, index, isAssignment }) => {
         <AppText style={styles.itemPropTxt} size={"large"} fontWeight="heavy">
           Date:{"  "}
           <AppText fontWeight="medium" style={styles.itemValueTxt}>
-            {item.date}
+            {dateFormatter(item?.sessionDate, "fullDate")}
           </AppText>
         </AppText>
         <AppText style={styles.itemPropTxt} size={"large"} fontWeight="heavy">
           Score:{"  "}
           <AppText fontWeight="medium" style={styles.itemValueTxt}>
-            {item.answeredCorrectly}/{item.numberOfQuestions}
+            {item.score}/{item.totalScore}
           </AppText>
         </AppText>
       </View>
@@ -77,7 +83,10 @@ export const QuizItem = ({ item, index, isAssignment }) => {
 };
 
 const QuizHistoryScreen = () => {
-  const { data, isLoading, error, isError } = useFetchQuizHistoryQuery();
+  const school = useSelector(selectSchool);
+  const { data, isLoading, error, isError } = useFetchUserQuizHistoryQuery({
+    schoolId: school._id,
+  });
 
   return (
     <View style={styles.container}>
@@ -86,8 +95,8 @@ const QuizHistoryScreen = () => {
         <AppText style={styles.error}>{JSON.stringify(error.message)}</AppText>
       )}
       <FlatList
-        data={data?.history ?? []}
-        keyExtractor={(item) => item._id}
+        data={data?.results ?? []}
+        keyExtractor={(item) => item._id ?? item?.sessionId}
         contentContainerStyle={{ paddingBottom: height * 0.12 }}
         ListEmptyComponent={
           <ListEmpty
@@ -131,10 +140,13 @@ const styles = StyleSheet.create({
     color: colors.medium,
     marginBottom: 5,
   },
-  itemValueTxt: {},
+  itemValueTxt: {
+    textTransform: "capitalize",
+  },
   itemHeaderTxt: {
+    textTransform: "capitalize",
     color: colors.primaryDeeper,
-    marginBottom: 20,
+    // marginBottom: 20,
   },
   number: {
     marginRight: 15,

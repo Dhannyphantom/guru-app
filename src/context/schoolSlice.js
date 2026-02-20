@@ -46,14 +46,21 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
     fetchAssignmentHistory: builder.query({
       query: (params) => ({
-        url: `/school/assignment/history`,
+        url: "/school/assignment/history",
         timeout: 15000,
         params,
       }),
     }),
     fetchQuizHistory: builder.query({
       query: (params) => ({
-        url: `/school/quiz_session_students`,
+        url: "/school/quiz_session_students",
+        timeout: 15000,
+        params,
+      }),
+    }),
+    fetchUserQuizHistory: builder.query({
+      query: (params) => ({
+        url: `/school/quiz_history_user`,
         timeout: 15000,
         params,
       }),
@@ -449,6 +456,7 @@ export const {
   useFetchAnnouncementsQuery,
   useChangeSchoolQuizMutation,
   useFetchQuizHistoryQuery,
+  useFetchUserQuizHistoryQuery,
   useFetchAssignmentsQuery,
   useFetchSchoolLeaderboardQuery,
   useSubmitQuizMutation,

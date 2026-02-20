@@ -29,6 +29,7 @@ const Counter = ({ count, size = 50, percentage, style, fontSize }) => {
           borderBottomWidth: 3,
           borderColor: percentage ? bgColor : colors.primary,
         },
+        style,
       ]}
     >
       <AppText

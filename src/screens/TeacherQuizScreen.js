@@ -169,6 +169,29 @@ const TeacherQuizScreen = () => {
       }
     } else if (isReview) {
       console.log("Test scores released!");
+      try {
+        await changeSchoolQuiz({
+          status: "result",
+          quizId: routeData?._id,
+          schoolId: school?._id,
+        }).unwrap();
+        setPopper({
+          vis: true,
+          msg: "Results sent to students",
+          type: "success",
+          cb: async () => await onRefresh(),
+          timer: 3000,
+        });
+      } catch (err) {
+        console.log(err);
+        setPopper({
+          vis: true,
+          msg: "Something went wrong",
+          timer: 4000,
+          type: "failed",
+          // cb: () => router.back(),
+        });
+      }
     } else {
       router.push({
         pathname: "/main/new_quiz",
