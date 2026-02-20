@@ -46,10 +46,10 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
-import Quiz from "../components/Quiz";
 import { useRouter } from "expo-router";
 import PopMessage from "../components/PopMessage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppHeader from "../components/AppHeader";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -185,9 +185,9 @@ const SchoolQuiz = ({ item, onPress }) => {
 
     case "review":
     case "submitted":
-      statusText = "In Review";
+      statusText = "Submitted";
       badgeColor = colors.warning;
-      badgeBg = colors.warningLight;
+      badgeBg = colors.warningLight + 30;
       break;
   }
 
@@ -240,7 +240,7 @@ const SchoolQuiz = ({ item, onPress }) => {
           size={40}
           source={item?.teacher?.avatar?.image}
           border={{ width: 1, color: colors.primaryDeep }}
-          name={`${item?.teacher?.username}`}
+          // name={`${}`}
         />
 
         <View style={{ marginLeft: 10 }}>
@@ -281,7 +281,7 @@ const SchoolQuiz = ({ item, onPress }) => {
   );
 };
 
-const SchoolModal = ({ closeModal }) => {
+export const SchoolModal = () => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
   const isTeacher = user?.accountType === "teacher";
@@ -300,11 +300,11 @@ const SchoolModal = ({ closeModal }) => {
       //  ("QuizHistory");
       router.push("/school/quiz_history");
     }
-    closeModal();
+    // closeModal();
   };
 
   const onQuizAction = (item) => {
-    closeModal?.();
+    // closeModal?.();
     router.push({
       pathname: "/main/session",
       params: {
@@ -341,45 +341,46 @@ const SchoolModal = ({ closeModal }) => {
   }, []);
 
   return (
-    <Screen style={styles.modalQuiz}>
-      <View style={styles.close}>
-        <AppButton
-          title={isTeacher ? "New Quiz" : "History"}
-          type="white"
-          onPress={navigateHistory}
-          contStyle={{ marginRight: 10 }}
-        />
-        <AppButton
-          title={"Close"}
-          type="warn"
-          onPress={closeModal}
-          icon={{ left: true, name: "close", color: colors.white }}
-        />
-      </View>
+    <View style={styles.modalQuiz}>
+      <AppHeader
+        title="School Quiz"
+        Component={() => (
+          <View style={styles.close}>
+            <AppButton
+              title={isTeacher ? "New Quiz" : "History"}
+              type="white"
+              onPress={navigateHistory}
+              contStyle={{ marginRight: 10 }}
+            />
+          </View>
+        )}
+      />
 
       {isTeacher ? (
-        <View style={styles.list}>
-          <FlatList
-            data={quizzes?.data}
-            refreshControl={getRefresher({
-              refreshing,
-              onRefresh: getQuizData,
-            })}
-            keyExtractor={(item) => item._id}
-            ListEmptyComponent={() => (
-              <ListEmpty
-                vis={!isLoading}
-                message={
-                  "You don't have any quiz yet.\nCreate one now for your students"
-                }
-              />
-            )}
-            contentContainerStyle={{ paddingVertical: 15 }}
-            renderItem={({ item, index }) => (
-              <TeacherQuiz item={item} closeModal={closeModal} index={index} />
-            )}
-          />
-        </View>
+        <FlatList
+          data={quizzes?.data}
+          refreshControl={getRefresher({
+            refreshing,
+            onRefresh: getQuizData,
+          })}
+          keyExtractor={(item) => item._id}
+          ListEmptyComponent={() => (
+            <ListEmpty
+              vis={!isLoading}
+              message={
+                "You don't have any quiz yet.\nCreate one now for your students"
+              }
+            />
+          )}
+          contentContainerStyle={{ paddingVertical: 15 }}
+          renderItem={({ item, index }) => (
+            <TeacherQuiz
+              item={item}
+              closeModal={() => router.back()}
+              index={index}
+            />
+          )}
+        />
       ) : (
         <FlatList
           data={quizzes?.data}
@@ -405,7 +406,7 @@ const SchoolModal = ({ closeModal }) => {
         data={quizModal?.data}
         setStartQuiz={(bool) => setQuizModal({ vis: bool })}
       /> */}
-    </Screen>
+    </View>
   );
 };
 
@@ -422,6 +423,7 @@ const SchoolActions = ({ data }) => {
     }
     const handleActionPress = () => {
       if (Boolean(item.nav)) {
+        // return console.log({ item });
         router.push({
           pathname: item?.nav?.screen,
           params: { data: JSON.stringify(item?.nav?.data) },
@@ -459,7 +461,7 @@ const SchoolActions = ({ data }) => {
     );
   };
 
-  let ModalComponet = SchoolModal;
+  let ModalComponet;
   switch (modal?.data?.name) {
     case "Classes":
       ModalComponet = ClassModal;
@@ -761,9 +763,7 @@ const styles = StyleSheet.create({
     marginBottom: 120,
   },
   close: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-end",
+    marginTop: 5,
     marginRight: 15,
   },
   filterBtn: {
@@ -787,15 +787,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 15,
   },
-  list: {
-    width: width * 0.96,
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 15,
-    marginBottom: 15,
-    elevation: 20,
-    alignSelf: "center",
-  },
+
   main: {
     flex: 1,
     justifyContent: "center",
@@ -805,9 +797,9 @@ const styles = StyleSheet.create({
   modalQuiz: {
     width,
     alignItems: "center",
-    marginTop: 10,
+    // marginTop: 10,
     minHeight: height * 0.5,
-    backgroundColor: "white",
+    // backgroundColor: "white",
   },
   modalQuizItem: {
     width: width * 0.94,
@@ -871,7 +863,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
     marginVertical: 8,
     boxShadow: `2px 8px 18px ${colors.primary}25`,
-
     width: width * 0.9,
   },
 
@@ -920,12 +911,13 @@ const styles = StyleSheet.create({
   teacherQuiz: {
     backgroundColor: colors.light,
     flexDirection: "row",
-    width: width * 0.9,
+    width: width * 0.92,
     borderRadius: 12,
     padding: 10,
     marginBottom: 10,
+    marginHorizontal: width * 0.1,
     alignSelf: "center",
-    elevation: 1,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
   },
   tQuizMain: {
     marginLeft: 10,

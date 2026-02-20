@@ -5,12 +5,15 @@ import AppHeader from "../components/AppHeader";
 import { schoolQuizHistory } from "../helpers/dataStore";
 import colors from "../helpers/colors";
 import Counter from "../components/Counter";
+import { useFetchQuizHistoryQuery } from "../context/schoolSlice";
+import LottieAnimator from "../components/LottieAnimator";
+import ListEmpty from "../components/ListEmpty";
 
 const { width, height } = Dimensions.get("screen");
 
 export const QuizItem = ({ item, index, isAssignment }) => {
   const percent = Math.floor(
-    (item.answeredCorrectly / item.numberOfQuestions) * 100
+    (item.answeredCorrectly / item.numberOfQuestions) * 100,
   );
   let bgColor, borderColor;
   if (percent < 50) {
@@ -74,15 +77,29 @@ export const QuizItem = ({ item, index, isAssignment }) => {
 };
 
 const QuizHistoryScreen = () => {
+  const { data, isLoading, error, isError } = useFetchQuizHistoryQuery();
+
   return (
     <View style={styles.container}>
       <AppHeader title="My School Quizzes" />
+      {isError && (
+        <AppText style={styles.error}>{JSON.stringify(error.message)}</AppText>
+      )}
       <FlatList
-        data={schoolQuizHistory}
+        data={data?.history ?? []}
         keyExtractor={(item) => item._id}
         contentContainerStyle={{ paddingBottom: height * 0.12 }}
+        ListEmptyComponent={
+          <ListEmpty
+            vis={!isLoading}
+            message={
+              "You haven't participated in any school quiz yet\n\nEither participate in one now\nOR\n Inform your teachers to create quiz sessions for your class"
+            }
+          />
+        }
         renderItem={({ item, index }) => <QuizItem index={index} item={item} />}
       />
+      <LottieAnimator visible={isLoading} wTransparent absolute />
     </View>
   );
 };
@@ -94,6 +111,11 @@ const styles = StyleSheet.create({
     flex: 1,
     // justifyContent: "center",
     // alignItems: "center",
+  },
+  error: {
+    textAlign: "center",
+    color: colors.heart,
+    marginVertical: 10,
   },
   item: {
     width: width * 0.95,

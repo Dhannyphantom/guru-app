@@ -5,56 +5,43 @@ import colors from "../helpers/colors";
 
 const Counter = ({ count, size = 50, percentage, style, fontSize }) => {
   const fontSizer = fontSize ?? size * 0.45;
-  let bgColor, overlayColor, txtColor;
+  let bgColor;
 
   if (percentage) {
     if (count > 70) {
       bgColor = colors.primary;
-      overlayColor = colors.primaryLight;
-      txtColor = colors.white;
     } else if (count > 50) {
       bgColor = colors.warning;
-      overlayColor = colors.warningLight;
-      txtColor = colors.heartLighter;
     } else {
       bgColor = colors.heart;
-      overlayColor = colors.heartLight;
-      txtColor = colors.heartLighter;
     }
   }
 
   return (
     <View
       style={[
-        styles.overlay,
+        styles.container,
         {
-          backgroundColor: percentage ? overlayColor : colors.primaryLighter,
-          ...style,
+          width: size,
+          height: size,
+          backgroundColor: percentage ? bgColor + 20 : colors.primary + 20,
+          borderWidth: 1,
+          borderBottomWidth: 3,
+          borderColor: percentage ? bgColor : colors.primary,
         },
       ]}
     >
-      <View
-        style={[
-          styles.container,
-          {
-            width: size,
-            height: size,
-            backgroundColor: percentage ? bgColor : colors.primary,
-          },
-        ]}
+      <AppText
+        style={{
+          ...styles.text,
+          color: percentage ? bgColor : colors.primary,
+        }}
+        fontWeight="heavy"
+        size={fontSizer}
       >
-        <AppText
-          style={{
-            ...styles.text,
-            color: percentage ? txtColor : colors.white,
-          }}
-          fontWeight="heavy"
-          size={fontSizer}
-        >
-          {count}
-          {percentage ? "%" : ""}
-        </AppText>
-      </View>
+        {count}
+        {percentage ? "%" : ""}
+      </AppText>
     </View>
   );
 };

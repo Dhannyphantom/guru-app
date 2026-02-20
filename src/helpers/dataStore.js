@@ -466,6 +466,7 @@ export const schoolActions = [
     name: "Quiz",
     image: quizImage,
     bgColor: colors.primaryLight,
+    nav: { screen: "/school/quiz_list", data: {} },
     total: 2,
   },
   {

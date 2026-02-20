@@ -51,6 +51,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         params,
       }),
     }),
+    fetchQuizHistory: builder.query({
+      query: (params) => ({
+        url: `/school/quiz/history`,
+        timeout: 15000,
+        params,
+      }),
+    }),
     fetchSchoolLeaderboard: builder.query({
       query: ({
         limit = 50,
@@ -441,6 +448,7 @@ export const {
   useCreateSchoolQuizMutation,
   useFetchAnnouncementsQuery,
   useChangeSchoolQuizMutation,
+  useFetchQuizHistoryQuery,
   useFetchAssignmentsQuery,
   useFetchSchoolLeaderboardQuery,
   useSubmitQuizMutation,
