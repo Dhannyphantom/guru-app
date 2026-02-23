@@ -1,8 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Dimensions,
   KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -39,7 +38,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LottieAnimator from "../components/LottieAnimator";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const SUBMIT_PROMPT = {
   title: "Submit Assignment",
@@ -115,8 +114,8 @@ const SolveScreen = () => {
   const [prompt, setPrompt] = useState({ vis: false, data: null });
 
   const editorRef = useRef(null);
-  const isChanged = cached != text;
-  const isEmpty = text == "";
+  const isChanged = cached !== text;
+  const isEmpty = text === "";
   const insets = useSafeAreaInsets();
   const CACHE_KEY = `assignments_${routeData?._id}`;
 
@@ -144,7 +143,7 @@ const SolveScreen = () => {
       case "submit":
         await AsyncStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ text, isSubmitted: true })
+          JSON.stringify({ text, isSubmitted: true }),
         );
 
         try {
@@ -170,7 +169,7 @@ const SolveScreen = () => {
           });
           await AsyncStorage.setItem(
             CACHE_KEY,
-            JSON.stringify({ text, isSubmitted: false })
+            JSON.stringify({ text, isSubmitted: false }),
           );
         }
 
@@ -213,6 +212,7 @@ const SolveScreen = () => {
 
     if (cachedData) {
       const cachedObj = JSON.parse(cachedData);
+      editorRef?.current?.setContentHTML(cachedObj?.text);
       setCached(cachedObj?.text);
       setText(cachedObj?.text);
       setBools({
@@ -288,6 +288,7 @@ const SolveScreen = () => {
             useContainer={false}
             initialContentHTML={cached}
             disabled={bools.isSubmitted}
+            initialFocus
             placeholder="Start working on your assignment here..."
             editorInitializedCallback={onEditorInitialized}
             // onInput={onInputText}

@@ -111,6 +111,7 @@ const RenderItem = ({ item, index }) => {
 };
 
 const RenderAssignment = ({ item, index }) => {
+  console.log(item.list);
   return (
     <View style={styles.ass}>
       <View style={styles.assHeader}>
@@ -119,9 +120,7 @@ const RenderAssignment = ({ item, index }) => {
           <AppText fontWeight="bold" style={styles.name} size={"large"}>
             {item?.teacher?.preffix} {getFullName(item?.teacher)}
           </AppText>
-          {/* <AppText size={"small"} fontWeight="medium" style={styles.assSubj}>
-            {item?.subject} Teacher
-          </AppText> */}
+
           <AppText style={styles.assStat}>
             {item?.pendingCount} pending assignments
           </AppText>

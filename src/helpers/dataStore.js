@@ -469,14 +469,7 @@ export const schoolActions = [
     nav: { screen: "/school/quiz_list", data: {} },
     total: 2,
   },
-  {
-    _id: nanoid(),
-    name: "Announcements",
-    image: bellImg,
-    bgColor: colors.accentLighter,
-    total: 2,
-    nav: { screen: "/school/notifications", data: { screen: "School" } },
-  },
+
   {
     _id: nanoid(),
     name: "Assignments",
@@ -484,6 +477,14 @@ export const schoolActions = [
     bgColor: colors.heartLighter,
     total: 2,
     nav: { screen: "/school/assignment/", data: {} },
+  },
+  {
+    _id: nanoid(),
+    name: "Announcements",
+    image: bellImg,
+    bgColor: colors.accentLighter,
+    total: 2,
+    nav: { screen: "/school/notifications", data: { screen: "School" } },
   },
   {
     _id: nanoid(),
