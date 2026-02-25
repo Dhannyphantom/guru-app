@@ -244,7 +244,7 @@ const RenderUserDetail = ({
               style={{ marginRight: 30, backgroundColor: colors.unchange }}
             />
             <Points
-              value={profile?.user?.point}
+              value={profile?.user?.totalPoints}
               style={{ backgroundColor: colors.unchange }}
             />
           </View>

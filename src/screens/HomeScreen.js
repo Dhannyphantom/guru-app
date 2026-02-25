@@ -37,6 +37,7 @@ import {
 import { useFetchSchoolQuery } from "../context/schoolSlice";
 import WebLayout from "../components/WebLayout";
 import Invited from "../components/Invited";
+import TeacherHomeScreen from "./TeacherHomeScreen";
 import getRefresher from "@/src/components/Refresher";
 import { useRouter } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
@@ -228,6 +229,8 @@ const HomeScreen = () => {
       }
     }
   }, [error]);
+
+  if (user?.accountType === "teacher") return <TeacherHomeScreen />;
 
   return (
     <Screen style={styles.container}>

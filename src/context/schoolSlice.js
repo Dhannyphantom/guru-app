@@ -1,12 +1,16 @@
 // import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createSlice } from "@reduxjs/toolkit";
 import { apiSlice } from "./apiSlice";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // import { getFormData } from "../helpers/helperFunctions";
 
 const initialState = {
   school: null,
   verified: false,
 };
+
+const DASHBOARD_CACHE_KEY = "school_dashboard";
+const DASHBOARD_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 export const extendedUserApiSlice = apiSlice.injectEndpoints({
   overrideExisting: true,
@@ -410,6 +414,40 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
+    fetchSchoolDashboard: builder.query({
+      queryFn: async (schoolId, _queryApi, _extraOptions, baseQuery) => {
+        // ── 1. Try cache first ───────────────────────────────────────
+        try {
+          const cached = await AsyncStorage.getItem(
+            `${DASHBOARD_CACHE_KEY}_${schoolId}`,
+          );
+          if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+            if (age < DASHBOARD_CACHE_TTL) {
+              return { data: { ...data, _fromCache: true, _cacheAge: age } };
+            }
+          }
+        } catch (_) {}
+
+        // ── 2. Fetch fresh ───────────────────────────────────────────
+        const result = await baseQuery(`/school/${schoolId}/dashboard`);
+
+        if (result.error) return { error: result.error };
+
+        // ── 3. Persist to AsyncStorage ───────────────────────────────
+        try {
+          await AsyncStorage.setItem(
+            `${DASHBOARD_CACHE_KEY}_${schoolId}`,
+            JSON.stringify({ data: result.data, timestamp: Date.now() }),
+          );
+        } catch (_) {}
+
+        return { data: { ...result.data, _fromCache: false } };
+      },
+      // RTK cache: keep in memory for 5 mins between re-mounts
+      keepUnusedDataFor: 300,
+    }),
   }),
 });
 
@@ -446,6 +484,7 @@ export const {
   useTransferStudentsMutation,
   useAddStudentToClassMutation,
   useRemoveStudentFromClassMutation,
+  useFetchSchoolDashboardQuery,
   useAddTeacherToClassMutation,
   useRemoveTeacherFromClassMutation,
   useCreateAssignmentMutation,
