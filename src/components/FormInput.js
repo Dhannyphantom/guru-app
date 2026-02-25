@@ -382,12 +382,12 @@ const DayMonthYearSelector = ({
     init ?? {
       day: 1,
       month: "January",
-      year: null,
+      year: "2026",
     },
   );
 
   const monthIdx = calenderMonths.findIndex(
-    (obj) => obj.name == selected.month,
+    (obj) => obj.name === selected.month,
   );
 
   const daysList = Array(calenderMonths[monthIdx].days)
@@ -478,7 +478,7 @@ const DayMonthYearSelector = ({
             contentOffset={{ x: 0, y: yearsListOffest }}
           >
             {yearsData.map((yearValue, idx) => {
-              const isSelected = selected.year === yearValue;
+              const isSelected = selected.year === String(yearValue);
               return (
                 <TouchableOpacity
                   onPress={() => setSelected({ ...selected, year: yearValue })}

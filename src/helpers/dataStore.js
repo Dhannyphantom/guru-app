@@ -30,6 +30,14 @@ export const appData = {
 
 export const ngLocale = nigeriaLocale;
 
+export const subjectCategories = Array(4)
+  .fill("0")
+  .map((i) => ({ _id: nanoid() }));
+
+export const dummySubjects = Array(6)
+  .fill("0")
+  .map((i) => ({ _id: nanoid() }));
+
 export const getClassColor = (level) => {
   const colorsObj = {
     "jss 1": colors.primary,

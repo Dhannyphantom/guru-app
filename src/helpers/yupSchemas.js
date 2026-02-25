@@ -202,6 +202,33 @@ const validationSchemaLogin = Yup.object().shape({
   password: Yup.string().min(8).strongPassword().required().label("Password"),
 });
 
+export const assignmentDateSchema = Yup.object().shape({
+  date: Yup.string()
+    .required("Date of Submission is required")
+    .test(
+      "is-after-today",
+      "Date must be from tomorrow onwards",
+      function (value) {
+        if (!value) return false;
+
+        const selectedDate = new Date(value);
+        const today = new Date();
+
+        // Reset time to midnight for accurate comparison
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        return selectedDate >= tomorrow;
+      },
+    ),
+});
+
+export const assignmentDateInitials = {
+  date: "",
+};
+
 export const subInitials = {
   // card_number: "",
   // card_number: "5531886652142950",

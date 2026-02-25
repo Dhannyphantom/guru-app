@@ -13,15 +13,22 @@ import AppText from "./AppText";
 
 const { width, height } = Dimensions.get("screen");
 
-const AppLogo = ({ hideName = false, onPress, size = 60 }) => {
+const AppLogo = ({ hideName = false, onPress, size = 40 }) => {
   return (
     <Pressable onPress={onPress} style={styles.container}>
       <Image
         source={logo}
-        style={[styles.logo, { width: size, height: size }]}
+        style={[
+          styles.logo,
+          { width: size, height: size, borderRadius: size * 0.4 },
+        ]}
       />
       {!hideName && (
-        <AppText style={{ color: "#fff" }} fontWeight="black">
+        <AppText
+          size="xlarge"
+          style={{ color: "#2d2d2d", marginLeft: 6 }}
+          fontWeight="black"
+        >
           Guru
         </AppText>
       )}
@@ -37,7 +44,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 40,
-    height: 40,
+    backgroundColor: "#2d2d2d",
   },
 });

@@ -489,35 +489,6 @@ export const QuizQuestion = ({
 };
 
 export default QuestionDisplay;
-// QuizQuestion.displayName = "QuizQuestion";
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   cover: {
-//     marginBottom: 15,
-//   },
-//   coverImage: {
-//     height: height * 0.25,
-//     flexDirection: "row",
-//     width: Platform.OS === "web" ? 350 : width * 0.7,
-//   },
-//   coverImgBtn: {
-//     alignSelf: "flex-end",
-//     paddingBottom: 15,
-//     paddingHorizontal: 20,
-//   },
-//   main: {
-//     flex: 1,
-//     width: Platform.OS === "web" ? "90%" : width,
-//     paddingTop: 10,
-//     paddingHorizontal
-//   }
-
-// export default QuestionDisplay;
 
 const styles = StyleSheet.create({
   avoidingView: {

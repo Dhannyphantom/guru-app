@@ -117,7 +117,7 @@ const SolveScreen = () => {
   const isChanged = cached !== text;
   const isEmpty = text === "";
   const insets = useSafeAreaInsets();
-  const CACHE_KEY = `assignments_${routeData?._id}`;
+  const CACHE_KEY = `assignments_${routeData?._id}_${routeData?.date}_${routeData?.expiry}`;
 
   const onEditorInitialized = () => {
     if (cached) {

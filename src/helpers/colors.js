@@ -12,6 +12,7 @@ export default {
   accent: "#512DA8",
   accentDeep: "#4527A0",
   accentDeeper: "#311b92",
+  deep: "#2d2d2d",
   light: "#F7F7F7",
   lightly: "#E8E8E8",
   lighter: "#ccc",

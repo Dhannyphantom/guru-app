@@ -32,7 +32,7 @@ import {
   getFullName,
 } from "../helpers/helperFunctions";
 // import { useNavigation } from "@react-navigation/native";
-import AppButton from "../components/AppButton";
+import AppButton, { FormikButton } from "../components/AppButton";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import PopMessage from "../components/PopMessage";
@@ -43,10 +43,18 @@ import {
   selectSchool,
   useFetchAssignmentByIdQuery,
   usePublishAssignmentMutation,
+  useUpdateAssignmentStatusMutation,
 } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
+import { Formik } from "formik";
+import { FormikInput } from "../components/FormInput";
+import {
+  assignmentDateInitials,
+  assignmentDateSchema,
+} from "../helpers/yupSchemas";
+import AppModal from "../components/AppModal";
 
 const { width } = Dimensions.get("screen");
 
@@ -116,6 +124,71 @@ const ListItem = ({ item, assId, index }) => {
   );
 };
 
+const PickDateModal = ({ closeModal, setPopper, assignmentId, schoolId }) => {
+  const [updateAssignmentStatus, { isLoading: updating }] =
+    useUpdateAssignmentStatusMutation();
+  const handleSubmit = async (fv) => {
+    try {
+      const res = await updateAssignmentStatus({
+        schoolId,
+        assignmentId,
+        status: "ongoing",
+        date: fv?.date,
+      }).unwrap();
+      if (res?.status === "success") {
+        setPopper({
+          vis: true,
+          msg: "Assignment session started successfully",
+          type: "success",
+        });
+        closeModal?.();
+      }
+    } catch (errr) {
+      setPopper({
+        vis: true,
+        msg: errr?.message ?? errr?.data?.message ?? "Something went wrong",
+        type: "failed",
+        timer: 2500,
+      });
+      closeModal?.();
+    }
+  };
+
+  const handleCloseModal = () => {
+    closeModal?.();
+  };
+
+  return (
+    <View style={styles.modal}>
+      <AppText fontWeight="heavy" size="large" style={styles.modalTitle}>
+        Submission Date
+      </AppText>
+      <Formik
+        initialValues={assignmentDateInitials}
+        validationSchema={assignmentDateSchema}
+        onSubmit={handleSubmit}
+      >
+        <>
+          <FormikInput
+            name={"date"}
+            placeholder={"Pick Expected Date of Submission"}
+            headerText={"Expected Date of Submission:"}
+            futureYear={true}
+            type="date"
+          />
+          <FormikButton title={"Start Assignment"} />
+          <AppButton
+            title={"Cancel Session"}
+            type="warn"
+            onPress={handleCloseModal}
+          />
+        </>
+      </Formik>
+      <LottieAnimator visible={updating} absolute />
+    </View>
+  );
+};
+
 const StudentAssigmentScreen = () => {
   const route = useLocalSearchParams();
   const school = useSelector(selectSchool);
@@ -129,7 +202,7 @@ const StudentAssigmentScreen = () => {
   const [publishAssignment, { isLoading: publishing }] =
     usePublishAssignmentMutation();
 
-  const [bools, setBools] = useState({ search: false });
+  const [bools, setBools] = useState({ search: false, date: false });
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -138,6 +211,7 @@ const StudentAssigmentScreen = () => {
   const isFinished = assignment?.status === "finished";
   const router = useRouter();
   const submissions = assignment?.submissions || [];
+  const showSubmisions = ["ongoing", "finished"].includes(assignment?.status);
 
   let statColor = "";
   switch (assignment?.status) {
@@ -153,25 +227,29 @@ const StudentAssigmentScreen = () => {
   }
 
   const onReleaseScores = async () => {
-    try {
-      const res = await publishAssignment({
-        schoolId: school?._id,
-        assignmentId: assignment?._id,
-      }).unwrap();
-      if (res?.status === "success") {
+    if (isActive || isFinished) {
+      try {
+        const res = await publishAssignment({
+          schoolId: school?._id,
+          assignmentId: assignment?._id,
+        }).unwrap();
+        if (res?.status === "success") {
+          setPopper({
+            vis: true,
+            msg: res?.message,
+            type: "success",
+          });
+        }
+      } catch (errr) {
         setPopper({
           vis: true,
-          msg: res?.message,
-          type: "success",
+          msg: errr?.message ?? errr?.data?.message ?? "Something went wrong",
+          type: "failed",
+          timer: 2500,
         });
       }
-    } catch (errr) {
-      setPopper({
-        vis: true,
-        msg: errr?.message ?? errr?.data?.message ?? "Something went wrong",
-        type: "failed",
-        timer: 2500,
-      });
+    } else {
+      setBools({ ...bools, date: true });
     }
     // const checkAll = submissions?.every((item) => Boolean(item.grade));
     // if (checkAll) {
@@ -192,15 +270,19 @@ const StudentAssigmentScreen = () => {
   return (
     <View style={styles.container}>
       <AppHeader
-        title="Assignment"
-        Component={() => (
-          <AnimatedPressable
-            onPress={() => setBools({ ...bools, search: !bools.search })}
-            style={styles.search}
-          >
-            <Ionicons name="search" size={25} color={colors.medium} />
-          </AnimatedPressable>
-        )}
+        title={`${assignment?.subject?.name} Assignment`}
+        Component={() => {
+          if (showSubmisions && submissions?.length > 10) {
+            return (
+              <AnimatedPressable
+                onPress={() => setBools({ ...bools, search: !bools.search })}
+                style={styles.search}
+              >
+                <Ionicons name="search" size={25} color={colors.medium} />
+              </AnimatedPressable>
+            );
+          }
+        }}
       />
       <View style={styles.main}>
         <View style={{ flex: 1 }}>
@@ -243,7 +325,7 @@ const StudentAssigmentScreen = () => {
                 borderBottomWidth: 3,
               }}
             >
-              {assignment?.status}
+              {assignment?.status ?? "status"}
             </AppText>
           </View>
 
@@ -279,8 +361,8 @@ const StudentAssigmentScreen = () => {
       </View>
       {bools.search && (
         <Animated.View
-          entering={FadeInDown.springify().damping(20)}
-          exiting={FadeOutUp.springify().damping(20)}
+          entering={FadeInDown.springify()}
+          exiting={FadeOutUp.springify()}
         >
           <SearchBar
             // searchRef={searchRef}
@@ -289,25 +371,24 @@ const StudentAssigmentScreen = () => {
         </Animated.View>
       )}
       <View style={{ flex: 1 }}>
-        {isActive ||
-          (isFinished && (
-            <Animated.FlatList
-              layout={LinearTransition.damping(20)}
-              data={submissions}
-              renderItem={({ item, index }) => (
-                <ListItem item={item} assId={assignment?._id} index={index} />
-              )}
-              refreshControl={getRefresher({ refreshing, onRefresh })}
-              ListEmptyComponent={
-                <ListEmpty
-                  vis={!isLoading}
-                  message={"No student submissions yet"}
-                />
-              }
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
-            />
-          ))}
+        {showSubmisions && (
+          <Animated.FlatList
+            layout={LinearTransition.damping(20)}
+            data={submissions}
+            renderItem={({ item, index }) => (
+              <ListItem item={item} assId={assignment?._id} index={index} />
+            )}
+            refreshControl={getRefresher({ refreshing, onRefresh })}
+            ListEmptyComponent={
+              <ListEmpty
+                vis={!isLoading}
+                message={"No student submissions yet"}
+              />
+            }
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+          />
+        )}
         {!isActive && !isFinished && (
           <View style={styles.history}>
             <AppText
@@ -337,6 +418,18 @@ const StudentAssigmentScreen = () => {
         <LottieAnimator visible={isLoading || publishing} absolute />
       </View>
       <PopMessage popData={popper} setPopData={setPopper} />
+      <AppModal
+        Component={() => (
+          <PickDateModal
+            closeModal={() => setBools({ ...bools, date: false })}
+            assignmentId={routeData?._id}
+            setPopper={setPopper}
+            schoolId={school?._id}
+          />
+        )}
+        visible={bools.date}
+        setVisible={() => setBools({ ...bools, date: false })}
+      />
     </View>
   );
 };
@@ -385,6 +478,16 @@ const styles = StyleSheet.create({
   },
   name: {
     textTransform: "capitalize",
+  },
+  modal: {
+    backgroundColor: colors.white,
+    padding: 10,
+    borderRadius: 20,
+  },
+  modalTitle: {
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 20,
   },
   row: {
     flexDirection: "row",

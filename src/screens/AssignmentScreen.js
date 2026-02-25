@@ -305,7 +305,7 @@ const AssignmentScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const assignments = data?.data;
+  const assignments = data?.data ?? [];
   const router = useRouter();
 
   const onRefresh = async () => {

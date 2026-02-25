@@ -2,6 +2,7 @@ import {
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -211,28 +212,36 @@ const AssignmentReviewScreen = () => {
         )}
       </View>
       <AppText style={styles.title} fontWeight="heavy" size={"large"}>
-        Assignmet Review
+        Assignment Review
       </AppText>
-      <View style={styles.main}>
-        <RichEditor
-          ref={editorRef}
-          useContainer={false}
-          initialContentHTML={routeData?.solution ?? ""}
-          // editorInitializedCallback={onEditorInitialized}
-          editorStyle={{ backgroundColor: "tranparent" }}
-          disabled={true}
-          // onChange={(text) => setText(text)}
-        />
-      </View>
-      {!hasUploaded && (
-        <View style={[styles.btns, { marginBottom: 20 }]}>
-          <AppButton
-            title={`${grade ? "Update" : "Set"} Grade`}
-            onPress={() => setModal({ vis: true })}
+      <ScrollView
+        contentContainerStyle={{ flex: 1, paddingBottom: PAD_BOTTOM }}
+      >
+        <View style={styles.main}>
+          <RichEditor
+            ref={editorRef}
+            useContainer={false}
+            initialContentHTML={routeData?.solution ?? ""}
+            // editorInitializedCallback={onEditorInitialized}
+            editorStyle={{ backgroundColor: "tranparent" }}
+            disabled={true}
+            // onChange={(text) => setText(text)}
           />
-          <AppButton title={"Cancel"} onPress={handleCancelBtn} type="white" />
         </View>
-      )}
+        {!hasUploaded && (
+          <View style={[styles.btns, { marginBottom: 20 }]}>
+            <AppButton
+              title={`${grade ? "Update" : "Set"} Grade`}
+              onPress={() => setModal({ vis: true })}
+            />
+            <AppButton
+              title={"Cancel"}
+              onPress={handleCancelBtn}
+              type="white"
+            />
+          </View>
+        )}
+      </ScrollView>
       <AppModal
         visible={modal.vis}
         setVisible={(bool) => setModal({ vis: bool })}
@@ -316,6 +325,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     marginHorizontal: 10,
     borderRadius: 15,
+    marginBottom: 20,
   },
   nav: {
     paddingLeft: 22,
