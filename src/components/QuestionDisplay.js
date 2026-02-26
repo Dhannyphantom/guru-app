@@ -72,7 +72,7 @@ const LatexText = ({ value, isLatex, style }) => {
   return (
     <Katex
       expression={value?.replace(/\$/g, "")}
-      style={{ width: width * 0.8, height: height * 0.35 }}
+      style={{ width: width * 0.8, height: height * 0.3 }}
       inlineStyle={inlineStyle}
       displayMode={false}
       throwOnError={false}

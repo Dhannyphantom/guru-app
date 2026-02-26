@@ -254,7 +254,6 @@ const RenderQuiz = ({ setVisible }) => {
 
       try {
         const res = await fetchPremiumQuiz(sendData).unwrap();
-        console.log(JSON.stringify(sendData, null, 2));
 
         if (isMultiplayer) {
           socket.emit("mode_topics", {
