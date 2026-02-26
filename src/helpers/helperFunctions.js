@@ -108,6 +108,7 @@ export const launchGallery = async (
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing,
       aspect,
+      // mediaTypes: MediaType,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: multiple,
       legacy: false,

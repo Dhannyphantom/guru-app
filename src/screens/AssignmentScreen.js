@@ -111,7 +111,6 @@ const RenderItem = ({ item, index }) => {
 };
 
 const RenderAssignment = ({ item, index }) => {
-  console.log(item.list);
   return (
     <View style={styles.ass}>
       <View style={styles.assHeader}>

@@ -92,6 +92,7 @@ const EditProfileScreen = () => {
   };
 
   const handleImagePickerError = (bool) => {
+    console.log({ bool });
     if (bool) {
       setPopper({
         vis: true,
@@ -155,7 +156,7 @@ const EditProfileScreen = () => {
                     }));
 
                     return (
-                      <View style={{ flex: 1, width }}>
+                      <View style={{ flex: 1 }}>
                         <FormikInput
                           name={"firstName"}
                           placeholder={`${

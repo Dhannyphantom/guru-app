@@ -581,12 +581,17 @@ const DashboardSkeleton = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 const UnverifiedState = ({ hasSchool }) => {
   const bounce = useSharedValue(0);
+  const router = useRouter();
   useEffect(() => {
     bounce.value = withSpring(1, { damping: 10, stiffness: 100 });
   }, []);
   const bounceStyle = useAnimatedStyle(() => ({
     transform: [{ scale: bounce.value }],
   }));
+
+  const handleSchoolFind = () => {
+    router.push("/(protected)/(tabs)/school");
+  };
 
   return (
     <Animated.View
@@ -609,7 +614,7 @@ const UnverifiedState = ({ hasSchool }) => {
           : "You haven't joined a school yet. Search for your school and submit a join request to access the academic dashboard."}
       </AppText>
       {!hasSchool && (
-        <Pressable style={styles.unverifiedCta}>
+        <Pressable onPress={handleSchoolFind} style={styles.unverifiedCta}>
           <AppText size={15} fontWeight="bold" style={styles.unverifiedCtaText}>
             Find My School
           </AppText>
@@ -756,7 +761,6 @@ const TeacherHomeScreen = () => {
     if (item?.modal) {
       setModal({ vis: true, type: item.modal });
     } else if (item?.nav) {
-      console.log({ nav: item?.nav?.data });
       router.push({
         pathname: item.nav.screen,
         // params: { ...item?.nav?.data },

@@ -43,7 +43,7 @@ const TopicList = ({ data, onPress, fetcher, closeModal }) => {
       <AppText fontWeight="heavy" size={"large"}>
         {capFirstLetter(data?.name)} Topics
       </AppText>
-      <View>
+      <View style={{ flex: 1 }}>
         <FlatList
           data={data?.topics}
           keyExtractor={(item) => item._id}
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.extraLight,
     padding: 15,
     borderRadius: 6,
-    maxHeight: height * 0.8,
+    height: height * 0.75,
     boxShadow: `2px 8px 18px ${colors.primary}25`,
     paddingBottom: 15,
   },

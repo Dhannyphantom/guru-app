@@ -387,7 +387,10 @@ const Avatar = ({
             fileName: res?.asset.fileName,
             assetId: getPickerName(res?.asset.uri),
           }).unwrap();
-        } catch (err) {}
+        } catch (err) {
+          console.log(err);
+          imagePickerError?.(true);
+        }
       } else {
         imagePickerError && imagePickerError(true);
       }
