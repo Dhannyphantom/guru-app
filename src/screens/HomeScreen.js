@@ -42,7 +42,17 @@ import getRefresher from "@/src/components/Refresher";
 import { useRouter } from "expo-router";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
 import { PAD_BOTTOM } from "../helpers/dataStore";
-import Animated, { LinearTransition } from "react-native-reanimated";
+import Animated, {
+  LinearTransition,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withDelay,
+  Easing,
+} from "react-native-reanimated";
 import {
   useFetchCategoriesQuery,
   useFetchSubjectsQuery,
@@ -78,6 +88,52 @@ const HomeScreen = () => {
   const user = useSelector(selectUser);
   const router = useRouter();
   const dispatch = useDispatch();
+  const notificationCount = stats?.data?.notificationsCount ?? 0;
+
+  // Badge scale animation
+  const badgeScale = useSharedValue(0);
+
+  // Bell shake animation
+  const shake = useSharedValue(0);
+
+  useEffect(() => {
+    if (notificationCount > 0) {
+      // Badge pop-in
+      badgeScale.value = withSpring(1, {
+        damping: 8,
+        stiffness: 150,
+      });
+
+      // Infinite smooth shake
+      shake.value = withRepeat(
+        withSequence(
+          withTiming(-8, { duration: 80, easing: Easing.linear }),
+          withTiming(8, { duration: 80, easing: Easing.linear }),
+          withTiming(-6, { duration: 80 }),
+          withTiming(6, { duration: 80 }),
+          withTiming(0, { duration: 80 }),
+        ),
+        -1, // infinite
+        true,
+      );
+    } else {
+      badgeScale.value = withTiming(0, { duration: 200 });
+      shake.value = withTiming(0);
+    }
+  }, [notificationCount]);
+
+  const animatedBadgeStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: badgeScale.value }],
+      opacity: badgeScale.value,
+    };
+  });
+
+  const animatedBellStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${shake.value}deg` }],
+    };
+  });
 
   const toggleFriendsModal = (bool) => {
     setBools({ ...bools, friendsModal: bool });
@@ -248,7 +304,24 @@ const HomeScreen = () => {
             }
             style={styles.headerIcon}
           >
-            <Ionicons name="notifications" size={20} color={colors.white} />
+            <View style={styles.notificationWrapper}>
+              <Animated.View style={animatedBellStyle}>
+                <Ionicons name="notifications" size={20} color={colors.white} />
+              </Animated.View>
+
+              {notificationCount > 0 && (
+                <Animated.View style={[styles.badge, animatedBadgeStyle]}>
+                  <AppText
+                    fontWeight="bold"
+                    size="xxsmall"
+                    style={styles.badgeText}
+                  >
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </AppText>
+                </Animated.View>
+              )}
+            </View>
+            {/* stats?.data?.notificationsCount */}
           </Pressable>
         </View>
       </View>
@@ -354,6 +427,26 @@ async function registerForPushNotificationsAsync() {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
+  notificationWrapper: {
+    position: "relative",
+  },
+
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: "#FF3B30",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  badgeText: {
+    color: "#fff",
+  },
   container: {
     flex: 1,
     backgroundColor: colors.primaryLight,

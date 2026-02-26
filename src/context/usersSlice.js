@@ -206,6 +206,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       },
       providesTags: ["USER_STAT"],
     }),
+    readAnnouncements: builder.mutation({
+      query: (data) => ({
+        url: "/users/announcements/read",
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["USER_STAT"],
+    }),
     fetchTransactions: builder.query({
       query: (params) => ({
         url: "/users/transactions",
@@ -567,6 +575,7 @@ export const {
   useFetchFriendsQuery,
   useProVerifyMutation,
   useUpdateRewardMutation,
+  useReadAnnouncementsMutation,
   useSubscribeUserMutation,
   useFetchProLeaderboardQuery,
   useFetchTransactionsQuery,

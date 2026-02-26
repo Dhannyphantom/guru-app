@@ -14,10 +14,13 @@ import { notificationsArr } from "../helpers/dataStore";
 import { NavBack } from "../components/AppIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
-import { selectUser } from "../context/usersSlice";
+import {
+  selectUser,
+  useReadAnnouncementsMutation,
+} from "../context/usersSlice";
 import AnimatedPressable from "../components/AnimatedPressable";
 import AppModal from "../components/AppModal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import NewAnnouncement from "../components/NewAnnouncement";
 import {
   selectSchool,
@@ -132,6 +135,7 @@ const NotificationsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const { data, isLoading, refetch } = useFetchAnnouncementsQuery(school?._id);
+  const [readAnnouncements] = useReadAnnouncementsMutation();
 
   const announcements = data?.data;
 
@@ -152,6 +156,12 @@ const NotificationsScreen = () => {
   const newAssignmentHandler = () => {
     setModal({ vis: true, data: null });
   };
+
+  useEffect(() => {
+    if (announcements?.length > 0) {
+      readAnnouncements({ schoolId: school?._id });
+    }
+  }, [data]);
 
   return (
     <View style={styles.container}>
