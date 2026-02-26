@@ -1,12 +1,74 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { Dimensions, StyleSheet, TextInput, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Katex from "react-native-katex";
 
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import AnimatedPressable from "./AnimatedPressable";
 import { capFirstLetter } from "../helpers/helperFunctions";
 import AnimatedCheckBox from "./AnimatedCheckbox";
+
+const { width, height } = Dimensions.get("screen");
+
+const inlineStyle = `
+html, body {
+  display: flex;
+  background-color: transparent;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+.katex {
+  font-size: 4em;
+  margin: 0;
+  font-weight: 800;
+  display: flex;
+  color: ${colors.white};
+}
+`;
+
+const LatexOptionText = ({ value, isLatex }) => {
+  if (!value) return null;
+
+  if (!isLatex) {
+    return (
+      <AppText fontWeight="semibold" style={styles.nonEditableText}>
+        {value}
+      </AppText>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Katex
+        expression={value?.replace(/\$/g, "")}
+        style={{
+          width: width * 0.8,
+          height: 10,
+          backgroundColor: "transparent",
+        }}
+        inlineStyle={inlineStyle}
+        displayMode={false}
+        throwOnError={false}
+        errorColor={colors.primary}
+        macros={{}}
+        // renderError
+        colorIsTextColor={false}
+        // onLoad={() => setLoaded(true)}
+        onError={() => console.error("Error")}
+      />
+      {/* <Katex
+        expression={value}
+        throwOnError={false}
+        errorColor={colors.white}
+        style={{ backgroundColor: "transparent" }}
+      /> */}
+    </View>
+  );
+};
 
 const Options = ({
   idx = 0,
@@ -64,7 +126,7 @@ const Options = ({
         correct: data?.correct || false,
       });
     },
-    [data, handleUpdateAnswer]
+    [data, handleUpdateAnswer],
   );
 
   // Handle correct answer selection
@@ -119,9 +181,20 @@ const Options = ({
       ]}
     >
       <View style={[styles.main, { backgroundColor: colorScheme.overlay }]}>
-        <AppText fontWeight="semibold" style={styles.nonEditableText}>
-          {colorScheme.prefix + (capFirstLetter(data?.name) || "______")}
-        </AppText>
+        <View style={{ flexDirection: "row", flex: 1, alignItems: "center" }}>
+          <AppText fontWeight="semibold" style={styles.prefixText}>
+            {colorScheme.prefix}
+          </AppText>
+
+          <LatexOptionText
+            value={
+              data?.isLatex
+                ? data?.latex
+                : capFirstLetter(data?.name) || "______"
+            }
+            isLatex={data?.isLatex}
+          />
+        </View>
         {isSelected && (
           <MaterialCommunityIcons
             name="check-bold"

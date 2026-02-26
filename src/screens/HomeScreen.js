@@ -50,6 +50,7 @@ import {
 } from "../context/instanceSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
+import AppText from "../components/AppText";
 
 // const { width, height } = Dimensions.get("screen");
 
@@ -83,12 +84,13 @@ const HomeScreen = () => {
   };
 
   const onRefresh = async () => {
+    // return;
     setRefreshing(true);
     try {
       await refetch();
       await reftechStat().unwrap();
     } catch (_errr) {
-      console.log(_errr);
+      console.log({ _errr });
     } finally {
       setRefreshing(false);
     }
@@ -214,7 +216,6 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (isError) {
-      console.log({ isError, error });
       if (error?.data?.includes("User data not found")) {
         setPopper({
           vis: true,
@@ -266,6 +267,7 @@ const HomeScreen = () => {
               }}
             >
               <DailyTask stats={stats?.data ?? cache?.stat} />
+
               <Invited data={invite} onPress={handleInvite} />
               <Animated.View layout={LinearTransition}>
                 <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />

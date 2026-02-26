@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons, Feather } from "@expo/vector-icons";
+import Katex from "react-native-katex";
+
 import { capFirstLetter } from "../helpers/helperFunctions";
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
@@ -23,25 +25,109 @@ import AppButton from "./AppButton";
 
 const { width, height } = Dimensions.get("screen");
 
+const inlineExpStyle = `
+html, body {
+  display: flex;
+  background-color: transparent;
+  justify-content: flex-start;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+.katex {
+  font-size: 4em;
+  margin-left: 40px;
+  font-weight: 600;
+  display: flex;
+  color: ${colors.black};
+}
+`;
+const inlineStyle = `
+html, body {
+  display: flex;
+  background-color: transparent;
+  justify-content: flex-start;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+.katex {
+  font-size: 3em;
+  margin-left: 40px;
+  font-weight: 600;
+  display: flex;
+  color: ${colors.black};
+}
+`;
+
+const LatexOptionText = ({ value, isExp, isLatex }) => {
+  if (!value) return null;
+
+  if (!isLatex) {
+    return (
+      <AppText style={styles.questionTitle} fontWeight="semibold">
+        {capFirstLetter(value)}
+      </AppText>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Katex
+        expression={value?.replace(/\$/g, "")}
+        style={{
+          width: "100%",
+          // height: 10,
+          backgroundColor: "transparent",
+        }}
+        inlineStyle={isExp ? inlineExpStyle : inlineStyle}
+        displayMode={false}
+        throwOnError={false}
+        errorColor={colors.primary}
+        macros={{}}
+        // renderError
+        colorIsTextColor={false}
+        // onLoad={() => setLoaded(true)}
+        onError={() => console.error("Error")}
+      />
+    </View>
+  );
+};
+
 const ShowExplanation = ({ data, closeModal }) => {
   return (
     <View style={styles.box}>
-      <AppText fontWeight="black" size="large" style={styles.boxQuestion}>
+      {/* <AppText fontWeight="black" size="large" style={styles.boxQuestion}>
         Question:{" "}
         <AppText fontWeight="bold" size="large">
-          {data?.question}
+          {data?.isLatex ? data?.questionLatex : data?.question}
         </AppText>
-      </AppText>
+      </AppText> */}
+      <View style={{ width: "100%", height: 50 }}>
+        <LatexOptionText
+          value={
+            data?.isLatex ? data?.questionLatex : capFirstLetter(data?.question)
+          }
+          isLatex={data?.isLatex}
+        />
+      </View>
       <View style={styles.boxSeperator} />
       <ScrollView
         indicatorStyle="black"
         contentContainerStyle={{ paddingBottom: 10 }}
       >
         <View style={styles.boxMain}>
-          <AppText
+          {/* <AppText
             style={styles.boxText}
             fontWeight="medium"
-          >{`${data?.explanation}`}</AppText>
+          >{`${data?.explanation}`}</AppText> */}
+          <LatexOptionText
+            value={data?.isLatex ? data?.explanationLatex : data?.explanation}
+            isLatex={data?.isLatex}
+            isExp={true}
+          />
         </View>
       </ScrollView>
       <AppButton
@@ -144,9 +230,14 @@ const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
 
       <View style={styles.correctionQuestionStyle}>
         <View style={styles.questionTile}>
-          <AppText style={styles.questionTitle} fontWeight="semibold">
-            {capFirstLetter(question?.question)}
-          </AppText>
+          <LatexOptionText
+            value={
+              question?.isLatex
+                ? question?.questionLatex
+                : capFirstLetter(question?.question)
+            }
+            isLatex={question?.isLatex}
+          />
           {question?.explanation && (
             <Pressable
               style={styles.explain}
@@ -155,7 +246,10 @@ const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
                   vis: true,
                   data: {
                     question: question?.question,
+                    questionLatex: question?.questionLatex,
                     explanation: question?.explanation,
+                    explanationLatex: question?.explanationLatex,
+                    isLatex: question?.isLatex,
                   },
                 })
               }
@@ -296,6 +390,7 @@ const styles = StyleSheet.create({
   },
   boxMain: {
     marginBottom: 15,
+    minHeight: 200,
   },
   boxText: {
     lineHeight: 30,
@@ -310,6 +405,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignSelf: "flex-start",
     marginLeft: 10,
+    marginBottom: 10,
   },
   container: {
     flex: 1,

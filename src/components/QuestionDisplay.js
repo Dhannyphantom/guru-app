@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { nanoid } from "@reduxjs/toolkit";
+import Katex from "react-native-katex";
 
 import AppText from "../components/AppText";
 import React, {
@@ -42,6 +43,47 @@ const { width, height } = Dimensions.get("screen");
 // const defaultAnswers = Array(4)
 //   .fill("")
 //   .map((_n) => ({ _id: nanoid(), name: "", correct: false }));
+
+const inlineStyle = `
+html, body {
+  display: flex;
+  background-color: transparent;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+.katex {
+  font-size: 4em;
+  font-weight: 800;
+  margin: 0;
+  display: flex;
+}
+`;
+
+const LatexText = ({ value, isLatex, style }) => {
+  if (!value) return null;
+
+  if (!isLatex) {
+    return <AppText style={style}>{value}</AppText>;
+  }
+
+  return (
+    <Katex
+      expression={value?.replace(/\$/g, "")}
+      style={{ width: width * 0.8, height: height * 0.35 }}
+      inlineStyle={inlineStyle}
+      displayMode={false}
+      throwOnError={false}
+      errorColor="#f00"
+      macros={{}}
+      colorIsTextColor={false}
+      // onLoad={() => setLoaded(true)}
+      onError={() => console.error("Error")}
+    />
+  );
+};
 
 const QuestionDisplay = ({
   handleQuit,
@@ -310,7 +352,8 @@ const QuestionDisplay = ({
             key={`${active.subject}-${active.question}`}
             name="timer"
             animRef={timerRef}
-            speed={10 / (currentQuestion.timer || 10)}
+            speed={0.0005}
+            // speed={10 / (currentQuestion.timer || 10)}
             style={{ width: 50, height: 50 }}
             loop={false}
             onAnimationFinish={handleNextQuestion}
@@ -319,13 +362,27 @@ const QuestionDisplay = ({
 
         <View style={styles.question}>
           <ScrollView contentContainerStyle={styles.scroll}>
-            <AppText
+            {/* <AppText
               size="xlarge"
               fontWeight="bold"
               style={{ textAlign: "center", lineHeight: 35 }}
             >
               {capFirstLetter(currentQuestion.question)}
-            </AppText>
+            </AppText> */}
+            <LatexText
+              value={
+                currentQuestion.isLatex
+                  ? currentQuestion.questionLatex
+                  : capFirstLetter(currentQuestion.question)
+              }
+              isLatex={currentQuestion.isLatex}
+              style={{
+                textAlign: "center",
+                lineHeight: 35,
+                fontSize: 20,
+                fontFamily: "sf-bold",
+              }}
+            />
           </ScrollView>
         </View>
 
@@ -521,7 +578,7 @@ const styles = StyleSheet.create({
   coverImage: {
     height: height * 0.25,
     flexDirection: "row",
-    width: Platform.OS == "web" ? 350 : width * 0.7,
+    width: Platform.OS === "web" ? 350 : width * 0.7,
   },
   coverImgBtn: {
     alignSelf: "flex-end",
@@ -539,7 +596,7 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
-    width: Platform.OS == "web" ? "90%" : width,
+    width: Platform.OS === "web" ? "90%" : width,
     paddingTop: 10,
     paddingHorizontal: 10,
   },
@@ -565,7 +622,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 10,
     borderRadius: 20,
-    overflow: Platform.OS == "web" ? null : "scroll",
+    overflow: Platform.OS === "web" ? null : "scroll",
     marginBottom: 15,
   },
   questions: {
@@ -583,7 +640,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    maxWidth: Platform.OS == "web" ? "100%" : null,
+    maxWidth: Platform.OS === "web" ? "100%" : null,
     outlineStyle: "none",
     marginHorizontal: 15,
   },
