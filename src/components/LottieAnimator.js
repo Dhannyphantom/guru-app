@@ -17,6 +17,7 @@ import successAnim from "../../assets/animations/success_animation.json";
 import paymentAnim from "../../assets/animations/payment_success.json";
 import avatarAnim from "../../assets/animations/avatar2.json";
 import waitingAnin from "../../assets/animations/please_wait.json";
+import streakAnim from "../../assets/animations/Fire.json";
 
 import colors from "../helpers/colors";
 
@@ -62,6 +63,9 @@ const LottieAnimator = ({
       break;
     case "success":
       lottieAnim = successAnim;
+      break;
+    case "streak":
+      lottieAnim = streakAnim;
       break;
     case "payment":
       lottieAnim = paymentAnim;

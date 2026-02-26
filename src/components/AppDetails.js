@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 
 import AppText from "./AppText";
@@ -91,14 +91,33 @@ export const ProgressBar = ({
 
 export const DailyTask = ({ stats }) => {
   const user = useSelector(selectUser);
+
+  const lottieRef = useRef();
+
+  useEffect(() => {
+    if (user?.streak > 0) {
+      lottieRef?.current?.play(0, 55);
+    } else {
+      lottieRef?.current?.play(0, 1);
+    }
+  }, [user]);
+
   return (
     <BlurView style={styles.container}>
       <BlurView intensity={65} style={styles.box}>
-        <FontAwesome6
+        <LottieAnimator
+          visible
+          loop={false}
+          animRef={lottieRef}
+          autoPlay={false}
+          name="streak"
+          size={120}
+        />
+        {/* <FontAwesome6
           name="fire"
           size={100}
           color={user?.streak > 0 ? colors.heartDark : colors.lighter}
-        />
+        /> */}
         <AppText
           fontWeight="black"
           size={"xlarge"}
