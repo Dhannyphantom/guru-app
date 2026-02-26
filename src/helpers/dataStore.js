@@ -1014,7 +1014,7 @@ export const DashboardActions = [
     _id: nanoid(),
     name: "New Assignmet",
     icon: "book",
-    nav: { screen: "/school/assignment/create", data: {} },
+    nav: { screen: "/main/new_assignment", data: {} },
   },
   {
     _id: nanoid(),

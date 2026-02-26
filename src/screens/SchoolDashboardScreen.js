@@ -30,7 +30,6 @@ const SchoolDashboardScreen = () => {
     if (item?.modal) {
       setModal({ vis: true, type: item.modal });
     } else if (item?.nav) {
-      // router.push("/school/assignment/create")
       router.push({
         pathname: item?.nav?.screen,
         params: { data: JSON.stringify(item?.nav?.data) },

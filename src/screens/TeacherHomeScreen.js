@@ -1,19 +1,16 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
   RefreshControl,
-  useWindowDimensions,
   ActivityIndicator,
 } from "react-native";
 import Animated, {
   FadeIn,
   FadeInDown,
-  FadeInUp,
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
@@ -21,7 +18,6 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolation,
-  ZoomIn,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
@@ -30,15 +26,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Screen from "../components/Screen";
 import AppLogo from "../components/AppLogo";
+import AppModal from "../components/AppModal";
+import AppText from "../components/AppText";
+import NewAnnouncement from "../components/NewAnnouncement";
 import colors from "../helpers/colors";
 import { selectUser } from "../context/usersSlice";
-
+import {
+  selectSchool,
+  useFetchSchoolQuery,
+  useFetchSchoolDashboardQuery,
+} from "../context/schoolSlice";
 import { PAD_BOTTOM } from "../helpers/dataStore";
 import { capFirstLetter } from "../helpers/helperFunctions";
-import {
-  useFetchSchoolDashboardQuery,
-  useFetchSchoolQuery,
-} from "../context/schoolSlice";
+import { useRouter } from "expo-router";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -65,6 +65,70 @@ const TAG_COLORS = {
   weak: "#F97316",
   weakest: "#EF4444",
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DASHBOARD ACTIONS  (mirrors SchoolDashboardScreen)
+// ─────────────────────────────────────────────────────────────────────────────
+const DASHBOARD_ACTIONS = [
+  {
+    id: "quiz",
+    name: "Quiz",
+    icon: "rocket-outline",
+    color: "#6366F1",
+    nav: { screen: "/(protected)/school/quiz", data: {} },
+  },
+  {
+    id: "assignment",
+    name: "Assignments",
+    icon: "book-outline",
+    color: "#10B981",
+    nav: {
+      screen: "/(protected)/school/assignments",
+      data: { screen: "Home" },
+    },
+  },
+  {
+    id: "announcement",
+    name: "Announce",
+    icon: "megaphone-outline",
+    color: "#F59E0B",
+    modal: "announcement",
+  },
+  {
+    id: "classes",
+    name: "Classes",
+    icon: "school-outline",
+    color: "#EC4899",
+    nav: { screen: "/(protected)/school/classes", data: { screen: "Home" } },
+  },
+  {
+    id: "verify-students",
+    name: "Verify Students",
+    icon: "people-outline",
+    color: "#8B5CF6",
+    nav: {
+      screen: "/(protected)/school/instance_verify",
+      data: { type: "student" },
+    },
+  },
+  {
+    id: "verify-teachers",
+    name: "Verify Teachers",
+    icon: "person-add-outline",
+    color: "#3B82F6",
+    nav: {
+      screen: "/(protected)/school/instance_verify",
+      data: { type: "teacher" },
+    },
+  },
+  {
+    id: "subscription",
+    name: "Subscription",
+    icon: "card-outline",
+    color: "#14B8A6",
+    nav: { screen: "/(protected)/school/subs", data: { screen: "School" } },
+  },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER UTILS
@@ -94,8 +158,6 @@ const AccuracyRing = ({ value = 0, size = 110, delay = 0 }) => {
     strokeDashoffset: circumference * (1 - progress.value),
   }));
 
-  // SVG via react-native-svg would be ideal; using a pure View fallback here
-  // that animates a border arc via scale + opacity for RN compatibility
   const scaleAnim = useSharedValue(0.7);
   useEffect(() => {
     scaleAnim.value = withSpring(1, { damping: 14, stiffness: 120, delay });
@@ -136,8 +198,12 @@ const AccuracyRing = ({ value = 0, size = 110, delay = 0 }) => {
         />
       </View>
       <View style={styles.ringTextContainer}>
-        <Text style={[styles.ringValue, { color }]}>{fmt(value, 0)}%</Text>
-        <Text style={styles.ringLabel}>accuracy</Text>
+        <AppText size={22} fontWeight="black" style={{ color }}>
+          {fmt(value, 0)}%
+        </AppText>
+        <AppText size={10} style={{ color: "rgba(255,255,255,0.7)" }}>
+          accuracy
+        </AppText>
       </View>
     </Animated.View>
   );
@@ -158,8 +224,12 @@ const StatCard = ({
     <View style={[styles.statIconWrap, { backgroundColor: color + "18" }]}>
       <Ionicons name={icon} size={18} color={color} />
     </View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
+    <AppText size={16} fontWeight="bold" style={styles.statValue}>
+      {value}
+    </AppText>
+    <AppText size={10} style={styles.statLabel}>
+      {label}
+    </AppText>
   </Animated.View>
 );
 
@@ -183,10 +253,17 @@ const SubjectBar = ({ item, maxAccuracy, delay = 0 }) => {
       style={styles.subjectRow}
     >
       <View style={styles.subjectLeft}>
-        <Text style={styles.subjectRank}>#{item.rank}</Text>
-        <Text style={styles.subjectName} numberOfLines={1}>
+        <AppText size={10} style={styles.subjectRank}>
+          #{item.rank}
+        </AppText>
+        <AppText
+          size={12}
+          fontWeight="medium"
+          style={styles.subjectName}
+          numberOfLines={1}
+        >
           {capName(item.subjectName)}
-        </Text>
+        </AppText>
       </View>
       <View style={styles.subjectBarTrack}>
         <Animated.View
@@ -194,9 +271,9 @@ const SubjectBar = ({ item, maxAccuracy, delay = 0 }) => {
         />
       </View>
       <View style={[styles.subjectTag, { backgroundColor: color + "20" }]}>
-        <Text style={[styles.subjectTagText, { color }]}>
+        <AppText size={11} fontWeight="bold" style={{ color }}>
           {fmt(item.accuracyRate, 0)}%
-        </Text>
+        </AppText>
       </View>
     </Animated.View>
   );
@@ -220,21 +297,33 @@ const ClassRow = ({ item, isSelected, onPress, delay = 0 }) => {
         <View
           style={[styles.classLevelBadge, { backgroundColor: color + "20" }]}
         >
-          <Text style={[styles.classLevelText, { color }]}>
+          <AppText size={12} fontWeight="bold" style={{ color }}>
             {CLASS_LABELS[item.classLevel] || item.classLevel?.toUpperCase()}
-          </Text>
+          </AppText>
         </View>
         <View style={styles.classStats}>
-          <Text style={styles.classStatMain}>{fmt(item.avgAccuracy, 0)}%</Text>
-          <Text style={styles.classStatSub}>{item.totalQuizzes} quizzes</Text>
+          <AppText size={15} fontWeight="bold" style={styles.classStatMain}>
+            {fmt(item.avgAccuracy, 0)}%
+          </AppText>
+          <AppText size={10} style={styles.classStatSub}>
+            {item.totalQuizzes} quizzes
+          </AppText>
         </View>
         <View style={styles.classStats}>
-          <Text style={styles.classStatMain}>{item.studentCount}</Text>
-          <Text style={styles.classStatSub}>students</Text>
+          <AppText size={15} fontWeight="bold" style={styles.classStatMain}>
+            {item.studentCount}
+          </AppText>
+          <AppText size={10} style={styles.classStatSub}>
+            students
+          </AppText>
         </View>
         <View style={styles.classStats}>
-          <Text style={styles.classStatMain}>{msToMins(item.avgDuration)}</Text>
-          <Text style={styles.classStatSub}>avg time</Text>
+          <AppText size={15} fontWeight="bold" style={styles.classStatMain}>
+            {msToMins(item.avgDuration)}
+          </AppText>
+          <AppText size={10} style={styles.classStatSub}>
+            avg time
+          </AppText>
         </View>
         <Ionicons
           name={isSelected ? "chevron-up" : "chevron-down"}
@@ -251,9 +340,13 @@ const ClassRow = ({ item, isSelected, onPress, delay = 0 }) => {
         >
           {item.subjectBreakdown.map((subj, idx) => (
             <View key={idx} style={styles.classSubjectRow}>
-              <Text style={styles.classSubjectName} numberOfLines={1}>
+              <AppText
+                size={11}
+                style={styles.classSubjectName}
+                numberOfLines={1}
+              >
                 {capName(subj.subjectName)}
-              </Text>
+              </AppText>
               <View style={styles.classSubjectBarTrack}>
                 <View
                   style={[
@@ -270,9 +363,13 @@ const ClassRow = ({ item, isSelected, onPress, delay = 0 }) => {
                   ]}
                 />
               </View>
-              <Text style={styles.classSubjectPct}>
+              <AppText
+                size={11}
+                fontWeight="semibold"
+                style={styles.classSubjectPct}
+              >
                 {fmt(subj.accuracyRate, 0)}%
-              </Text>
+              </AppText>
             </View>
           ))}
         </Animated.View>
@@ -298,32 +395,43 @@ const StudentRow = ({ item, rank, showImprovement = false, delay = 0 }) => {
           rank <= 3 && { backgroundColor: medalColors[rank - 1] + "25" },
         ]}
       >
-        <Text
+        <AppText
+          size={13}
+          fontWeight="bold"
           style={[
             styles.rankText,
             rank <= 3 && { color: medalColors[rank - 1] },
           ]}
         >
           {rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : `#${rank}`}
-        </Text>
+        </AppText>
       </View>
       <View style={styles.avatarCircle}>
-        <Text style={styles.avatarInitials}>{initials}</Text>
+        <AppText size={13} fontWeight="bold" style={styles.avatarInitials}>
+          {initials}
+        </AppText>
       </View>
       <View style={styles.studentInfo}>
-        <Text style={styles.studentName} numberOfLines={1}>
+        <AppText
+          size={13}
+          fontWeight="semibold"
+          style={styles.studentName}
+          numberOfLines={1}
+        >
           {capName(item.firstName)} {capName(item.lastName)}
-        </Text>
-        <Text style={styles.studentClass}>
+        </AppText>
+        <AppText size={11} style={styles.studentClass}>
           {CLASS_LABELS[item.classLevel] ||
             item.classLevel?.toUpperCase() ||
             "—"}
-        </Text>
+        </AppText>
       </View>
       <View style={styles.studentStat}>
         {showImprovement ? (
           <>
-            <Text
+            <AppText
+              size={15}
+              fontWeight="bold"
               style={[
                 styles.studentStatMain,
                 { color: item.improvement > 0 ? "#10B981" : "#EF4444" },
@@ -331,19 +439,19 @@ const StudentRow = ({ item, rank, showImprovement = false, delay = 0 }) => {
             >
               {item.improvement > 0 ? "+" : ""}
               {fmt(item.improvement, 1)}%
-            </Text>
-            <Text style={styles.studentStatSub}>
+            </AppText>
+            <AppText size={10} style={styles.studentStatSub}>
               {fmt(item.recentAccuracy, 0)}% now
-            </Text>
+            </AppText>
           </>
         ) : (
           <>
-            <Text style={styles.studentStatMain}>
+            <AppText size={15} fontWeight="bold" style={styles.studentStatMain}>
               {fmt(item.overallAccuracy, 0)}%
-            </Text>
-            <Text style={styles.studentStatSub}>
+            </AppText>
+            <AppText size={10} style={styles.studentStatSub}>
               {item.totalQuizzes} quizzes
-            </Text>
+            </AppText>
           </>
         )}
       </View>
@@ -372,15 +480,15 @@ const ReadinessCard = ({ item, delay = 0 }) => {
       style={styles.readinessCard}
     >
       <View style={styles.readinessTop}>
-        <Text style={styles.readinessClass}>
+        <AppText size={14} fontWeight="bold" style={styles.readinessClass}>
           {CLASS_LABELS[item.classLevel] || item.classLevel?.toUpperCase()}
-        </Text>
+        </AppText>
         <View
           style={[styles.readinessBadge, { backgroundColor: color + "20" }]}
         >
-          <Text style={[styles.readinessBadgeText, { color }]}>
+          <AppText size={11} fontWeight="bold" style={{ color }}>
             {item.readinessLabel}
-          </Text>
+          </AppText>
         </View>
       </View>
       <View style={styles.readinessBarTrack}>
@@ -393,10 +501,12 @@ const ReadinessCard = ({ item, delay = 0 }) => {
         />
       </View>
       <View style={styles.readinessBottom}>
-        <Text style={[styles.readinessScore, { color }]}>
+        <AppText size={13} fontWeight="bold" style={{ color }}>
           {fmt(item.avgReadiness, 0)}/100
-        </Text>
-        <Text style={styles.readinessMeta}>{item.studentCount} students</Text>
+        </AppText>
+        <AppText size={11} style={styles.readinessMeta}>
+          {item.studentCount} students
+        </AppText>
       </View>
     </Animated.View>
   );
@@ -410,15 +520,21 @@ const SectionHeader = ({ title, subtitle, icon, onSeeAll }) => (
         <Ionicons name={icon} size={16} color={colors.primary} />
       </View>
       <View>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <AppText size={15} fontWeight="bold" style={styles.sectionTitle}>
+          {title}
+        </AppText>
         {subtitle ? (
-          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+          <AppText size={11} style={styles.sectionSubtitle}>
+            {subtitle}
+          </AppText>
         ) : null}
       </View>
     </View>
     {onSeeAll && (
       <Pressable onPress={onSeeAll} style={styles.seeAllBtn}>
-        <Text style={styles.seeAllText}>See all</Text>
+        <AppText size={12} fontWeight="semibold" style={styles.seeAllText}>
+          See all
+        </AppText>
       </Pressable>
     )}
   </View>
@@ -484,17 +600,19 @@ const UnverifiedState = ({ hasSchool }) => {
           color={colors.primary}
         />
       </Animated.View>
-      <Text style={styles.unverifiedTitle}>
+      <AppText size={22} fontWeight="black" style={styles.unverifiedTitle}>
         {hasSchool ? "Verification Pending" : "No School Linked"}
-      </Text>
-      <Text style={styles.unverifiedBody}>
+      </AppText>
+      <AppText size={14} style={styles.unverifiedBody}>
         {hasSchool
           ? "Your account is awaiting verification by the school principal. Once approved, your full dashboard will appear here."
           : "You haven't joined a school yet. Search for your school and submit a join request to access the academic dashboard."}
-      </Text>
+      </AppText>
       {!hasSchool && (
         <Pressable style={styles.unverifiedCta}>
-          <Text style={styles.unverifiedCtaText}>Find My School</Text>
+          <AppText size={15} fontWeight="bold" style={styles.unverifiedCtaText}>
+            Find My School
+          </AppText>
         </Pressable>
       )}
       {hasSchool && (
@@ -516,9 +634,13 @@ const UnverifiedState = ({ hasSchool }) => {
                   i === 1 && styles.stepDotActive,
                 ]}
               />
-              <Text style={[styles.stepText, i === 0 && styles.stepTextDone]}>
+              <AppText
+                size={14}
+                fontWeight={i === 0 ? "semibold" : "regular"}
+                style={[styles.stepText, i === 0 && styles.stepTextDone]}
+              >
                 {step}
-              </Text>
+              </AppText>
             </Animated.View>
           ))}
         </View>
@@ -535,26 +657,71 @@ const CacheBadge = ({ ageMs }) => {
   return (
     <Animated.View entering={FadeIn} style={styles.cacheBadge}>
       <Ionicons name="time-outline" size={11} color={colors.grey} />
-      <Text style={styles.cacheBadgeText}>
+      <AppText size={10} style={styles.cacheBadgeText}>
         {mins < 1 ? "just now" : `${mins}m ago`}
-      </Text>
+      </AppText>
     </Animated.View>
   );
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DASHBOARD ACTION GRID
+// ─────────────────────────────────────────────────────────────────────────────
+const DashboardActionGrid = ({ onPress }) => (
+  <Animated.View
+    entering={FadeInDown.delay(120).springify()}
+    style={styles.actionGrid}
+  >
+    {DASHBOARD_ACTIONS.map((action, idx) => (
+      <Animated.View
+        key={action.id}
+        entering={FadeInDown.delay(80 + idx * 55).springify()}
+        style={styles.actionItemWrap}
+      >
+        <Pressable
+          onPress={() => onPress(action)}
+          style={({ pressed }) => [
+            styles.actionItem,
+            pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+          ]}
+        >
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: action.color + "18" },
+            ]}
+          >
+            <Ionicons name={action.icon} size={22} color={action.color} />
+          </View>
+          <AppText
+            size={11}
+            fontWeight="semibold"
+            style={styles.actionLabel}
+            numberOfLines={1}
+          >
+            {action.name}
+          </AppText>
+        </Pressable>
+      </Animated.View>
+    ))}
+  </Animated.View>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 const TeacherHomeScreen = () => {
   const user = useSelector(selectUser);
+  const school = useSelector(selectSchool);
   const { data: schoolData, isLoading: schoolLoading } = useFetchSchoolQuery();
   const [expandedClass, setExpandedClass] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const { width } = useWindowDimensions();
+  const [modal, setModal] = useState({ vis: false, type: null });
+  const router = useRouter();
 
-  const school = schoolData?.data;
+  const schoolInfo = schoolData?.data;
   const isVerified = schoolData?.isVerified;
-  const schoolId = school?._id;
+  const schoolId = schoolInfo?._id ?? school?._id;
 
   // Only fetch dashboard if teacher is verified and has a school
   const {
@@ -566,8 +733,6 @@ const TeacherHomeScreen = () => {
   } = useFetchSchoolDashboardQuery(schoolId, {
     skip: !schoolId || !isVerified,
   });
-
-  console.log({ dashboardRes, dashError });
 
   const dashboard = dashboardRes?.data;
   const fromCache = dashboardRes?._fromCache;
@@ -587,6 +752,23 @@ const TeacherHomeScreen = () => {
     setExpandedClass((prev) => (prev === classLevel ? null : classLevel));
   };
 
+  const handleActionPress = (item) => {
+    if (item?.modal) {
+      setModal({ vis: true, type: item.modal });
+    } else if (item?.nav) {
+      console.log({ nav: item?.nav?.data });
+      router.push({
+        pathname: item.nav.screen,
+        // params: { ...item?.nav?.data },
+        params: { data: JSON.stringify(item.nav.data) },
+      });
+    }
+  };
+
+  // Resolve modal component
+  let ModalComponent = null;
+  if (modal.type === "announcement") ModalComponent = NewAnnouncement;
+
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
@@ -598,19 +780,22 @@ const TeacherHomeScreen = () => {
   if (schoolLoading) {
     return (
       <Screen style={styles.container}>
+        <View style={styles.header}>
+          <AppLogo />
+        </View>
         <DashboardSkeleton />
       </Screen>
     );
   }
 
   // ── No school / Unverified ─────────────────────────────────────────────────
-  if (!school?._id || !isVerified) {
+  if (!schoolInfo?._id || !isVerified) {
     return (
       <Screen style={styles.container}>
         <View style={styles.header}>
           <AppLogo />
         </View>
-        <UnverifiedState hasSchool={!!school?._id} />
+        <UnverifiedState hasSchool={!!schoolInfo?._id} />
         <StatusBar style="dark" />
       </Screen>
     );
@@ -623,13 +808,19 @@ const TeacherHomeScreen = () => {
     <Screen style={styles.container}>
       {/* ── Header ── */}
       <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-        <View>
-          <Text style={styles.greetingText}>{greeting()},</Text>
-          <Text style={styles.teacherName}>
+        <AppLogo />
+        <View style={styles.headerCenter}>
+          <AppText size={11} style={styles.greetingText}>
+            {greeting()},
+          </AppText>
+          <AppText
+            size={15}
+            fontWeight="bold"
+            style={styles.teacherName}
+            numberOfLines={1}
+          >
             {capName(user?.preffix)} {capName(user?.firstName)}
-          </Text>
-        </View>
-        <View style={styles.headerRight}>
+          </AppText>
           {dashFetching && !refreshing && (
             <ActivityIndicator
               size="small"
@@ -639,6 +830,7 @@ const TeacherHomeScreen = () => {
           )}
           {fromCache && !dashFetching && <CacheBadge ageMs={cacheAge} />}
         </View>
+        {/* <View style={styles.headerRight}></View> */}
       </Animated.View>
 
       <ScrollView
@@ -662,9 +854,13 @@ const TeacherHomeScreen = () => {
               size={40}
               color={colors.grey}
             />
-            <Text style={styles.errorText}>Failed to load dashboard</Text>
+            <AppText size={15} style={styles.errorText}>
+              Failed to load dashboard
+            </AppText>
             <Pressable onPress={onRefresh} style={styles.retryBtn}>
-              <Text style={styles.retryText}>Retry</Text>
+              <AppText size={14} fontWeight="bold" style={styles.retryText}>
+                Retry
+              </AppText>
             </Pressable>
           </Animated.View>
         ) : (
@@ -675,17 +871,22 @@ const TeacherHomeScreen = () => {
               style={styles.heroCard}
             >
               <View style={styles.heroLeft}>
-                <Text style={styles.heroSchoolName} numberOfLines={1}>
-                  {capName(school?.name)}
-                </Text>
-                <Text style={styles.heroMeta}>
+                <AppText
+                  size={18}
+                  fontWeight="bold"
+                  style={styles.heroSchoolName}
+                  numberOfLines={1}
+                >
+                  {capName(schoolInfo?.name)}
+                </AppText>
+                <AppText size={12} style={styles.heroMeta}>
                   {dashboard?.overview?.totalStudents ??
-                    school?.students?.filter((s) => s.verified)?.length ??
+                    schoolInfo?.students?.filter((s) => s.verified)?.length ??
                     0}{" "}
                   students
                   {"  ·  "}
                   {dashboard?.overview?.totalTeachers ?? 0} teachers
-                </Text>
+                </AppText>
                 <View style={styles.heroParticipation}>
                   <View
                     style={[
@@ -696,16 +897,22 @@ const TeacherHomeScreen = () => {
                     ]}
                   />
                 </View>
-                <Text style={styles.heroParticipationLabel}>
+                <AppText size={11} style={styles.heroParticipationLabel}>
                   {fmt(dashboard?.overview?.participationRate, 0)}% active last
                   30 days
-                </Text>
+                </AppText>
               </View>
               <AccuracyRing
                 value={dashboard?.overview?.overallAccuracy ?? 0}
                 delay={200}
               />
             </Animated.View>
+
+            {/* ── Quick Actions Grid ── */}
+            <View style={styles.section}>
+              <SectionHeader icon="grid-outline" title="Quick Actions" />
+              <DashboardActionGrid onPress={handleActionPress} />
+            </View>
 
             {/* ── Stat Cards Row ── */}
             <ScrollView
@@ -879,11 +1086,13 @@ const TeacherHomeScreen = () => {
                   size={48}
                   color={colors.primary + "80"}
                 />
-                <Text style={styles.emptyTitle}>No quiz data yet</Text>
-                <Text style={styles.emptyBody}>
+                <AppText size={18} fontWeight="bold" style={styles.emptyTitle}>
+                  No quiz data yet
+                </AppText>
+                <AppText size={13} style={styles.emptyBody}>
                   Performance data will appear here once students start taking
                   Guru quizzes.
-                </Text>
+                </AppText>
               </Animated.View>
             )}
           </>
@@ -891,6 +1100,20 @@ const TeacherHomeScreen = () => {
       </ScrollView>
 
       <StatusBar style="dark" />
+
+      {/* ── Modals ── */}
+      {ModalComponent && (
+        <AppModal
+          visible={modal.vis}
+          setVisible={(bool) => setModal({ ...modal, vis: bool })}
+          Component={() => (
+            <ModalComponent
+              data={{ schoolId }}
+              closeModal={() => setModal({ vis: false, type: null })}
+            />
+          )}
+        />
+      )}
     </Screen>
   );
 };
@@ -903,27 +1126,27 @@ export default TeacherHomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FB",
+    backgroundColor: colors.unchange,
   },
 
   // ── Header ──
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    backgroundColor: "#F8F9FB",
+    // backgroundColor: "#F8F9FB",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  headerCenter: {
+    // flex: 1,
   },
   greetingText: {
-    fontSize: 13,
     color: "#9CA3AF",
-    fontWeight: "400",
   },
   teacherName: {
-    fontSize: 20,
-    fontWeight: "700",
     color: "#111827",
     textTransform: "capitalize",
   },
@@ -943,7 +1166,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   cacheBadgeText: {
-    fontSize: 10,
     color: "#9CA3AF",
   },
 
@@ -957,25 +1179,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+    boxShadow: "0px 8px 24px rgba(0,0,0,0.18)",
   },
   heroLeft: {
     flex: 1,
     paddingRight: 12,
   },
   heroSchoolName: {
-    fontSize: 18,
-    fontWeight: "700",
     color: "#FFF",
     textTransform: "capitalize",
     marginBottom: 4,
   },
   heroMeta: {
-    fontSize: 12,
     color: "rgba(255,255,255,0.7)",
     marginBottom: 12,
   },
@@ -992,7 +1207,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   heroParticipationLabel: {
-    fontSize: 11,
     color: "rgba(255,255,255,0.8)",
   },
 
@@ -1014,15 +1228,6 @@ const styles = StyleSheet.create({
   ringTextContainer: {
     alignItems: "center",
   },
-  ringValue: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#FFF",
-  },
-  ringLabel: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.7)",
-  },
 
   // ── Stat cards ──
   statsRow: {
@@ -1037,11 +1242,7 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: "center",
     minWidth: 90,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    boxShadow: "0px 2px 8px rgba(0,0,0,0.06)",
   },
   statIconWrap: {
     width: 34,
@@ -1052,12 +1253,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 16,
-    fontWeight: "700",
     color: "#111827",
   },
   statLabel: {
-    fontSize: 10,
     color: "#9CA3AF",
     marginTop: 2,
     textAlign: "center",
@@ -1070,11 +1268,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderRadius: 18,
     padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    boxShadow: "0px 2px 10px rgba(0,0,0,0.05)",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1096,12 +1290,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
     color: "#111827",
   },
   sectionSubtitle: {
-    fontSize: 11,
     color: "#9CA3AF",
     marginTop: 1,
   },
@@ -1112,9 +1303,39 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   seeAllText: {
-    fontSize: 12,
     color: colors.primary,
-    fontWeight: "600",
+  },
+
+  // ── Action grid ──
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  actionItemWrap: {
+    width: "30%",
+    flexGrow: 1,
+    alignItems: "baseline",
+  },
+  actionItem: {
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    gap: 8,
+  },
+  actionIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionLabel: {
+    color: "#374151",
+    textAlign: "center",
+    marginTop: 6,
   },
 
   // ── Subject bar ──
@@ -1131,14 +1352,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   subjectRank: {
-    fontSize: 10,
     color: "#9CA3AF",
     width: 20,
   },
   subjectName: {
-    fontSize: 12,
     color: "#374151",
-    fontWeight: "500",
     flex: 1,
     textTransform: "capitalize",
   },
@@ -1159,10 +1377,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     minWidth: 44,
     alignItems: "center",
-  },
-  subjectTagText: {
-    fontSize: 11,
-    fontWeight: "700",
   },
 
   // ── Class rows ──
@@ -1188,21 +1402,14 @@ const styles = StyleSheet.create({
     minWidth: 52,
     alignItems: "center",
   },
-  classLevelText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
   classStats: {
     flex: 1,
     alignItems: "center",
   },
   classStatMain: {
-    fontSize: 15,
-    fontWeight: "700",
     color: "#111827",
   },
   classStatSub: {
-    fontSize: 10,
     color: "#9CA3AF",
   },
   classExpandedWrap: {
@@ -1217,7 +1424,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   classSubjectName: {
-    fontSize: 11,
     color: "#6B7280",
     width: 90,
     textTransform: "capitalize",
@@ -1234,8 +1440,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   classSubjectPct: {
-    fontSize: 11,
-    fontWeight: "600",
     color: "#374151",
     width: 36,
     textAlign: "right",
@@ -1259,8 +1463,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
   rankText: {
-    fontSize: 13,
-    fontWeight: "700",
     color: "#6B7280",
   },
   avatarCircle: {
@@ -1272,21 +1474,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarInitials: {
-    fontSize: 13,
-    fontWeight: "700",
     color: colors.primary,
   },
   studentInfo: {
     flex: 1,
   },
   studentName: {
-    fontSize: 13,
-    fontWeight: "600",
     color: "#111827",
     textTransform: "capitalize",
   },
   studentClass: {
-    fontSize: 11,
     color: "#9CA3AF",
     marginTop: 1,
   },
@@ -1294,12 +1491,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   studentStatMain: {
-    fontSize: 15,
-    fontWeight: "700",
     color: "#111827",
   },
   studentStatSub: {
-    fontSize: 10,
     color: "#9CA3AF",
   },
 
@@ -1317,8 +1511,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   readinessClass: {
-    fontSize: 14,
-    fontWeight: "700",
     color: "#111827",
     textTransform: "uppercase",
   },
@@ -1326,10 +1518,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
-  },
-  readinessBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
   },
   readinessBarTrack: {
     height: 8,
@@ -1346,12 +1534,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  readinessScore: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
   readinessMeta: {
-    fontSize: 11,
     color: "#9CA3AF",
   },
 
@@ -1373,14 +1556,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   unverifiedTitle: {
-    fontSize: 22,
-    fontWeight: "800",
     color: "#111827",
     textAlign: "center",
     marginBottom: 12,
   },
   unverifiedBody: {
-    fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 22,
@@ -1394,8 +1574,6 @@ const styles = StyleSheet.create({
   },
   unverifiedCtaText: {
     color: "#FFF",
-    fontWeight: "700",
-    fontSize: 15,
   },
   unverifiedSteps: {
     alignSelf: "stretch",
@@ -1419,12 +1597,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   stepText: {
-    fontSize: 14,
     color: "#9CA3AF",
   },
   stepTextDone: {
     color: "#10B981",
-    fontWeight: "600",
   },
 
   // ── Error / empty ──
@@ -1434,7 +1610,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   errorText: {
-    fontSize: 15,
     color: "#6B7280",
   },
   retryBtn: {
@@ -1446,8 +1621,6 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: "#FFF",
-    fontWeight: "700",
-    fontSize: 14,
   },
   emptyWrap: {
     alignItems: "center",
@@ -1456,12 +1629,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
     color: "#374151",
   },
   emptyBody: {
-    fontSize: 13,
     color: "#9CA3AF",
     textAlign: "center",
     lineHeight: 20,

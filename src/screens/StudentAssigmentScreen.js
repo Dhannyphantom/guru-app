@@ -344,7 +344,7 @@ const StudentAssigmentScreen = () => {
               onPress={
                 () =>
                   router.push({
-                    pathname: "/school/assignment/create",
+                    pathname: "/main/new_assignment",
                     params: { isEdit: true, data: JSON.stringify(assignment) },
                   })
                 // ("NewQuiz", {

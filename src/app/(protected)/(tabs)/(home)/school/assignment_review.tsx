@@ -1,5 +1,5 @@
 import AssignmentReviewScreen from "@/src/screens/AssignmentReviewScreen";
 
-export default function AssignmentReviewPage() {
+export default function SchoolAssignmentReviewPage() {
   return <AssignmentReviewScreen />;
 }

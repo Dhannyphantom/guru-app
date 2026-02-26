@@ -1,5 +1,5 @@
 import NewAssignment from "@/src/components/NewAssignment";
 
-export default function NewAssignmentPage() {
+export default function MainNewAssignmentPage() {
   return <NewAssignment />;
 }

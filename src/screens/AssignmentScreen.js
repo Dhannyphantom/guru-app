@@ -23,7 +23,7 @@ import Counter from "../components/Counter";
 import { ProgressBar } from "../components/AppDetails";
 import { selectSchool, useFetchAssignmentsQuery } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import ListEmpty from "../components/ListEmpty";
 import AppButton from "../components/AppButton";
 import { useEffect, useState } from "react";
@@ -153,6 +153,10 @@ const TeacherAssignment = ({ item, index }) => {
   const router = useRouter();
   const scaler = useSharedValue(1);
 
+  const { data } = useLocalSearchParams();
+
+  const routeData = Boolean(data) ? JSON?.parse(data) : {};
+
   let statStyle = {};
 
   const rStyle = useAnimatedStyle(() => {
@@ -187,8 +191,14 @@ const TeacherAssignment = ({ item, index }) => {
     <Pressable
       onPress={() =>
         router.push({
-          pathname: "/school/assignment/students",
-          params: { item: JSON.stringify(item) },
+          pathname:
+            routeData?.screen === "Home"
+              ? "/(protected)/(tabs)/(home)/school/assignment_list"
+              : "/school/assignment/students",
+          params: {
+            item: JSON.stringify(item),
+            screen: routeData?.screen ?? "Students",
+          },
         })
       }
       style={styles.teacher}
@@ -326,7 +336,7 @@ const AssignmentScreen = () => {
           <AppButton
             contStyle={styles.btn}
             title={"Create New Assignment"}
-            onPress={() => router.push("/school/assignment/create")}
+            onPress={() => router.push("/main/new_assignment")}
           />
           <FlatList
             data={assignments}
