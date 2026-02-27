@@ -112,63 +112,76 @@ const stepStyles = StyleSheet.create({
 // ─── 6-DIGIT CODE INPUT ────────────────────────────────────────────────────────
 const CodeInput = ({ value, onChange }) => {
   const inputRef = useRef(null);
+  const [isFocused, setIsFocused] = useState(false);
   const shakeSv = useSharedValue(0);
   const digits = (value + "      ").slice(0, 6).split("");
+
+  // Auto-focus as soon as this step mounts — setTimeout lets the modal
+  // finish its enter animation before grabbing focus (avoids keyboard flicker)
+  React.useEffect(() => {
+    const timer = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(timer);
+  }, []);
 
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeSv.value }],
   }));
 
-  const shake = () => {
-    shakeSv.value = withSequence(
-      withTiming(-8, { duration: 60 }),
-      withTiming(8, { duration: 60 }),
-      withTiming(-6, { duration: 60 }),
-      withTiming(6, { duration: 60 }),
-      withTiming(0, { duration: 60 }),
-    );
-  };
-
   return (
-    <Animated.View style={[codeStyles.wrapper, shakeStyle]}>
-      <View style={codeStyles.dotsRow}>
-        {digits.map((d, i) => {
-          const filled = d.trim().length > 0;
-          const isCursor = i === Math.min(value.length, 5);
-          return (
-            <Animated.View
-              key={i}
-              entering={ZoomIn.delay(i * 40).springify()}
-              style={[
-                codeStyles.cell,
-                filled && codeStyles.cellFilled,
-                isCursor && value.length < 6 && codeStyles.cellCursor,
-              ]}
-            >
-              {filled ? (
-                <AppText style={codeStyles.digit}>{d}</AppText>
-              ) : (
-                <View style={codeStyles.emptyDot} />
-              )}
-            </Animated.View>
-          );
-        })}
-      </View>
-      <TextInput
-        ref={inputRef}
-        style={codeStyles.hiddenInput}
-        value={value}
-        onChangeText={(t) => onChange(t.replace(/[^0-9]/g, "").slice(0, 6))}
-        keyboardType="number-pad"
-        maxLength={6}
-        autoFocus
-        caretHidden
-      />
-      <TouchableOpacity
-        onPress={() => inputRef.current?.focus()}
-        style={codeStyles.tapArea}
-      />
-    </Animated.View>
+    // Outer TouchableOpacity ensures the whole cell row is a tap target
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={() => inputRef.current?.focus()}
+    >
+      <Animated.View style={[codeStyles.wrapper, shakeStyle]}>
+        <View style={codeStyles.dotsRow}>
+          {digits.map((d, i) => {
+            const filled = d.trim().length > 0;
+            const isCursor = isFocused && i === Math.min(value.length, 5);
+            return (
+              <Animated.View
+                key={i}
+                entering={ZoomIn.delay(i * 40).springify()}
+                style={[
+                  codeStyles.cell,
+                  filled && codeStyles.cellFilled,
+                  isCursor && value.length < 6 && codeStyles.cellCursor,
+                ]}
+              >
+                {filled ? (
+                  <AppText style={codeStyles.digit}>{d}</AppText>
+                ) : (
+                  <View
+                    style={[
+                      codeStyles.emptyDot,
+                      isCursor && codeStyles.emptyDotActive,
+                    ]}
+                  />
+                )}
+              </Animated.View>
+            );
+          })}
+        </View>
+
+        {/*
+          Key fix: hiddenInput is now stretched to the full wrapper size
+          (width: "100%", height: "100%") so the OS registers it as a real
+          tap target. A 1x1 invisible view is not reliably tappable on Android.
+          opacity: 0 keeps it invisible while color: transparent hides the caret.
+        */}
+        <TextInput
+          ref={inputRef}
+          style={codeStyles.hiddenInput}
+          value={value}
+          onChangeText={(t) => onChange(t.replace(/[^0-9]/g, "").slice(0, 6))}
+          keyboardType="number-pad"
+          maxLength={6}
+          caretHidden
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+        />
+      </Animated.View>
+    </TouchableOpacity>
   );
 };
 
@@ -204,14 +217,16 @@ const codeStyles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#ddd",
   },
+  emptyDotActive: {
+    backgroundColor: colors.primary,
+    opacity: 0.5,
+  },
   hiddenInput: {
     position: "absolute",
+    width: "100%",
+    height: "100%",
     opacity: 0,
-    width: 1,
-    height: 1,
-  },
-  tapArea: {
-    ...StyleSheet.absoluteFillObject,
+    color: "transparent",
   },
 });
 
@@ -621,18 +636,16 @@ const modalStyles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
-    // justifyContent: "flex-end",
     alignItems: "center",
-    paddingBottom: Platform.OS === "ios" ? 20 : 0,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "flex-end", // ✅ keeps sheet pinned to bottom
+    justifyContent: "flex-end",
     paddingBottom: Platform.OS === "android" ? 8 : 0,
   },
   kav: {
     flex: 1,
-    justifyContent: "flex-end", // ✅ moved here so KAV owns the push-up
+    justifyContent: "flex-end",
   },
   container: {
     backgroundColor: "#fff",
@@ -842,7 +855,6 @@ const promptStyles = StyleSheet.create({
 // ─── RENDER SOCIALS ────────────────────────────────────────────────────────────
 export const RenderSocials = ({ isLogin = true }) => {
   const router = useRouter();
-  // const msg = isLogin ? "in" : "up";
   const msgReversed = isLogin ? "up" : "in";
   const message = isLogin
     ? "Don't have an account?"
@@ -895,7 +907,6 @@ const LoginScreen = () => {
         console.log(err);
         const msg = networkErr ?? err?.error ?? "Something went wrong";
         setErrMsg(msg);
-        // Show forgot password prompt only on credential-like errors
         const isCredentialError =
           !networkErr &&
           (err?.status === 401 ||
