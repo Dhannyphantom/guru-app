@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "261647518618",
-    "project_id": "guru-d0ac3",
-    "storage_bucket": "guru-d0ac3.firebasestorage.app"
+    "project_number": "878638796688",
+    "project_id": "guru-app-6d6d0",
+    "storage_bucket": "guru-app-6d6d0.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:261647518618:android:8f634b36452666224cc823",
+        "mobilesdk_app_id": "1:878638796688:android:6f87c91f39e099f6c7ed15",
         "android_client_info": {
           "package_name": "com.phantom.guru"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyA1Qr9lZz1bAK8rSJ_AQYRfQks-AnFdKIo"
+          "current_key": "AIzaSyDVx59eiVgXQ5sssdbbcsn-xeoWI4dr4J0"
         }
       ],
       "services": {

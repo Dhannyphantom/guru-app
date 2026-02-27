@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Guru",
-    "slug": "Guru",
+    "slug": "guru",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -21,8 +21,6 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.READ_CONTACTS",
-        "android.permission.WRITE_CONTACTS",
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS"
       ],
@@ -57,7 +55,9 @@
           "icon": "./assets/images/notifications.png",
           "color": "#E6F4FE",
           "defaultChannel": "default",
-          "sounds": ["./assets/sounds/alert_notification.wav"],
+          "sounds": [
+            "./assets/sounds/alert_notification.wav"
+          ],
           "enableBackgroundRemoteNotifications": true
         }
       ],
@@ -85,8 +85,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "affb8479-1bf1-4481-b621-b87fa89236a0"
-      }
+        "projectId": "22260cf2-a686-42bd-9c40-8aa6580ca694"
+      },
+      "router": {}
     },
     "experiments": {
       "typedRoutes": true,
@@ -97,6 +98,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/affb8479-1bf1-4481-b621-b87fa89236a0"
-    }
+    },
+    "owner": "dhannnyphantom"
   }
 }
