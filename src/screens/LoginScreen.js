@@ -243,6 +243,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [direction, setDirection] = useState(1); // 1=forward, -1=back
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const backdropOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.92);
@@ -286,6 +287,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
     setPassword("");
     setConfirmPassword("");
     setError("");
+    setShowSuccess(false);
     onClose();
   };
 
@@ -326,7 +328,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
     // TODO: call reset password API
     await new Promise((r) => setTimeout(r, 1400));
     setLoading(false);
-    handleClose();
+    setShowSuccess(true);
   };
 
   const stepContent = [
@@ -572,58 +574,114 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
               layout={LinearTransition.springify()}
               style={[modalStyles.container, containerStyle]}
             >
-              {/* Header */}
-              <View style={modalStyles.header}>
-                {step > 0 ? (
-                  <TouchableOpacity
-                    onPress={goBack}
-                    style={modalStyles.backBtn}
-                  >
-                    <Ionicons
-                      name="arrow-back"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ width: 36 }} />
-                )}
-                <View style={modalStyles.stepsRow}>
-                  {STEPS.map((label, i) => (
-                    <React.Fragment key={i}>
-                      <StepDot active={i === step} done={i < step} index={i} />
-                      {i < STEPS.length - 1 && (
-                        <View
-                          style={[
-                            modalStyles.stepLine,
-                            i < step && modalStyles.stepLineDone,
-                          ]}
-                        />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </View>
-                <TouchableOpacity
-                  onPress={handleClose}
-                  style={modalStyles.closeBtn}
+              {showSuccess ? (
+                // ── SUCCESS SCREEN ──────────────────────────────────────────
+                <Animated.View
+                  entering={ZoomIn.springify().damping(56)}
+                  style={modalStyles.successContent}
                 >
-                  <Ionicons name="close" size={20} color="#999" />
-                </TouchableOpacity>
-              </View>
+                  {/* Close button top-right */}
+                  <TouchableOpacity
+                    onPress={handleClose}
+                    style={[modalStyles.closeBtn, { alignSelf: "flex-end" }]}
+                  >
+                    <Ionicons name="close" size={20} color="#999" />
+                  </TouchableOpacity>
 
-              {/* Step label */}
-              <Animated.View
-                key={`label-${step}`}
-                entering={FadeIn.duration(200)}
-                exiting={FadeOut.duration(150)}
-              >
-                <AppText style={modalStyles.stepLabel}>
-                  Step {step + 1} of {STEPS.length} — {STEPS[step]}
-                </AppText>
-              </Animated.View>
+                  <LottieAnimator
+                    name="success"
+                    loop={true}
+                    size={160}
+                    style={{ width: 160, height: 160 }}
+                  />
 
-              {/* Step Content */}
-              <View style={modalStyles.contentArea}>{stepContent[step]}</View>
+                  <AppText fontWeight="heavy" style={modalStyles.successTitle}>
+                    You're all set! 🎉
+                  </AppText>
+                  <AppText style={modalStyles.successSubtitle}>
+                    Your password has been reset successfully.{"\n"}
+                    Head back and log in with your new password.
+                  </AppText>
+
+                  <TouchableOpacity
+                    style={[
+                      modalStyles.primaryBtn,
+                      { backgroundColor: "#4CAF50" },
+                    ]}
+                    onPress={handleClose}
+                    activeOpacity={0.85}
+                  >
+                    <AppText
+                      fontWeight="bold"
+                      style={modalStyles.primaryBtnText}
+                    >
+                      Back to Login →
+                    </AppText>
+                  </TouchableOpacity>
+                </Animated.View>
+              ) : (
+                // ── STEP FLOW ───────────────────────────────────────────────
+                <>
+                  {/* Header */}
+                  <View style={modalStyles.header}>
+                    {step > 0 ? (
+                      <TouchableOpacity
+                        onPress={goBack}
+                        style={modalStyles.backBtn}
+                      >
+                        <Ionicons
+                          name="arrow-back"
+                          size={20}
+                          color={colors.primary}
+                        />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ width: 36 }} />
+                    )}
+                    <View style={modalStyles.stepsRow}>
+                      {STEPS.map((label, i) => (
+                        <React.Fragment key={i}>
+                          <StepDot
+                            active={i === step}
+                            done={i < step}
+                            index={i}
+                          />
+                          {i < STEPS.length - 1 && (
+                            <View
+                              style={[
+                                modalStyles.stepLine,
+                                i < step && modalStyles.stepLineDone,
+                              ]}
+                            />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleClose}
+                      style={modalStyles.closeBtn}
+                    >
+                      <Ionicons name="close" size={20} color="#999" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Step label */}
+                  <Animated.View
+                    key={`label-${step}`}
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(150)}
+                  >
+                    <AppText style={modalStyles.stepLabel}>
+                      Step {step + 1} of {STEPS.length} — {STEPS[step]}
+                    </AppText>
+                  </Animated.View>
+
+                  {/* Step Content */}
+                  <View style={modalStyles.contentArea}>
+                    {stepContent[step]}
+                  </View>
+                </>
+              )}
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -791,6 +849,26 @@ const modalStyles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     textDecorationLine: "underline",
+  },
+  successContent: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  successTitle: {
+    fontSize: 24,
+    color: "#1a1a1a",
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  successSubtitle: {
+    fontSize: 14,
+    color: "#777",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 4,
+    maxWidth: 280,
   },
 });
 
