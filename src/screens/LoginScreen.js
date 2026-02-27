@@ -23,7 +23,10 @@ import { FormikButton } from "../components/AppButton";
 import { FormikInput } from "../components/FormInput";
 import { Formik } from "formik";
 import yupSchemas from "../helpers/yupSchemas";
-import { useSignInUserMutation } from "../context/usersSlice";
+import {
+  useSignInUserMutation,
+  useResetUserPasswordMutation,
+} from "../context/usersSlice";
 import AnimatedPressable from "../components/AnimatedPressable";
 import WebLayout from "../components/WebLayout";
 import { useRouter } from "expo-router";
@@ -233,7 +236,7 @@ const codeStyles = StyleSheet.create({
 // ─── FORGOT PASSWORD MODAL ─────────────────────────────────────────────────────
 const STEPS = ["Email", "Verify", "Reset"];
 
-const ForgotPasswordModal = ({ visible, onClose }) => {
+const ForgotPasswordModal = ({ visible, onClose, resetPassword }) => {
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -297,10 +300,20 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       return;
     }
     setLoading(true);
-    // TODO: call your API to send verification code
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    goNext();
+    setError("");
+    try {
+      await resetPassword({
+        step: "request",
+        email: email.toLowerCase(),
+      }).unwrap();
+      goNext();
+    } catch (err) {
+      setError(
+        err?.data?.error ?? err?.error ?? "Failed to send code. Try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCodeSubmit = async () => {
@@ -309,10 +322,21 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       return;
     }
     setLoading(true);
-    // TODO: verify code via API
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    goNext();
+    setError("");
+    try {
+      await resetPassword({
+        step: "verify",
+        email: email.toLowerCase(),
+        otp: code,
+      }).unwrap();
+      goNext();
+    } catch (err) {
+      setError(
+        err?.data?.error ?? err?.error ?? "Invalid code. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePasswordReset = async () => {
@@ -325,10 +349,24 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       return;
     }
     setLoading(true);
-    // TODO: call reset password API
-    await new Promise((r) => setTimeout(r, 1400));
-    setLoading(false);
-    setShowSuccess(true);
+    setError("");
+    try {
+      await resetPassword({
+        step: "reset",
+        email: email.toLowerCase(),
+        otp: code,
+        newPassword: password,
+      }).unwrap();
+      setShowSuccess(true);
+    } catch (err) {
+      setError(
+        err?.data?.error ??
+          err?.error ??
+          "Something went wrong. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stepContent = [
@@ -577,7 +615,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
               {showSuccess ? (
                 // ── SUCCESS SCREEN ──────────────────────────────────────────
                 <Animated.View
-                  entering={ZoomIn.springify().damping(56)}
+                  entering={ZoomIn.springify().damping(46)}
                   style={modalStyles.successContent}
                 >
                   {/* Close button top-right */}
@@ -966,6 +1004,7 @@ export const RenderSocials = ({ isLogin = true }) => {
 // ─── MAIN LOGIN SCREEN ─────────────────────────────────────────────────────────
 const LoginScreen = () => {
   const [loginUser, { isLoading, isError, error }] = useSignInUserMutation();
+  const [resetPassword] = useResetUserPasswordMutation();
   const [errMsg, setErrMsg] = useState(null);
   const [showForgotPrompt, setShowForgotPrompt] = useState(false);
   const [forgotModalVisible, setForgotModalVisible] = useState(false);
@@ -1109,6 +1148,7 @@ const LoginScreen = () => {
       <ForgotPasswordModal
         visible={forgotModalVisible}
         onClose={() => setForgotModalVisible(false)}
+        resetPassword={resetPassword}
       />
     </>
   );

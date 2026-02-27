@@ -345,6 +345,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         timeout: 15000,
       }),
     }),
+    resetUserPassword: builder.mutation({
+      query: (data) => ({
+        url: "/users/password/reset",
+        method: "POST",
+        body: data,
+      }),
+      // invalidatesTags: ["SUPPORT_TICKETS"],
+    }),
     createSupportTicket: builder.mutation({
       query: (data) => ({
         url: "/support/ticket",
@@ -575,6 +583,7 @@ export const {
   useFetchFriendsQuery,
   useProVerifyMutation,
   useUpdateRewardMutation,
+  useResetUserPasswordMutation,
   useReadAnnouncementsMutation,
   useSubscribeUserMutation,
   useFetchProLeaderboardQuery,
