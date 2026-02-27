@@ -164,7 +164,7 @@ const AnswerDisplay = memo(({ correct, name }) => (
 ));
 
 // Simplified question component with better animation
-const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
+export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [modal, setModal] = useState({ vis: false, data: null });
   const heightAnim = useSharedValue(0);
