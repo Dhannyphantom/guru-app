@@ -80,8 +80,7 @@
         }
       ],
       "expo-font",
-      "expo-build-properties",
-      "react-native-google-mobile-ads"
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
