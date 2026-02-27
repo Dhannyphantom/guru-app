@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   form: {
     width: width * 0.95,
     backgroundColor: colors.white,
-    elevation: 6,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
     borderRadius: 15,
     paddingVertical: 16,
     alignItems: "center",

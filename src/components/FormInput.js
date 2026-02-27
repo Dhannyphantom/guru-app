@@ -804,7 +804,6 @@ const styles = StyleSheet.create({
     flex: 1,
     // backgroundColor: "transparent",
     justifyContent: "flex-end",
-    // elevation: 15,
     // alignItems: "center",
   },
   slideModalContent: {
@@ -827,7 +826,7 @@ const styles = StyleSheet.create({
     // paddingLeft: 10,
     paddingVertical: 10,
     backgroundColor: colors.unchange,
-    elevation: 2,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
     marginRight: 15,
     borderRadius: 8,
     flexDirection: "row",

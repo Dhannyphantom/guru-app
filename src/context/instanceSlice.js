@@ -64,10 +64,17 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
 
     fetchInstance: builder.query({
-      query: ({ route, schoolId, topicId, subjectId }) => ({
-        url: `/instance/${route}?topicId=${topicId}&subjectId=${subjectId}`,
+      query: ({ route, topicId, subjectId, page = 1, limit = 20 }) => ({
+        url: `/instance/${route}`,
+        params: {
+          ...(topicId != null && { topicId }),
+          ...(subjectId != null && { subjectId }),
+          page,
+          limit,
+        },
         timeout: 15000,
       }),
+      // Disable default caching merge so we manage accumulated data in the screen
       providesTags: ["FETCH_INSTANCE"],
     }),
 

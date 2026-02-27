@@ -121,7 +121,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     // alignSelf: "flex-start",
     marginBottom: 10,
-    elevation: 2,
+    // elevation: 2,
+    boxShadow: `2px 8px 18px rgba(0, 0, 0, 0.1)`,
   },
   icon: {
     marginRight: 4,

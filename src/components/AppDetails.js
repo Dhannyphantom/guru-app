@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   progressBar: {
     height: "100%",
     borderRadius: 100,
-    elevation: 2,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
   },
   row: { flexDirection: "row", alignItems: "center", marginTop: 20 },
 });

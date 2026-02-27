@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 15,
     marginTop: 20,
-    elevation: 1,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
     overflow: "scroll",
   },
   percentage: {

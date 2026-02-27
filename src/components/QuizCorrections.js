@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.white,
     width: width * 0.78,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     overflow: "hidden",
   },
   emptyList: {

@@ -1,10 +1,16 @@
-import { Dimensions, Image, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  Image,
+  StyleSheet,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
 import LottieAnimator from "../components/LottieAnimator";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { capFirstLetter, getImageObj } from "../helpers/helperFunctions";
 import colors from "../helpers/colors";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -37,6 +43,7 @@ import { RenderQuestion } from "../components/QuizCorrections";
 
 const { width, height } = Dimensions.get("screen");
 
+const PAGE_SIZE = 20;
 const grids = ["category", "subjects"];
 
 const RenderCategories = ({ data }) => {
@@ -115,14 +122,30 @@ const QuestionRender = ({ data, index, extra = {} }) => {
   );
 };
 
+const LoadMoreFooter = ({ isFetchingMore, hasMore }) => {
+  if (!hasMore) return null;
+  return (
+    <View style={styles.footerLoader}>
+      {isFetchingMore && (
+        <ActivityIndicator size="small" color={colors.primary} />
+      )}
+    </View>
+  );
+};
+
 const InstanceListScreen = () => {
   const routeParams = useLocalSearchParams();
   const screenData = routeParams?.item ? JSON.parse(routeParams?.item) : {};
 
-  // const fetchParams = { route: screenData?.route };
-
   const [refreshing, setRefreshing] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [form, setForm] = useState({ data: null, search: false, show: true });
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [allItems, setAllItems] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
+  const lastFetchParams = useRef(null);
 
   const [fetchInstance, { data, isLoading, isError, error }] =
     useLazyFetchInstanceQuery();
@@ -131,86 +154,137 @@ const InstanceListScreen = () => {
   const [fetchTopics, { data: topics, isLoading: topLoading }] =
     useLazyFetchSubjTopicsQuery();
 
-  const instance = data?.data;
   const isTopic = screenData?.route === "topic";
   const isQuest = screenData?.route === "questions";
 
-  // console.log({ instance });
+  // Merge newly fetched page into allItems
+  useEffect(() => {
+    if (!data?.data) return;
 
-  const getInstances = async (refresh, data) => {
-    refresh && setRefreshing(true);
-    switch (screenData?.route) {
-      case "category":
-        try {
-          await fetchInstance({ route: screenData?.route });
-        } catch (error) {
-          console.log(error);
-        } finally {
-          refresh && setRefreshing(false);
-        }
-        break;
-      case "topic":
-        try {
-          await fetchInstance({
-            route: screenData?.route,
-            subjectId: data?.subjectId,
-          });
-        } catch (error) {
-          console.log(error);
-        } finally {
-          refresh && setRefreshing(false);
-        }
-        break;
-      case "subjects":
-        try {
-          await fetchInstance({ route: screenData?.route });
-        } catch (error) {
-          console.log(error);
-        } finally {
-          refresh && setRefreshing(false);
-        }
-        break;
-      case "questions":
-        if (Boolean(data?.subjectId)) {
-          try {
+    const incoming = data.data;
+    const pagination = data.pagination;
+
+    if (page === 1) {
+      setAllItems(incoming);
+    } else {
+      setAllItems((prev) => {
+        // Deduplicate by _id
+        const existingIds = new Set(prev.map((i) => i._id));
+        const newItems = incoming.filter((i) => !existingIds.has(i._id));
+        return [...prev, ...newItems];
+      });
+    }
+
+    // If backend returns pagination meta, use it; otherwise infer from count
+    if (pagination) {
+      setHasMore(pagination.hasMore);
+    } else {
+      setHasMore(incoming.length === PAGE_SIZE);
+    }
+  }, [data]);
+
+  const getInstances = useCallback(
+    async ({ refresh = false, fetchPage = 1, sendData = {} } = {}) => {
+      if (refresh) {
+        setRefreshing(true);
+        setPage(1);
+        setAllItems([]);
+        setHasMore(true);
+      }
+
+      const params = {
+        route: screenData?.route,
+        page: fetchPage,
+        limit: PAGE_SIZE,
+        ...sendData,
+      };
+
+      lastFetchParams.current = params;
+
+      try {
+        switch (screenData?.route) {
+          case "category":
+          case "subjects":
             await fetchInstance({
               route: screenData?.route,
-              subjectId: data?.subjectId,
-              topicId: data?.topicId,
+              page: fetchPage,
+              limit: PAGE_SIZE,
             });
-          } catch (error) {
-            console.log(error);
-          } finally {
-            refresh && setRefreshing(false);
-          }
+            break;
+          case "topic":
+            if (sendData?.subjectId) {
+              await fetchInstance({
+                route: screenData?.route,
+                subjectId: sendData.subjectId,
+                page: fetchPage,
+                limit: PAGE_SIZE,
+              });
+            }
+            break;
+          case "questions":
+            if (sendData?.subjectId) {
+              await fetchInstance({
+                route: screenData?.route,
+                subjectId: sendData.subjectId,
+                topicId: sendData.topicId,
+                page: fetchPage,
+                limit: PAGE_SIZE,
+              });
+            }
+            break;
+          default:
+            break;
         }
+      } catch (err) {
+        console.log(err);
+      } finally {
+        if (refresh) setRefreshing(false);
+        setIsFetchingMore(false);
+      }
+    },
+    [screenData?.route, fetchInstance],
+  );
 
-        break;
+  const handleLoadMore = useCallback(() => {
+    if (isFetchingMore || !hasMore || isLoading) return;
 
-      default:
-        break;
-    }
-  };
+    const nextPage = page + 1;
+    setPage(nextPage);
+    setIsFetchingMore(true);
+
+    getInstances({
+      fetchPage: nextPage,
+      sendData: {
+        subjectId: form?.subject?._id,
+        topicId: form?.topic?._id,
+      },
+    });
+  }, [isFetchingMore, hasMore, isLoading, page, form, getInstances]);
 
   const handleInstanceForm = async (fv) => {
-    const formData = {},
-      sendData = {};
+    const formData = {};
+    const sendData = {};
+
     if (fv?.subject?.hasOwnProperty("_id")) {
-      formData.subject = { _id: fv?.subject?._id, name: fv?.subject?.name };
-      sendData.subjectId = fv?.subject?._id;
+      formData.subject = { _id: fv.subject._id, name: fv.subject.name };
+      sendData.subjectId = fv.subject._id;
     }
 
     if (fv?.topic?.hasOwnProperty("_id")) {
-      formData.topic = { _id: fv?.topic?._id, name: fv?.topic?.name };
-      sendData.topicId = fv?.topic?._id;
+      formData.topic = { _id: fv.topic._id, name: fv.topic.name };
+      sendData.topicId = fv.topic._id;
     } else {
       sendData.topicId = null;
     }
-    setForm({
-      ...form,
-      ...formData,
-    });
-    await getInstances(false, sendData);
+
+    setForm((prev) => ({ ...prev, ...formData }));
+
+    // Reset pagination when filter changes
+    setPage(1);
+    setAllItems([]);
+    setHasMore(true);
+
+    await getInstances({ fetchPage: 1, sendData });
   };
 
   const onSearch = (text) => {
@@ -241,14 +315,14 @@ const InstanceListScreen = () => {
       };
       formSchema = editQuestSchema;
       break;
-
     default:
       break;
   }
 
   useEffect(() => {
-    getInstances();
+    getInstances({ fetchPage: 1 });
   }, []);
+
   return (
     <View style={styles.container}>
       <AppHeader
@@ -268,7 +342,7 @@ const InstanceListScreen = () => {
                   />
                 </AnimatedPressable>
               ))}
-            {isTopic && Boolean(instance) && (
+            {isTopic && Boolean(allItems.length) && (
               <AnimatedPressable style={styles.headBtn}>
                 <Ionicons name="search" size={20} color={colors.primaryDeep} />
               </AnimatedPressable>
@@ -276,9 +350,11 @@ const InstanceListScreen = () => {
           </View>
         )}
       />
+
       {form.search && (
         <SearchBar placeholder="Search topics" onClickSearch={onSearch} />
       )}
+
       {(isTopic || isQuest) && form.show && (
         <Animated.View
           exiting={FadeOutUp.springify()}
@@ -289,76 +365,79 @@ const InstanceListScreen = () => {
             initialValues={formInitials}
             onSubmit={handleInstanceForm}
           >
-            {({ values, initialValues }) => {
-              return (
-                <View>
+            {({ values, initialValues }) => (
+              <View>
+                <FormikInput
+                  name={"subject"}
+                  placeholder={
+                    Boolean(initialValues["subject"])
+                      ? capFirstLetter(initialValues["subject"]?.name)
+                      : "Select subject"
+                  }
+                  type="dropdown"
+                  data={subjects?.data}
+                  getId
+                  isLoading={subLoading}
+                  headerText={"Select subject:"}
+                />
+                {isQuest && (
                   <FormikInput
-                    name={"subject"}
-                    placeholder={
-                      Boolean(initialValues["subject"])
-                        ? capFirstLetter(initialValues["subject"]?.name)
-                        : "Select subject"
-                    }
+                    name={"topic"}
+                    placeholder={"Select Topic"}
                     type="dropdown"
-                    data={subjects?.data}
                     getId
-                    isLoading={subLoading}
-                    // value={values["subject"]}
-                    headerText={"Select subject:"}
-                    // onLayout={() => setFieldTouched("subject", true)}
-                    // showErr={bools.showErr}
+                    isLoading={topLoading}
+                    data={topics?.data}
+                    fetcher={{
+                      func: () => fetchTopics(values["subject"]._id),
+                      state: values["subject"],
+                    }}
+                    headerText={"Select topics:"}
                   />
-                  {isQuest && (
-                    <FormikInput
-                      name={"topic"}
-                      placeholder={"Select Topic"}
-                      type="dropdown"
-                      getId
-                      isLoading={topLoading}
-                      data={topics?.data}
-                      fetcher={{
-                        func: () => fetchTopics(values["subject"]._id),
-                        // shouldCall: !topics,
-                        state: values["subject"],
-                      }}
-                      // multiple
-                      headerText={"Select topics:"}
-                      // onLayout={() => setFieldTouched("topic", true)}
-                      // showErr={bools.showErr}
-                    />
-                  )}
-                  <FormikButton
-                    title={`Fetch ${capFirstLetter(screenData?.route)}`}
-                    contStyle={{ marginHorizontal: width * 0.15, elevation: 0 }}
-                  />
-                </View>
-              );
-            }}
+                )}
+                <FormikButton
+                  title={`Fetch ${capFirstLetter(screenData?.route)}`}
+                  contStyle={{ marginHorizontal: width * 0.15, elevation: 0 }}
+                />
+              </View>
+            )}
           </Formik>
         </Animated.View>
       )}
+
       <Animated.FlatList
         layout={LinearTransition.springify().damping(20)}
-        data={instance}
+        data={allItems}
         keyExtractor={(item) => item._id}
         refreshControl={getRefresher({
           refreshing,
-          onRefresh: async () =>
-            await getInstances(true, {
-              topicId: form?.topic?._id,
-              subjectId: form?.subject?._id,
+          onRefresh: () =>
+            getInstances({
+              refresh: true,
+              sendData: {
+                topicId: form?.topic?._id,
+                subjectId: form?.subject?._id,
+              },
             }),
         })}
         numColumns={grids.includes(screenData?.route) ? 2 : 1}
         contentContainerStyle={{ paddingBottom: height * 0.125 }}
-        ListEmptyComponent={() => <ListEmpty message="No results found..." />}
+        ListEmptyComponent={() =>
+          !isLoading ? <ListEmpty message="No results found..." /> : null
+        }
+        ListFooterComponent={() => (
+          <LoadMoreFooter isFetchingMore={isFetchingMore} hasMore={hasMore} />
+        )}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
         renderItem={({ item, index }) =>
           RenderComponent && (
             <RenderComponent data={item} extra={form?.subject} index={index} />
           )
         }
       />
-      <LottieAnimator visible={isLoading} absolute />
+
+      <LottieAnimator visible={isLoading && page === 1} absolute />
     </View>
   );
 };
@@ -394,5 +473,9 @@ const styles = StyleSheet.create({
   instanceTxt: {
     textAlign: "center",
     marginTop: 8,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: "center",
   },
 });
