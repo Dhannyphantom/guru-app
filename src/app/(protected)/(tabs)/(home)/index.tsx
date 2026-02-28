@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { updateUser } from "@/src/context/usersSlice";
 import { CopilotProvider } from "react-native-copilot";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GuruTooltip from "@/src/components/GuruTooltip";
 
 export default function AppPage() {
   const dispatch = useDispatch();
@@ -22,7 +23,12 @@ export default function AppPage() {
 
   return (
     <CopilotProvider
-      tooltipStyle={{ borderRadius: 10 }}
+      tooltipComponent={GuruTooltip}
+      tooltipStyle={{ backgroundColor: "transparent" }}
+      arrowSize={0}
+      overlay="svg"
+      animated
+      backdropColor="rgba(0, 0, 0, 0.75)"
       verticalOffset={insets.top}
     >
       <HomeScreen />

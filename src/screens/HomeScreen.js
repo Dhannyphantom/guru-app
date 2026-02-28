@@ -60,6 +60,15 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
+import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
+import { Dimensions } from "react-native";
+
+const WalkthroughableView = walkthroughable(View);
+const WalkthroughablePressable = walkthroughable(Pressable);
+
+const { width } = Dimensions.get("screen");
+
+const TOUR_KEY = "guru_home_tour_seen";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -95,6 +104,7 @@ const HomeScreen = () => {
   const user = useSelector(selectUser);
   const router = useRouter();
   const dispatch = useDispatch();
+  const { start, copilotEvents } = useCopilot();
   const notificationCount = stats?.data?.notificationsCount ?? 0;
 
   // Badge scale animation
@@ -294,22 +304,57 @@ const HomeScreen = () => {
     }
   }, [error]);
 
+  useEffect(() => {
+    const checkTour = async () => {
+      if (fetchingCategories || !stats) return;
+      await AsyncStorage.removeItem(TOUR_KEY);
+      const seen = await AsyncStorage.getItem(TOUR_KEY);
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+        }, 800);
+      }
+    };
+
+    checkTour();
+  }, [fetchingCategories, stats]);
+  useEffect(() => {
+    const handleStop = async () => {
+      await AsyncStorage.setItem(TOUR_KEY, "true");
+    };
+
+    copilotEvents.on("stop", handleStop);
+
+    return () => {
+      copilotEvents.off("stop", handleStop);
+    };
+  }, []);
+
   if (user?.accountType === "teacher") return <TeacherHomeScreen />;
 
   return (
     <Screen style={styles.container}>
       <View style={styles.header}>
-        <AppLogo />
+        <CopilotStep
+          text={`Welcome to Guru @${user?.username}.\nFirst you need to complete your profile\n\nThen join your school in the school tab\n\nSubscribe to fully access Guru.`}
+          order={1}
+          name="welcome"
+        >
+          <WalkthroughableView style={{ alignSelf: "flex-start" }}>
+            <AppLogo />
+          </WalkthroughableView>
+        </CopilotStep>
         <View style={styles.headerIconContainer}>
           <SubStatus isSubscribed={user?.subscription?.isActive} />
           <Pressable
+            style={styles.headerIcon}
             onPress={() =>
               router.push({
                 pathname: "/notifications",
                 params: { screen: "Home" },
               })
             }
-            style={styles.headerIcon}
           >
             <View style={styles.notificationWrapper}>
               <Animated.View style={animatedBellStyle}>
@@ -328,7 +373,6 @@ const HomeScreen = () => {
                 </Animated.View>
               )}
             </View>
-            {/* stats?.data?.notificationsCount */}
           </Pressable>
         </View>
       </View>
@@ -346,18 +390,43 @@ const HomeScreen = () => {
                 justifyContent: "space-around",
               }}
             >
-              <DailyTask stats={stats?.data ?? cache?.stat} />
-
+              <CopilotStep
+                text="Track your daily progress here."
+                order={3}
+                name="dailyTask"
+              >
+                <WalkthroughableView style={{ minWidth: 150 }}>
+                  <DailyTask stats={stats?.data ?? cache?.stat} />
+                </WalkthroughableView>
+              </CopilotStep>
               <Invited data={invite} onPress={handleInvite} />
-              <Animated.View layout={LinearTransition}>
-                <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />
-              </Animated.View>
+              <CopilotStep
+                text="Challenge your friends here."
+                order={4}
+                name="friends"
+              >
+                <WalkthroughableView>
+                  <Animated.View layout={LinearTransition}>
+                    <FindFriendsBoard
+                      onPress={() => toggleFriendsModal(true)}
+                    />
+                  </Animated.View>
+                </WalkthroughableView>
+              </CopilotStep>
             </WebLayout>
 
-            <SubjectCategory
-              data={categories?.data ?? cache?.categories}
-              loading={fetchingCategories}
-            />
+            <CopilotStep
+              text="Pick a subject to start practicing."
+              order={5}
+              name="categories"
+            >
+              <WalkthroughableView>
+                <SubjectCategory
+                  data={categories?.data ?? cache?.categories}
+                  loading={fetchingCategories}
+                />
+              </WalkthroughableView>
+            </CopilotStep>
             <Subjects
               title={"My Subjects"}
               data={subjects?.data ?? cache?.subjects}
@@ -366,6 +435,41 @@ const HomeScreen = () => {
           </WebLayout>
         )}
       />
+
+      {/* Tab anchors (pointer-events none, for layout only) */}
+      <View style={[styles.tabAnchors, { bottom: 8 }]} pointerEvents="none">
+        <View style={styles.tabAnchor} />
+        <CopilotStep
+          order={6}
+          name="leaderboard"
+          text="Check out the global leaderboard and see how you stack up against other Gurus!"
+        >
+          <WalkthroughableView style={styles.tabAnchor} />
+        </CopilotStep>
+        <CopilotStep
+          order={7}
+          name="play"
+          text="When you're fully setup. Start a quiz session and challenge your friends or other Gurus around the world!"
+        >
+          <WalkthroughableView
+            style={[styles.tabAnchor, { height: 62, bottom: 40 }]}
+          />
+        </CopilotStep>
+        <CopilotStep
+          order={8}
+          name="school"
+          text="Join your school to compete with your classmates and climb the school leaderboard!"
+        >
+          <WalkthroughableView style={styles.tabAnchor} />
+        </CopilotStep>
+        <CopilotStep
+          order={9}
+          name="profile"
+          text="Complete your profile and subscription to unlock all features and become the ultimate Guru!"
+        >
+          <WalkthroughableView style={styles.tabAnchor} />
+        </CopilotStep>
+      </View>
 
       <PopFriends
         visible={bools.friendsModal}
@@ -481,5 +585,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  tabAnchors: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    pointerEvents: "none",
+  },
+  tabAnchor: {
+    width: 50,
+    height: 50,
+    bottom: 10,
   },
 });
