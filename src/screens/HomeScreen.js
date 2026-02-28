@@ -437,6 +437,7 @@ const HomeScreen = () => {
       />
 
       {/* Tab anchors (pointer-events none, for layout only) */}
+
       <View style={[styles.tabAnchors, { bottom: 8 }]} pointerEvents="none">
         <View style={styles.tabAnchor} />
         <CopilotStep
@@ -446,15 +447,27 @@ const HomeScreen = () => {
         >
           <WalkthroughableView style={styles.tabAnchor} />
         </CopilotStep>
+
+        {/*
+    FIX: The play anchor was clipping because it was rendered at the screen edge
+    with a fixed bottom offset that pushed it partially off-screen.
+
+    Solution:
+    - Keep flex:1 so it stays centred in the middle fifth of the bar.
+    - Use a wider anchor (matchs CIRCLE_SIZE + padding) so Copilot has
+      enough space to render the tooltip above the button rather than
+      clipping it at the edge.
+    - Remove the hard-coded `bottom: 40` offset; let the parent row handle
+      vertical alignment and just use a taller anchor to cover the floating button.
+  */}
         <CopilotStep
           order={7}
           name="play"
           text="When you're fully setup. Start a quiz session and challenge your friends or other Gurus around the world!"
         >
-          <WalkthroughableView
-            style={[styles.tabAnchor, { height: 62, bottom: 40 }]}
-          />
+          <WalkthroughableView style={styles.tabAnchorCenter} />
         </CopilotStep>
+
         <CopilotStep
           order={8}
           name="school"
@@ -598,6 +611,11 @@ const styles = StyleSheet.create({
   tabAnchor: {
     width: 50,
     height: 50,
-    bottom: 10,
+  },
+  // Taller, wider anchor for the floating centre button.
+  // No hard-coded `bottom` — stays centred in the row via alignItems:"center".
+  tabAnchorCenter: {
+    width: 72, // wide enough that Copilot tooltip renders above, not clipped
+    height: 72, // tall enough to cover the floating circle button
   },
 });
