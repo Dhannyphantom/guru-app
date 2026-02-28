@@ -25,6 +25,7 @@ import {
 } from "../context/usersSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Points from "../components/Points";
+import Constant from "expo-constants";
 import {
   // capFirstLetter,
   hasCompletedProfile,
@@ -112,6 +113,8 @@ export const ProfileLink = ({
     </TouchableOpacity>
   );
 };
+
+const currentVersion = Constant.expoConfig.version;
 
 const ProfileScreen = () => {
   const [prompt, setPrompt] = useState({ vis: false, data: null });
@@ -314,6 +317,7 @@ const ProfileScreen = () => {
           />
         </View>
       </ScrollView>
+      <AppText>v{currentVersion}</AppText>
       <PromptModal
         prompt={prompt}
         setPrompt={(data) => setPrompt(data)}

@@ -337,7 +337,7 @@ const HomeScreen = () => {
     <Screen style={styles.container}>
       <View style={styles.header}>
         <CopilotStep
-          text={`Welcome to Guru @${user?.username}.\nFirst you need to complete your profile\n\nThen join your school in the school tab\n\nSubscribe to fully access Guru.`}
+          text={`Welcome to Guru @${user?.username}.\nComplete these steps to get started\n\n1. Complete your profile \n\n2. Then join your school in the school tab\n\n3. Subscribe to fully access Guru.`}
           order={1}
           name="welcome"
         >
@@ -401,7 +401,9 @@ const HomeScreen = () => {
               </CopilotStep>
               <Invited data={invite} onPress={handleInvite} />
               <CopilotStep
-                text="Challenge your friends here."
+                text={
+                  "Connect with your friends and classmates here.\nInvite your mutual friends for a multiplayer quiz session!"
+                }
                 order={4}
                 name="friends"
               >
@@ -416,7 +418,9 @@ const HomeScreen = () => {
             </WebLayout>
 
             <CopilotStep
-              text="Pick a subject to start practicing."
+              text={
+                "Pick a subject to start practicing.\n\nYou can practice offline after participating in a quiz session at least once."
+              }
               order={5}
               name="categories"
             >
@@ -462,8 +466,10 @@ const HomeScreen = () => {
   */}
         <CopilotStep
           order={7}
-          name="play"
-          text="When you're fully setup. Start a quiz session and challenge your friends or other Gurus around the world!"
+          name="play & earn"
+          text={
+            "When you're fully setup.\nAnd have an active subscription\n\nStart a quiz session HERE"
+          }
         >
           <WalkthroughableView style={styles.tabAnchorCenter} />
         </CopilotStep>
@@ -478,7 +484,9 @@ const HomeScreen = () => {
         <CopilotStep
           order={9}
           name="profile"
-          text="Complete your profile and subscription to unlock all features and become the ultimate Guru!"
+          text={
+            "Complete your profile and subscription to unlock all features and become the ultimate Guru!\n\nFinish setting up your profile NOW!!!."
+          }
         >
           <WalkthroughableView style={styles.tabAnchor} />
         </CopilotStep>
