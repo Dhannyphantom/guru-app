@@ -337,7 +337,7 @@ const HomeScreen = () => {
     <Screen style={styles.container}>
       <View style={styles.header}>
         <CopilotStep
-          text={`Welcome to Guru @${user?.username}.\nComplete these steps to get started\n\n1. Complete your profile \n\n2. Then join your school in the school tab\n\n3. Subscribe to fully access Guru.`}
+          text={`Welcome to Guru @${user?.username}.\nComplete these steps to get started\n\n1. Complete your profile \n\n2. Join your school in the school tab\n\n3. Subscribe to fully access Guru.`}
           order={1}
           name="welcome"
         >
@@ -391,7 +391,7 @@ const HomeScreen = () => {
               }}
             >
               <CopilotStep
-                text="Track your daily progress here."
+                text={"Track your daily progress here."}
                 order={3}
                 name="dailyTask"
               >
@@ -477,7 +477,9 @@ const HomeScreen = () => {
         <CopilotStep
           order={8}
           name="school"
-          text="Join your school to compete with your classmates and climb the school leaderboard!"
+          text={
+            "Join your school to compete with your classmates and climb the school leaderboard!\n\nParticipate in school quiz and assignments"
+          }
         >
           <WalkthroughableView style={styles.tabAnchor} />
         </CopilotStep>
@@ -590,13 +592,14 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginLeft: 10,
+    marginLeft: 15,
     marginRight: 20,
   },
   headerIconContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    // alignItems: "center",
   },
   headerIcon: {
     padding: 20,

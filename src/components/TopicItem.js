@@ -41,7 +41,7 @@ const TopicItem = ({ data, index, subject, disabled = false, onPress }) => {
       </View>
       <View style={styles.main}>
         <View style={styles.rowWide}>
-          <AppText style={styles.title} fontWeight="medium">
+          <AppText style={styles.title} fontWeight="semibold">
             {data?.name}
           </AppText>
           {/* <AppText size={"xxsmall"} fontWeight="light">
@@ -69,7 +69,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 15,
     alignSelf: "center",
-    elevation: 2,
+    boxShadow: `2px 5px 8px ${colors.primary}25`,
+
+    // elevation: 2,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -80,8 +82,8 @@ const styles = StyleSheet.create({
   },
   number: {
     backgroundColor: colors.primary + 40,
-    width: 35,
-    height: 35,
+    // width: 35,
+    // height: 35,
     borderRadius: 100,
     justifyContent: "center",
     alignItems: "center",
@@ -89,6 +91,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
     borderBottomWidth: 3,
+    padding: 7,
+    paddingHorizontal: 12,
   },
 
   numberText: {
@@ -102,6 +106,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: {
+    width: "90%",
     textTransform: "capitalize",
   },
 });

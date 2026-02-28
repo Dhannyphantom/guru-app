@@ -3,6 +3,7 @@ import React from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useCopilot } from "react-native-copilot";
 import AppText from "../components/AppText"; // adjust path as needed
+import colors from "../helpers/colors";
 
 const GuruTooltip = () => {
   const { isFirstStep, isLastStep, goToNext, goToPrev, stop, currentStep } =
@@ -63,13 +64,15 @@ const GuruTooltip = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#1E1E2E",
+    backgroundColor: colors.deep,
+    // backgroundColor: "#1E1E2E",
     borderRadius: 12,
     padding: 16,
     minWidth: 260,
   },
   title: {
-    color: "#CBA6F7",
+    color: colors.primary,
+    // color: "#CBA6F7",
     marginBottom: 6,
     textTransform: "capitalize",
   },
@@ -101,13 +104,15 @@ const styles = StyleSheet.create({
     color: "#CDD6F4",
   },
   primaryButton: {
-    backgroundColor: "#CBA6F7",
+    backgroundColor: colors.primary,
+    // backgroundColor: "#CBA6F7",
   },
   primaryButtonPressed: {
     opacity: 0.8,
   },
   primaryText: {
-    color: "#1E1E2E",
+    color: colors.white,
+    // color: "#1E1E2E",
   },
 });
 

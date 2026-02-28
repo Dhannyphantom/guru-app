@@ -316,8 +316,8 @@ const ProfileScreen = () => {
             onPress={() => setPrompt({ vis: true, data: SIGN_OUT_MODAL })}
           />
         </View>
+        <AppText>v{currentVersion}</AppText>
       </ScrollView>
-      <AppText>v{currentVersion}</AppText>
       <PromptModal
         prompt={prompt}
         setPrompt={(data) => setPrompt(data)}
