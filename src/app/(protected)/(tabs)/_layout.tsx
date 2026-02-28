@@ -6,6 +6,7 @@ import {
   View,
   Dimensions,
   Platform,
+  Pressable,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Animated, {
@@ -16,6 +17,7 @@ import Animated, {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import colors from "@/src/helpers/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AnimatedPressable from "@/src/components/AnimatedPressable";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_HEIGHT = 65;
@@ -105,23 +107,28 @@ function CurvedTabBar({ state, descriptors, navigation }: any) {
   // How far the descent still has to travel after the entry lands
   const remainingDescent = notchBottom - entryEndY;
 
-  const floorDepth = remainingDescent * 0.5;
+  const floorDepth = remainingDescent * 3.5; // adjust 0.3–0.9 to taste
+
+  // Control points for smooth transition from entry → valley → exit
+  const cp1X = Bx + (midX - Bx) * 0.3;
+  const cp1Y = entryEndY + (notchBottom + floorDepth - entryEndY) * 0.3;
+
+  const cp2X = Cx - (Cx - midX) * 0.3;
+  const cp2Y = entryEndY + (notchBottom + floorDepth - entryEndY) * 0.3;
 
   const path = [
     `M 0 ${DIP_DEPTH}`,
     `L ${Ax} ${DIP_DEPTH}`,
 
-    // ① Entry
+    // ① Entry: flat → left shoulder
     `C ${Ax + entryW * 0.6} ${DIP_DEPTH} ${Bx - entryW * 0.1} ${
       DIP_DEPTH + vPull * 0.4
     } ${Bx} ${entryEndY}`,
 
-    // ②+③ Single symmetric cubic valley
-    `C ${midX - shoulderW} ${notchBottom + floorDepth} ${midX + shoulderW} ${
-      notchBottom + floorDepth
-    } ${Cx} ${entryEndY}`,
+    // ② Single symmetric cubic valley with tangent alignment
+    `C ${cp1X} ${cp1Y} ${cp2X} ${cp2Y} ${Cx} ${entryEndY}`,
 
-    // ④ Exit
+    // ③ Exit: steep → flat
     `C ${Cx + entryW * 0.1} ${DIP_DEPTH + vPull * 0.4} ${
       Dx - entryW * 0.6
     } ${DIP_DEPTH} ${Dx} ${DIP_DEPTH}`,
@@ -191,15 +198,14 @@ function CurvedTabBar({ state, descriptors, navigation }: any) {
           if (isCenter) {
             return (
               <View key={index} style={styles.centerTabWrapper}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
+                <AnimatedPressable
                   onPress={onPress}
                   style={styles.centerButton}
                 >
                   <View style={styles.centerButtonInner}>
                     <Ionicons name={iconName as any} size={26} color="white" />
                   </View>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
             );
           }
@@ -336,11 +342,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "white",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    elevation: 10,
+    borderBottomWidth: 7,
+    borderColor: colors.primaryDeeper + 40,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
+
+    // shadowColor: colors.primary,
+    // shadowOffset: { width: 0, height: 6 },
+    // shadowOpacity: 0.45,
+    // shadowRadius: 8,
+    // elevation: 10,
   },
 });
