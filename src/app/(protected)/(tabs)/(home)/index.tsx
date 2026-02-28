@@ -3,9 +3,12 @@ import HomeScreen from "../../../../screens/HomeScreen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
 import { updateUser } from "@/src/context/usersSlice";
+import { CopilotProvider } from "react-native-copilot";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AppPage() {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const prepare = async () => {
@@ -17,5 +20,12 @@ export default function AppPage() {
     prepare();
   }, [dispatch]);
 
-  return <HomeScreen />;
+  return (
+    <CopilotProvider
+      tooltipStyle={{ borderRadius: 10 }}
+      verticalOffset={insets.top}
+    >
+      <HomeScreen />
+    </CopilotProvider>
+  );
 }

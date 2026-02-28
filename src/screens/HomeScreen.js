@@ -50,7 +50,6 @@ import Animated, {
   withSpring,
   withRepeat,
   withSequence,
-  withDelay,
   Easing,
 } from "react-native-reanimated";
 import {
@@ -61,6 +60,14 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // const { width, height } = Dimensions.get("screen");
 
@@ -413,7 +420,7 @@ async function registerForPushNotificationsAsync() {
             projectId,
           })
         ).data;
-      } catch (errorT) {}
+      } catch (_errorT) {}
     } catch (e) {
       token = `${e}`;
     }
