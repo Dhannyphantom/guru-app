@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:878638796688:android:6f87c91f39e099f6c7ed15",
+        "mobilesdk_app_id": "1:878638796688:android:d45b745e7a5e4373c7ed15",
         "android_client_info": {
-          "package_name": "com.phantom.guru"
+          "package_name": "com.phantom.guruedutech"
         }
       },
       "oauth_client": [],
