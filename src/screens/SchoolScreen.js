@@ -4,10 +4,18 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import React, { useCallback, useEffect, memo, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  memo,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
@@ -38,7 +46,6 @@ import Counter from "../components/Counter";
 import {
   selectSchool,
   useFetchSchoolQuery,
-  // useLazyFetchSchoolQuery,
   useLazyFetchSchoolQuizQuery,
 } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
@@ -50,33 +57,43 @@ import { useRouter } from "expo-router";
 import PopMessage from "../components/PopMessage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  CopilotStep,
+  walkthroughable,
+  useCopilot,
+  CopilotProvider,
+} from "react-native-copilot";
+import GuruTooltip from "../components/GuruTooltip";
+
+const WalkthroughableView = walkthroughable(View);
 
 const { width, height } = Dimensions.get("screen");
 
+const TOUR_KEY_PROFILE_STUDENT = "guru_school_profile_student_tour_seen";
+const TOUR_KEY_PROFILE_TEACHER = "guru_school_profile_teacher_tour_seen";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClassMates
+// ─────────────────────────────────────────────────────────────────────────────
 const ClassMates = ({ data = [] }) => {
   const user = useSelector(selectUser);
   const isTeacher = user?.accountType == "teacher";
-  const renderClassmates = ({ item }) => {
-    return (
-      <View
-        style={{
-          width: width * 0.33,
-          marginBottom: 20,
-        }}
-      >
-        <Avatar
-          source={item?.user?.avatar?.image}
-          data={item}
-          border={{ width: 2, color: colors.lightly }}
-          name={`${item?.user?.firstName} ${item?.user?.lastName}`}
-          textStyle={{ textTransform: "capitalize" }}
-          textFontsize="medium"
-          maxWidth={width * 0.2}
-          contStyle={{ width: width * 0.26 }}
-        />
-      </View>
-    );
-  };
+
+  const renderClassmates = ({ item }) => (
+    <View style={{ width: width * 0.33, marginBottom: 20 }}>
+      <Avatar
+        source={item?.user?.avatar?.image}
+        data={item}
+        border={{ width: 2, color: colors.lightly }}
+        name={`${item?.user?.firstName} ${item?.user?.lastName}`}
+        textStyle={{ textTransform: "capitalize" }}
+        textFontsize="medium"
+        maxWidth={width * 0.2}
+        contStyle={{ width: width * 0.26 }}
+      />
+    </View>
+  );
 
   return (
     <View style={{ marginTop: 30 }}>
@@ -84,7 +101,6 @@ const ClassMates = ({ data = [] }) => {
         <AppText style={{ marginLeft: 15 }} size={"xlarge"} fontWeight="bold">
           Students
         </AppText>
-
         {isTeacher && (
           <AnimatedPressable style={styles.filterBtn}>
             <AppText
@@ -116,6 +132,9 @@ const ClassMates = ({ data = [] }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TeacherQuiz
+// ─────────────────────────────────────────────────────────────────────────────
 const TeacherQuiz = ({ item, closeModal, index }) => {
   const router = useRouter();
   let txtColor, txtBg;
@@ -124,7 +143,6 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
       txtColor = colors.primaryDeeper;
       txtBg = colors.primaryLighter;
       break;
-
     default:
       txtColor = colors.medium;
       txtBg = colors.extraLight;
@@ -137,7 +155,6 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
       pathname: "/school/teacher_quiz",
       params: { item: JSON.stringify(item) },
     });
-    //  ("TeacherQuiz", { item });
   };
 
   return (
@@ -165,6 +182,9 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SchoolQuiz
+// ─────────────────────────────────────────────────────────────────────────────
 const SchoolQuiz = ({ item, onPress }) => {
   let statusText, btnText, badgeColor, badgeBg;
 
@@ -175,14 +195,12 @@ const SchoolQuiz = ({ item, onPress }) => {
       badgeColor = colors.primaryDeeper;
       badgeBg = colors.primaryLighter;
       break;
-
     case "result":
       statusText = "Result";
       btnText = "See Result";
       badgeColor = colors.success;
       badgeBg = colors.successLight;
       break;
-
     case "review":
     case "submitted":
       statusText = "Submitted";
@@ -192,19 +210,15 @@ const SchoolQuiz = ({ item, onPress }) => {
   }
 
   const handlePress = () => {
-    if (item?.status === "active") {
-      onPress?.(item, "start");
-    }
+    if (item?.status === "active") onPress?.(item, "start");
   };
 
   return (
     <View style={styles.quizCard} onPress={handlePress}>
-      {/* Top Row */}
       <View style={styles.quizHeader}>
         <View style={styles.quizIconCont}>
           <Image source={item?.subject?.image} style={styles.quizIcon} />
         </View>
-
         <View style={{ flex: 1 }}>
           <AppText
             fontWeight="heavy"
@@ -213,7 +227,6 @@ const SchoolQuiz = ({ item, onPress }) => {
           >
             {item?.subject?.name}
           </AppText>
-
           <View style={[styles.badge, { backgroundColor: badgeBg }]}>
             <AppText
               size="small"
@@ -224,7 +237,6 @@ const SchoolQuiz = ({ item, onPress }) => {
             </AppText>
           </View>
         </View>
-        {/* Button */}
         {Boolean(btnText) && (
           <AppButton
             title={btnText}
@@ -233,16 +245,12 @@ const SchoolQuiz = ({ item, onPress }) => {
           />
         )}
       </View>
-
-      {/* Teacher Row */}
       <View style={styles.quizTeacherRow}>
         <Avatar
           size={40}
           source={item?.teacher?.avatar?.image}
           border={{ width: 1, color: colors.primaryDeep }}
-          // name={`${}`}
         />
-
         <View style={{ marginLeft: 10 }}>
           <AppText
             fontWeight="bold"
@@ -256,23 +264,15 @@ const SchoolQuiz = ({ item, onPress }) => {
             {dateFormatter(item.date, "feed")}
           </AppText>
         </View>
-
-        {/* Title */}
         <View style={{ flex: 1, alignItems: "flex-end" }}>
           <AppText
             fontWeight="medium"
             size="small"
             style={{ color: colors.medium }}
-            // numberOfLines={2}
           >
             Quiz Title
           </AppText>
-          <AppText
-            fontWeight="bold"
-            size="large"
-            style={styles.quizTitle}
-            // numberOfLines={2}
-          >
+          <AppText fontWeight="bold" size="large" style={styles.quizTitle}>
             {item?.title}
           </AppText>
         </View>
@@ -281,6 +281,9 @@ const SchoolQuiz = ({ item, onPress }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SchoolModal
+// ─────────────────────────────────────────────────────────────────────────────
 export const SchoolModal = () => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
@@ -288,23 +291,18 @@ export const SchoolModal = () => {
   const router = useRouter();
 
   const [refreshing, setRefreshing] = useState(false);
-
   const [fetchSchoolQuiz, { data: quizzes, isLoading }] =
     useLazyFetchSchoolQuizQuery();
 
   const navigateHistory = () => {
     if (isTeacher) {
-      //  ("NewQuiz");
       router.push("/main/new_quiz");
     } else {
-      //  ("QuizHistory");
       router.push("/school/quiz_history");
     }
-    // closeModal();
   };
 
   const onQuizAction = (item) => {
-    // closeModal?.();
     router.push({
       pathname: "/main/session",
       params: {
@@ -314,15 +312,6 @@ export const SchoolModal = () => {
         quizId: item?._id,
       },
     });
-    // setQuizModal({
-    //   vis: true,
-    //   data: {
-    //     view: "quiz",
-    //     type: "school",
-    //     schoolId: school?._id,
-    //     quizId: item?._id,
-    //   },
-    // });
   };
 
   const getQuizData = async (refresh) => {
@@ -355,14 +344,10 @@ export const SchoolModal = () => {
           </View>
         )}
       />
-
       {isTeacher ? (
         <FlatList
           data={quizzes?.data}
-          refreshControl={getRefresher({
-            refreshing,
-            onRefresh: getQuizData,
-          })}
+          refreshControl={getRefresher({ refreshing, onRefresh: getQuizData })}
           keyExtractor={(item) => item._id}
           ListEmptyComponent={() => (
             <ListEmpty
@@ -385,13 +370,12 @@ export const SchoolModal = () => {
         <FlatList
           data={quizzes?.data}
           refreshControl={getRefresher({ refreshing, onRefresh: getQuizData })}
-          // data={schoolQuiz}
           keyExtractor={(item) => item._id}
           ListEmptyComponent={() => (
             <ListEmpty
               vis={!isLoading}
               message={
-                "There are not quiz for you yet.\nWait for your teachers to start one"
+                "There are no quizzes for you yet.\nWait for your teachers to start one"
               }
             />
           )}
@@ -401,71 +385,122 @@ export const SchoolModal = () => {
         />
       )}
       <LottieAnimator visible={Boolean(isLoading)} absolute wTransparent />
-      {/* <Quiz
-        startQuiz={quizModal?.vis}
-        data={quizModal?.data}
-        setStartQuiz={(bool) => setQuizModal({ vis: bool })}
-      /> */}
     </View>
   );
 };
 
-const SchoolActions = ({ data }) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Action tile Copilot tip map
+// ─────────────────────────────────────────────────────────────────────────────
+const ACTION_TIPS = {
+  teacher: {
+    Dashboard: {
+      order: 3,
+      text: "Your command centre! 📊\nSee an overview of all school activity — quizzes, assignments, classes and more at a glance.",
+    },
+    Quiz: {
+      order: 4,
+      text: "Create and manage quiz sessions here. 🎯\nStart a live quiz for your students, set the subject, timing and point values — then watch them compete in real-time!",
+    },
+    Assignments: {
+      order: 5,
+      text: "Create assignments for your classes here. 📝\nSet deadlines, attach questions and track which students have submitted — all in one place.",
+    },
+    Announcements: {
+      order: 6,
+      text: "Broadcast important messages to your school. 📢\nLet your students know about upcoming tests, events or any school updates instantly.",
+    },
+    Leaderboard: {
+      order: 7,
+      text: "See how your students rank within the school. 🏆\nMotivate them by celebrating the top performers!",
+    },
+    Classes: {
+      order: 8,
+      text: "Manage your classrooms here. 🏫\nCreate classes, assign subjects and verify the students that belong to each class.",
+    },
+  },
+  student: {
+    Quiz: {
+      order: 3,
+      text: "Check your pending quizzes here! ⏱️\nYour teacher may have started a live quiz — jump in before time runs out!\n\nYou can also review your past quiz results here.",
+    },
+    Assignments: {
+      order: 4,
+      text: "Your assignments live here. 📚\nSubmit before the deadline and track which ones you've already completed. Stay on top of it!",
+    },
+    Announcements: {
+      order: 5,
+      text: "Important updates from your school and teachers appear here. 🔔\nCheck back often so you never miss anything!",
+    },
+    Leaderboard: {
+      order: 6,
+      text: "See where you stand among your classmates! 🥇\nKeep practicing and climbing the school leaderboard to prove you're the top Guru.",
+    },
+    Classes: {
+      order: 7,
+      text: "Your assigned class shows here. 🏫\nThis determines which quizzes and assignments are sent to you by your teachers.",
+    },
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SchoolActions
+//
+// WHY ScrollView instead of FlatList:
+// Copilot measures targets using their on-screen position. A horizontal
+// FlatList virtualises cells — tiles that are off-screen are unmounted, so
+// Copilot cannot find or highlight them. Replacing with a plain ScrollView
+// keeps every tile in the DOM at all times.
+//
+// WHY the scrollTo logic:
+// When the tour advances to a tile step, we read the pre-recorded x-offset
+// for that tile name and scroll it into view before Copilot draws the overlay.
+// ─────────────────────────────────────────────────────────────────────────────
+const SchoolActions = ({ data, isTeacher }) => {
   const router = useRouter();
   const user = useSelector(selectUser);
-
   const [modal, setModal] = useState({ visible: false, data: null });
+  const tipSet = isTeacher ? ACTION_TIPS.teacher : ACTION_TIPS.student;
 
-  const renderSchoolActions = ({ item }) => {
-    const itemCount = data[item?.name?.toLowerCase()] ?? "X";
-    if (item.name === "Dashboard" && user?.accountType !== "teacher") {
-      return null;
+  const scrollRef = useRef(null);
+  // Stores { [tileName]: xOffset }
+  const tileOffsets = useRef({});
+
+  // Scroll the active tile into view when the tour step changes
+  const { currentStep } = useCopilot();
+  useEffect(() => {
+    if (!currentStep?.name?.startsWith("school_action_")) return;
+    const tileName = currentStep.name.replace("school_action_", "");
+    const x = tileOffsets.current[tileName];
+    if (x !== undefined && scrollRef.current) {
+      scrollRef.current.scrollTo({ x: Math.max(0, x - 16), animated: true });
     }
-    const handleActionPress = () => {
-      if (Boolean(item.nav)) {
-        // return console.log({ item });
-        router.push({
-          pathname: item?.nav?.screen,
-          params: { data: JSON.stringify(item?.nav?.data) },
-        });
-      } else {
-        if (item?.name === "Classes" && user?.accountType === "teacher") {
-          router.push("/school/classrooms");
-          return;
-        }
-        // open modal
-        setModal({ ...modal, visible: true, data: { name: item.name } });
-      }
-    };
+  }, [currentStep]);
 
-    return (
-      <Pressable onPress={handleActionPress} style={styles.action}>
-        <View style={[styles.actionImgCont, { backgroundColor: item.bgColor }]}>
-          <Image source={item.image} style={styles.actionImg} />
-        </View>
-        <View style={styles.actionDetail}>
-          <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
-            {" "}
-            {item.name}{" "}
-          </AppText>
-          {itemCount !== "X" && (
-            <AppText
-              style={{ ...styles.actionCount, backgroundColor: colors.light }}
-              fontWeight="black"
-            >
-              {itemCount}
-            </AppText>
-          )}
-        </View>
-      </Pressable>
-    );
+  const handleActionPress = (item) => {
+    if (Boolean(item.nav)) {
+      router.push({
+        pathname: item?.nav?.screen,
+        params: { data: JSON.stringify(item?.nav?.data) },
+      });
+    } else {
+      if (item?.name === "Classes" && user?.accountType === "teacher") {
+        router.push("/school/classrooms");
+        return;
+      }
+      setModal({ ...modal, visible: true, data: { name: item.name } });
+    }
   };
+
+  // Pre-filter so we never render null nodes inside the ScrollView
+  const visibleActions = schoolActions.filter(
+    (item) => !(item.name === "Dashboard" && user?.accountType !== "teacher"),
+  );
 
   let ModalComponet;
   switch (modal?.data?.name) {
     case "Classes":
       ModalComponet = ClassModal;
-
       break;
   }
 
@@ -478,13 +513,70 @@ const SchoolActions = ({ data }) => {
       >
         My School
       </AppText>
-      <FlatList
-        data={schoolActions}
+
+      <ScrollView
+        ref={scrollRef}
         horizontal
-        keyExtractor={(item) => item._id}
         showsHorizontalScrollIndicator={false}
-        renderItem={renderSchoolActions}
-      />
+        contentContainerStyle={{ paddingHorizontal: 4 }}
+      >
+        {visibleActions.map((item) => {
+          const itemCount = data[item?.name?.toLowerCase()] ?? "X";
+          const tip = tipSet[item.name];
+
+          const tile = (
+            <Pressable
+              onPress={() => handleActionPress(item)}
+              style={styles.action}
+              onLayout={(e) => {
+                // Record each tile's x-offset for scroll-into-view
+                tileOffsets.current[item.name] = e.nativeEvent.layout.x;
+              }}
+            >
+              <View
+                style={[
+                  styles.actionImgCont,
+                  { backgroundColor: item.bgColor },
+                ]}
+              >
+                <Image source={item.image} style={styles.actionImg} />
+              </View>
+              <View style={styles.actionDetail}>
+                <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
+                  {" "}
+                  {item.name}{" "}
+                </AppText>
+                {itemCount !== "X" && (
+                  <AppText
+                    style={{
+                      ...styles.actionCount,
+                      backgroundColor: colors.light,
+                    }}
+                    fontWeight="black"
+                  >
+                    {itemCount}
+                  </AppText>
+                )}
+              </View>
+            </Pressable>
+          );
+
+          if (tip) {
+            return (
+              <CopilotStep
+                key={item._id}
+                text={tip.text}
+                order={tip.order}
+                name={`school_action_${item.name}`}
+              >
+                <WalkthroughableView>{tile}</WalkthroughableView>
+              </CopilotStep>
+            );
+          }
+          return <View key={item._id}>{tile}</View>;
+        })}
+      </ScrollView>
+
       <AppModal
         visible={modal.visible}
         setVisible={(bool) => setModal({ ...modal, visible: bool })}
@@ -499,10 +591,54 @@ const SchoolActions = ({ data }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SchoolProfile
+//
+// WHY tourReady instead of watching `data`:
+// RTK Query returns cached `data` synchronously on the first render, so a
+// useEffect([data]) fires immediately — before CopilotStep targets have
+// measured themselves. The `tourReady` flag only becomes true once the
+// Animated.FlatList fires its onLayout callback (meaning it is fully painted),
+// guaranteeing every Copilot target is on-screen and measured before start().
+// ─────────────────────────────────────────────────────────────────────────────
 const SchoolProfile = ({ data, fetchSchoolData }) => {
+  const user = useSelector(selectUser);
+  const isTeacher = user?.accountType === "teacher";
+  const { start, copilotEvents } = useCopilot();
+
   const translationY = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const [tourReady, setTourReady] = useState(false);
+
+  const TOUR_KEY = isTeacher
+    ? TOUR_KEY_PROFILE_TEACHER
+    : TOUR_KEY_PROFILE_STUDENT;
+
+  // Called once the list has finished its first layout pass
+  const onListLayout = useCallback(() => {
+    // Small buffer so all CopilotStep children finish their own measurements
+    setTimeout(() => setTourReady(true), 400);
+  }, []);
+
+  // Only attempt the tour after layout is confirmed ready
+  useEffect(() => {
+    if (!tourReady) return;
+    const checkTour = async () => {
+      await AsyncStorage.removeItem(TOUR_KEY); // ← remove in production
+      const seen = await AsyncStorage.getItem(TOUR_KEY);
+      if (!seen) {
+        setTimeout(() => start(), 300);
+      }
+    };
+    checkTour();
+  }, [tourReady]);
+
+  useEffect(() => {
+    const handleStop = async () => await AsyncStorage.setItem(TOUR_KEY, "true");
+    copilotEvents.on("stop", handleStop);
+    return () => copilotEvents.off("stop", handleStop);
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -522,21 +658,18 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
       [-(insets.top + 60), 0],
       Extrapolation.CLAMP,
     );
-
     const opaciter = interpolate(
       translationY.value,
       [0, 200],
       [0, 1],
       Extrapolation.CLAMP,
     );
-
     return {
       transform: [{ translateY: scale }],
       opacity: opaciter,
     };
   });
 
-  // Optimize scroll handler - use runOnJS sparingly
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       "worklet";
@@ -544,7 +677,6 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     },
   });
 
-  // Memoize action data
   const actionData = useMemo(
     () => ({
       quiz: data?.quizCount,
@@ -556,51 +688,87 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
 
   return (
     <>
-      {/* <SchoolHeader data={headerData} scrollY={translationY} /> */}
-      {/* <Animated.FlatList
-        data={["School"]}
-        keyExtractor={keyExtractor}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16} // Critical for smooth animation
-       
-        renderItem={renderItem}
-        removeClippedSubviews={true} // Performance boost
-        maxToRenderPerBatch={1}
-        windowSize={3}
-        initialNumToRender={1}
-        // Important: Disable nested scrolling if not needed
-        nestedScrollEnabled={false}
-      /> */}
       <Animated.View
-        style={[
-          styles.headerSticker,
-          {
-            paddingTop: insets.top + 10,
-          },
-          Rstyle,
-        ]}
+        style={[styles.headerSticker, { paddingTop: insets.top + 10 }, Rstyle]}
       >
         <Ionicons name="school" color={colors.primary} size={30} />
         <AppText style={styles.headerTxt} fontWeight="heavy" size="large">
           {data?.name}
         </AppText>
       </Animated.View>
+
       <Animated.FlatList
         data={["School"]}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         refreshControl={getRefresher({ refreshing, onRefresh })}
+        onLayout={onListLayout}
         ListHeaderComponent={
-          <SchoolHeader
-            data={{ name: data.name, lga: data.lga, state: data.state }}
-            scrollY={translationY}
-          />
+          <CopilotStep
+            text={
+              isTeacher
+                ? `Welcome to your School, ${user?.username}! 🏫\n\nThis is your school's profile page — everything you need to manage your students and run a great academic experience is right here.`
+                : `Welcome to your School, ${user?.username}! 🏫\n\nThis is your school's profile page. Everything you need for a great academic year is right here — quizzes, assignments, leaderboards and more!`
+            }
+            order={1}
+            name="school_header_banner"
+          >
+            <WalkthroughableView>
+              <SchoolHeader
+                data={{ name: data.name, lga: data.lga, state: data.state }}
+                scrollY={translationY}
+              />
+            </WalkthroughableView>
+          </CopilotStep>
         }
         renderItem={() => (
           <View>
-            <SchoolActions data={actionData} />
-            <Authors data={data?.teachers} />
-            <ClassMates data={data?.students} />
+            <CopilotStep
+              text={
+                isTeacher
+                  ? "These are your school tools. 👇\nEach tile takes you to a key area — creating quizzes, managing assignments, making announcements, handling classes and more.\n\nLet's walk through each one!"
+                  : "These are your school features. 👇\nTap each tile to access quizzes assigned to you, check your assignments, read announcements and see the school leaderboard."
+              }
+              order={2}
+              name="school_actions_strip"
+            >
+              <WalkthroughableView>
+                <SchoolActions data={actionData} isTeacher={isTeacher} />
+              </WalkthroughableView>
+            </CopilotStep>
+
+            <CopilotStep
+              text={
+                isTeacher
+                  ? "Your fellow teachers are listed here. 👩‍🏫👨‍🏫\nSee who else is part of your school's academic team."
+                  : "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄"
+              }
+              order={9}
+              name="school_teachers_section"
+            >
+              <WalkthroughableView>
+                <Authors data={data?.teachers} />
+              </WalkthroughableView>
+            </CopilotStep>
+
+            {/*
+              minHeight ensures Copilot can measure the students section target
+              even when the list is empty (zero-height container is invisible
+              to Copilot's measurement pass).
+            */}
+            <CopilotStep
+              text={
+                isTeacher
+                  ? "All verified students appear here. ✅\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students."
+                  : "These are your classmates! 💪\nSee who else has joined your school. The more active everyone is, the more competitive the leaderboard gets!"
+              }
+              order={10}
+              name="school_classmates_section"
+            >
+              <WalkthroughableView style={{ minHeight: 120 }}>
+                <ClassMates data={data?.students} />
+              </WalkthroughableView>
+            </CopilotStep>
           </View>
         )}
       />
@@ -610,13 +778,16 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
 
 const SchoolProfileMemo = memo(SchoolProfile);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SchoolScreen
+// ─────────────────────────────────────────────────────────────────────────────
 const SchoolScreen = ({ route }) => {
   const user = useSelector(selectUser);
-
   const shouldRefresh = route?.refresh === "true";
 
   const [popData, setPopData] = useState({ vis: false });
   const { data: school, isLoading, refetch } = useFetchSchoolQuery();
+  const insets = useSafeAreaInsets();
 
   const hasJoined = Boolean(
     school?.data && school?.isVerified && school?.data?.subscription?.isActive,
@@ -629,50 +800,34 @@ const SchoolScreen = ({ route }) => {
   const getSchoolData = async () => {
     try {
       await refetch().unwrap();
-    } catch (_err) {
-    } finally {
-    }
+    } catch (_err) {}
   };
-
-  // useFocusEffect(
-  //   // Callback should be wrapped in `React.useCallback` to avoid running the effect too often.
-  //   useCallback(() => {
-  //     // Invoked whenever the route is focused.
-  //     if (route?.check === "school_join") {
-  //       setPopData({
-  //         vis: true,
-  //         msg: isStudent
-  //           ? "Join your school now by searching for it"
-  //           : "Create your school profile now or Join one if created already",
-  //         timer: 1000,
-  //         type: "failed",
-  //       });
-  //     }
-
-  //     // Return function is invoked whenever the route gets out of focus.
-  //     return () => {
-  //       // log("This route is now unfocused.");
-  //     };
-  //   }, [route?.check]),
-  // );
 
   useEffect(() => {
     getSchoolData();
   }, []);
 
   useEffect(() => {
-    if (shouldRefresh) {
-      getSchoolData();
-    }
+    if (shouldRefresh) getSchoolData();
   }, [route]);
 
   return (
     <View style={styles.container}>
       {(isStudent || isTeacher) && hasJoined && (
-        <SchoolProfileMemo
-          data={school?.data}
-          fetchSchoolData={getSchoolData}
-        />
+        <CopilotProvider
+          tooltipComponent={GuruTooltip}
+          tooltipStyle={{ backgroundColor: "transparent" }}
+          arrowSize={0}
+          overlay="svg"
+          animated
+          backdropColor="rgba(0, 0, 0, 0.75)"
+          verticalOffset={insets.top}
+        >
+          <SchoolProfileMemo
+            data={school?.data}
+            fetchSchoolData={getSchoolData}
+          />
+        </CopilotProvider>
       )}
       {isStudent && !hasJoined && (
         <JoinSchool schoolData={school?.data} fetchSchoolData={getSchoolData} />
@@ -715,7 +870,6 @@ const styles = StyleSheet.create({
   action: {
     minWidth: width * 0.3,
     backgroundColor: colors.white,
-    // height: height * 0.25,
     marginHorizontal: 10,
     borderRadius: 35,
     paddingTop: 10,
@@ -731,10 +885,7 @@ const styles = StyleSheet.create({
     elevation: 1.5,
     borderRadius: 30,
   },
-  actionImg: {
-    width: "50%",
-    height: "50%",
-  },
+  actionImg: { width: "50%", height: "50%" },
   actionDetail: {
     justifyContent: "center",
     alignItems: "center",
@@ -762,19 +913,13 @@ const styles = StyleSheet.create({
     paddingBottom: height * 0.11,
     marginBottom: 120,
   },
-  close: {
-    marginTop: 5,
-    marginRight: 15,
-  },
+  close: { marginTop: 5, marginRight: 15 },
   filterBtn: {
     paddingRight: 16,
     flexDirection: "row",
     alignItems: "center",
   },
-  headerTxt: {
-    textTransform: "capitalize",
-    // margin: 15,
-  },
+  headerTxt: { textTransform: "capitalize" },
   headerSticker: {
     backgroundColor: colors.white,
     position: "absolute",
@@ -787,7 +932,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 15,
   },
-
   main: {
     flex: 1,
     justifyContent: "center",
@@ -797,52 +941,7 @@ const styles = StyleSheet.create({
   modalQuiz: {
     width,
     alignItems: "center",
-    // marginTop: 10,
     minHeight: height * 0.5,
-    // backgroundColor: "white",
-  },
-  modalQuizItem: {
-    width: width * 0.94,
-    borderRadius: 15,
-    minHeight: height * 0.5,
-    backgroundColor: colors.white,
-    marginBottom: 15,
-    elevation: 6,
-    alignItems: "center",
-    marginHorizontal: 10,
-    marginTop: 10,
-    paddingTop: 30,
-  },
-  modalQuizItemImg: {
-    width: width * 0.25,
-    height: width * 0.25,
-  },
-  modalQuizItemSbj: {
-    marginTop: 15,
-    color: colors.medium,
-    textTransform: "capitalize",
-  },
-  modalQuizItemStat: {
-    textTransform: "uppercase",
-    color: colors.primary,
-  },
-  modalQuizItemAvatar: {
-    width: width * 0.5,
-    marginBottom: 15,
-  },
-  modalQuizItemDate: {
-    color: colors.medium,
-  },
-  modalQuizItemRev: {
-    color: colors.primaryDeeper,
-    marginBottom: 25,
-    marginTop: 20,
-    textTransform: "capitalize",
-  },
-  modalQuizItemMsg: {
-    textAlign: "center",
-    marginBottom: 20,
-    marginTop: 20,
   },
   rowWide: {
     flexDirection: "row",
@@ -865,12 +964,7 @@ const styles = StyleSheet.create({
     boxShadow: `2px 8px 18px ${colors.primary}25`,
     width: width * 0.9,
   },
-
-  quizHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
+  quizHeader: { flexDirection: "row", alignItems: "center" },
   quizIconCont: {
     width: 55,
     height: 55,
@@ -880,12 +974,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-
-  quizIcon: {
-    width: 30,
-    height: 30,
-  },
-
+  quizIcon: { width: 30, height: 30 },
   badge: {
     marginTop: 6,
     paddingHorizontal: 10,
@@ -893,21 +982,13 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignSelf: "flex-start",
   },
-
   quizTeacherRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 15,
   },
-
-  quizTitle: {
-    // marginTop: 12,
-    // color: colors.medium,
-  },
-
-  quizBtn: {
-    marginTop: 15,
-  },
+  quizTitle: {},
+  quizBtn: { marginTop: 15 },
   teacherQuiz: {
     backgroundColor: colors.light,
     flexDirection: "row",
@@ -919,11 +1000,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     boxShadow: `2px 8px 18px ${colors.primary}25`,
   },
-  tQuizMain: {
-    marginLeft: 10,
-    flex: 1,
-    marginRight: 15,
-  },
+  tQuizMain: { marginLeft: 10, flex: 1, marginRight: 15 },
   tQuizSubj: {
     marginTop: 10,
     color: colors.medium,

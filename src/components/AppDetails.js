@@ -359,7 +359,7 @@ export const SubjectCategory = ({ data = [], loading }) => {
         {!loading && (
           <AppText
             style={{ maxWidth: "80%", lineHeight: 25 }}
-            fontWeight="medium"
+            fontWeight="bold"
           >
             {item.name}
           </AppText>
