@@ -28,22 +28,28 @@ import PopMessage from "./PopMessage";
 import { hasCompletedProfile } from "../helpers/helperFunctions";
 import getRefresher from "./Refresher";
 import { PAD_BOTTOM } from "../helpers/dataStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
+
+const WalkthroughableView = walkthroughable(View);
 
 const { width, height } = Dimensions.get("screen");
 
+const TOUR_KEY = "guru_school_join_tour_seen";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SchoolList
+// ─────────────────────────────────────────────────────────────────────────────
 export const SchoolList = ({ item, onPress, status = "" }) => {
   const pending = status === "pending";
   const verification = status === "verification";
-  const subscription = status === "subscription";
   const statusText = pending ? "pending" : `Awaiting ${status}`;
 
   const scaler = useSharedValue(1);
 
-  const aniStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scaleX: scaler.value }],
-    };
-  });
+  const aniStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: scaler.value }],
+  }));
 
   useEffect(() => {
     if (status) {
@@ -113,6 +119,9 @@ export const SchoolList = ({ item, onPress, status = "" }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SearchSchool
+// ─────────────────────────────────────────────────────────────────────────────
 export const SearchSchool = ({
   onSearch,
   onSchoolPicked,
@@ -128,7 +137,6 @@ export const SearchSchool = ({
     >
       <SearchBar
         style={styles.search}
-        // onInputBlur={() => onSearch("blur")}
         loading={loading?.search}
         placeholder="Enter your school name..."
         onInputFocus={() => onSearch("focus")}
@@ -138,12 +146,10 @@ export const SearchSchool = ({
       />
       {showSearch && (
         <View style={{ flex: 1 }}>
-          {/* <LottieAnimator visible style={styles.lottie} /> */}
-
           <FlatList
             data={data}
             keyExtractor={(item) => item._id}
-            keyboardShouldPersistTaps="hanlded"
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <SchoolList item={item} onPress={onSchoolPicked} />
             )}
@@ -155,7 +161,6 @@ export const SearchSchool = ({
               />
             )}
             contentContainerStyle={{ paddingBottom: 215 }}
-            // style={{ flex: 1 }}
           />
         </View>
       )}
@@ -164,8 +169,13 @@ export const SearchSchool = ({
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// JoinSchool
+// ─────────────────────────────────────────────────────────────────────────────
 const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const user = useSelector(selectUser);
+  const { start, copilotEvents } = useCopilot();
+
   const translationY = useSharedValue(0);
   const [searchSchool, { data, isLoading }] = useLazySearchSchoolsQuery();
   const [joinSchool, { isLoading: joinLoading }] = useJoinSchoolMutation();
@@ -177,6 +187,25 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
 
   const searchStyle = bools.search ? styles.searchOn : {};
 
+  // ── Tour lifecycle ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const checkTour = async () => {
+      await AsyncStorage.removeItem(TOUR_KEY); // remove in production
+      const seen = await AsyncStorage.getItem(TOUR_KEY);
+      if (!seen) {
+        setTimeout(() => start(), 800);
+      }
+    };
+    checkTour();
+  }, []);
+
+  useEffect(() => {
+    const handleStop = async () => await AsyncStorage.setItem(TOUR_KEY, "true");
+    copilotEvents.on("stop", handleStop);
+    return () => copilotEvents.off("stop", handleStop);
+  }, []);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const scrollHandler = useAnimatedScrollHandler((event) => {
     translationY.value = event.contentOffset.y;
   });
@@ -196,28 +225,23 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
     switch (type) {
       case "focus":
         setBools({ ...bools, search: true });
-        // searcher.value = withTiming(1, { duration: 700 });
         break;
       case "blur":
         setBools({ ...bools, search: false });
         break;
       case "callback":
         try {
-          const res = await searchSchool(data).unwrap();
+          await searchSchool(data).unwrap();
         } catch (error) {
           console.log(error);
         }
-        // !bools.search && setBools({ ...bools, search: true });
-
         break;
     }
   };
 
   const onSchoolPicked = async (item) => {
     const profile = hasCompletedProfile(user);
-    if (!profile.bool) {
-      return setPopper(profile.pop);
-    }
+    if (!profile.bool) return setPopper(profile.pop);
 
     try {
       const res = await joinSchool(item?._id).unwrap();
@@ -242,10 +266,6 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
         timer: 3500,
       });
     }
-
-    // Keyboard.dismiss();
-    // setSchool(item);
-    // setBools({ ...bools, search: false });
   };
 
   useEffect(() => {
@@ -269,7 +289,17 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
         refreshControl={getRefresher({ refreshing, onRefresh })}
         renderItem={() => (
           <View style={styles.container}>
-            <SchoolHeader name={"JOIN SCHOOL"} scrollY={translationY} />
+            {/* Step 1 – Welcome banner */}
+            <CopilotStep
+              text={`Hey ${user?.username}! 👋\n\nTo unlock everything Guru has to offer, you need to join your school.\n\nThis connects you to your teachers, classmates, school quizzes, assignments and the school leaderboard!`}
+              order={1}
+              name="join_school_header"
+            >
+              <WalkthroughableView>
+                <SchoolHeader name={"JOIN SCHOOL"} scrollY={translationY} />
+              </WalkthroughableView>
+            </CopilotStep>
+
             <AppText
               fontWeight="heavy"
               size={"xxlarge"}
@@ -277,19 +307,32 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
             >
               Hi, {user?.username}
             </AppText>
-            <SearchSchool
-              searchStyle={searchStyle}
-              onSchoolPicked={onSchoolPicked}
-              searchLoading={isLoading}
-              data={data?.data}
-              onSearch={onSearch}
-              loading={{
-                search: isLoading,
-                searched: bools.searched,
-                page: joinLoading,
-              }}
-              showSearch={bools.search}
-            />
+
+            {/* Step 2 – Search bar */}
+            <CopilotStep
+              text={
+                "Search for your school here! 🔍\n\nType the name of your school and it will appear in the list below.\nSelect it to send a join request to your school rep.\n\nMake sure your profile is complete before joining!"
+              }
+              order={2}
+              name="join_school_search"
+            >
+              <WalkthroughableView>
+                <SearchSchool
+                  searchStyle={searchStyle}
+                  onSchoolPicked={onSchoolPicked}
+                  searchLoading={isLoading}
+                  data={data?.data}
+                  onSearch={onSearch}
+                  loading={{
+                    search: isLoading,
+                    searched: bools.searched,
+                    page: joinLoading,
+                  }}
+                  showSearch={bools.search}
+                />
+              </WalkthroughableView>
+            </CopilotStep>
+
             <View style={styles.row}>
               <Ionicons
                 name="information-circle"
@@ -312,15 +355,24 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
                 homeroom teacher to create a School Profile for all students
               </AppText>
             </View>
+
+            {/* Step 3 – Pending request card */}
             {school && (
-              <View style={styles.pending}>
-                <SchoolList
-                  item={school}
-                  // onPress={handleSchoolSub}
-                  status={school?.status}
-                />
-              </View>
+              <CopilotStep
+                text={
+                  school?.status === "subscription"
+                    ? "Your school is awaiting a subscription renewal. ⏳\n\nNotify your school rep or homeroom teacher to renew the school subscription so you can gain full access."
+                    : "Your join request has been sent! ✅\n\nYou're now awaiting verification from your school rep.\n\nPull down to refresh and check if you've been approved. Once verified, you'll have full access to school features!"
+                }
+                order={3}
+                name="join_school_pending"
+              >
+                <WalkthroughableView style={styles.pending}>
+                  <SchoolList item={school} status={school?.status} />
+                </WalkthroughableView>
+              </CopilotStep>
             )}
+
             <View style={[styles.row, { marginTop: 10 }]}>
               <Ionicons
                 name="information-circle"
@@ -407,7 +459,6 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     backgroundColor: colors.extraLight,
     zIndex: 30,
-    // height: height,
   },
   text: {
     color: colors.black,

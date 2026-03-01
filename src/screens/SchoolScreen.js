@@ -4,23 +4,14 @@ import {
   FlatList,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import React, {
-  useCallback,
-  useEffect,
-  memo,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, memo, useMemo, useState } from "react";
 
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 
-import Screen from "../components/Screen";
 import colors from "../helpers/colors";
 import AppText from "../components/AppText";
 import { Authors } from "../components/AppDetails";
@@ -390,92 +381,21 @@ export const SchoolModal = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Action tile Copilot tip map
-// ─────────────────────────────────────────────────────────────────────────────
-const ACTION_TIPS = {
-  teacher: {
-    Dashboard: {
-      order: 3,
-      text: "Your command centre! 📊\nSee an overview of all school activity — quizzes, assignments, classes and more at a glance.",
-    },
-    Quiz: {
-      order: 4,
-      text: "Create and manage quiz sessions here. 🎯\nStart a live quiz for your students, set the subject, timing and point values — then watch them compete in real-time!",
-    },
-    Assignments: {
-      order: 5,
-      text: "Create assignments for your classes here. 📝\nSet deadlines, attach questions and track which students have submitted — all in one place.",
-    },
-    Announcements: {
-      order: 6,
-      text: "Broadcast important messages to your school. 📢\nLet your students know about upcoming tests, events or any school updates instantly.",
-    },
-    Leaderboard: {
-      order: 7,
-      text: "See how your students rank within the school. 🏆\nMotivate them by celebrating the top performers!",
-    },
-    Classes: {
-      order: 8,
-      text: "Manage your classrooms here. 🏫\nCreate classes, assign subjects and verify the students that belong to each class.",
-    },
-  },
-  student: {
-    Quiz: {
-      order: 3,
-      text: "Check your pending quizzes here! ⏱️\nYour teacher may have started a live quiz — jump in before time runs out!\n\nYou can also review your past quiz results here.",
-    },
-    Assignments: {
-      order: 4,
-      text: "Your assignments live here. 📚\nSubmit before the deadline and track which ones you've already completed. Stay on top of it!",
-    },
-    Announcements: {
-      order: 5,
-      text: "Important updates from your school and teachers appear here. 🔔\nCheck back often so you never miss anything!",
-    },
-    Leaderboard: {
-      order: 6,
-      text: "See where you stand among your classmates! 🥇\nKeep practicing and climbing the school leaderboard to prove you're the top Guru.",
-    },
-    Classes: {
-      order: 7,
-      text: "Your assigned class shows here. 🏫\nThis determines which quizzes and assignments are sent to you by your teachers.",
-    },
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SchoolActions
-//
-// WHY ScrollView instead of FlatList:
-// Copilot measures targets using their on-screen position. A horizontal
-// FlatList virtualises cells — tiles that are off-screen are unmounted, so
-// Copilot cannot find or highlight them. Replacing with a plain ScrollView
-// keeps every tile in the DOM at all times.
-//
-// WHY the scrollTo logic:
-// When the tour advances to a tile step, we read the pre-recorded x-offset
-// for that tile name and scroll it into view before Copilot draws the overlay.
+// SchoolActions  –  no per-tile CopilotSteps, plain FlatList
 // ─────────────────────────────────────────────────────────────────────────────
 const SchoolActions = ({ data, isTeacher }) => {
   const router = useRouter();
   const user = useSelector(selectUser);
   const [modal, setModal] = useState({ visible: false, data: null });
-  const tipSet = isTeacher ? ACTION_TIPS.teacher : ACTION_TIPS.student;
 
-  const scrollRef = useRef(null);
-  // Stores { [tileName]: xOffset }
-  const tileOffsets = useRef({});
-
-  // Scroll the active tile into view when the tour step changes
-  const { currentStep } = useCopilot();
-  useEffect(() => {
-    if (!currentStep?.name?.startsWith("school_action_")) return;
-    const tileName = currentStep.name.replace("school_action_", "");
-    const x = tileOffsets.current[tileName];
-    if (x !== undefined && scrollRef.current) {
-      scrollRef.current.scrollTo({ x: Math.max(0, x - 16), animated: true });
-    }
-  }, [currentStep]);
+  const visibleActions = useMemo(
+    () =>
+      schoolActions.filter(
+        (item) =>
+          !(item.name === "Dashboard" && user?.accountType !== "teacher"),
+      ),
+    [user?.accountType],
+  );
 
   const handleActionPress = (item) => {
     if (Boolean(item.nav)) {
@@ -492,10 +412,30 @@ const SchoolActions = ({ data, isTeacher }) => {
     }
   };
 
-  // Pre-filter so we never render null nodes inside the ScrollView
-  const visibleActions = schoolActions.filter(
-    (item) => !(item.name === "Dashboard" && user?.accountType !== "teacher"),
-  );
+  const renderItem = ({ item }) => {
+    const itemCount = data[item?.name?.toLowerCase()] ?? "X";
+    return (
+      <Pressable onPress={() => handleActionPress(item)} style={styles.action}>
+        <View style={[styles.actionImgCont, { backgroundColor: item.bgColor }]}>
+          <Image source={item.image} style={styles.actionImg} />
+        </View>
+        <View style={styles.actionDetail}>
+          <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
+            {" "}
+            {item.name}{" "}
+          </AppText>
+          {itemCount !== "X" && (
+            <AppText
+              style={{ ...styles.actionCount, backgroundColor: colors.light }}
+              fontWeight="black"
+            >
+              {itemCount}
+            </AppText>
+          )}
+        </View>
+      </Pressable>
+    );
+  };
 
   let ModalComponet;
   switch (modal?.data?.name) {
@@ -514,68 +454,14 @@ const SchoolActions = ({ data, isTeacher }) => {
         My School
       </AppText>
 
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        data={visibleActions}
         horizontal
+        keyExtractor={(item) => item._id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 4 }}
-      >
-        {visibleActions.map((item) => {
-          const itemCount = data[item?.name?.toLowerCase()] ?? "X";
-          const tip = tipSet[item.name];
-
-          const tile = (
-            <Pressable
-              onPress={() => handleActionPress(item)}
-              style={styles.action}
-              onLayout={(e) => {
-                // Record each tile's x-offset for scroll-into-view
-                tileOffsets.current[item.name] = e.nativeEvent.layout.x;
-              }}
-            >
-              <View
-                style={[
-                  styles.actionImgCont,
-                  { backgroundColor: item.bgColor },
-                ]}
-              >
-                <Image source={item.image} style={styles.actionImg} />
-              </View>
-              <View style={styles.actionDetail}>
-                <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
-                  {" "}
-                  {item.name}{" "}
-                </AppText>
-                {itemCount !== "X" && (
-                  <AppText
-                    style={{
-                      ...styles.actionCount,
-                      backgroundColor: colors.light,
-                    }}
-                    fontWeight="black"
-                  >
-                    {itemCount}
-                  </AppText>
-                )}
-              </View>
-            </Pressable>
-          );
-
-          if (tip) {
-            return (
-              <CopilotStep
-                key={item._id}
-                text={tip.text}
-                order={tip.order}
-                name={`school_action_${item.name}`}
-              >
-                <WalkthroughableView>{tile}</WalkthroughableView>
-              </CopilotStep>
-            );
-          }
-          return <View key={item._id}>{tile}</View>;
-        })}
-      </ScrollView>
+        renderItem={renderItem}
+      />
 
       <AppModal
         visible={modal.visible}
@@ -593,13 +479,6 @@ const SchoolActions = ({ data, isTeacher }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolProfile
-//
-// WHY tourReady instead of watching `data`:
-// RTK Query returns cached `data` synchronously on the first render, so a
-// useEffect([data]) fires immediately — before CopilotStep targets have
-// measured themselves. The `tourReady` flag only becomes true once the
-// Animated.FlatList fires its onLayout callback (meaning it is fully painted),
-// guaranteeing every Copilot target is on-screen and measured before start().
 // ─────────────────────────────────────────────────────────────────────────────
 const SchoolProfile = ({ data, fetchSchoolData }) => {
   const user = useSelector(selectUser);
@@ -615,13 +494,10 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     ? TOUR_KEY_PROFILE_TEACHER
     : TOUR_KEY_PROFILE_STUDENT;
 
-  // Called once the list has finished its first layout pass
   const onListLayout = useCallback(() => {
-    // Small buffer so all CopilotStep children finish their own measurements
     setTimeout(() => setTourReady(true), 400);
   }, []);
 
-  // Only attempt the tour after layout is confirmed ready
   useEffect(() => {
     if (!tourReady) return;
     const checkTour = async () => {
@@ -686,6 +562,11 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     [data?.quizCount, data?.assignmentCount, data?.classCount],
   );
 
+  // Build the actions tip text dynamically so it matches what the user sees
+  const actionsTipText = isTeacher
+    ? "These are your school tools — swipe to see all of them! 👉\n\n📊 Dashboard — overview of all school activity\n🎯 Quiz — create & launch live quizzes\n📝 Assignments — set tasks and track submissions\n📢 Announcements — broadcast messages to your school\n🏆 Leaderboard — see your top-performing students\n🏫 Classes — manage classrooms and verify students"
+    : "These are your school features — swipe to see all of them! 👉\n\n⏱️ Quiz — join live quizzes and check your results\n📚 Assignments — submit your tasks before the deadline\n🔔 Announcements — important updates from your teachers\n🥇 Leaderboard — see where you rank among classmates\n🏫 Classes — your assigned class for quizzes & assignments";
+
   return (
     <>
       <Animated.View
@@ -723,12 +604,9 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
         }
         renderItem={() => (
           <View>
+            {/* Single step covers the whole actions strip */}
             <CopilotStep
-              text={
-                isTeacher
-                  ? "These are your school tools. 👇\nEach tile takes you to a key area — creating quizzes, managing assignments, making announcements, handling classes and more.\n\nLet's walk through each one!"
-                  : "These are your school features. 👇\nTap each tile to access quizzes assigned to you, check your assignments, read announcements and see the school leaderboard."
-              }
+              text={actionsTipText}
               order={2}
               name="school_actions_strip"
             >
@@ -743,7 +621,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
                   ? "Your fellow teachers are listed here. 👩‍🏫👨‍🏫\nSee who else is part of your school's academic team."
                   : "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄"
               }
-              order={9}
+              order={3}
               name="school_teachers_section"
             >
               <WalkthroughableView>
@@ -751,18 +629,13 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
               </WalkthroughableView>
             </CopilotStep>
 
-            {/*
-              minHeight ensures Copilot can measure the students section target
-              even when the list is empty (zero-height container is invisible
-              to Copilot's measurement pass).
-            */}
             <CopilotStep
               text={
                 isTeacher
                   ? "All verified students appear here. ✅\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students."
                   : "These are your classmates! 💪\nSee who else has joined your school. The more active everyone is, the more competitive the leaderboard gets!"
               }
-              order={10}
+              order={4}
               name="school_classmates_section"
             >
               <WalkthroughableView style={{ minHeight: 120 }}>
@@ -830,13 +703,36 @@ const SchoolScreen = ({ route }) => {
         </CopilotProvider>
       )}
       {isStudent && !hasJoined && (
-        <JoinSchool schoolData={school?.data} fetchSchoolData={getSchoolData} />
+        <CopilotProvider
+          tooltipComponent={GuruTooltip}
+          tooltipStyle={{ backgroundColor: "transparent" }}
+          arrowSize={0}
+          overlay="svg"
+          animated
+          backdropColor="rgba(0, 0, 0, 0.75)"
+          verticalOffset={insets.top}
+        >
+          <JoinSchool
+            schoolData={school?.data}
+            fetchSchoolData={getSchoolData}
+          />
+        </CopilotProvider>
       )}
       {isTeacher && !hasJoined && (
-        <CreateSchool
-          schoolData={school?.data}
-          fetchSchoolData={getSchoolData}
-        />
+        <CopilotProvider
+          tooltipComponent={GuruTooltip}
+          tooltipStyle={{ backgroundColor: "transparent" }}
+          arrowSize={0}
+          overlay="svg"
+          animated
+          backdropColor="rgba(0, 0, 0, 0.75)"
+          verticalOffset={insets.top}
+        >
+          <CreateSchool
+            schoolData={school?.data}
+            fetchSchoolData={getSchoolData}
+          />
+        </CopilotProvider>
       )}
       {isPro && (
         <View style={styles.main}>
