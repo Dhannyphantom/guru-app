@@ -40,7 +40,11 @@ import Invited from "../components/Invited";
 import TeacherHomeScreen from "./TeacherHomeScreen";
 import getRefresher from "@/src/components/Refresher";
 import { useRouter } from "expo-router";
-import { getUserProfile, socket } from "../helpers/helperFunctions";
+import {
+  capFirstLetter,
+  getUserProfile,
+  socket,
+} from "../helpers/helperFunctions";
 import { PAD_BOTTOM } from "../helpers/dataStore";
 import Animated, {
   LinearTransition,
@@ -307,7 +311,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const checkTour = async () => {
       if (fetchingCategories || !stats) return;
-      await AsyncStorage.removeItem(TOUR_KEY);
+      // await AsyncStorage.removeItem(TOUR_KEY);
       const seen = await AsyncStorage.getItem(TOUR_KEY);
 
       if (!seen) {
@@ -337,9 +341,9 @@ const HomeScreen = () => {
     <Screen style={styles.container}>
       <View style={styles.header}>
         <CopilotStep
-          text={`Welcome to Guru @${user?.username}.\nComplete these steps to get started\n\n1. Complete your profile \n\n2. Join your school in the school tab\n\n3. Subscribe to fully access Guru.`}
+          text={`Complete these steps to get started\n\n1. Complete your profile \n\n2. Join your school in the school tab\n\n3. Subscribe to fully access Guru.`}
           order={1}
-          name="welcome"
+          name={`Welcome to Guru ${capFirstLetter(user?.username)}!`}
         >
           <WalkthroughableView style={{ alignSelf: "flex-start" }}>
             <AppLogo />

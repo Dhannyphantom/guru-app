@@ -53,10 +53,17 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
           {item.rank ?? index + 1}
         </AppText>
         <Avatar
-          style={{ marginLeft: 25 }}
+          style={{ marginLeft: 15 }}
           size={50}
           userID={item?._id}
           source={item?.avatar?.image}
+          contStyle={{ flex: 1 }}
+          textStyle={{
+            flex: 1,
+            marginLeft: 15,
+            maxWidth: null,
+            textAlign: "flex-start",
+          }}
           name={getFullName(item)}
           horizontal
         />
@@ -406,7 +413,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   footer: {
-    height: height * 0.2,
+    minHeight: height * 0.5,
     backgroundColor: colors.unchange,
   },
   footerMain: {

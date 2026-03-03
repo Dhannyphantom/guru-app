@@ -501,7 +501,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
   useEffect(() => {
     if (!tourReady) return;
     const checkTour = async () => {
-      await AsyncStorage.removeItem(TOUR_KEY); // ← remove in production
+      // await AsyncStorage.removeItem(TOUR_KEY); // ← remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
         setTimeout(() => start(), 300);

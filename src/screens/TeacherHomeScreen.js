@@ -147,65 +147,50 @@ const msToMins = (ms) => (ms ? `${Math.round(ms / 60000)}m` : "—");
 /** Animated circular accuracy ring */
 const AccuracyRing = ({ value = 0, size = 110, delay = 0 }) => {
   const progress = useSharedValue(0);
-  const radius = (size - 16) / 2;
-  const circumference = 2 * Math.PI * radius;
+  const scale = useSharedValue(0.9);
 
   useEffect(() => {
     progress.value = withTiming(value / 100, { duration: 1200 + delay });
+    scale.value = withSpring(1, { damping: 14, stiffness: 120 });
   }, [value]);
 
-  const strokeStyle = useAnimatedStyle(() => ({
-    strokeDashoffset: circumference * (1 - progress.value),
-  }));
-
-  const scaleAnim = useSharedValue(0.7);
-  useEffect(() => {
-    scaleAnim.value = withSpring(1, { damping: 14, stiffness: 120, delay });
-  }, []);
-  const scaleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleAnim.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const rotate = interpolate(
+      progress.value,
+      [0, 1],
+      [0, 360],
+      Extrapolation.CLAMP,
+    );
+    return {
+      transform: [{ scale: scale.value }, { rotate: `${rotate}deg` }],
+    };
+  });
 
   const color = value >= 70 ? "#10B981" : value >= 50 ? "#F59E0B" : "#EF4444";
 
   return (
-    <Animated.View
-      style={[styles.ringContainer, { width: size, height: size }, scaleStyle]}
-    >
-      <View
+    <View style={[styles.ringWrapper, { width: size, height: size }]}>
+      <Animated.View
         style={[
-          styles.ringOuter,
+          styles.ringProgress,
           {
             width: size,
             height: size,
             borderRadius: size / 2,
-            borderColor: color + "30",
+            borderColor: color,
           },
+          animatedStyle,
         ]}
-      >
-        <View
-          style={[
-            styles.ringInner,
-            {
-              width: size - 16,
-              height: size - 16,
-              borderRadius: (size - 16) / 2,
-              borderColor: color,
-              borderTopColor: color + "20",
-              transform: [{ rotate: `${(value / 100) * 360 - 90}deg` }],
-            },
-          ]}
-        />
-      </View>
-      <View style={styles.ringTextContainer}>
-        <AppText size={22} fontWeight="black" style={{ color }}>
-          {fmt(value, 0)}%
+      />
+      <View style={styles.ringCenter}>
+        <AppText size={24} fontWeight="black" style={{ color }}>
+          {Math.round(value)}%
         </AppText>
-        <AppText size={10} style={{ color: "rgba(255,255,255,0.7)" }}>
+        <AppText size={10} style={{ color: "#6B7280" }}>
           accuracy
         </AppText>
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
@@ -244,7 +229,12 @@ const SubjectBar = ({ item, maxAccuracy, delay = 0 }) => {
   }, [targetWidth]);
 
   const barStyle = useAnimatedStyle(() => ({
-    width: `${interpolate(barWidth.value, [0, 1], [0, 100], Extrapolation.CLAMP)}%`,
+    width: `${interpolate(
+      barWidth.value,
+      [0, 1],
+      [0, 100],
+      Extrapolation.CLAMP,
+    )}%`,
   }));
 
   return (
@@ -285,8 +275,8 @@ const ClassRow = ({ item, isSelected, onPress, delay = 0 }) => {
     item.avgAccuracy >= 70
       ? "#10B981"
       : item.avgAccuracy >= 50
-        ? "#3B82F6"
-        : "#EF4444";
+      ? "#3B82F6"
+      : "#EF4444";
 
   return (
     <Animated.View entering={FadeInDown.delay(delay).springify()}>
@@ -357,8 +347,8 @@ const ClassRow = ({ item, isSelected, onPress, delay = 0 }) => {
                         subj.accuracyRate >= 70
                           ? "#10B981"
                           : subj.accuracyRate >= 50
-                            ? "#F59E0B"
-                            : "#EF4444",
+                          ? "#F59E0B"
+                          : "#EF4444",
                     },
                   ]}
                 />
@@ -380,8 +370,9 @@ const ClassRow = ({ item, isSelected, onPress, delay = 0 }) => {
 
 /** Student row (top 10 / most improved) */
 const StudentRow = ({ item, rank, showImprovement = false, delay = 0 }) => {
-  const initials =
-    `${item.firstName?.[0] ?? ""}${item.lastName?.[0] ?? ""}`.toUpperCase();
+  const initials = `${item.firstName?.[0] ?? ""}${
+    item.lastName?.[0] ?? ""
+  }`.toUpperCase();
   const medalColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
 
   return (
@@ -869,47 +860,41 @@ const TeacherHomeScreen = () => {
           </Animated.View>
         ) : (
           <>
-            {/* ── School Hero Card ── */}
+            {/* Modern Hero Card */}
             <Animated.View
-              entering={FadeInDown.delay(100).springify()}
+              entering={FadeInDown.duration(400)}
               style={styles.heroCard}
             >
-              <View style={styles.heroLeft}>
-                <AppText
-                  size={18}
-                  fontWeight="bold"
-                  style={styles.heroSchoolName}
-                  numberOfLines={1}
-                >
-                  {capName(schoolInfo?.name)}
+              <View style={{ flex: 1 }}>
+                <AppText size={18} fontWeight="bold" style={styles.heroTitle}>
+                  {schoolInfo?.name}
                 </AppText>
-                <AppText size={12} style={styles.heroMeta}>
-                  {dashboard?.overview?.totalStudents ??
-                    schoolInfo?.students?.filter((s) => s.verified)?.length ??
-                    0}{" "}
-                  students
-                  {"  ·  "}
+
+                <AppText size={12} style={styles.heroSub}>
+                  {dashboard?.overview?.totalStudents ?? 0} students ·{" "}
                   {dashboard?.overview?.totalTeachers ?? 0} teachers
                 </AppText>
-                <View style={styles.heroParticipation}>
+
+                <View style={styles.softBarTrack}>
                   <View
                     style={[
-                      styles.heroParticipationBar,
+                      styles.softBarFill,
                       {
-                        width: `${dashboard?.overview?.participationRate ?? 0}%`,
+                        width: `${
+                          dashboard?.overview?.participationRate ?? 0
+                        }%`,
                       },
                     ]}
                   />
                 </View>
-                <AppText size={11} style={styles.heroParticipationLabel}>
-                  {fmt(dashboard?.overview?.participationRate, 0)}% active last
-                  30 days
+
+                <AppText size={11} style={styles.heroSub}>
+                  {Math.round(dashboard?.overview?.participationRate ?? 0)}%
+                  active
                 </AppText>
               </View>
-              <AccuracyRing
-                value={dashboard?.overview?.overallAccuracy ?? 0}
-                delay={200}
-              />
+
+              <AccuracyRing value={dashboard?.overview?.overallAccuracy ?? 0} />
             </Animated.View>
 
             {/* ── Quick Actions Grid ── */}
@@ -1132,18 +1117,72 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.unchange,
   },
-
-  // ── Header ──
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    // backgroundColor: "#F8F9FB",
-    gap: 10,
     justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
+
+  /* Modern Hero Card */
+  heroCard: {
+    marginHorizontal: 16,
+    // marginTop: 10,
+    padding: 22,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    boxShadow: "0px 4px 12px rgba(0,0,0,0.1)",
+    marginBottom: 15,
+  },
+
+  heroTitle: {
+    color: "#111827",
+    textTransform: "capitalize",
+    marginBottom: 6,
+  },
+
+  heroSub: {
+    color: "#6B7280",
+    marginBottom: 10,
+  },
+
+  softBarTrack: {
+    height: 6,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 6,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
+
+  softBarFill: {
+    height: "100%",
+    backgroundColor: colors.primary,
+    borderRadius: 6,
+  },
+
+  /* Ring */
+  ringWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  ringProgress: {
+    position: "absolute",
+    borderWidth: 6,
+    borderTopColor: "transparent",
+    borderLeftColor: "transparent",
+  },
+
+  ringCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // ── Header ──
+
   headerCenter: {
     // flex: 1,
   },
@@ -1173,18 +1212,6 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
   },
 
-  // ── Hero card ──
-  heroCard: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    boxShadow: "0px 8px 24px rgba(0,0,0,0.18)",
-  },
   heroLeft: {
     flex: 1,
     paddingRight: 12,

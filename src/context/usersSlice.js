@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createSlice } from "@reduxjs/toolkit";
 import { apiSlice } from "./apiSlice";
+import { useCallback, useState } from "react";
 
 const initialState = {
   token: null,
@@ -9,9 +10,148 @@ const initialState = {
   stat: null,
 };
 
+// ── Cache config ──────────────────────────────────────────────────────────────
+const ANALYTICS_CACHE_KEY = "user_analytics_me";
+const ANALYTICS_CACHE_TTL = 1000 * 60 * 20; // 20 minutes
+//   Analytics is the heaviest endpoint so we cache it aggressively.
+//   20 min is intentional — quiz data only changes on submission,
+//   and the student is unlikely to submit a quiz mid-session.
+
+/** Wipe the analytics AsyncStorage entry so the next query hits the network. */
+export const invalidateAnalyticsCache = async () => {
+  try {
+    await AsyncStorage.removeItem(ANALYTICS_CACHE_KEY);
+  } catch (_) {}
+};
+
+// analyticsEndpoint.js  (document 2 you shared)
+
+export const useAnalyticsRefresh = (refetch) => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await invalidateAnalyticsCache();
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  return { refreshing, onRefresh };
+};
+
+/**
+ * Read the raw cached entry.
+ * Returns { data, timestamp, ageMs } or null if missing / expired.
+ */
+export const readAnalyticsCache = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(ANALYTICS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const ageMs = Date.now() - parsed.timestamp;
+    if (ageMs >= ANALYTICS_CACHE_TTL) return null; // stale
+    return { data: parsed.data, timestamp: parsed.timestamp, ageMs };
+  } catch (_) {
+    return null;
+  }
+};
+
+/** Persist analytics data to AsyncStorage. */
+const writeAnalyticsCache = async (data) => {
+  try {
+    await AsyncStorage.setItem(
+      ANALYTICS_CACHE_KEY,
+      JSON.stringify({ data, timestamp: Date.now() }),
+    );
+  } catch (_) {}
+};
+
+// **
+//  * analyticsEndpoint — pass your RTK Query builder to get back the endpoint def.
+//  *
+//  * Usage inside createApi / injectEndpoints:
+//  *   fetchUserAnalytics: analyticsEndpoint(builder)
+//  */
+export const analyticsEndpoint = (builder) =>
+  builder.query({
+    /**
+     * queryFn intercepts the call so we can layer AsyncStorage caching
+     * on top of the normal baseQuery without any middleware.
+     *
+     * Flow:
+     *  1. Check AsyncStorage → return immediately if cache is fresh
+     *  2. Hit network via baseQuery
+     *  3. On success → write to AsyncStorage, return data with meta flags
+     *  4. On error   → try to serve stale cache rather than blank screen
+     */
+    queryFn: async (_arg, _queryApi, _extraOptions, baseQuery) => {
+      // ── Step 1: Fresh cache hit ──────────────────────────────────────────
+      const cached = await readAnalyticsCache();
+      if (cached) {
+        return {
+          data: {
+            ...cached.data,
+            _meta: {
+              fromCache: true,
+              cacheAgeMs: cached.ageMs,
+              cachedAt: new Date(cached.timestamp).toISOString(),
+            },
+          },
+        };
+      }
+
+      // ── Step 2: Network fetch ────────────────────────────────────────────
+      const result = await baseQuery("/analytics/me");
+
+      // ── Step 3: Success → persist + return ──────────────────────────────
+      if (!result.error) {
+        await writeAnalyticsCache(result.data);
+        return {
+          data: {
+            ...result.data,
+            _meta: {
+              fromCache: false,
+              cacheAgeMs: 0,
+              cachedAt: new Date().toISOString(),
+            },
+          },
+        };
+      }
+
+      // ── Step 4: Network failed → serve stale cache if available ─────────
+      // This prevents a blank screen when the device is briefly offline.
+      try {
+        const raw = await AsyncStorage.getItem(ANALYTICS_CACHE_KEY);
+        if (raw) {
+          const stale = JSON.parse(raw);
+          return {
+            data: {
+              ...stale.data,
+              _meta: {
+                fromCache: true,
+                stale: true,
+                cacheAgeMs: Date.now() - stale.timestamp,
+                cachedAt: new Date(stale.timestamp).toISOString(),
+              },
+            },
+          };
+        }
+      } catch (_) {}
+
+      // Nothing at all — propagate the error
+      return { error: result.error };
+    },
+
+    // Keep the data in the Redux store for 10 min after the component unmounts.
+    // This means navigating away and back won't trigger a refetch if the
+    // in-memory cache is still warm.
+    keepUnusedDataFor: 600,
+  });
+
 export const extendedUserApiSlice = apiSlice.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
+    fetchUserAnalytics: analyticsEndpoint(builder),
     createUser: builder.mutation({
       query: (user) => ({
         url: "/users/register",
@@ -556,6 +696,73 @@ export const selectToken = (state) => state.users.token;
 export const selectUser = (state) => state.users.user;
 export const selectAppInfo = (state) => state.users.appInfo;
 
+// ** Pull the root analytics payload from the query result. */
+export const selectAnalytics = (queryResult) => queryResult?.data?.data ?? null;
+
+/** Profile snapshot. */
+export const selectAnalyticsProfile = (queryResult) =>
+  queryResult?.data?.data?.profile ?? null;
+
+/** All-time overview stats. */
+export const selectAnalyticsOverview = (queryResult) =>
+  queryResult?.data?.data?.overview ?? null;
+
+/** Exam readiness block (score, label, components). */
+export const selectExamReadiness = (queryResult) =>
+  queryResult?.data?.data?.examReadiness ?? null;
+
+/** Subject performance array (sorted strongest → weakest). */
+export const selectSubjectPerformance = (queryResult) =>
+  queryResult?.data?.data?.subjectPerformance ?? [];
+
+/** Topic performance array (nested under subjects). */
+export const selectTopicPerformance = (queryResult) =>
+  queryResult?.data?.data?.topicPerformance ?? [];
+
+/** Flat top-10 weakest topics across all subjects. */
+export const selectWeakSpots = (queryResult) =>
+  queryResult?.data?.data?.weakSpotsDigest ?? [];
+
+/** Flat top-10 strongest topics across all subjects. */
+export const selectStrongSpots = (queryResult) =>
+  queryResult?.data?.data?.strongSpotsDigest ?? [];
+
+/** Class comparison block. */
+export const selectClassComparison = (queryResult) =>
+  queryResult?.data?.data?.classComparison ?? null;
+
+/** School comparison block. */
+export const selectSchoolComparison = (queryResult) =>
+  queryResult?.data?.data?.schoolComparison ?? null;
+
+/** Weekly + monthly trend arrays. */
+export const selectTrends = (queryResult) =>
+  queryResult?.data?.data?.trends ?? { weekly: [], monthly: [] };
+
+/** Streak history + active days heatmap. */
+export const selectStreakHistory = (queryResult) =>
+  queryResult?.data?.data?.streakHistory ?? null;
+
+/** Multiplayer stats. */
+export const selectMultiplayerStats = (queryResult) =>
+  queryResult?.data?.data?.multiplayerStats ?? null;
+
+/** Last 10 quiz sessions. */
+export const selectRecentActivity = (queryResult) =>
+  queryResult?.data?.data?.recentActivity ?? [];
+
+/** Study consistency block. */
+export const selectStudyConsistency = (queryResult) =>
+  queryResult?.data?.data?.studyConsistency ?? null;
+
+/** Priority-sorted recommendations array. */
+export const selectRecommendations = (queryResult) =>
+  queryResult?.data?.data?.recommendations ?? [];
+
+/** Cache metadata (_fromCache, cacheAgeMs, stale). */
+export const selectAnalyticsMeta = (queryResult) =>
+  queryResult?.data?._meta ?? null;
+
 //
 export const {
   useCreateUserMutation,
@@ -597,6 +804,7 @@ export const {
   useFetchSingleTicketQuery,
   useSendTicketMessageMutation,
   useMarkTicketMessagesReadMutation,
+  useFetchUserAnalyticsQuery,
   useRateTicketMutation,
   useDeleteTicketMutation,
   useFetchAllTicketsAdminQuery,
