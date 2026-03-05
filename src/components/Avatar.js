@@ -378,6 +378,7 @@ const Avatar = ({
 
       imagePicker(res.asset);
       if (res.asset) {
+        console.log({ asset: res?.asset });
         try {
           await updateAvatar({
             uri: res?.asset.uri,
@@ -388,11 +389,11 @@ const Avatar = ({
             assetId: getPickerName(res?.asset.uri),
           }).unwrap();
         } catch (err) {
-          console.log(err);
-          imagePickerError?.(true);
+          imagePickerError?.(true, err);
         }
       } else {
-        imagePickerError && imagePickerError(true);
+        imagePickerError &&
+          imagePickerError?.(true, "Cancelled: No image selected");
       }
     } else {
       if (userID) setModal(true);

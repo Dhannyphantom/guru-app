@@ -76,12 +76,12 @@ const TOUR_KEY = "guru_home_tour_seen";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
-
 // const { width, height } = Dimensions.get("screen");
 
 const HomeScreen = () => {
@@ -299,7 +299,7 @@ const HomeScreen = () => {
           msg: error?.data,
           type: "failed",
           cb: async () => {
-            await AsyncStorage.removeItem("token");
+            await AsyncStorage.multiRemove(["token", "user"]);
             dispatch(updateToken(null));
             router.replace("/(auth)/login");
           },

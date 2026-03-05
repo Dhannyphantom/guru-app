@@ -220,10 +220,10 @@ const RegisterScreen = () => {
 
   const isPro = accountType === "professional";
 
-  if (isPro) {
-    formInitials = registerInitialsPro;
-    formSchema = validationSchemaRegisterPro;
-  }
+  // if (isPro) {
+  //   formInitials = registerInitialsPro;
+  //   formSchema = validationSchemaRegisterPro;
+  // }
 
   const handleFormSubmit = async (formValues) => {
     setErrMsg(null);
@@ -232,13 +232,14 @@ const RegisterScreen = () => {
     if (Boolean(referModal.username)) {
       sendData.referral = referModal.username;
     }
+    // return console.log({ sendData });
     try {
       await registerUser(sendData).unwrap();
     } catch (err) {
       setErrMsg(
         typeof err?.status == "string" && err?.status?.includes("FETCH_ERROR")
           ? "Network request failed, Poor internet connection"
-          : (err?.error ?? "Something went wrong"),
+          : err?.error ?? "Something went wrong",
       );
     }
   };
@@ -369,25 +370,23 @@ const RegisterScreen = () => {
                         name="username"
                         placeholder={`${capFirstLetter(accountType)} Username`}
                       />
-                      {isPro ? (
-                        <FormInput name="email" placeholder="Email" />
-                      ) : (
-                        <FormikInput
-                          name="contact"
-                          keyboardType="numeric"
-                          LeftComponent={() => (
-                            <View>
-                              <AppText
-                                fontWeight="bold"
-                                style={{ color: colors.medium }}
-                              >
-                                +234
-                              </AppText>
-                            </View>
-                          )}
-                          placeholder="Phone Number"
-                        />
-                      )}
+
+                      <FormikInput
+                        name="contact"
+                        keyboardType="numeric"
+                        LeftComponent={() => (
+                          <View>
+                            <AppText
+                              fontWeight="bold"
+                              style={{ color: colors.medium }}
+                            >
+                              +234
+                            </AppText>
+                          </View>
+                        )}
+                        placeholder="Phone Number"
+                      />
+
                       <FormikInput
                         secureTextEntry
                         name="password"

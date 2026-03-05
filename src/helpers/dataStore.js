@@ -1157,6 +1157,8 @@ export const pointsSelect = [
   },
 ];
 
+export const signOutKeys = ["token", "user", "user_stat"];
+
 export const timerSelect = [
   {
     _id: nanoid(),

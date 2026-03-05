@@ -138,7 +138,7 @@ export const LeaderboardWinners = ({ data, isPro }) => {
         loading={item?.hasFinished === false}
         isPro={isPro}
         avatar={item?.avatar?.image}
-        points={item.points ?? item.totalPoints ?? item?.questionsCount}
+        points={item.totalPoints ?? item?.questionsCount}
       />
     );
   };

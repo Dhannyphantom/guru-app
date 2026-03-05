@@ -11,6 +11,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import StickyHeader from "../components/StickyHeader";
 
 import Screen from "../components/Screen";
 import Avatar from "../components/Avatar";
@@ -51,8 +52,9 @@ import Animated, {
   withRepeat,
   withTiming,
   FadeInDown,
+  useAnimatedScrollHandler,
 } from "react-native-reanimated";
-import { PAD_BOTTOM } from "../helpers/dataStore";
+import { PAD_BOTTOM, signOutKeys } from "../helpers/dataStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ── Analytics ─────────────────────────────────────────────────────────────
@@ -516,7 +518,8 @@ const ProfileScreen = () => {
   const school = useSelector(selectSchool);
   const [fetchUser] = useLazyFetchUserQuery();
   const insets = useSafeAreaInsets();
-
+  // after existing useState hooks:
+  const scrollY = useSharedValue(0);
   const profile = hasCompletedProfile(user);
   const isPro = ["professional", "manager"].includes(user.accountType);
   const isProVerified = isPro && user?.verified;
@@ -531,7 +534,7 @@ const ProfileScreen = () => {
 
   const handlePrompt = async (type) => {
     if (type === "sign_out") {
-      await AsyncStorage.multiRemove(["token", "user", "user_stat"]);
+      await AsyncStorage.multiRemove(signOutKeys);
       dispatch(updateToken(null));
     }
   };
@@ -546,6 +549,10 @@ const ProfileScreen = () => {
     router.push(screen);
   };
 
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -559,7 +566,9 @@ const ProfileScreen = () => {
 
   return (
     <View style={s.container}>
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: PAD_BOTTOM * 0.8,
@@ -716,7 +725,7 @@ const ProfileScreen = () => {
         >
           v{currentVersion}
         </AppText>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <PromptModal
         prompt={prompt}
@@ -725,6 +734,7 @@ const ProfileScreen = () => {
       />
       <PopMessage popData={popper} setPopData={setPopper} />
       <StatusBar style="dark" />
+      <StickyHeader scrollY={scrollY} user={user} insets={insets} />
     </View>
   );
 };

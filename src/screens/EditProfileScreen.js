@@ -91,13 +91,18 @@ const EditProfileScreen = () => {
     }
   };
 
-  const handleImagePickerError = (bool) => {
-    console.log({ bool });
+  const handleImagePickerError = (bool, err) => {
+    console.log(err);
     if (bool) {
       setPopper({
         vis: true,
         type: "failed",
-        msg: "Operation was canceled",
+        timer: 2500,
+        msg:
+          err?.data ||
+          err?.message ||
+          err?.data?.message ||
+          "Operation was canceled",
       });
     }
   };
