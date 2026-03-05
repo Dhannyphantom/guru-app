@@ -129,9 +129,32 @@ export const SchoolList = ({ item, onPress, status = "" }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ModalBanner – reusable inline banner for error / success inside the modal
+// ─────────────────────────────────────────────────────────────────────────────
+const ModalBanner = ({ message, type = "error" }) => {
+  const isSuccess = type === "success";
+  return (
+    <View
+      style={[
+        styles.banner,
+        isSuccess ? styles.bannerSuccess : styles.bannerError,
+      ]}
+    >
+      <Ionicons
+        name={isSuccess ? "checkmark-circle-outline" : "alert-circle-outline"}
+        size={15}
+        color={colors.white}
+        style={{ marginTop: 1 }}
+      />
+      <AppText style={styles.bannerText} fontWeight="bold" size="small">
+        {message}
+      </AppText>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SearchSchool
-// Uses a Modal so the search bar + results animate to the very top of the
-// screen (above every other view, nav bar included) when the user focuses it.
 // ─────────────────────────────────────────────────────────────────────────────
 export const SearchSchool = ({
   onSearch,
@@ -139,7 +162,8 @@ export const SearchSchool = ({
   loading,
   showSearch,
   data = [],
-  error = null, // ← error message to display inside the modal
+  error = null,
+  success = null,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -184,24 +208,9 @@ export const SearchSchool = ({
               onClickSearch={(val) => onSearch("callback", val)}
             />
 
-            {/* ── Inline error banner ── */}
-            {error && (
-              <View style={styles.errorBanner}>
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={15}
-                  color={colors.white}
-                  style={{ marginTop: 1 }}
-                />
-                <AppText
-                  style={styles.errorText}
-                  fontWeight="bold"
-                  size="small"
-                >
-                  {error}
-                </AppText>
-              </View>
-            )}
+            {/* ── Inline banners ── */}
+            {error && <ModalBanner message={error} type="error" />}
+            {success && <ModalBanner message={success} type="success" />}
 
             <FlatList
               data={data}
@@ -247,7 +256,8 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const [school, setSchool] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
-  const [modalError, setModalError] = useState(null); // ← drives the inline banner
+  const [modalError, setModalError] = useState(null);
+  const [modalSuccess, setModalSuccess] = useState(null);
 
   // ── Tour lifecycle ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -284,7 +294,8 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const onSearch = async (type, data) => {
     switch (type) {
       case "focus":
-        setModalError(null); // clear stale error each time modal opens
+        setModalError(null);
+        setModalSuccess(null);
         setBools({ ...bools, search: true });
         break;
       case "blur":
@@ -309,31 +320,29 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const onSchoolPicked = async (item) => {
     const profile = hasCompletedProfile(user);
     if (!profile.bool) {
-      // Profile incomplete – show error inside the modal
       setModalError(profile.pop?.msg ?? "Please complete your profile first.");
+      setModalSuccess(null);
       return;
     }
 
     setModalError(null);
+    setModalSuccess(null);
 
     try {
       const res = await joinSchool(item?._id).unwrap();
       if (res.status === "success") {
-        // Success toast still uses PopMessage (it's visible after modal closes)
-        setPopper({
-          vis: true,
-          msg: "A request to join sent successfully",
-          type: "success",
-          timer: 2500,
-          cb: () => {
-            setSchool({ ...item, status: "verification" });
-            setBools({ ...bools, search: false, searched: true });
-          },
-        });
         Keyboard.dismiss();
+        setModalSuccess(
+          "Request to join sent successfully! Awaiting verification from your school rep.",
+        );
+        // After a short delay, close the modal and update local school state
+        setTimeout(() => {
+          setSchool({ ...item, status: "verification" });
+          setBools({ ...bools, search: false, searched: true });
+          setModalSuccess(null);
+        }, 2500);
       }
     } catch (err) {
-      // Network / server error – show inline inside the modal
       setModalError(
         err?.data?.message ?? "Something went wrong. Please try again.",
       );
@@ -400,6 +409,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
                   }}
                   showSearch={bools.search}
                   error={modalError}
+                  success={modalSuccess}
                 />
               </WalkthroughableView>
             </CopilotStep>
@@ -458,7 +468,6 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
           </View>
         )}
       />
-      {/* PopMessage still handles the success toast (rendered above the modal stack) */}
       <PopMessage popData={popper} setPopData={setPopper} />
     </>
   );
@@ -520,10 +529,10 @@ const styles = StyleSheet.create({
   search: {
     backgroundColor: colors.white,
   },
-  errorBanner: {
+  // ── ModalBanner ─────────────────────────────────────────────────────────
+  banner: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: colors.danger ?? "#e53935",
     marginHorizontal: 15,
     marginTop: 10,
     marginBottom: 4,
@@ -532,7 +541,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
   },
-  errorText: {
+  bannerError: {
+    backgroundColor: colors.danger ?? "#e53935",
+  },
+  bannerSuccess: {
+    backgroundColor: colors.success ?? "#2e7d32",
+  },
+  bannerText: {
     flex: 1,
     color: colors.white,
     lineHeight: 20,
