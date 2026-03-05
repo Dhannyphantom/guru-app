@@ -109,7 +109,7 @@ const DropComponent = ({
         placeholder: dropData.name,
       });
       setSearch({ data });
-      let setData = getId ? dropData : (dropData?.value ?? dropData?.name);
+      let setData = getId ? dropData : dropData?.value ?? dropData?.name;
       if (name === "bank")
         setData = { code: dropData.code, name: dropData.name };
       setFieldValue(name, setData);
@@ -400,8 +400,8 @@ const DayMonthYearSelector = ({
     range && Boolean(range[0])
       ? range
       : futureYear
-        ? fututeYearsList
-        : yearsList;
+      ? fututeYearsList
+      : yearsList;
 
   const handleSelectDate = () => {
     if (!selected.year || !selected.month || !selected.day) return;
@@ -478,7 +478,7 @@ const DayMonthYearSelector = ({
             contentOffset={{ x: 0, y: yearsListOffest }}
           >
             {yearsData.map((yearValue, idx) => {
-              const isSelected = selected.year === String(yearValue);
+              const isSelected = String(selected.year) === String(yearValue);
               return (
                 <TouchableOpacity
                   onPress={() => setSelected({ ...selected, year: yearValue })}

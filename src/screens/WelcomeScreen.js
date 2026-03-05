@@ -39,10 +39,11 @@ const WelcomeScreen = () => {
                     Welcome
                   </AppText>
                   <AppText style={styles.titleInfo}>
-                    Welcome to Guru. {"\n"}A platform for Nigerian secondary
-                    school students, Learn and solve quiz questions, Boosting
-                    your chance at passing National Exams and earn real money
-                    while you're at it!
+                    Welcome to Guru. {"\n"}
+                    Your smart companion for academic excellence. Strengthen
+                    your knowledge, track your performance, compete with
+                    students nationwide, and prepare confidently for national
+                    exams.
                   </AppText>
                 </View>
                 <View style={styles.btnSection}>
@@ -78,17 +79,10 @@ const WelcomeScreen = () => {
                 Welcome
               </AppText>
               <AppText style={styles.titleInfo}>
-                Welcome to{" "}
-                <AppText
-                  size="large"
-                  style={{ color: colors.primary }}
-                  fontWeight="black"
-                >
-                  Guru
-                </AppText>
-                . {"\n"}An app for Nigerian secondary school students, Learn and
-                solve quiz questions, Boosting your chance at passing National
-                Exams and earn real money while you're at it!
+                Welcome to Guru. {"\n"}
+                Your smart companion for academic excellence. Track your
+                performance, compete with students nationwide, earn rewards for
+                your brilliance and prepare confidently for national exams.
               </AppText>
             </View>
             <View style={styles.btnSection}>

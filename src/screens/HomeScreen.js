@@ -323,6 +323,7 @@ const HomeScreen = () => {
 
     checkTour();
   }, [fetchingCategories, stats]);
+  // copilot event listener to set tour as seen on stop
   useEffect(() => {
     const handleStop = async () => {
       await AsyncStorage.setItem(TOUR_KEY, "true");

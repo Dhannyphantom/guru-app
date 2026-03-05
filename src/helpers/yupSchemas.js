@@ -273,7 +273,7 @@ export const createQuestInitials = {
   question: "",
   subject: {},
   timer: 40,
-  point: 40,
+  point: 5,
   topic: {},
   image: {},
   answers: [],

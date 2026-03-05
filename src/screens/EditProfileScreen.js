@@ -83,6 +83,7 @@ const EditProfileScreen = () => {
     try {
       await updateUserProfile(formValues).unwrap();
     } catch (err) {
+      console.log(err);
       setErrMsg(
         err?.data?.includes("duplicate key error")
           ? "Email already exists"
@@ -102,7 +103,7 @@ const EditProfileScreen = () => {
           err?.data ||
           err?.message ||
           err?.data?.message ||
-          "Operation was canceled",
+          "Operation was canceled, please try again",
       });
     }
   };

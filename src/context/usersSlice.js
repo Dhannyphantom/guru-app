@@ -175,7 +175,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
             bucket: "avatars",
           }),
         );
-        formData.append("upload", {
+        formData.append("file", {
           uri: media.uri,
           name: media.fileName,
           type: media.mimeType,

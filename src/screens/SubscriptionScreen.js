@@ -850,8 +850,14 @@ const SubscriptionScreen = () => {
                   style={{ width: width * 0.65, height: width * 0.65 }}
                   visible
                 />
-                <AppText>
-                  Please Create or Join a school to fully access Guru
+                <AppText style={{ width: "85%", textAlign: "center" }}>
+                  Create or join a school to activate your wallet, subscribe to
+                  premium, and gain full access to Guru’s features.
+                </AppText>
+                <AppText
+                  style={{ width: "85%", marginTop: 30, textAlign: "center" }}
+                >
+                  Navigate to the School Tab 🎓 now
                 </AppText>
               </View>
             ) : (
@@ -987,7 +993,7 @@ const SubscriptionScreen = () => {
                         fontWeight="black"
                       >
                         {isSchool
-                          ? (school?.students?.length ?? 0)
+                          ? school?.students?.length ?? 0
                           : calculatePointsAmount(user.points).format}
                       </AppText>
                     </View>
@@ -1010,8 +1016,8 @@ const SubscriptionScreen = () => {
                             ? "Active"
                             : "Inactive"
                           : isActive
-                            ? "Premium"
-                            : "Freemium"}
+                          ? "Premium"
+                          : "Freemium"}
                       </AppText>
                     </View>
                   </View>

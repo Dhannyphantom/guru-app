@@ -51,14 +51,14 @@ const { width } = Dimensions.get("screen");
 const rewardedAdUnitId = __DEV__
   ? TestIds.REWARDED
   : Platform.OS === "android"
-    ? "ca-app-pub-3603875446667492/6857042910"
-    : "ca-app-pub-3603875446667492/1000907548";
+  ? "ca-app-pub-3603875446667492/6857042910"
+  : "ca-app-pub-3603875446667492/1000907548";
 
 const interstitialAdUnitId = __DEV__
   ? TestIds.INTERSTITIAL
   : Platform.OS === "android"
-    ? "ca-app-pub-3603875446667492/8333776119" // Android interstitial
-    : "ca-app-pub-3603875446667492/8194175311"; // iOS interstitial
+  ? "ca-app-pub-3603875446667492/8333776119" // Android interstitial
+  : "ca-app-pub-3603875446667492/8194175311"; // iOS interstitial
 
 // ca-app-pub-3603875446667492/6857042910  - Android Real Ad Unit ID
 // ca-app-pub-3603875446667492/1000907548 - iOS Real Ad Unit ID
@@ -470,15 +470,24 @@ const QuestionStudyScreen = () => {
                 style={{ width: width * 0.65, height: width * 0.65 }}
                 visible
               />
-              <AppText fontWeight="medium">
-                Sorry, You haven't answered enough questions yet{" "}
+              <AppText
+                style={{ textAlign: "center", width: "80%", marginBottom: 20 }}
+                fontWeight="medium"
+              >
+                This is Practice Mode, where you can hone your skills with
+                questions from this topic.
               </AppText>
+              <AppText fontWeight="medium">
+                You need to complete a few more questions to unlock this
+                section.
+              </AppText>
+
               <AppText
                 fontWeight="medium"
                 style={{ textAlign: "center", width: "80%", marginTop: 20 }}
               >
-                You can start a quiz session now by navigating back and then
-                clicking the Rocket Icon
+                Start a new quiz by tapping the Rocket icon and begin earning
+                your progress.
               </AppText>
             </View>
           ) : (

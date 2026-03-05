@@ -195,7 +195,7 @@ const SubjectRow = ({ name, accuracy, trend }) => {
       ? "#22c55e"
       : trend === "declining"
       ? "#ef4444"
-      : colors.medium;
+      : colors.warning;
   const barColor =
     accuracy >= 70 ? "#22c55e" : accuracy >= 50 ? colors.primary : "#f59e0b";
   return (
@@ -591,6 +591,7 @@ const ProfileScreen = () => {
               data={{ user }}
               source={user?.avatar?.image}
               border={{ width: 4, color: "#fff" }}
+              onPress={() => router.push("/profile/edit")}
               textFontsize={20}
             />
 
@@ -656,7 +657,7 @@ const ProfileScreen = () => {
         </LinearGradient>
 
         {/* ── Analytics (students only) ── */}
-        {isStudent && (
+        {isStudent && user?.subscription?.isActive && (
           <View style={s.analyticsWrap}>
             <AnalyticsBlock analyticsResult={analyticsResult} />
           </View>

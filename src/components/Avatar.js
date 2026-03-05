@@ -335,6 +335,7 @@ const Avatar = ({
   contStyle = {},
   data,
   userID,
+  onPress,
   source,
   imageStyle,
   imagePicker,
@@ -395,8 +396,10 @@ const Avatar = ({
         imagePickerError &&
           imagePickerError?.(true, "Cancelled: No image selected");
       }
-    } else {
-      if (userID) setModal(true);
+    } else if (onPress) {
+      onPress?.();
+    } else if (userID) {
+      setModal(true);
     }
   };
 

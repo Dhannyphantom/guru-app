@@ -1,4 +1,13 @@
-import { Dimensions, FlatList, Keyboard, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  Keyboard,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import AppText from "../components/AppText";
@@ -121,51 +130,105 @@ export const SchoolList = ({ item, onPress, status = "" }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SearchSchool
+// Uses a Modal so the search bar + results animate to the very top of the
+// screen (above every other view, nav bar included) when the user focuses it.
 // ─────────────────────────────────────────────────────────────────────────────
 export const SearchSchool = ({
   onSearch,
   onSchoolPicked,
-  searchStyle,
   loading,
   showSearch,
   data = [],
+  error = null, // ← error message to display inside the modal
 }) => {
+  const insets = useSafeAreaInsets();
+
   return (
-    <Animated.View
-      layout={LinearTransition.springify()}
-      style={[styles.searchView, searchStyle]}
-    >
-      <SearchBar
-        style={styles.search}
-        loading={loading?.search}
-        placeholder="Enter your school name..."
-        onInputFocus={() => onSearch("focus")}
-        showClose={true}
-        onClose={showSearch ? () => onSearch("blur") : null}
-        onClickSearch={(val) => onSearch("callback", val)}
-      />
-      {showSearch && (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={data}
-            keyExtractor={(item) => item._id}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <SchoolList item={item} onPress={onSchoolPicked} />
-            )}
-            ListEmptyComponent={() => (
-              <ListEmpty
-                style={{ flex: null }}
-                vis={loading?.searched}
-                message="School Profile not found, If this is the official name of your school then you should create a school profile now"
-              />
-            )}
-            contentContainerStyle={{ paddingBottom: 215 }}
+    <>
+      {/* ── Collapsed trigger bar – tap opens the full-screen modal ── */}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => !showSearch && onSearch("focus")}
+        style={styles.searchTriggerWrap}
+      >
+        <View pointerEvents="none">
+          <SearchBar
+            style={styles.search}
+            placeholder="Enter your school name..."
+            editable={false}
           />
         </View>
-      )}
-      <LottieAnimator visible={Boolean(loading?.page)} absolute wTransparent />
-    </Animated.View>
+      </TouchableOpacity>
+
+      {/* ── Full-screen modal that slides down from the top ── */}
+      <Modal
+        visible={showSearch}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => onSearch("blur")}
+        statusBarTranslucent
+      >
+        <View style={[styles.modalSafe, { paddingTop: insets.top }]}>
+          <Animated.View
+            layout={LinearTransition.springify()}
+            style={styles.modalInner}
+          >
+            {/* Search bar with real input + close button */}
+            <SearchBar
+              style={styles.search}
+              loading={loading?.search}
+              placeholder="Enter your school name..."
+              autoFocus
+              showClose={true}
+              onClose={() => onSearch("blur")}
+              onClickSearch={(val) => onSearch("callback", val)}
+            />
+
+            {/* ── Inline error banner ── */}
+            {error && (
+              <View style={styles.errorBanner}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={15}
+                  color={colors.white}
+                  style={{ marginTop: 1 }}
+                />
+                <AppText
+                  style={styles.errorText}
+                  fontWeight="bold"
+                  size="small"
+                >
+                  {error}
+                </AppText>
+              </View>
+            )}
+
+            <FlatList
+              data={data}
+              keyExtractor={(item) => item._id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <SchoolList item={item} onPress={onSchoolPicked} />
+              )}
+              ListEmptyComponent={() => (
+                <ListEmpty
+                  style={{ flex: null }}
+                  vis={loading?.searched}
+                  message="School Profile not found. If this is the official name of your school then you should create a school profile now."
+                />
+              )}
+              contentContainerStyle={{ paddingBottom: 215 }}
+            />
+          </Animated.View>
+
+          <LottieAnimator
+            visible={Boolean(loading?.page)}
+            absolute
+            wTransparent
+          />
+        </View>
+      </Modal>
+    </>
   );
 };
 
@@ -184,13 +247,11 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const [school, setSchool] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
-
-  const searchStyle = bools.search ? styles.searchOn : {};
+  const [modalError, setModalError] = useState(null); // ← drives the inline banner
 
   // ── Tour lifecycle ────────────────────────────────────────────────────────
   useEffect(() => {
     const checkTour = async () => {
-      // await AsyncStorage.removeItem(TOUR_KEY); // remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
         setTimeout(() => start(), 800);
@@ -214,8 +275,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
     setRefreshing(true);
     try {
       await fetchSchoolData();
-    } catch (error) {
-      console.log(error);
+    } catch (_error) {
     } finally {
       setRefreshing(false);
     }
@@ -224,16 +284,23 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const onSearch = async (type, data) => {
     switch (type) {
       case "focus":
+        setModalError(null); // clear stale error each time modal opens
         setBools({ ...bools, search: true });
         break;
       case "blur":
+        Keyboard.dismiss();
         setBools({ ...bools, search: false });
         break;
       case "callback":
         try {
           await searchSchool(data).unwrap();
         } catch (error) {
-          console.log(error);
+          console.log({ error });
+          setModalError(
+            error?.status === "TIMEOUT_ERROR"
+              ? "Network Error, Try again"
+              : error?.error ?? "Something went wrong. Please try again.",
+          );
         }
         break;
     }
@@ -241,11 +308,18 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
 
   const onSchoolPicked = async (item) => {
     const profile = hasCompletedProfile(user);
-    if (!profile.bool) return setPopper(profile.pop);
+    if (!profile.bool) {
+      // Profile incomplete – show error inside the modal
+      setModalError(profile.pop?.msg ?? "Please complete your profile first.");
+      return;
+    }
+
+    setModalError(null);
 
     try {
       const res = await joinSchool(item?._id).unwrap();
-      if (res.status == "success") {
+      if (res.status === "success") {
+        // Success toast still uses PopMessage (it's visible after modal closes)
         setPopper({
           vis: true,
           msg: "A request to join sent successfully",
@@ -259,12 +333,10 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
         Keyboard.dismiss();
       }
     } catch (err) {
-      setPopper({
-        vis: true,
-        msg: err?.data?.message,
-        type: "failed",
-        timer: 3500,
-      });
+      // Network / server error – show inline inside the modal
+      setModalError(
+        err?.data?.message ?? "Something went wrong. Please try again.",
+      );
     }
   };
 
@@ -318,9 +390,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
             >
               <WalkthroughableView>
                 <SearchSchool
-                  searchStyle={searchStyle}
                   onSchoolPicked={onSchoolPicked}
-                  searchLoading={isLoading}
                   data={data?.data}
                   onSearch={onSearch}
                   loading={{
@@ -329,6 +399,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
                     page: joinLoading,
                   }}
                   showSearch={bools.search}
+                  error={modalError}
                 />
               </WalkthroughableView>
             </CopilotStep>
@@ -387,6 +458,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
           </View>
         )}
       />
+      {/* PopMessage still handles the success toast (rendered above the modal stack) */}
       <PopMessage popData={popper} setPopData={setPopper} />
     </>
   );
@@ -399,11 +471,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: height,
   },
-  lottie: {
-    alignSelf: "center",
-    width: 150,
-    height: 40,
-  },
+  // ── SchoolList ──────────────────────────────────────────────────────────
   list: {
     flexDirection: "row",
     backgroundColor: colors.white,
@@ -436,6 +504,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 6,
   },
+  // ── SearchSchool ────────────────────────────────────────────────────────
+  searchTriggerWrap: {
+    width,
+    paddingHorizontal: 0,
+  },
+  modalSafe: {
+    flex: 1,
+    backgroundColor: colors.extraLight,
+  },
+  modalInner: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  search: {
+    backgroundColor: colors.white,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.danger ?? "#e53935",
+    marginHorizontal: 15,
+    marginTop: 10,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: colors.white,
+    lineHeight: 20,
+  },
+  // ── JoinSchool layout ───────────────────────────────────────────────────
   pending: {
     marginTop: 20,
   },
@@ -446,19 +548,6 @@ const styles = StyleSheet.create({
   },
   salutation: {
     margin: 15,
-  },
-  search: {
-    backgroundColor: colors.white,
-  },
-  searchView: {
-    position: "relative",
-    width,
-  },
-  searchOn: {
-    position: "absolute",
-    paddingTop: 60,
-    backgroundColor: colors.extraLight,
-    zIndex: 30,
   },
   text: {
     color: colors.black,
