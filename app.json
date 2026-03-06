@@ -74,8 +74,7 @@
           "contactsPermission": "Allow Guru App to access your contacts."
         }
       ],
-      "expo-font",
-      "expo-web-browser"
+      "expo-font"
     ],
     "extra": {
       "eas": {
@@ -91,7 +90,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/affb8479-1bf1-4481-b621-b87fa89236a0"
+      "url": "https://u.expo.dev/22260cf2-a686-42bd-9c40-8aa6580ca694"
     },
     "owner": "dhannnyphantom"
   }
