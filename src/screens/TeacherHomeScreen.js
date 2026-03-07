@@ -709,7 +709,12 @@ const DashboardActionGrid = ({ onPress }) => (
 const TeacherHomeScreen = () => {
   const user = useSelector(selectUser);
   const school = useSelector(selectSchool);
-  const { data: schoolData, isLoading: schoolLoading } = useFetchSchoolQuery();
+  const { data: schoolData, isLoading: schoolLoading } = useFetchSchoolQuery(
+    undefined,
+    {
+      refetchOnMountOrArgChange: true,
+    },
+  );
   const [expandedClass, setExpandedClass] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal] = useState({ vis: false, type: null });

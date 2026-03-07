@@ -360,49 +360,6 @@ export const subSchoolDrop = Array(10)
     };
   });
 
-export const studentRanking = [
-  {
-    _id: nanoid(),
-    name: "Rookie Guru",
-  },
-  {
-    _id: nanoid(),
-    name: "Junior Learner",
-  },
-  {
-    _id: nanoid(),
-    name: "Nerd Ninja",
-  },
-  {
-    _id: nanoid(),
-    name: "Aspiring Student",
-  },
-  {
-    _id: nanoid(),
-    name: "Brain Buster",
-  },
-  {
-    _id: nanoid(),
-    name: "Honor Roll Member",
-  },
-  {
-    _id: nanoid(),
-    name: "Top Performer",
-  },
-  {
-    _id: nanoid(),
-    name: "Academic Achiever",
-  },
-  {
-    _id: nanoid(),
-    name: "Guru Extraordinaire",
-  },
-  {
-    _id: nanoid(),
-    name: "Valedictorian",
-  },
-];
-
 export const schoolTypes = [
   {
     _id: nanoid(),
@@ -532,43 +489,6 @@ export const otherClasses = [
   {
     _id: nanoid(),
     name: "The Titans (JSS1)",
-  },
-];
-
-export const teacherAssignments = [
-  {
-    _id: nanoid(),
-    title: "Vectors",
-    subject: "Physics",
-    status: "active",
-    date: new Date().toISOString(),
-    date_exp: new Date(new Date().getTime() + A_DAY).toISOString(),
-    submitted_count: 5,
-    total_count: 60,
-    class: "SS1",
-  },
-  {
-    _id: nanoid(),
-    title: "Work, Energy & Power",
-    subject: "Physics",
-    status: "inactive",
-  },
-  {
-    _id: nanoid(),
-    title: "Capacitance Calculation",
-    subject: "Physics",
-    status: "active",
-    date: new Date().toISOString(),
-    date_exp: new Date(new Date().getTime() + A_DAY).toISOString(),
-    submitted_count: 35,
-    total_count: 60,
-    class: "SS3",
-  },
-  {
-    _id: nanoid(),
-    title: "Simple motion equation mastery",
-    subject: "Physics",
-    status: "inactive",
   },
 ];
 
@@ -898,37 +818,6 @@ export const calenderMonths = [
   },
 ];
 
-export const subHistories = [
-  {
-    _id: nanoid(),
-    date: new Date(2024, 0, 3),
-    title: "Withdrawal",
-    msg: "-4055",
-    amount: 400,
-  },
-  {
-    _id: nanoid(),
-    date: new Date(2024, 0, 1),
-    title: "Subscription",
-    msg: "+3 months",
-    amount: 6000,
-  },
-  {
-    _id: nanoid(),
-    date: new Date(2024, 0, 2),
-    title: "Withdrawal",
-    msg: "-540",
-    amount: 860,
-  },
-  {
-    _id: nanoid(),
-    date: new Date(2024, 0, 13),
-    title: "Withdrawal",
-    msg: "-8140",
-    amount: 1250,
-  },
-];
-
 export const assignmentsArr = [
   {
     _id: nanoid(),
@@ -1157,7 +1046,7 @@ export const pointsSelect = [
   },
 ];
 
-export const signOutKeys = ["token", "user", "user_stat"];
+export const signOutKeys = ["token", "user", "user_stat", "user_analytics_me"];
 
 export const timerSelect = [
   {
@@ -1270,9 +1159,6 @@ export const states = nigeriaLocale.map((item) => ({
 
 export const layoutTransit = LinearTransition.springify().damping(8);
 export const PAD_BOTTOM = height * 0.18;
-
-export const callback_url =
-  "https://guru-server.onrender.com/payments/subscription_callback";
 
 export const enterAnim = ZoomIn.duration(600).easing(Easing.ease);
 export const enterAnimOther = LightSpeedInRight;

@@ -44,6 +44,8 @@ import { StatusBar } from "expo-status-bar";
 import getRefresher from "../components/Refresher";
 import PopMessage from "../components/PopMessage";
 import { selectSchool } from "../context/schoolSlice";
+import { apiSlice } from "../context/apiSlice";
+import { invalidateAnalyticsCache } from "../context/usersSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import { useRouter } from "expo-router";
 import Animated, {
@@ -534,7 +536,16 @@ const ProfileScreen = () => {
 
   const handlePrompt = async (type) => {
     if (type === "sign_out") {
+      // 1. Wipe persisted AsyncStorage keys (token, user, user_stat)
       await AsyncStorage.multiRemove(signOutKeys);
+      // 2. Wipe the custom analytics AsyncStorage cache so the next
+      //    user doesn't see the previous user's analytics data
+      await invalidateAnalyticsCache();
+      // 3. Reset the entire RTK Query in-memory cache so no stale
+      //    data (stats, school, profile, leaderboard, etc.) bleeds
+      //    into the next account's session
+      dispatch(apiSlice.util.resetApiState());
+      // 4. Clear the auth token last — this triggers the redirect to (auth)
       dispatch(updateToken(null));
     }
   };

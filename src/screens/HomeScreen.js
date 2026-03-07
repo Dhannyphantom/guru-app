@@ -45,7 +45,7 @@ import {
   getUserProfile,
   socket,
 } from "../helpers/helperFunctions";
-import { PAD_BOTTOM } from "../helpers/dataStore";
+import { PAD_BOTTOM, signOutKeys } from "../helpers/dataStore";
 import Animated, {
   LinearTransition,
   useSharedValue,
@@ -66,6 +66,7 @@ import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { Dimensions } from "react-native";
+import { apiSlice } from "../context/apiSlice";
 
 const WalkthroughableView = walkthroughable(View);
 const WalkthroughablePressable = walkthroughable(Pressable);
@@ -276,7 +277,6 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (stats?.invite) {
-      console.log("Invite set!!1");
       setInvite(stats?.invite);
     }
   }, [stats]);
@@ -299,8 +299,9 @@ const HomeScreen = () => {
           msg: error?.data,
           type: "failed",
           cb: async () => {
-            await AsyncStorage.multiRemove(["token", "user"]);
+            await AsyncStorage.multiRemove(signOutKeys);
             dispatch(updateToken(null));
+            dispatch(apiSlice.util.resetApiState());
             router.replace("/(auth)/login");
           },
         });

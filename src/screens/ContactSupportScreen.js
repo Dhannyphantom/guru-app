@@ -98,18 +98,18 @@ const QUICK_CONTACTS = [
   {
     id: "email",
     title: "Email Us",
-    subtitle: "support@guruedutech.com",
+    subtitle: "guruedutech6129@gmail.com",
     icon: "mail",
     color: colors.primary,
-    action: () => Linking.openURL("mailto:support@guruedutech.com"),
+    action: () => Linking.openURL("mailto:guruedutech6129@gmail.com"),
   },
   {
     id: "phone",
     title: "Call Us",
-    subtitle: "+234 815 625 0199",
+    subtitle: "+234 705 840 8343",
     icon: "call",
     color: "#FF6B6B",
-    action: () => Linking.openURL("tel:+2348156250199"),
+    action: () => Linking.openURL("tel:+2347058408343"),
   },
   {
     id: "facebook",
@@ -117,7 +117,8 @@ const QUICK_CONTACTS = [
     subtitle: "Reach out to us on our facebook page",
     icon: "logo-facebook",
     color: colors.facebook,
-    action: () => Linking.openURL("https://www.facebook.com/young.skillzz.9/"),
+    action: () => Linking.openURL("https://www.facebook.com"),
+    // action: () => Linking.openURL("https://www.facebook.com/young.skillzz.9/"),
   },
 ];
 
