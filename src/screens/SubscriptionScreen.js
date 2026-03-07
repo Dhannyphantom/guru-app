@@ -100,15 +100,23 @@ export const WithdrawModal = ({
   const balance = calculatePointsAmount(user.points);
   const shouldHideContinueBtn = ["subscription", "data"].includes(type);
 
-  // console.log(JSON.stringify(state.banks, null, 2));
-
   const isPending = state.status === "pending";
   const isSuccess = state.status === "success";
   const isDetails = state.status === "details";
   const isVerified = Boolean(state.bankName);
   const bundles = data?.data ?? [];
 
-  const editable = true;
+  // Minimum thresholds: ₦500 for bank transfer, ₦100 for airtime / data
+  const MIN_TRANSFER = 500;
+  const MIN_AIRTIME_DATA = 100;
+  const MIN_RENEWAL = 250;
+  const minRequired =
+    type === "transfer"
+      ? MIN_TRANSFER
+      : type === "subscription"
+      ? MIN_RENEWAL
+      : MIN_AIRTIME_DATA;
+  const editable = Number(balance.amount) >= minRequired;
   const profile = hasCompletedProfile(user);
   buyDataInitials.phoneNumber = user?.contact;
 
@@ -342,47 +350,46 @@ export const WithdrawModal = ({
       >
         {isPending && (
           <Animated.View exiting={exitingAnim}>
-            <View style={styles.withdrawRow}>
-              <View style={styles.cardMini}>
+            <LinearGradient
+              colors={[colors.primaryDeep, colors.primaryDeeper]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.balanceBar}
+            >
+              <View style={styles.balanceItem}>
                 <AppText
-                  size={"large"}
-                  style={styles.withdrawHeaderTxt}
-                  fontWeight="bold"
+                  size="small"
+                  fontWeight="medium"
+                  style={styles.balanceLabel}
                 >
-                  Balance
+                  BALANCE
                 </AppText>
                 <AppText
-                  size="xxxlarge"
-                  fontWeight="heavy"
-                  style={styles.withdrawTxt}
+                  size="xxlarge"
+                  fontWeight="black"
+                  style={styles.balanceValue}
                 >
                   {balance.format}
                 </AppText>
               </View>
-              <View style={styles.cardMini}>
+              <View style={styles.balanceDivider} />
+              <View style={styles.balanceItem}>
                 <AppText
-                  size={"large"}
-                  style={styles.withdrawHeaderTxt}
-                  fontWeight="bold"
+                  size="small"
+                  fontWeight="medium"
+                  style={styles.balanceLabel}
                 >
-                  Points
+                  POINTS
                 </AppText>
                 <AppText
-                  size="xxxlarge"
-                  fontWeight="heavy"
-                  style={styles.withdrawTxt}
+                  size="xxlarge"
+                  fontWeight="black"
+                  style={styles.balanceValue}
                 >
-                  {user?.points}
-                  <AppText
-                    style={styles.withdrawTxt}
-                    fontWeight="black"
-                    size="xsmall"
-                  >
-                    GT
-                  </AppText>
+                  {formatPoints(user?.points)}
                 </AppText>
               </View>
-            </View>
+            </LinearGradient>
 
             {type === "airtime" && (
               <View style={{}}>
@@ -645,12 +652,64 @@ export const WithdrawModal = ({
             </AppText>
           </Animated.View>
         )}
-        {!editable && (
-          <AppText style={styles.info}>
-            Your balance is low, come back and withdraw your funds when you have
-            at least{" "}
-            <AppText fontWeight="heavy">{getCurrencyAmount(500)}</AppText>
-          </AppText>
+        {!editable && isPending && (
+          <Animated.View entering={FadeIn.delay(200)} style={styles.minNotice}>
+            <View style={styles.minNoticeIconWrap}>
+              <MaterialCommunityIcons
+                name="lock-outline"
+                size={22}
+                color={colors.warningDark}
+              />
+            </View>
+            <View style={styles.minNoticeBody}>
+              <AppText
+                fontWeight="black"
+                size="large"
+                style={styles.minNoticeTitle}
+              >
+                Minimum Balance Required
+              </AppText>
+              <AppText
+                fontWeight="medium"
+                size="medium"
+                style={styles.minNoticeDesc}
+              >
+                {type === "transfer"
+                  ? `Bank transfers require a minimum of `
+                  : type === "subscription"
+                  ? `Subscription renewals require a minimum of `
+                  : `Airtime & data require a minimum of `}
+                <AppText fontWeight="black" style={styles.minNoticeAmount}>
+                  {getCurrencyAmount(minRequired)}
+                </AppText>
+                {` in your wallet. You currently have `}
+                <AppText fontWeight="black" style={styles.minNoticeAmount}>
+                  {balance.format}
+                </AppText>
+                {`.`}
+              </AppText>
+              <View style={styles.minNoticeProgress}>
+                <View
+                  style={[
+                    styles.minNoticeBar,
+                    {
+                      width: `${Math.min(
+                        100,
+                        (Number(balance.amount) / minRequired) * 100,
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <AppText
+                fontWeight="medium"
+                size="small"
+                style={styles.minNoticeHint}
+              >
+                Earn more GT by completing quizzes and inviting friends.
+              </AppText>
+            </View>
+          </Animated.View>
         )}
         <View style={styles.withdrawBtns}>
           {editable && isPending && !shouldHideContinueBtn && (
@@ -1112,6 +1171,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-evenly",
   },
+  balanceBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 12,
+    marginBottom: 16,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    boxShadow: `2px 8px 18px ${colors.primaryDeeper}50`,
+  },
+  balanceItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  balanceDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: colors.primaryLight,
+    opacity: 0.4,
+    marginHorizontal: 8,
+  },
+  balanceLabel: {
+    color: colors.primaryLighter,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  balanceValue: {
+    color: colors.white,
+  },
   container: {
     flex: 1,
   },
@@ -1270,6 +1358,58 @@ const styles = StyleSheet.create({
   info: {
     textAlign: "center",
     marginBottom: 20,
+  },
+  minNotice: {
+    flexDirection: "row",
+    marginHorizontal: 12,
+    marginVertical: 16,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: colors.warningLight + 60 ?? "#FFF8E1",
+    borderWidth: 1.5,
+    borderColor: colors.warning ?? "#FFB300",
+    alignItems: "flex-start",
+  },
+  minNoticeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.warning + "22",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  minNoticeBody: {
+    flex: 1,
+  },
+  minNoticeTitle: {
+    color: colors.warningDark ?? "#E65100",
+    marginBottom: 4,
+  },
+  minNoticeDesc: {
+    color: colors.medium,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  minNoticeAmount: {
+    color: colors.warningDark ?? "#E65100",
+  },
+  minNoticeProgress: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.warning + "33",
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  minNoticeBar: {
+    height: "100%",
+    borderRadius: 3,
+    backgroundColor: colors.warning ?? "#FFB300",
+  },
+  minNoticeHint: {
+    color: colors.medium,
+    opacity: 0.7,
   },
   payTxt: {
     textAlign: "center",

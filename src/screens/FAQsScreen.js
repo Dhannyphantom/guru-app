@@ -112,7 +112,7 @@ const FAQ_DATA = [
         id: "p1",
         question: "How do I earn points?",
         answer:
-          "Earn points by: answering new questions correctly (5 GT), answering repeated questions correctly (0.2 GT), maintaining daily streaks, completing weekly quotas, and inviting friends. NOTE: Incorrect answers deduct 2 GT.",
+          "Earn points by: answering new questions correctly (5 GT), answering repeated questions correctly on next attempt (1 GT), maintaining daily streaks, completing weekly quotas, and inviting friends. NOTE: Incorrect answers deduct 2 GT.",
       },
       {
         id: "p2",
