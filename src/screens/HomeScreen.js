@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   View,
+  Dimensions,
   useWindowDimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
@@ -65,7 +66,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
-import { Dimensions } from "react-native";
 import { apiSlice } from "../context/apiSlice";
 
 const WalkthroughableView = walkthroughable(View);

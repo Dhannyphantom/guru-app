@@ -11,6 +11,30 @@ import { useAppUpdate } from "../hooks/useAppUpdate";
 import { baseUrl } from "../context/apiSlice";
 import ForceUpdateScreen from "../screens/ForceUpdateScreen";
 
+import * as Sentry from "@sentry/react-native";
+
+Sentry.init({
+  dsn: "https://b6a37ee1459e7f1c2c643db93fc11d0d@o4511010008465408.ingest.us.sentry.io/4511010011217920",
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [
+    Sentry.mobileReplayIntegration(),
+    Sentry.feedbackIntegration(),
+  ],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
+
 mobileAds()
   .setRequestConfiguration({
     // Update all future requests suitable for parental guidance
@@ -107,7 +131,7 @@ const Main = () => {
   );
 };
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <Provider store={store}>
       <StatusBar style="dark" />
@@ -115,3 +139,5 @@ export default function RootLayout() {
     </Provider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

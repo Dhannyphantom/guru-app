@@ -118,7 +118,7 @@ const FAQ_DATA = [
         id: "p2",
         question: "What are daily and weekly limits?",
         answer:
-          "You can answer up to 100 questions per day, with a maximum of 50 questions per subject. You can practice 2 different subjects per day. These limits reset at midnight daily.",
+          "You can answer up to 100 questions per day, 25 questions per subject per quiz session. You can practice 2 different subjects at once in a quiz session with a total of 50 questions. These limits reset at midnight daily.",
       },
       {
         id: "p3",
@@ -136,7 +136,7 @@ const FAQ_DATA = [
         id: "p5",
         question: "What are streaks and how do they work?",
         answer:
-          "Streaks track consecutive days of activity on the platform. Answer at least one question daily to maintain your streak. Higher streaks unlock special rewards, bonuses, and recognition badges.",
+          "Streaks track consecutive days of activity on the platform. Practice at least one quiz session daily to maintain your streak. Higher streaks unlock special rewards, bonuses, and recognition badges.",
       },
     ],
   },
@@ -155,13 +155,13 @@ const FAQ_DATA = [
         id: "q2",
         question: "How does multiplayer mode work?",
         answer:
-          "Invite up to 3 friends to a quiz session. Each player earns points based on their own answer history - new questions earn full tokens (5 GT), repeated questions earn 0.2 GT. The player with the highest score wins! Points are calculated fairly for each player.",
+          "Invite your friends and classmates to a quiz session. Each player earns points based on their own answer history - new questions earn full tokens (5 GT), repeated questions earn 1 GT. The player with the highest score wins! Points are calculated fairly for each player.",
       },
       {
         id: "q3",
         question: "Can I practice specific topics?",
         answer:
-          "Yes! Browse subjects → select a subject → choose specific topics. You can select any combination of topics within your daily limits (100 questions/day, 50 per subject).",
+          "Yes! Browse subjects → select a subject → choose specific topics. You can select any combination of topics within your daily limits (100 questions/day,).",
       },
       {
         id: "q4",
@@ -173,14 +173,14 @@ const FAQ_DATA = [
         id: "q5",
         question: "How are quiz points calculated?",
         answer:
-          "Points calculation: New correct answer = +5 GT, Repeated correct answer = +0.2 GT (questions already answered), Wrong answer = -2 GT. Your final score is the total of all questions, with a minimum of 0.",
+          "Points calculation: New correct answer = +5 GT, Repeated correct answer = +1 GT (awarded only once), Wrong answer = -2 GT. Your final score is the total of all questions, with a minimum of 0.",
       },
       {
         id: "q6",
         question:
           "What is the difference between Premium and Freemium quizzes?",
         answer:
-          "Premium quizzes (for subscribers) offer unlimited questions, multiplayer mode, and all subjects. Freemium quizzes have limited daily questions and restricted subject access.",
+          "Premium quizzes (for subscribers) offer unlimited questions, multiplayer mode, and all subjects where Guru Tokens (GT) are earned. Freemium quizzes have limited daily questions and restricted subject access with no earned Guru Tokens.",
       },
     ],
   },
@@ -273,7 +273,7 @@ const FAQ_DATA = [
         id: "a2",
         question: "I forgot my password. What do I do?",
         answer:
-          'Tap "Forgot Password" on the login screen → Enter your registered email → Check your inbox for password reset instructions → Click the link and create a new secure password.',
+          'Attempt to Login then Tap "Forgot Password" on the login screen → Enter your registered email → Check your inbox for password reset instructions → Click the link and create a new secure password.',
       },
       {
         id: "a3",
@@ -285,7 +285,7 @@ const FAQ_DATA = [
         id: "a4",
         question: "How do I change my class level?",
         answer:
-          "Go to Profile → Edit → Select new class level → Save. Note: You can change your class level, and the app will remember this was changed. Update your class when you advance to a new level.",
+          "Go to Profile → Edit → Select new class level → Save. Note: You can ony change your class level once, and the app will remember this was changed. Notify your teachers for sessional class upgrades",
       },
       {
         id: "a5",
@@ -310,13 +310,13 @@ const FAQ_DATA = [
         id: "w2",
         question: "What are the withdrawal limits?",
         answer:
-          "Minimum withdrawal is ₦100 (1,000 GT). There is no maximum limit. Ensure your wallet has sufficient balance - the student wallet must have funds to process your payout.",
+          "Minimum withdrawal is ₦100 (1,000 GT) for Airtime & Data, ₦500 (5,000 GT) for Bank transfers and ₦250 (2,500 GT) for subscriptioin renewal. There is no maximum limit. Ensure your wallet has sufficient balance - the student wallet (reward pool) must have funds to process your payout.",
       },
       {
         id: "w3",
         question: "Can I view my transaction history?",
         answer:
-          "Yes! Go to Profile → Transactions to view all your payment history including subscriptions, withdrawals, airtime purchases, data purchases, and refunds. Each transaction shows date, amount, status, and reference number.",
+          "Yes! Go to Profile → Subscriptions → History to view all your payment history including subscriptions, withdrawals, airtime purchases, data purchases, and refunds. Each transaction shows date, amount, status, and reference number.",
       },
       {
         id: "w4",
