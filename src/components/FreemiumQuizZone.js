@@ -482,6 +482,7 @@ const FreemiumQuizZone = ({ setVisible }) => {
                 onStart={() =>
                   setQuizInfo((p) => ({ ...p, view: "category", bar: 2 }))
                 }
+                onExit={() => setVisible(false)}
                 totalQ={TOTAL_QUESTIONS}
               />
             )}
@@ -639,7 +640,7 @@ const IntroHeader = () => (
   </Animated.View>
 );
 
-const IntroContent = ({ onStart, totalQ }) => {
+const IntroContent = ({ onStart, onExit, totalQ }) => {
   const stats = [
     { icon: "🎯", label: "Questions", value: `${totalQ} Today` },
     { icon: "⏰", label: "Resets", value: "Midnight" },
@@ -671,6 +672,12 @@ const IntroContent = ({ onStart, totalQ }) => {
           onPress={onStart}
           contStyle={styles.ctaBtn}
         />
+        <AppButton
+          title="Exit Quiz Zone"
+          type="warn"
+          onPress={onExit}
+          contStyle={styles.ctaBtn}
+        />
         <AppText style={styles.freeBadge}>
           ✨ 100% Free — No subscription needed
         </AppText>
@@ -679,6 +686,8 @@ const IntroContent = ({ onStart, totalQ }) => {
   );
 };
 
+// ─── Fix: separate the layout animation wrapper from the transform wrapper
+// to avoid the Reanimated "transform may be overwritten" warning.
 const FreemiumCard = ({ item, index, isSelected, onPress }) => {
   const scale = useSharedValue(1);
 
@@ -697,42 +706,44 @@ const FreemiumCard = ({ item, index, isSelected, onPress }) => {
   const SIZE = width * 0.38;
 
   return (
-    <Animated.View
-      entering={ZoomIn.delay(index * 100).springify()}
-      style={animStyle}
-    >
-      <Pressable
-        onPress={handlePress}
-        style={({ pressed }) => [
-          styles.card,
-          { width: SIZE, height: SIZE },
-          isSelected && styles.cardSelected,
-          pressed && { opacity: 0.85 },
-        ]}
-      >
-        {isSelected && (
-          <Animated.View entering={ZoomIn} style={styles.cardCheck}>
-            <AppText style={styles.cardCheckText}>✓</AppText>
-          </Animated.View>
-        )}
-        <Image
-          source={item.image}
-          style={{ width: SIZE * 0.5, height: SIZE * 0.5 }}
-          contentFit="contain"
-        />
-        <AppText
-          fontWeight="bold"
-          size="medium"
-          style={isSelected ? styles.cardLabelSelected : styles.cardLabel}
-          numberOfLines={2}
+    // Outer wrapper owns the layout/entering animation only
+    <Animated.View entering={ZoomIn.delay(index * 100).springify()}>
+      {/* Inner wrapper owns the transform style only */}
+      <Animated.View style={animStyle}>
+        <Pressable
+          onPress={handlePress}
+          style={({ pressed }) => [
+            styles.card,
+            { width: SIZE, height: SIZE },
+            isSelected && styles.cardSelected,
+            pressed && { opacity: 0.85 },
+          ]}
         >
-          {item.name}
-        </AppText>
-      </Pressable>
+          {isSelected && (
+            <Animated.View entering={ZoomIn} style={styles.cardCheck}>
+              <AppText style={styles.cardCheckText}>✓</AppText>
+            </Animated.View>
+          )}
+          <Image
+            source={item.image}
+            style={{ width: SIZE * 0.5, height: SIZE * 0.5 }}
+            contentFit="contain"
+          />
+          <AppText
+            fontWeight="bold"
+            size="medium"
+            style={isSelected ? styles.cardLabelSelected : styles.cardLabel}
+            numberOfLines={2}
+          >
+            {item.name}
+          </AppText>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 };
 
+// ─── Fix: same split — outer for entering/exiting, inner for transform
 const TopicRow = ({ item, index, isSelected, onPress }) => {
   const scale = useSharedValue(1);
 
@@ -751,42 +762,45 @@ const TopicRow = ({ item, index, isSelected, onPress }) => {
   const qCount = item.questionCount ?? item.questions?.length ?? 0;
 
   return (
+    // Outer wrapper owns entering/exiting animations only
     <Animated.View
       entering={SlideInRight.delay(index * 70).springify()}
       exiting={SlideOutLeft}
-      style={animStyle}
     >
-      <Pressable
-        onPress={handlePress}
-        style={isSelected ? styles.topicRowSelected : styles.topicRow}
-      >
-        <View style={styles.topicLeft}>
-          <View
-            style={isSelected ? styles.topicDotSelected : styles.topicDot}
-          />
-          <AppText
-            fontWeight={isSelected ? "heavy" : "medium"}
-            style={isSelected ? styles.topicNameSelected : styles.topicName}
-            numberOfLines={2}
-          >
-            {item.name}
-          </AppText>
-        </View>
-        <View style={styles.topicRight}>
-          {qCount > 0 && (
-            <View style={styles.qBadge}>
-              <AppText style={styles.qBadgeTxt} fontWeight="bold">
-                {qCount}q
-              </AppText>
-            </View>
-          )}
-          {isSelected && (
-            <Animated.Text entering={BounceIn} style={styles.topicCheck}>
-              ✓
-            </Animated.Text>
-          )}
-        </View>
-      </Pressable>
+      {/* Inner wrapper owns the transform style only */}
+      <Animated.View style={animStyle}>
+        <Pressable
+          onPress={handlePress}
+          style={isSelected ? styles.topicRowSelected : styles.topicRow}
+        >
+          <View style={styles.topicLeft}>
+            <View
+              style={isSelected ? styles.topicDotSelected : styles.topicDot}
+            />
+            <AppText
+              fontWeight={isSelected ? "heavy" : "medium"}
+              style={isSelected ? styles.topicNameSelected : styles.topicName}
+              numberOfLines={2}
+            >
+              {item.name}
+            </AppText>
+          </View>
+          <View style={styles.topicRight}>
+            {qCount > 0 && (
+              <View style={styles.qBadge}>
+                <AppText style={styles.qBadgeTxt} fontWeight="bold">
+                  {qCount}q
+                </AppText>
+              </View>
+            )}
+            {isSelected && (
+              <Animated.Text entering={BounceIn} style={styles.topicCheck}>
+                ✓
+              </Animated.Text>
+            )}
+          </View>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 };

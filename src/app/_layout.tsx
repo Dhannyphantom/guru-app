@@ -10,6 +10,7 @@ import mobileAds, { MaxAdContentRating } from "react-native-google-mobile-ads";
 import { useAppUpdate } from "../hooks/useAppUpdate";
 import { baseUrl } from "../context/apiSlice";
 import ForceUpdateScreen from "../screens/ForceUpdateScreen";
+import { ExitConfirmProvider } from "@/src/components/Exitconfirmprovider";
 
 import * as Sentry from "@sentry/react-native";
 
@@ -133,10 +134,16 @@ const Main = () => {
 
 function RootLayout() {
   return (
-    <Provider store={store}>
-      <StatusBar style="dark" />
-      <Main />
-    </Provider>
+    <ExitConfirmProvider
+      rootPaths={["/", "/main/freemium"]}
+      timeout={2000}
+      message="Press back again to exit"
+    >
+      <Provider store={store}>
+        <StatusBar style="dark" />
+        <Main />
+      </Provider>
+    </ExitConfirmProvider>
   );
 }
 

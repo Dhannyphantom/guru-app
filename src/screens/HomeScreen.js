@@ -67,6 +67,7 @@ import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { apiSlice } from "../context/apiSlice";
+// import useDoubleBackExit from "../hooks/useDoubleBackExit";
 
 const WalkthroughableView = walkthroughable(View);
 const WalkthroughablePressable = walkthroughable(Pressable);

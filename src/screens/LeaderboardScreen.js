@@ -25,9 +25,7 @@ const { width, height } = Dimensions.get("screen");
 export const LeaderboardItem = ({ item, isPro, index }) => {
   if (index < 3) return null;
 
-  let pointText = formatPoints(
-    item.points ?? item.totalPoints ?? item?.questionsCount,
-  );
+  let pointText = formatPoints(item.totalPoints ?? item?.questionsCount);
   if (isPro) pointText = pointText?.slice(0, -3);
 
   const loading = item?.hasFinished === false;
@@ -336,9 +334,16 @@ const LeaderboardScreen = () => {
   // Get rank suffix
   const getRankSuffix = (rank) => {
     if (!rank) return "TH";
-    if (rank === 1) return "ST";
-    if (rank === 2) return "ND";
-    if (rank === 3) return "RD";
+
+    const lastTwo = rank % 100;
+    if (lastTwo >= 11 && lastTwo <= 13) return "TH";
+
+    const last = rank % 10;
+
+    if (last === 1) return "ST";
+    if (last === 2) return "ND";
+    if (last === 3) return "RD";
+
     return "TH";
   };
 
