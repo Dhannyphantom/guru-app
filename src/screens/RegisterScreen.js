@@ -332,7 +332,7 @@ const RegisterScreen = () => {
                           {/* FOR ERRORS */}
                           {(isError || errMsg) && (
                             <AppText style={styles.errorText}>
-                              {error.data ?? errMsg}
+                              {error?.data ?? errMsg}
                             </AppText>
                           )}
                           <FormikButton
@@ -404,7 +404,7 @@ const RegisterScreen = () => {
                       {/* FOR ERRORS */}
                       {(isError || errMsg) && (
                         <AppText style={styles.errorText}>
-                          {error.data ?? errMsg}
+                          {error?.data ?? errMsg}
                         </AppText>
                       )}
                       <FormikButton

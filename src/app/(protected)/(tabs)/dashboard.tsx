@@ -28,11 +28,7 @@ export default function DashboardPage() {
         if (userSubbed) {
           return <Redirect href={"/main/session"} />;
         } else {
-          return (
-            <Redirect
-              href={{ pathname: "/profile", params: { check: "subscription" } }}
-            />
-          );
+          return <Redirect href={"/main/freemium"} />;
         }
       } else {
         return (

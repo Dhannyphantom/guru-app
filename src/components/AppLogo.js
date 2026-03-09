@@ -13,14 +13,24 @@ import AppText from "./AppText";
 
 const { width, height } = Dimensions.get("screen");
 
-const AppLogo = ({ hideName = false, onPress, size = 40 }) => {
+const AppLogo = ({
+  hideName = false,
+  transparent = false,
+  onPress,
+  size = 40,
+}) => {
   return (
     <Pressable onPress={onPress} style={styles.container}>
       <Image
         source={logo}
         style={[
           styles.logo,
-          { width: size, height: size, borderRadius: size * 0.4 },
+          {
+            width: size,
+            height: size,
+            borderRadius: size * 0.4,
+            backgroundColor: transparent ? "transparent" : "#2d2d2d",
+          },
         ]}
       />
       {!hideName && (

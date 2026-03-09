@@ -83,7 +83,7 @@ const RenderQuiz = ({ setVisible }) => {
       skip: !Boolean(quizInfo?.category?._id),
     });
 
-  const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation();
+  const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation(); //schools
   const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
 
   // const lottieRef = useRef();

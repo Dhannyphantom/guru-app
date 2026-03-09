@@ -99,6 +99,8 @@ const QuestionDisplay = ({
   const appState = useRef(AppState.currentState);
   const handleNextQuestionRef = useRef();
 
+  console.log({ questionBank });
+
   /* ---------- normalize question bank ---------- */
   const normalizedBank = useMemo(() => {
     if (!Array.isArray(questionBank) || questionBank.length === 0) return [];
