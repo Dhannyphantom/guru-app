@@ -18,7 +18,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import colors from "@/src/helpers/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AnimatedPressable from "@/src/components/AnimatedPressable";
-
 const { width } = Dimensions.get("window");
 const TAB_BAR_HEIGHT = 65;
 const CIRCLE_SIZE = 60;

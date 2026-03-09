@@ -50,6 +50,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         return res;
       },
     }),
+    submitFreemiumQuiz: builder.mutation({
+      query: (data) => ({
+        url: "/instance/submit_freemium",
+        method: "POST",
+        body: data,
+      }),
+    }),
     getMyQuestions: builder.query({
       query: () => {
         return {
@@ -197,6 +204,7 @@ export const {
   useFetchPremiumQuizMutation,
   useUpdateInstanceMutation,
   useFetchAnalyticsQuery,
+  useSubmitFreemiumQuizMutation,
   useLazyFetchInstanceQuery,
   useLazyFetchSubjTopicsQuery,
   useCreateTopicMutation,

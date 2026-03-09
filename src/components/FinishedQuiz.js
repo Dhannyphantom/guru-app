@@ -8,7 +8,10 @@ import LottieAnimator from "./LottieAnimator";
 import AppButton from "./AppButton";
 import QuizCorrections from "./QuizCorrections";
 import { useSubmitQuizMutation } from "../context/schoolSlice";
-import { useSubmitPremiumQuizMutation } from "../context/instanceSlice";
+import {
+  useSubmitFreemiumQuizMutation,
+  useSubmitPremiumQuizMutation,
+} from "../context/instanceSlice";
 import {
   LeaderboardItem,
   LeaderboardWinners,
@@ -39,6 +42,10 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   });
 
   const [submitQuiz, { isLoading, isError, error }] = useSubmitQuizMutation();
+  const [
+    submitFreemiumQuiz,
+    { isLoading: freemiumLoading, data: freemiumResults },
+  ] = useSubmitFreemiumQuizMutation();
   const [leaderboard, setLeaderboard] = useState(session?.leaderboard ?? []);
   const [submitPremiumQuiz, { isLoading: premLoading, data: results }] =
     useSubmitPremiumQuizMutation();
@@ -91,15 +98,16 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
       try {
         await submitQuiz({ ...data, ...session }).unwrap();
       } catch (_error) {}
-    } else {
-      // upload premium
-      const sendData = {
-        ...data,
-        ...session,
-      };
-
+    } else if (data?.type === "freemium") {
+      // fix typo: "freeemium" → "freemium"
       try {
-        await submitPremiumQuiz(sendData).unwrap();
+        await submitFreemiumQuiz({ ...data, ...session }).unwrap();
+      } catch (error) {
+        console.log("Freemium error", error);
+      }
+    } else {
+      try {
+        await submitPremiumQuiz({ ...data, ...session }).unwrap();
       } catch (error) {
         console.log("Premium error", error);
       }
@@ -192,6 +200,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
             <AppText size={"xxlarge"} fontWeight="black">
               {Number(
                 results?.data?.pointsEarned ??
+                  freemiumResults?.data?.pointsEarned ??
                   stat?.pointsEarned ??
                   stat?.point,
               ).toFixed(1)}
@@ -210,14 +219,25 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
               <QuizStat
                 value={
                   results?.data?.correctAnswers ??
+                  freemiumResults?.data?.correctAnswers ??
                   stat?.correctAnswers ??
                   stat?.answeredCorrectly
                 }
-                subValue={`of ${results?.data?.totalQuestions ?? calculateQuestionCount(session?.questions) ?? "..."}`}
+                subValue={`of ${
+                  results?.data?.totalQuestions ??
+                  freemiumResults?.data?.totalQuestions ??
+                  calculateQuestionCount(session?.questions) ??
+                  "..."
+                }`}
                 msg={"Correct answers"}
               />
               <QuizStat
-                value={results?.data?.accuracy ?? stat?.accuracy ?? stat?.total}
+                value={
+                  results?.data?.accuracy ??
+                  freemiumResults?.data?.accuracy ??
+                  stat?.accuracy ??
+                  stat?.total
+                }
                 subValue={`%`}
                 msg={"Quiz score"}
               />
@@ -257,9 +277,11 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
           </View>
           <View style={styles.statMain}>
             <QuizStat
-              value={Number(results?.data?.pointsEarned ?? stat?.point).toFixed(
-                1,
-              )}
+              value={Number(
+                results?.data?.pointsEarned ??
+                  freemiumResults?.data?.pointsEarned ??
+                  stat?.point,
+              ).toFixed(1)}
               bgColor={colors.warning}
               border={colors.warningLight}
               subValue={"GT"}

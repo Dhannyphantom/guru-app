@@ -14,7 +14,7 @@ import {
   Pressable,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Animated, {
   runOnJS,
   useAnimatedProps,
@@ -96,6 +96,45 @@ const initials = {
   bar: 1,
 };
 
+// ─── Module-level day cache ───────────────────────────────────────────────────
+//
+// All three layers (categories → subjects → topics) are cached here so that
+// quitting and reopening the Quiz Zone within the same day always shows the
+// same picks.  Keyed by YYYY-MM-DD so everything auto-resets at midnight
+// without needing AsyncStorage.
+//
+// Shape:
+//   _dayCache.date        — "2025-07-14"  (today's key)
+//   _dayCache.userLevel   — e.g. "SSS2"   (invalidates if user switches class)
+//   _dayCache.categories  — picked Category[]
+//   _dayCache.subjects    — { [categoryId]: Subject[] }
+//   _dayCache.topics      — { [subjectId]:  Topic[]   }
+//
+const _dayCache = {
+  date: null,
+  userLevel: null,
+  categories: null,
+  subjects: {},
+  topics: {},
+};
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10); // "2025-07-14"
+
+/** Returns true when the cache is still valid for today and the given level. */
+const isCacheValid = (userLevel) => {
+  const today = getTodayKey();
+  return _dayCache.date === today && _dayCache.userLevel === userLevel;
+};
+
+/** Call once on a fresh day (or level change) to wipe everything. */
+const resetCache = (userLevel) => {
+  _dayCache.date = getTodayKey();
+  _dayCache.userLevel = userLevel;
+  _dayCache.categories = null;
+  _dayCache.subjects = {};
+  _dayCache.topics = {};
+};
+
 // ─── Freemium RTK Query endpoint ─────────────────────────────────────────────
 const freemiumApi = apiSlice.injectEndpoints({
   overrideExisting: true,
@@ -129,6 +168,16 @@ const isCategoryEligible = (category, userLevel = "") => {
   return !isJunior;
 };
 
+// Helper to transition to "start" — called from JS thread after animation
+const goToStart = (qBank, setter) => {
+  setter((p) => ({ ...p, view: "start", qBank }));
+};
+
+// Helper to fall back to topic on error — called from JS thread
+const goToTopic = (setter) => {
+  setter((p) => ({ ...p, view: "topic" }));
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const FreemiumQuizZone = ({ setVisible }) => {
@@ -143,13 +192,6 @@ const FreemiumQuizZone = ({ setVisible }) => {
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
 
-  /**
-   * Cache shuffled subjects keyed by category._id.
-   * Once a category has been visited its subject order is locked for the
-   * entire session — the student cannot keep going back to re-roll.
-   */
-  const subjectShuffleCache = useRef({});
-
   const animProgress = useSharedValue(0);
 
   const { data: allCategories, isLoading: catLoading } =
@@ -160,8 +202,7 @@ const FreemiumQuizZone = ({ setVisible }) => {
       skip: !Boolean(quizInfo?.category?._id),
     });
 
-  const [fetchFreemiumQuiz, { isLoading: quizLoading }] =
-    useFetchFreemiumQuizMutation();
+  const [fetchFreemiumQuiz] = useFetchFreemiumQuizMutation();
 
   const [fetchTopics, { isLoading: topicsLoading }] =
     useFetchSubjectsTopicsMutation();
@@ -179,53 +220,77 @@ const FreemiumQuizZone = ({ setVisible }) => {
   const isStart = quizInfo.view === "start";
   const isFinished = quizInfo.view === "finished";
 
-  // Randomise categories once — filtered by user's class level
+  // Randomise categories once per day per user level — cached at module level
+  // so quitting and reopening the Quiz Zone shows the same picks.
   useEffect(() => {
-    if (allCategories?.data?.length) {
-      const userLevel = user?.class?.level ?? "";
-      const eligible = allCategories.data.filter((cat) =>
-        isCategoryEligible(cat, userLevel),
-      );
-      const shuffled = [...eligible].sort(() => Math.random() - 0.5);
-      setRandomCategories(shuffled.slice(0, MAX_RANDOM_CATEGORIES));
+    if (!allCategories?.data?.length) return;
+
+    const userLevel = user?.class?.level ?? "";
+
+    // Wipe cache if it's a new day or the user's level changed
+    if (!isCacheValid(userLevel)) resetCache(userLevel);
+
+    // Return cached picks if available
+    if (_dayCache.categories?.length) {
+      setRandomCategories(_dayCache.categories);
+      return;
     }
+
+    // Fresh pick — filter, shuffle, slice, then cache
+    const eligible = allCategories.data.filter((cat) =>
+      isCategoryEligible(cat, userLevel),
+    );
+    const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, MAX_RANDOM_CATEGORIES);
+
+    _dayCache.categories = picked;
+    setRandomCategories(picked);
   }, [allCategories, user?.class?.level]);
 
-  // Set subjects when category data arrives — locked shuffle via cache
+  // Set subjects when category data arrives — locked shuffle via day cache
   useEffect(() => {
     if (!subjectsData?.data || !quizInfo.category?._id) return;
 
     const catId = quizInfo.category._id;
 
-    // Reuse the existing shuffle if this category was visited before
-    if (subjectShuffleCache.current[catId]) {
-      setSubjects(subjectShuffleCache.current[catId]);
+    // Return cached subjects for this category if still valid for today
+    if (isCacheValid(user?.class?.level ?? "") && _dayCache.subjects[catId]) {
+      setSubjects(_dayCache.subjects[catId]);
       return;
     }
 
-    // First visit — shuffle once and lock it in the cache
+    // Fresh pick — shuffle, slice, then store in day cache
     const shuffled = [...subjectsData.data].sort(() => Math.random() - 0.5);
     const sliced = shuffled.slice(0, 2);
-    subjectShuffleCache.current[catId] = sliced;
+    _dayCache.subjects[catId] = sliced;
     setSubjects(sliced);
   }, [subjectsData, quizInfo.category?._id]);
 
-  // Fetch topics when a subject is selected
+  // Fetch topics when a subject is selected — cached per subject per day
   useEffect(() => {
     if (!quizInfo.subject || !quizInfo.category?._id) return;
 
+    const subjectId = quizInfo.subject._id;
+
+    // Return cached topics for this subject if still valid for today
+    if (isCacheValid(user?.class?.level ?? "") && _dayCache.topics[subjectId]) {
+      setTopics(_dayCache.topics[subjectId]);
+      return;
+    }
+
     const loadTopics = async () => {
       try {
-        const subjectList = [quizInfo.subject._id];
-
         const res = await fetchTopics({
-          subjects: subjectList,
-          category: quizInfo.category?._id,
+          subjects: [subjectId],
+          category: quizInfo.category._id,
         }).unwrap();
 
         const raw = res?.data?.[0]?.topics ?? [];
         const shuffled = [...raw].sort(() => Math.random() - 0.5);
-        setTopics(shuffled.slice(0, 4));
+        const picked = shuffled.slice(0, 4);
+
+        _dayCache.topics[subjectId] = picked;
+        setTopics(picked);
       } catch (err) {
         setPopper({
           vis: true,
@@ -267,11 +332,12 @@ const FreemiumQuizZone = ({ setVisible }) => {
   };
 
   const startQuiz = async () => {
+    // Switch to the loading screen immediately
     setQuizInfo((p) => ({ ...p, view: "quiz" }));
+
+    // Fake progress: animate to 65% while the request is in-flight
     animProgress.value = withTiming(0, { duration: 1 });
-    animProgress.value = withTiming(0.65, { duration: 18000 }, (done) => {
-      if (done) animProgress.value = withTiming(0.88, { duration: 30000 });
-    });
+    animProgress.value = withTiming(0.65, { duration: 18000 });
 
     try {
       const res = await fetchFreemiumQuiz({
@@ -282,25 +348,25 @@ const FreemiumQuizZone = ({ setVisible }) => {
 
       console.log({ res });
 
-      animProgress.value = withTiming(1, { duration: 800 }, (done) => {
-        if (done && Boolean(res?.data)) {
-          runOnJS(setQuizInfo)((p) => ({
-            ...p,
-            view: "start",
-            qBank: res.data,
-          }));
-        }
+      const qBank = res?.data ?? [];
+
+      // Drive progress bar to 100%, then switch to the question view.
+      animProgress.value = withTiming(1, { duration: 600 }, () => {
+        runOnJS(goToStart)(qBank, setQuizInfo);
       });
     } catch (err) {
       console.log({ err });
+
+      // Fill quickly then show error — let the popper's cb reset the view
       animProgress.value = withTiming(1, { duration: 400 });
+
       setPopper({
         vis: true,
         msg: err?.data?.message ?? "Could not load quiz. Try again.",
         type: "failed",
         timer: 6000,
         cb: () => {
-          animProgress.value = 0;
+          animProgress.value = withTiming(0, { duration: 300 });
           setQuizInfo((p) => ({ ...p, view: "topic" }));
         },
       });
@@ -654,7 +720,6 @@ const FreemiumCard = ({ item, index, isSelected, onPress }) => {
           style={{ width: SIZE * 0.5, height: SIZE * 0.5 }}
           contentFit="contain"
         />
-        {/* Single style object — no array — so AppText renders correctly */}
         <AppText
           fontWeight="bold"
           size="medium"
@@ -696,7 +761,6 @@ const TopicRow = ({ item, index, isSelected, onPress }) => {
         style={isSelected ? styles.topicRowSelected : styles.topicRow}
       >
         <View style={styles.topicLeft}>
-          {/* Single style object per state — no array */}
           <View
             style={isSelected ? styles.topicDotSelected : styles.topicDot}
           />
@@ -808,7 +872,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Dedicated style objects so AppText never receives an array
   cardCheckText: {
     fontSize: 14,
   },
