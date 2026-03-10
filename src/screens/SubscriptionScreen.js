@@ -799,6 +799,13 @@ const SubHistory = ({ item }) => {
             ? `+${item?.metadata?.days} days`
             : item?.metadata?.payoutType}{" "}
         </AppText>
+        {item?.metadata?.flutterwaveReference && (
+          <AppText style={{ marginTop: 6 }} size={"small"}>
+            <AppText fontWeight="bold">ID: </AppText>
+            {item?.metadata?.flutterwaveReference}
+          </AppText>
+        )}
+
         <AppText style={{ marginTop: 10 }} fontWeight="thin" size={"small"}>
           {dateFormatter(item.createdAt, "fullDate")}
         </AppText>
