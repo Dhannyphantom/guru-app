@@ -174,7 +174,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                       options={{
                         tx_ref: generateTransactionRef(10),
                         authorization:
-                          "FLWPUBK_TEST-16067fba46bd1ab985e439656b68ce98-X",
+                          "FLWPUBK-2b39b5e1580ac31aa7301fd6a66e48e5-X",
                         customer: {
                           email: user.email,
                         },
@@ -186,7 +186,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                           name: getFullName(user),
                           days: values["sub_amount"]?.days,
                           schoolId: isSchool
-                            ? (data?.schoolId ?? data?.data?._id)
+                            ? data?.schoolId ?? data?.data?._id
                             : "",
                         },
                       }}

@@ -1,4 +1,11 @@
-import { Dimensions, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  Platform,
+  ScrollView,
+  KeyboardAvoidingView,
+  StyleSheet,
+  View,
+} from "react-native";
 
 import AppHeader from "../components/AppHeader";
 import { Formik } from "formik";
@@ -10,6 +17,7 @@ import {
 } from "../helpers/yupSchemas";
 import {
   ngLocale,
+  PAD_BOTTOM,
   schoolLevels,
   schoolTypes,
   states,
@@ -89,7 +97,7 @@ const CreateSchoolScreen = () => {
     // console.log({ formData });
     try {
       const res = await createSchool(formData).unwrap();
-      if (res?.status == "success") {
+      if (res?.status === "success") {
         setBools({
           ...bools,
           subModal: true,
@@ -118,93 +126,102 @@ const CreateSchoolScreen = () => {
   return (
     <View style={styles.container}>
       <AppHeader title="Create School Profile" />
-      <ScrollView contentContainerStyle={{ paddingBottom: height * 0.12 }}>
-        <Formik
-          validationSchema={createSchoolSchema}
-          initialValues={createSchoolInitials}
-          onSubmit={handleSubmit}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+          keyboardShouldPersistTaps="handled"
         >
-          {({ values }) => {
-            const dataNG = ngLocale.find(
-              (item) =>
-                item.state?.toLowerCase() ==
-                values["state"]?.name?.toLowerCase(),
-            );
-            const dataArr = dataNG?.lgas?.map((item) => ({
-              _id: nanoid(),
-              name: item,
-            }));
-            return (
-              <>
-                <FormikInput
-                  headerText={"School Name"}
-                  name={"name"}
-                  placeholder={"Name"}
-                />
-                <FormikInput
-                  headerText={"State"}
-                  placeholder={"Select your state"}
-                  name={"state"}
-                  data={states}
-                  type="dropdown"
-                />
-                <FormikInput
-                  headerText={"School LGA"}
-                  placeholder={"Local government area"}
-                  type="dropdown"
-                  data={dataArr}
-                  name={"lga"}
-                />
-                <FormikInput
-                  name={"type"}
-                  placeholder={"Select school type"}
-                  type="dropdown"
-                  data={schoolTypes}
-                  numDisplayItems={2}
-                  headerText={"Select School Type:"}
-                  // onLayout={() => setFieldTouched("categories", true)}
-                  // showErr={bools.showErr}
-                />
-                <FormikInput
-                  name={"levels"}
-                  placeholder={"Select levels"}
-                  type="dropdown"
-                  numDisplayItems={4}
-                  data={schoolLevels}
-                  multiple
-                  headerText={"Select Educational Levels:"}
-                  // onLayout={() => setFieldTouched("categories", true)}
-                  // showErr={bools.showErr}
-                />
-                <FormikInput
-                  headerText={"School Official Email"}
-                  name={"email"}
-                  placeholder={"Email"}
-                />
-                <FormikInput
-                  headerText={"School Official Contact"}
-                  name={"contact"}
-                  LeftComponent={() => (
-                    <View>
-                      <AppText
-                        fontWeight="bold"
-                        style={{ color: colors.medium }}
-                      >
-                        +234
-                      </AppText>
-                    </View>
-                  )}
-                  placeholder={"Phone number"}
-                />
-                <FormikButton
-                  title={"Create Profile"}
-                  contStyle={styles.formBtn}
-                />
-              </>
-            );
-          }}
-        </Formik>
-      </ScrollView>
+          <Formik
+            validationSchema={createSchoolSchema}
+            initialValues={createSchoolInitials}
+            onSubmit={handleSubmit}
+          >
+            {({ values }) => {
+              const dataNG = ngLocale.find(
+                (item) =>
+                  item.state?.toLowerCase() ==
+                  values["state"]?.name?.toLowerCase(),
+              );
+              const dataArr = dataNG?.lgas?.map((item) => ({
+                _id: nanoid(),
+                name: item,
+              }));
+              return (
+                <>
+                  <FormikInput
+                    headerText={"School Name"}
+                    name={"name"}
+                    placeholder={"Name"}
+                  />
+                  <FormikInput
+                    headerText={"State"}
+                    placeholder={"Select your state"}
+                    name={"state"}
+                    data={states}
+                    type="dropdown"
+                  />
+                  <FormikInput
+                    headerText={"School LGA"}
+                    placeholder={"Local government area"}
+                    type="dropdown"
+                    data={dataArr}
+                    name={"lga"}
+                  />
+                  <FormikInput
+                    name={"type"}
+                    placeholder={"Select school type"}
+                    type="dropdown"
+                    data={schoolTypes}
+                    numDisplayItems={2}
+                    headerText={"Select School Type:"}
+                    // onLayout={() => setFieldTouched("categories", true)}
+                    // showErr={bools.showErr}
+                  />
+                  <FormikInput
+                    name={"levels"}
+                    placeholder={"Select levels"}
+                    type="dropdown"
+                    numDisplayItems={4}
+                    data={schoolLevels}
+                    multiple
+                    headerText={"Select Educational Levels:"}
+                    // onLayout={() => setFieldTouched("categories", true)}
+                    // showErr={bools.showErr}
+                  />
+                  <FormikInput
+                    headerText={"School Official Email"}
+                    name={"email"}
+                    placeholder={"Email"}
+                  />
+                  <FormikInput
+                    headerText={"School Official Contact"}
+                    name={"contact"}
+                    LeftComponent={() => (
+                      <View>
+                        <AppText
+                          fontWeight="bold"
+                          style={{ color: colors.medium }}
+                        >
+                          +234
+                        </AppText>
+                      </View>
+                    )}
+                    placeholder={"Phone number"}
+                  />
+                  <FormikButton
+                    title={"Create Profile"}
+                    contStyle={styles.formBtn}
+                  />
+                </>
+              );
+            }}
+          </Formik>
+        </ScrollView>
+      </KeyboardAvoidingView>
       <AppModal
         visible={bools.subModal}
         setVisible={(bool) => setBools({ ...bools, subModal: bool })}

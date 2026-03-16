@@ -36,6 +36,7 @@ export const apiSlice = createApi({
     "SCHOOL_LEADERBOARD",
     "SUPPORT_TICKETS",
     "SUPPORT_TICKET",
+    "PRO_LEADERBORAD",
     "SUPPORT_STATS",
     "ADMIN_SUPPORT_TICKETS",
     "SCHOOL_CLASSES",

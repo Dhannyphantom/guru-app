@@ -291,16 +291,13 @@ export const createNewQuestInitials = {
 };
 
 export const createSchoolInitials = {
-  name: "St. augustines college",
-  state: { _id: "1", name: "kogi" },
-  lga: { _id: "1", name: "kabba/bunu" },
-  email: "st.augustines101@gmail.com",
-  contact: "7036284939",
-  type: { _id: "1", name: "private" },
-  levels: [
-    { id: "1", name: "junior secondary" },
-    { id: "2", name: "senior secondary" },
-  ],
+  name: "",
+  state: {},
+  lga: {},
+  email: "",
+  contact: "",
+  type: {},
+  levels: [],
 };
 
 export const createSchoolSchema = Yup.object().shape({
