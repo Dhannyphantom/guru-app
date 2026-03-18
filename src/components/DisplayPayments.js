@@ -23,6 +23,7 @@ import LottieAnimator from "./LottieAnimator";
 import AppButton from "./AppButton";
 import { Formik } from "formik";
 import { subInitials, subUserSchema } from "../helpers/yupSchemas";
+import { Ionicons } from "@expo/vector-icons";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -172,6 +173,7 @@ const DisplayPayments = ({ hideModal, data }) => {
                           "FLWPUBK-2b39b5e1580ac31aa7301fd6a66e48e5-X",
                         customer: {
                           email: user.email,
+                          name: getFullName(user),
                         },
                         amount,
                         currency: "NGN",
@@ -211,6 +213,43 @@ const DisplayPayments = ({ hideModal, data }) => {
           );
         }}
       </Formik>
+      {/* Payment Info Tips — outside the white main view */}
+      <View style={styles.infoSection}>
+        {[
+          {
+            icon: "card-outline",
+            title: "Card not working?",
+            desc: "Switch to bank transfer or USSD from the payment options screen.",
+          },
+          {
+            icon: "shield-checkmark-outline",
+            title: "Secure & encrypted",
+            desc: "Your payment details are never stored on our servers.",
+          },
+          {
+            icon: "refresh-outline",
+            title: "Debited but not activated?",
+            desc: "Go to Profile → Settings & More → Contact Us and open a Payment & Billing ticket. We'll get back to you within minutes.",
+          },
+        ].map((tip, i) => (
+          <View key={i} style={styles.tipRow}>
+            <View style={styles.tipIconWrap}>
+              <Ionicons name={tip.icon} size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText fontWeight="semibold" size="small">
+                {tip.title}
+              </AppText>
+              <AppText
+                size="xsmall"
+                style={{ color: colors.medium, marginTop: 2 }}
+              >
+                {tip.desc}
+              </AppText>
+            </View>
+          </View>
+        ))}
+      </View>
       <PopMessage popData={popper} setPopData={setPopper} />
     </View>
   );
@@ -237,6 +276,30 @@ const styles = StyleSheet.create({
   dateInput: {
     width: width * 0.4,
   },
+  infoSection: {
+    marginBottom: 14,
+    borderRadius: 12,
+    marginHorizontal: 10,
+    // borderWidth: 1,
+    // borderColor: colors.primary + "25",
+    // overflow: "hidden",
+  },
+  tipRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.extraLight,
+  },
+  tipIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: colors.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   formBtn: {
     // flex: 1,
     // justifyContent: "flex-end",
@@ -246,6 +309,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     boxShadow: `2px 8px 18px ${colors.primary}25`,
+    marginBottom: 20,
   },
   payTxt: {
     textAlign: "center",
@@ -257,8 +321,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   webViewContainer: {
-    flex: 1,
-    padding: 8,
+    // backgroundColor: "red",
+    // flex: 1,
+    // padding: 8,
     // backgroundColor: colors.white,
     // justifyContent: "center",
     // alignItems: "center",
