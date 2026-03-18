@@ -173,7 +173,7 @@ export const WithdrawModal = ({
       const res = await withdrawFromWallet({
         pointsToConvert: calculatePointsAmount(amount).point,
         accountNumber: formValues.acct_number,
-        accountBank: "044",
+        accountBank: formValues?.bank?.code,
       }).unwrap();
 
       if (res.success === true) {
@@ -240,8 +240,9 @@ export const WithdrawModal = ({
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await refetch();
+      await refetch().unwrap();
     } catch (errr) {
+      console.log(errr);
     } finally {
       setRefreshing(false);
     }
@@ -314,6 +315,8 @@ export const WithdrawModal = ({
   };
 
   const verifyAccount = async (formValues) => {
+    // console.log({ formValues });
+    // return;
     if (isVerified) {
       await handleCashOut(formValues);
     } else {
@@ -581,7 +584,7 @@ export const WithdrawModal = ({
               validationSchema={withdrawPointsSchema}
               onSubmit={verifyAccount}
             >
-              <>
+              <View style={{ marginTop: 20 }}>
                 <FormikInput
                   name={"bank"}
                   placeholder={"Select Bank"}
@@ -615,7 +618,7 @@ export const WithdrawModal = ({
                   title={isVerified ? "Withdraw" : "Verify Account"}
                   type="accent"
                 />
-              </>
+              </View>
             </Formik>
           </Animated.View>
         )}
@@ -782,6 +785,7 @@ const SubHistory = ({ item }) => {
         <AppText
           style={{
             marginTop: 4,
+
             color: isSub ? colors.accentDeeper : colors.greenDark,
           }}
           fontWeight="heavy"
@@ -800,7 +804,11 @@ const SubHistory = ({ item }) => {
             : item?.metadata?.payoutType}{" "}
         </AppText>
         {item?.metadata?.flutterwaveReference && (
-          <AppText style={{ marginTop: 6 }} size={"small"}>
+          <AppText
+            numberOfLines={1}
+            style={{ marginTop: 6, maxWidth: width * 0.2 }}
+            size={"small"}
+          >
             <AppText fontWeight="bold">ID: </AppText>
             {item?.metadata?.flutterwaveReference}
           </AppText>

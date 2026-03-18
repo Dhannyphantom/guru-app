@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   TextInput,
+  Dimensions,
   KeyboardAvoidingView,
   ScrollView,
   Linking,
@@ -35,10 +36,12 @@ import {
 } from "../context/usersSlice";
 import { getFullName } from "../helpers/helperFunctions";
 import Avatar from "../components/Avatar";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { NavBack } from "../components/AppIcons";
 import LottieAnimator from "../components/LottieAnimator";
 import PopMessage from "../components/PopMessage";
+
+const { width } = Dimensions.get("screen");
 
 // Support Categories
 const SUPPORT_CATEGORIES = [
@@ -112,13 +115,12 @@ const QUICK_CONTACTS = [
     action: () => Linking.openURL("tel:+2347058408343"),
   },
   {
-    id: "facebook",
-    title: "Facebook",
-    subtitle: "Reach out to us on our facebook page",
-    icon: "logo-facebook",
-    color: colors.facebook,
-    action: () => Linking.openURL("https://www.facebook.com"),
-    // action: () => Linking.openURL("https://www.facebook.com/young.skillzz.9/"),
+    id: "whatsapp",
+    title: "WhatsApp",
+    subtitle: "Reach out to us on our WhatsApp",
+    icon: "logo-whatsapp",
+    color: "#25D366",
+    action: () => Linking.openURL("https://wa.me/2347058408343"),
   },
 ];
 
@@ -150,6 +152,16 @@ const COMMON_ISSUES = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────
+// THE RULE: `entering` and `style={animatedStyle}` (with transform)
+// must NEVER live on the same Animated.View node.
+//
+// Correct pattern:
+//   <Animated.View entering={...}>          ← ONLY entering, no style
+//     <Animated.View style={animatedStyle}> ← ONLY transform style, no entering
+//       <Pressable ...>
+// ─────────────────────────────────────────────────────────────
+
 // Active Ticket Card Component
 const ActiveTicketCard = ({ ticket, onPress, index }) => {
   const scale = useSharedValue(1);
@@ -161,7 +173,6 @@ const ActiveTicketCard = ({ ticket, onPress, index }) => {
   const handlePressIn = () => {
     scale.value = withSpring(0.97, { damping: 30 });
   };
-
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 30 });
   };
@@ -196,7 +207,9 @@ const ActiveTicketCard = ({ ticket, onPress, index }) => {
   };
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
+    // Outer Animated.View: ONLY `entering` — no style prop
+    <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
+      {/* Inner Animated.View: ONLY `style` with transform — no entering prop */}
       <Animated.View style={animatedStyle}>
         <Pressable
           onPress={onPress}
@@ -299,7 +312,6 @@ const HistoryTicketCard = ({ ticket, onPress, index }) => {
   const handlePressIn = () => {
     scale.value = withSpring(0.97, { damping: 30 });
   };
-
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 30 });
   };
@@ -307,7 +319,7 @@ const HistoryTicketCard = ({ ticket, onPress, index }) => {
   const categoryData = ticket.categoryData || {};
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+    <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
       <Animated.View style={animatedStyle}>
         <Pressable
           onPress={onPress}
@@ -374,13 +386,12 @@ const CategoryCard = ({ item, onPress, index }) => {
   const handlePressIn = () => {
     scale.value = withSpring(0.95, { damping: 30 });
   };
-
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 30 });
   };
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
+    <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
       <Animated.View style={animatedStyle}>
         <Pressable
           onPress={onPress}
@@ -429,14 +440,18 @@ const QuickContactCard = ({ item, index }) => {
   const handlePressIn = () => {
     scale.value = withSpring(0.95, { damping: 35 });
   };
-
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 35 });
   };
 
   return (
-    <Animated.View entering={SlideInRight.delay(index * 100).springify()}>
-      <Animated.View style={[animatedStyle, styles.quickContactCard]}>
+    // Outer: ONLY entering + non-transform styles (margin is safe here)
+    <Animated.View
+      entering={SlideInRight.delay(index * 80).springify()}
+      style={styles.quickContactCard}
+    >
+      {/* Inner: ONLY transform */}
+      <Animated.View style={animatedStyle}>
         <Pressable
           onPress={item.action}
           onPressIn={handlePressIn}
@@ -470,17 +485,17 @@ const QuickContactCard = ({ item, index }) => {
 
 // Common Issue Item
 const CommonIssueItem = ({ item, isExpanded, onToggle }) => {
-  const height = useSharedValue(0);
+  const progress = useSharedValue(0);
   const rotation = useSharedValue(0);
 
   React.useEffect(() => {
-    height.value = withTiming(isExpanded ? 1 : 0, { duration: 300 });
-    rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 300 });
+    progress.value = withTiming(isExpanded ? 1 : 0, { duration: 250 });
+    rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 250 });
   }, [isExpanded]);
 
   const bodyStyle = useAnimatedStyle(() => ({
-    maxHeight: interpolate(height.value, [0, 1], [0, 200]),
-    opacity: interpolate(height.value, [0, 0.5, 1], [0, 0, 1]),
+    maxHeight: interpolate(progress.value, [0, 1], [0, 200]),
+    opacity: progress.value,
     overflow: "hidden",
   }));
 
@@ -530,7 +545,6 @@ const ContactForm = ({ category, onClose, submitting, onSubmit }) => {
 
   const handleSubmit = async () => {
     if (!isValid) return;
-
     onSubmit({
       category,
       subject,
@@ -673,12 +687,12 @@ const ContactForm = ({ category, onClose, submitting, onSubmit }) => {
 const ContactSupportScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [expandedIssue, setExpandedIssue] = useState(null);
-  const [activeTab, setActiveTab] = useState("support"); // 'support' or 'history'
+  const [activeTab, setActiveTab] = useState("support");
   const [refreshing, setRefreshing] = useState(false);
   const [popData, setPopData] = useState({ vis: false });
 
   const { data: tickets, isLoading, refetch } = useFetchMyTicketsQuery();
-  const [createSupportTicket, { isLoading: creating, error: createErr }] =
+  const [createSupportTicket, { isLoading: creating }] =
     useCreateSupportTicketMutation();
 
   const activeTickets =
@@ -693,16 +707,17 @@ const ContactSupportScreen = () => {
 
   const router = useRouter();
 
-  // Fetch tickets on mount
-  useEffect(() => {
-    // fetchTickets();
-  }, []);
+  // Close the ContactForm whenever screen loses focus (navigating to chat and back)
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setSelectedCategory(null);
+      };
+    }, []),
+  );
 
   const fetchTickets = async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    }
-
+    if (isRefresh) setRefreshing(true);
     try {
       await refetch().unwrap();
     } catch (error) {
@@ -721,7 +736,6 @@ const ContactSupportScreen = () => {
   };
 
   const handleFormSubmit = async (data) => {
-    //
     const sendData = {
       category: data?.category?.id,
       categoryIcon: data?.category?.icon,
@@ -746,8 +760,6 @@ const ContactSupportScreen = () => {
         msg: errr?.data?.message ?? "Error creating issue. Try again later",
       });
     }
-
-    // setSelectedCategory(null);
   };
 
   const handleTicketPress = (ticket) => {
@@ -783,7 +795,6 @@ const ContactSupportScreen = () => {
 
   return (
     <Screen style={styles.container}>
-      {/* Tab Selector */}
       <View style={styles.tabContainer}>
         <NavBack color="black" style={styles.nav} />
         <Pressable
@@ -840,133 +851,152 @@ const ContactSupportScreen = () => {
       >
         {activeTab === "support" ? (
           <>
-            {/* Active Tickets Section */}
-            {activeTickets.length > 0 && (
-              <View style={styles.section}>
-                <AppText
-                  fontWeight="bold"
-                  size="large"
-                  style={styles.sectionTitle}
-                >
-                  Ongoing Issues
-                </AppText>
-                {activeTickets.map((ticket, index) => (
-                  <ActiveTicketCard
-                    key={ticket._id}
-                    ticket={ticket}
-                    index={index}
-                    onPress={() => handleTicketPress(ticket)}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Header Section */}
-            <View style={styles.headerSection}>
-              <AppText
-                size="regular"
-                style={{ color: colors.medium, marginTop: 8, lineHeight: 24 }}
-              >
-                {activeTickets.length > 0
-                  ? "Need more help? Choose a category or use quick contact options"
-                  : "Choose a category below or use quick contact options to reach our support team"}
-              </AppText>
-            </View>
-
-            {/* Quick Contact Options */}
-            <View style={styles.section}>
-              <AppText
-                fontWeight="bold"
-                size="large"
-                style={styles.sectionTitle}
-              >
-                Contact Us
-              </AppText>
-              {QUICK_CONTACTS.map((item, index) => (
-                <QuickContactCard key={item.id} item={item} index={index} />
-              ))}
-            </View>
-
-            {/* Support Categories */}
-            <View style={styles.section}>
-              <AppText fontWeight="bold" size="large">
-                What do you need help with?
-              </AppText>
-              <AppText
-                size="regular"
-                style={{
-                  color: colors.medium,
-                  marginBottom: 15,
-                  lineHeight: 24,
-                }}
-              >
-                Select an option to start a live chat with the support team
-              </AppText>
-              {SUPPORT_CATEGORIES.map((item, index) => (
-                <CategoryCard
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  onPress={() => handleCategorySelect(item)}
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <LottieAnimator
+                  visible
+                  // name="person_float"
+                  size={width * 0.3}
                 />
-              ))}
-            </View>
-
-            {/* Common Issues */}
-            <View style={styles.section}>
-              <View style={styles.commonIssuesHeader}>
-                <MaterialCommunityIcons
-                  name="lightbulb-on-outline"
-                  size={24}
-                  color={colors.warning}
-                />
-                <AppText
-                  fontWeight="bold"
-                  size="large"
-                  style={{ marginLeft: 8 }}
-                >
-                  Common Issues
-                </AppText>
-              </View>
-              <AppText
-                size="small"
-                style={{ color: colors.medium, marginBottom: 15 }}
-              >
-                Quick solutions to frequently reported problems
-              </AppText>
-              {COMMON_ISSUES.map((item) => (
-                <CommonIssueItem
-                  key={item.id}
-                  item={item}
-                  isExpanded={expandedIssue === item.id}
-                  onToggle={() => toggleIssue(item.id)}
-                />
-              ))}
-            </View>
-
-            {/* Response Time Info */}
-            <View style={styles.responseTimeCard}>
-              <Ionicons name="time" size={24} color={colors.primary} />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <AppText fontWeight="bold" size="regular">
-                  Average Response Time
-                </AppText>
                 <AppText
                   size="small"
-                  style={{ color: colors.medium, marginTop: 4 }}
+                  style={{ color: colors.medium, marginTop: 10 }}
                 >
-                  We typically respond within 24 hours on business days
-                  (Mon-Fri, 9AM-5PM)
+                  Fetching support tickets...
                 </AppText>
               </View>
-            </View>
+            ) : (
+              <>
+                {activeTickets.length > 0 && (
+                  <View style={styles.section}>
+                    <AppText
+                      fontWeight="bold"
+                      size="large"
+                      style={styles.sectionTitle}
+                    >
+                      Ongoing Issues
+                    </AppText>
+                    {activeTickets.map((ticket, index) => (
+                      <ActiveTicketCard
+                        key={ticket._id}
+                        ticket={ticket}
+                        index={index}
+                        onPress={() => handleTicketPress(ticket)}
+                      />
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.headerSection}>
+                  <AppText
+                    size="regular"
+                    style={{
+                      color: colors.medium,
+                      marginTop: 8,
+                      lineHeight: 24,
+                    }}
+                  >
+                    {activeTickets.length > 0
+                      ? "Need more help? Choose a category or use quick contact options"
+                      : "Choose a category below or use quick contact options to reach our support team"}
+                  </AppText>
+                </View>
+
+                <View style={styles.section}>
+                  <AppText
+                    fontWeight="bold"
+                    size="large"
+                    style={styles.sectionTitle}
+                  >
+                    Contact Us
+                  </AppText>
+                  {QUICK_CONTACTS.map((item, index) => (
+                    <QuickContactCard key={item.id} item={item} index={index} />
+                  ))}
+                </View>
+
+                <View style={styles.section}>
+                  <AppText fontWeight="bold" size="large">
+                    What do you need help with?
+                  </AppText>
+                  <AppText
+                    size="regular"
+                    style={{
+                      color: colors.medium,
+                      marginBottom: 15,
+                      lineHeight: 24,
+                    }}
+                  >
+                    Select an option to start a live chat with the support team
+                  </AppText>
+                  {SUPPORT_CATEGORIES.map((item, index) => (
+                    <CategoryCard
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      onPress={() => handleCategorySelect(item)}
+                    />
+                  ))}
+                </View>
+
+                <View style={styles.section}>
+                  <View style={styles.commonIssuesHeader}>
+                    <MaterialCommunityIcons
+                      name="lightbulb-on-outline"
+                      size={24}
+                      color={colors.warning}
+                    />
+                    <AppText
+                      fontWeight="bold"
+                      size="large"
+                      style={{ marginLeft: 8 }}
+                    >
+                      Common Issues
+                    </AppText>
+                  </View>
+                  <AppText
+                    size="small"
+                    style={{ color: colors.medium, marginBottom: 15 }}
+                  >
+                    Quick solutions to frequently reported problems
+                  </AppText>
+                  {COMMON_ISSUES.map((item) => (
+                    <CommonIssueItem
+                      key={item.id}
+                      item={item}
+                      isExpanded={expandedIssue === item.id}
+                      onToggle={() => toggleIssue(item.id)}
+                    />
+                  ))}
+                </View>
+
+                <View style={styles.responseTimeCard}>
+                  <Ionicons name="time" size={24} color={colors.primary} />
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <AppText fontWeight="bold" size="regular">
+                      Average Response Time
+                    </AppText>
+                    <AppText
+                      size="small"
+                      style={{ color: colors.medium, marginTop: 4 }}
+                    >
+                      We typically respond within 24 hours on business days
+                      (Mon-Fri, 9AM-5PM)
+                    </AppText>
+                  </View>
+                </View>
+              </>
+            )}
           </>
         ) : (
-          // History Tab Content
           <View style={styles.section}>
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <LottieAnimator visible />
+                <LottieAnimator
+                  visible
+                  name="person_float"
+                  size={width * 0.3}
+                />
                 <AppText
                   size="small"
                   style={{ color: colors.medium, marginTop: 10 }}
@@ -1073,12 +1103,10 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingHorizontal: 20,
-    // paddingTop: 10,
     marginBottom: 15,
   },
   section: {
     paddingHorizontal: 20,
-    // marginBottom: 10,
   },
   sectionTitle: {
     marginBottom: 15,
@@ -1087,7 +1115,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     height: "100%",
     paddingHorizontal: 10,
-    // backgroundColor: "red",
     marginTop: 8,
     zIndex: 100,
   },
@@ -1240,7 +1267,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
   },
-
   loadingContainer: {
     alignItems: "center",
     justifyContent: "center",

@@ -639,6 +639,8 @@ const ChatRoomScreen = () => {
     user?.accountType === "manager" || user?.accountType === "professional";
 
   const isResolved = ["resolved", "closed"].includes(data?.data?.status);
+  const isOpen = data?.data?.status === "open";
+  const isUserRestricted = !isPro && (isResolved || isOpen);
 
   const handleSendMessage = async (text = inputText) => {
     if (!text.trim()) return;
@@ -942,7 +944,11 @@ const ChatRoomScreen = () => {
             <TextInput
               style={styles.input}
               placeholder={
-                isResolved && !isPro ? "Issue Resolved" : "Type your message..."
+                isOpen && !isPro
+                  ? "Wait for support response..."
+                  : isResolved && !isPro
+                  ? "Issue Resolved"
+                  : "Type your message..."
               }
               placeholderTextColor={colors.medium}
               value={inputText}
@@ -951,7 +957,7 @@ const ChatRoomScreen = () => {
                 setInputText(val);
               }}
               multiline
-              editable={!(isResolved && !isPro)}
+              editable={!isUserRestricted}
               maxLength={500}
             />
           </View>
