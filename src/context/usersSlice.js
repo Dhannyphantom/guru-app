@@ -362,6 +362,21 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_TRANSACTIONS"],
     }),
+    sendEmailOtp: builder.mutation({
+      query: (email) => ({
+        url: "/users/email/send-otp",
+        method: "POST",
+        body: { email },
+      }),
+    }),
+    verifyEmailOtp: builder.mutation({
+      query: ({ email, otp }) => ({
+        url: "/users/email/verify-otp",
+        method: "POST",
+        body: { email, otp },
+      }),
+      invalidatesTags: ["USER"], // refresh user data after verification
+    }),
     fetchDataBundles: builder.query({
       query: () => ({
         url: "/payouts/data-bundles",
@@ -802,6 +817,8 @@ export const {
   useCreateSupportTicketMutation,
   useFetchMyTicketsQuery,
   useFetchSingleTicketQuery,
+  useSendEmailOtpMutation,
+  useVerifyEmailOtpMutation,
   useSendTicketMessageMutation,
   useMarkTicketMessagesReadMutation,
   useFetchUserAnalyticsQuery,

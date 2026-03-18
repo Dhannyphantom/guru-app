@@ -169,6 +169,14 @@ export const WithdrawModal = ({
   };
 
   const handleCashOut = async (formValues) => {
+    // ADD THIS BLOCK
+    if (Number(amount) < minRequired) {
+      return setPopper({
+        vis: true,
+        type: "failed",
+        msg: `Minimum withdrawal is ${getCurrencyAmount(minRequired)}`,
+      });
+    }
     try {
       const res = await withdrawFromWallet({
         pointsToConvert: calculatePointsAmount(amount).point,
@@ -196,6 +204,15 @@ export const WithdrawModal = ({
   };
 
   const handleContinue = async () => {
+    // ADD THIS BLOCK
+    if (Number(amount) < minRequired) {
+      return setPopper({
+        vis: true,
+        type: "failed",
+        timer: 2000,
+        msg: `Minimum amount is ${getCurrencyAmount(minRequired)}`,
+      });
+    }
     if (type === "transfer") {
       await onBankFetch(false);
     } else if (type === "airtime") {

@@ -346,7 +346,7 @@ export const calculatePointsAmount = (value) => {
   // x = points;
 
   const amount = (value / GT_VALUE).toPrecision(2);
-  const pointsVal = Math.floor(value * GT_VALUE);
+  const pointsVal = (value * GT_VALUE).toPrecision(1);
   return {
     amount,
     format: getCurrencyAmount(Number(amount)),
