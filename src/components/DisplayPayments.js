@@ -48,41 +48,36 @@ const DisplayPayments = ({ hideModal, data }) => {
   const profile = hasCompletedProfile(user);
 
   /* An example function called when transaction is completed successfully or canceled */
+  // In DisplayPayments.jsx - replace handleOnRedirect
   const handleOnRedirect = async (response) => {
-    // data = { status, transaction_id?, tx_ref }
-
     try {
-      if (response?.status === "successful") {
-        // Verify with backend
+      // Even on "cancelled", flutterwave sometimes fires this with a tx_ref
+      // Always attempt verification if we have a tx_ref
+      if (response?.tx_ref) {
         const result = await verifySubscription({
-          transaction_id: response.transaction_id,
+          transaction_id: response.transaction_id ?? null,
           tx_ref: response.tx_ref,
           status: response.status,
         }).unwrap();
 
         if (result.success) {
           setBools({ ...bools, status: "success" });
-
-          // setPopper({
-          //   vis: true,
-          //   type: "success",
-          //   msg: `Payment successful!`,
-          // });
+          return;
         }
-      } else if (response?.status === "cancelled") {
-        setPopper({
-          vis: true,
-          type: "info",
-          msg: "Payment cancelled.",
-        });
+      }
+
+      if (response?.status === "cancelled" && !response?.transaction_id) {
+        setPopper({ vis: true, type: "info", msg: "Payment cancelled." });
       }
     } catch (error) {
-      console.error("Payment error:", error);
+      // Payment may have succeeded server-side even if redirect failed
+      // Show manual recovery UI instead of just "failed"
       setPopper({
         vis: true,
-        type: "failed",
-        msg: "Payment failed. Please try again.",
+        type: "info",
+        msg: "Payment status unclear. If you were debited, use 'Recover Payment' below.",
       });
+      setBools({ ...bools, status: "pending", showRecovery: true });
     }
   };
 
