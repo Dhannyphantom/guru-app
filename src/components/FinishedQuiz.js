@@ -39,6 +39,7 @@ const FinishedQuiz = ({
   retry,
   sessionId,
   session,
+  duration, // quiz duration in milliseconds
 }) => {
   const [stat, setStat] = useState({
     vis: false,
@@ -64,7 +65,6 @@ const FinishedQuiz = ({
   const user = useSelector(selectUser);
 
   const retryQuiz = async () => {
-    // await uploadQuizSession();
     retry && retry();
   };
 
@@ -82,7 +82,6 @@ const FinishedQuiz = ({
         } else {
           totalPoints += question.point;
           statPoints -= 2;
-          // setStat({ ...stat, point: statPoints });
         }
       });
     });
@@ -101,20 +100,29 @@ const FinishedQuiz = ({
 
   const uploadQuizSession = async () => {
     if (isMultiplayer || retried) return;
+    // Include duration (ms) in every submission payload
+    const durationPayload = duration != null ? { duration } : {};
     if (data?.type === "school") {
       try {
-        await submitQuiz({ ...data, ...session }).unwrap();
+        await submitQuiz({ ...data, ...session, ...durationPayload }).unwrap();
       } catch (_error) {}
     } else if (data?.type === "freemium") {
-      // fix typo: "freeemium" → "freemium"
       try {
-        await submitFreemiumQuiz({ ...data, ...session }).unwrap();
+        await submitFreemiumQuiz({
+          ...data,
+          ...session,
+          ...durationPayload,
+        }).unwrap();
       } catch (error) {
         console.log("Freemium error", error);
       }
     } else {
       try {
-        await submitPremiumQuiz({ ...data, ...session }).unwrap();
+        await submitPremiumQuiz({
+          ...data,
+          ...session,
+          ...durationPayload,
+        }).unwrap();
       } catch (error) {
         console.log("Premium error", error);
       }
@@ -167,7 +175,6 @@ const FinishedQuiz = ({
             data={leaderboard}
             keyExtractor={(item) => item._id}
             showsVerticalScrollIndicator={false}
-            // contentContainerStyle={{ paddingBottom: height * 0.11 }}
             ListHeaderComponentStyle={{ backgroundColor: colors.accent }}
             ListHeaderComponent={() => (
               <LeaderboardWinners
@@ -211,14 +218,7 @@ const FinishedQuiz = ({
                   stat?.pointsEarned ??
                   stat?.point,
               ).toFixed(1)}
-            </AppText>
-            {/* <AppText
-              size={"small"}
-              style={{ color: colors.medium }}
-              fontWeight="black"
-            >
-              /{(results?.data?.totalQuestions ?? stat?.totalQuestions) * 5}
-            </AppText>{" "} */}{" "}
+            </AppText>{" "}
             quiz points
           </AppText>
           <View style={{ flex: 1 }}>
@@ -309,10 +309,8 @@ const FinishedQuiz = ({
           </View>
         </>
       )}
-      {/* <View style={styles.btnContainer}> */}
       {isMultiplayer && stat?.isFinal && (
         <View style={styles.btns}>
-          {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
           <AppButton title={"Close"} type="white" onPress={hideModal} />
           <AppButton
             title={`${stat.vis ? "Hide" : ""} Corrections`}
@@ -332,7 +330,6 @@ const FinishedQuiz = ({
 
       {!isMultiplayer && (
         <View style={styles.btns}>
-          {/* <AppButton title={"Close"} type="white" onPress={uploadQuizSession} /> */}
           <AppButton title={"Close"} type="white" onPress={hideModal} />
           <AppButton
             title={`${stat.vis ? "Hide" : ""} Corrections`}
@@ -343,7 +340,6 @@ const FinishedQuiz = ({
           {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
         </View>
       )}
-      {/* </View> */}
     </View>
   );
 };
@@ -367,16 +363,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 15,
     maxHeight: height * 0.5,
-    // paddingLeft: 12,
-    // backgroundColor: "red",
   },
   footer: {
-    // flex: 1,
     marginTop: 40,
     height: height * 0.5,
     backgroundColor: colors.unchange,
     alignItems: "center",
-    // marginHorizontal: width * 0.02,
   },
   footerMain: {
     height: height * 0.5,
@@ -384,7 +376,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     backgroundColor: colors.unchange,
     alignItems: "center",
-    // top: 40,
   },
   headerText: {
     textAlign: "center",
@@ -423,7 +414,6 @@ const styles = StyleSheet.create({
   },
   statMain: {
     flex: 1,
-    // flexDirection: "row",
     marginTop: 20,
     paddingHorizontal: 8,
     justifyContent: "space-around",
