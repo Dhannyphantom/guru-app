@@ -5,7 +5,7 @@ import LottieView from "lottie-react-native";
 
 import AppText from "../components/AppText";
 import PromptModal from "./PromptModal";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import FinishedQuiz from "./FinishedQuiz";
 import AppButton from "./AppButton";
 import QuestionDisplay from "./QuestionDisplay";
@@ -57,6 +57,7 @@ const initials = {
   view: "mode",
   qBank: [],
   mode: null,
+  retried: false,
   invites: [],
   bar: 1,
 };
@@ -67,8 +68,6 @@ const RenderQuiz = ({ setVisible }) => {
   const { isLobby, host, lobbyId, view, type, schoolId, quizId } =
     useLocalSearchParams();
 
-  // console.log({ view, type, schoolId, quizId });
-
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const [quizInfo, setQuizInfo] = useState(initials);
   const [popper, setPopper] = useState({ vis: false });
@@ -78,6 +77,10 @@ const RenderQuiz = ({ setVisible }) => {
     questions: [],
   });
 
+  // Track quiz start time to compute duration on finish
+  const quizStartTimeRef = useRef(null);
+  const [quizDuration, setQuizDuration] = useState(null);
+
   const { data: subjects, isLoading: subjLoad } =
     useFetchSubjectCategoriesQuery(quizInfo?.category?._id, {
       skip: !Boolean(quizInfo?.category?._id),
@@ -86,8 +89,6 @@ const RenderQuiz = ({ setVisible }) => {
   const [getQuizQuestions, { data: quizzes }] = useGetQuizQuestionsMutation(); //schools
   const [fetchPremiumQuiz, { data: quizData }] = useFetchPremiumQuizMutation();
 
-  // const lottieRef = useRef();
-  // const animProgress = useRef(new RNAnimated.Value(0)).current;
   const animProgress = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const user = useSelector(selectUser);
@@ -291,6 +292,22 @@ const RenderQuiz = ({ setVisible }) => {
     }
   };
 
+  // Start the timer when view transitions to "start"
+  useEffect(() => {
+    if (isStart) {
+      quizStartTimeRef.current = Date.now();
+    }
+  }, [isStart]);
+
+  // Compute duration when view transitions to "finished"
+  useEffect(() => {
+    if (isFinished && quizStartTimeRef.current !== null) {
+      const duration = Date.now() - quizStartTimeRef.current;
+      setQuizDuration(duration);
+      quizStartTimeRef.current = null;
+    }
+  }, [isFinished]);
+
   useEffect(() => {
     if (view) {
       setQuizInfo({ ...quizInfo, view: view });
@@ -308,12 +325,8 @@ const RenderQuiz = ({ setVisible }) => {
     }
   }, [readyInvites, quizInfo.invites]);
 
-  // player_ready
-  // session_snapshots
   useEffect(() => {
     socket.on("session_snapshots", (sessionDta) => {
-      // keep parent in sync
-
       setHoster(sessionDta.host);
 
       setQuizInfo((prev) => ({
@@ -330,8 +343,6 @@ const RenderQuiz = ({ setVisible }) => {
   useEffect(() => {
     socket.on("quiz_start", ({ qBank }) => {
       setQuizInfo((prev) => ({ ...prev, view: "start", qBank }));
-      // setIsQuiz(true);     // or navigate to quiz screen
-      // startQuiz();        // your existing function
     });
 
     return () => socket.off("quiz_start");
@@ -361,12 +372,16 @@ const RenderQuiz = ({ setVisible }) => {
         <FinishedQuiz
           session={session}
           sessionId={quizInfo.sessionId ?? lobbyId}
+          retried={quizInfo.retried}
+          duration={quizDuration}
           data={
             type === "school"
               ? { type: "school", schoolId, quizId, mode: quizInfo?.mode }
               : { type: "premium", mode: quizInfo?.mode }
           }
-          retry={() => setQuizInfo({ ...quizInfo, view: "start" })}
+          retry={() =>
+            setQuizInfo({ ...quizInfo, view: "start", retried: true })
+          }
           hideModal={() => setVisible(false)}
         />
       ) : isStart ? (
@@ -414,7 +429,6 @@ const RenderQuiz = ({ setVisible }) => {
             <AppButton
               title={"Go Back"}
               type="white"
-              // onPress={async () => await fetchQuiz()}
               onPress={() =>
                 setQuizInfo((prev) => ({ ...prev, view: "study" }))
               }
@@ -422,7 +436,6 @@ const RenderQuiz = ({ setVisible }) => {
             <AppButton
               title={"Cancel Session"}
               type="warn"
-              // onPress={async () => await fetchQuiz()}
               onPress={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
             />
           </Animated.View>
@@ -561,12 +574,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    // backgroundColor: colors.lightly,
-    // overflow: "hidden",
   },
   main: {
     flex: 1,
-    // height: 500,
     justifyContent: "center",
     paddingTop: 20,
     alignItems: "center",

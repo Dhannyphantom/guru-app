@@ -32,7 +32,14 @@ const calculateQuestionCount = (session) => {
   return count;
 };
 
-const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
+const FinishedQuiz = ({
+  hideModal,
+  data,
+  retried,
+  retry,
+  sessionId,
+  session,
+}) => {
   const [stat, setStat] = useState({
     vis: false,
     answeredCorrectly: 0,
@@ -57,7 +64,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   const user = useSelector(selectUser);
 
   const retryQuiz = async () => {
-    await uploadQuizSession();
+    // await uploadQuizSession();
     retry && retry();
   };
 
@@ -93,7 +100,7 @@ const FinishedQuiz = ({ hideModal, data, retry, sessionId, session }) => {
   };
 
   const uploadQuizSession = async () => {
-    if (isMultiplayer) return;
+    if (isMultiplayer || retried) return;
     if (data?.type === "school") {
       try {
         await submitQuiz({ ...data, ...session }).unwrap();

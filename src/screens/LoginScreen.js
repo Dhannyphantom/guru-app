@@ -1043,10 +1043,7 @@ const LoginScreen = () => {
     >
       <View style={styles.form}>
         <View style={{ alignItems: "center" }}>
-          <FormikInput
-            name="username"
-            placeholder="Email | Phone No. | Username"
-          />
+          <FormikInput name="username" placeholder="Username or Phone No." />
           <FormikInput name="password" secureTextEntry placeholder="Password" />
           <LottieAnimator visible={isLoading} absolute />
         </View>

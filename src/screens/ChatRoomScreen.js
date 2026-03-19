@@ -642,11 +642,60 @@ const ChatRoomScreen = () => {
   const isOpen = data?.data?.status === "open";
   const isUserRestricted = !isPro && (isResolved || isOpen);
 
+  // const handleSendMessage = async (text = inputText) => {
+  //   if (!text.trim()) return;
+
+  //   const messageData = {
+  //     _id: Date.now().toString(),
+  //     sender: isPro ? "support" : "user",
+  //     senderId: user._id,
+  //     text: text.trim(),
+  //     timestamp: new Date().toISOString(),
+  //     status: MessageStatus.SENDING,
+  //   };
+
+  //   setMessages((prev) => [...prev, messageData]);
+  //   setInputText("");
+
+  //   try {
+  //     if (isPro) {
+  //       await adminReplyTicket({
+  //         ticketId: params?.ticketId,
+  //         text: messageData.text,
+  //       }).unwrap();
+  //     } else {
+  //       await sendTicketMessage({
+  //         ticketId: params?.ticketId,
+  //         text: messageData.text,
+  //       }).unwrap();
+  //     }
+
+  //     // Update message status to sent
+  //     setMessages((prev) =>
+  //       prev.map((msg) =>
+  //         msg._id === messageData._id
+  //           ? { ...msg, status: MessageStatus.SENT }
+  //           : msg,
+  //       ),
+  //     );
+  //   } catch (error) {
+  //     setMessages((prev) =>
+  //       prev.map((msg) =>
+  //         msg._id === messageData._id
+  //           ? { ...msg, status: MessageStatus.FAILED }
+  //           : msg,
+  //       ),
+  //     );
+  //   }
+  // };
+
   const handleSendMessage = async (text = inputText) => {
     if (!text.trim()) return;
 
+    const tempId = Date.now().toString();
+
     const messageData = {
-      _id: Date.now().toString(),
+      _id: tempId,
       sender: isPro ? "support" : "user",
       senderId: user._id,
       text: text.trim(),
@@ -657,38 +706,37 @@ const ChatRoomScreen = () => {
     setMessages((prev) => [...prev, messageData]);
     setInputText("");
 
-    try {
-      if (isPro) {
-        await adminReplyTicket({
-          ticketId: params?.ticketId,
-          text: messageData.text,
-        }).unwrap();
-      } else {
-        await sendTicketMessage({
-          ticketId: params?.ticketId,
-          text: messageData.text,
-        }).unwrap();
-      }
+    // 🔥 Emit instantly for real-time feel
+    socket.emit("send_message", {
+      ...messageData,
+      ticketId: params?.ticketId,
+    });
 
-      // Update message status to sent
+    try {
+      await (isPro
+        ? adminReplyTicket({
+            ticketId: params?.ticketId,
+            text: messageData.text,
+          })
+        : sendTicketMessage({
+            ticketId: params?.ticketId,
+            text: messageData.text,
+          })
+      ).unwrap();
+
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === messageData._id
-            ? { ...msg, status: MessageStatus.SENT }
-            : msg,
+          msg._id === tempId ? { ...msg, status: MessageStatus.SENT } : msg,
         ),
       );
     } catch (error) {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === messageData._id
-            ? { ...msg, status: MessageStatus.FAILED }
-            : msg,
+          msg._id === tempId ? { ...msg, status: MessageStatus.FAILED } : msg,
         ),
       );
     }
   };
-
   const handleProAction = async (actionData) => {
     try {
       const promises = [];
@@ -782,7 +830,11 @@ const ChatRoomScreen = () => {
     if (!socket) return;
 
     socket.on("new_message", ({ message }) => {
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => {
+        const exists = prev.find((m) => m._id === message._id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
     });
 
     socket.on("message_delivered", ({ messageId }) => {
@@ -827,8 +879,17 @@ const ChatRoomScreen = () => {
     if (data?.data?.messages) {
       setMessages(data.data.messages);
     }
-    socket?.emit("join_ticket", params?.ticketId);
   }, [data]);
+
+  useEffect(() => {
+    if (!socket || !params?.ticketId) return;
+
+    socket.emit("join_ticket", params.ticketId);
+
+    return () => {
+      socket.emit("leave_ticket", params.ticketId);
+    };
+  }, [params?.ticketId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
