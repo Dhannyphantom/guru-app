@@ -99,12 +99,17 @@ const FinishedQuiz = ({
   };
 
   const uploadQuizSession = async () => {
-    if (isMultiplayer || retried) return;
+    if (isMultiplayer) return;
     // Include duration (ms) in every submission payload
     const durationPayload = duration != null ? { duration } : {};
     if (data?.type === "school") {
       try {
-        await submitQuiz({ ...data, ...session, ...durationPayload }).unwrap();
+        await submitQuiz({
+          ...data,
+          ...session,
+          ...durationPayload,
+          retried,
+        }).unwrap();
       } catch (_error) {}
     } else if (data?.type === "freemium") {
       try {
@@ -112,6 +117,7 @@ const FinishedQuiz = ({
           ...data,
           ...session,
           ...durationPayload,
+          retried,
         }).unwrap();
       } catch (error) {
         console.log("Freemium error", error);
@@ -122,6 +128,7 @@ const FinishedQuiz = ({
           ...data,
           ...session,
           ...durationPayload,
+          retried,
         }).unwrap();
       } catch (error) {
         console.log("Premium error", error);

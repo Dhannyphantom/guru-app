@@ -67,7 +67,10 @@ const LatexOptionText = ({ value, isExp, isLatex }) => {
 
   if (!isLatex) {
     return (
-      <AppText style={styles.questionTitle} fontWeight="semibold">
+      <AppText
+        style={{ ...styles.questionTitle, lineHeight: 28 }}
+        fontWeight="semibold"
+      >
         {capFirstLetter(value)}
       </AppText>
     );
