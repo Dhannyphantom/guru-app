@@ -26,7 +26,7 @@ import LottieAnimator from "./LottieAnimator";
 import PopMessage from "./PopMessage";
 import { useState } from "react";
 
-const layoutTrans = LinearTransition.springify().damping(18);
+const layoutTrans = LinearTransition.springify();
 
 const { width, height } = Dimensions.get("screen");
 

@@ -56,7 +56,7 @@ const StudentScore = ({ item, index, isAssignment, totalScore }) => {
         </AppText>
         <Avatar
           name={item?.name ?? getFullName(item?.student)}
-          source={item?.student?.avatar?.image}
+          source={item?.avatar}
           horizontal
         />
       </View>
@@ -150,16 +150,16 @@ const QuizReviewScreen = () => {
     <View style={styles.container}>
       <AppHeader
         title="Student Stats"
-        Component={() => (
-          <AnimatedPressable
-            onPress={() => setBools({ ...bools, search: !bools.search })}
-            style={styles.search}
-          >
-            <Ionicons name="search" size={25} color={colors.medium} />
-          </AnimatedPressable>
-        )}
+        // Component={() => (
+        //   <AnimatedPressable
+        //     onPress={() => setBools({ ...bools, search: !bools.search })}
+        //     style={styles.search}
+        //   >
+        //     <Ionicons name="search" size={25} color={colors.medium} />
+        //   </AnimatedPressable>
+        // )}
       />
-      {bools.search && (
+      {/* {bools.search && (
         <Animated.View
           entering={FadeInDown.springify()
             .damping(20)
@@ -175,7 +175,7 @@ const QuizReviewScreen = () => {
             placeholder="Search your student by name..."
           />
         </Animated.View>
-      )}
+      )} */}
       <Animated.FlatList
         layout={LinearTransition.damping(20)}
         data={data?.data?.participants ?? quizData?.students ?? []}
