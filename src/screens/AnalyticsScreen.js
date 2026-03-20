@@ -12,6 +12,8 @@ import {
   Modal,
   ActivityIndicator,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   TouchableWithoutFeedback,
 } from "react-native";
 import Animated, {
@@ -254,10 +256,11 @@ const TabButton = ({ label, icon, active, onPress }) => {
           size={18}
           color={active ? colors.white : colors.medium}
         />
+        {/* FIX: AppText style merged as single object — no arrays */}
         <AppText
           style={{
             ...styles.tabButtonText,
-            ...(active && styles.tabButtonTextActive),
+            ...(active ? styles.tabButtonTextActive : {}),
           }}
         >
           {label}
@@ -857,11 +860,12 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
                 size={18}
                 color={active ? colors.white : colors.medium}
               />
+              {/* FIX: merge into single object — AppText rejects style arrays */}
               <AppText
-                style={[
-                  tfStyles.pickerChipLabel,
-                  active && { color: colors.white },
-                ]}
+                style={{
+                  ...tfStyles.pickerChipLabel,
+                  ...(active ? { color: colors.white } : {}),
+                }}
                 fontWeight={active ? "bold" : "normal"}
               >
                 {ws.label?.replace(" Wallet", "")}
@@ -949,6 +953,8 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
               value={amount}
               onChangeText={setAmount}
               maxLength={12}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
             />
           </Animated.View>
           {isInsufficient && (
@@ -977,12 +983,18 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
             value={description}
             onChangeText={setDescription}
             maxLength={80}
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
+            blurOnSubmit
           />
         </View>
 
         {/* CTA */}
         <TouchableOpacity
-          onPress={() => canProceed && setStep("confirm")}
+          onPress={() => {
+            Keyboard.dismiss();
+            if (canProceed) setStep("confirm");
+          }}
           activeOpacity={canProceed ? 0.8 : 1}
           style={{ marginTop: 8 }}
         >
@@ -994,11 +1006,12 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
             }
             style={tfStyles.ctaBtn}
           >
+            {/* FIX: single object style */}
             <AppText
-              style={[
-                tfStyles.ctaLabel,
-                !canProceed && { color: colors.medium },
-              ]}
+              style={{
+                ...tfStyles.ctaLabel,
+                ...(!canProceed ? { color: colors.medium } : {}),
+              }}
               fontWeight="bold"
             >
               Review Transfer
@@ -1082,7 +1095,8 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
           >
             <LinearGradient
               colors={[colors.primaryDeep, colors.primary]}
-              style={[tfStyles.ctaBtn, { marginTop: 0 }]}
+              // FIX: spread instead of array to override marginTop
+              style={{ ...tfStyles.ctaBtn, marginTop: 0 }}
             >
               {loading ? (
                 <ActivityIndicator color={colors.white} size="small" />
@@ -1108,7 +1122,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
   // ── SUCCESS STEP ───────────────────────────────────────────────────────────
   const renderSuccess = () => (
     <Animated.View entering={FadeIn.duration(300)} style={tfStyles.resultWrap}>
-      <Animated.View style={[tfStyles.successRing, successStyle]}>
+      <Animated.View style={{ ...tfStyles.successRing, ...successStyle }}>
         <LinearGradient
           colors={[...successGradient].reverse()}
           style={tfStyles.successCircle}
@@ -1144,16 +1158,18 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
   // ── ERROR STEP ─────────────────────────────────────────────────────────────
   const renderError = () => (
     <Animated.View entering={FadeIn.duration(300)} style={tfStyles.resultWrap}>
+      {/* FIX: single object style instead of array */}
       <View
-        style={[
-          tfStyles.successCircle,
-          { backgroundColor: colors.heart + "20" },
-        ]}
+        style={{
+          ...tfStyles.successCircle,
+          backgroundColor: colors.heart + "20",
+        }}
       >
         <Ionicons name="close" size={40} color={colors.heart} />
       </View>
+      {/* FIX: single object style */}
       <AppText
-        style={[tfStyles.resultTitle, { color: colors.heart }]}
+        style={{ ...tfStyles.resultTitle, color: colors.heart }}
         fontWeight="bold"
       >
         Transfer Failed
@@ -1184,10 +1200,26 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable
-        style={tfStyles.backdrop}
-        onPress={step === "form" ? onClose : undefined}
+      {/*
+        FIX: KeyboardAvoidingView must be the outermost element inside the
+        Modal so it can measure the full screen and shift content above the
+        keyboard. The backdrop Pressable sits inside it as a sibling of the
+        sheet so tapping the dark overlay still dismisses the modal.
+
+        iOS  → "padding": adds bottom padding equal to the keyboard height,
+                pushing the sheet up without resizing it.
+        Android → "height": shrinks the view's height so the sheet content
+                stays within the visible area above the keyboard.
+      */}
+      <KeyboardAvoidingView
+        style={tfStyles.kavWrapper}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
+        <Pressable
+          style={tfStyles.backdrop}
+          onPress={step === "form" ? onClose : undefined}
+        />
         <Animated.View
           entering={SlideInDown.springify()}
           exiting={SlideOutDown.duration(200)}
@@ -1230,7 +1262,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: 32 }}
+              contentContainerStyle={tfStyles.sheetScrollContent}
             >
               {step === "form" && renderForm()}
               {step === "confirm" && renderConfirm()}
@@ -1239,7 +1271,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
             </ScrollView>
           </Pressable>
         </Animated.View>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -1250,16 +1282,23 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
 const FinancialTab = ({ analytics }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
-  const [transferFunds, { isLoading, isSuccess, isError, error }] =
-    useTransferFundsMutation();
+  // FIX: destructure only transferFunds — isLoading/isError are handled
+  // inside the modal's own local loading/error state via try/catch
+  const [transferFunds] = useTransferFundsMutation();
 
   if (!analytics) return null;
 
   const accounts = analytics.wallets?.accounts || [];
 
-  const handleTransfer = async (payload) => {
-    // Wire to your API: await api.post("/payouts/wallets/transfer", payload);
-    // Rethrow on failure so the modal shows the error step
+  // FIX: .unwrap() re-throws RTK rejected actions as real JS errors,
+  // so the modal's catch block reliably receives API error messages
+  const handleTransfer = async ({
+    fromWallet,
+    toWallet,
+    amount,
+    description,
+  }) => {
+    await transferFunds({ fromWallet, toWallet, amount, description }).unwrap();
   };
 
   return (
@@ -1505,11 +1544,12 @@ const StatCard = ({ label, value, icon, gradient, change, positive }) => {
                 size={12}
                 color={positive ? colors.green : colors.heart}
               />
+              {/* FIX: single object style */}
               <AppText
-                style={[
-                  styles.changeText,
-                  { color: positive ? colors.green : colors.heart },
-                ]}
+                style={{
+                  ...styles.changeText,
+                  color: positive ? colors.green : colors.heart,
+                }}
               >
                 {change}
               </AppText>
@@ -2358,10 +2398,17 @@ const styles = StyleSheet.create({
 // STYLES — TRANSFER MODAL
 // =============================================================================
 const tfStyles = StyleSheet.create({
-  backdrop: {
+  // FIX: kavWrapper fills the full screen so KeyboardAvoidingView
+  // correctly measures available space and shifts the sheet up
+  kavWrapper: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
+  },
+  // FIX: backdrop is now absolutely positioned so it doesn't push
+  // the sheet down — it sits behind the sheet as a pure overlay
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   sheet: {
     backgroundColor: colors.white,
@@ -2371,6 +2418,11 @@ const tfStyles = StyleSheet.create({
     paddingBottom: 12,
     maxHeight: height * 0.9,
     boxShadow: `0px -4px 30px rgba(0,0,0,0.15)`,
+  },
+  // FIX: extra bottom padding so the Note input is never hidden
+  // behind the keyboard even on compact screen heights
+  sheetScrollContent: {
+    paddingBottom: 48,
   },
   handle: {
     width: 40,

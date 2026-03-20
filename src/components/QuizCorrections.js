@@ -127,7 +127,13 @@ const ShowExplanation = ({ data, closeModal }) => {
             fontWeight="medium"
           >{`${data?.explanation}`}</AppText> */}
           <LatexOptionText
-            value={data?.isLatex ? data?.explanationLatex : data?.explanation}
+            value={
+              data?.isLatex
+                ? data?.explanationLatex +
+                  "\n\nPlain Text: " +
+                  data?.explanation
+                : data?.explanation
+            }
             isLatex={data?.isLatex}
             isExp={true}
           />
