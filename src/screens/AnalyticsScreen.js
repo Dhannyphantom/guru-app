@@ -8,35 +8,73 @@ import {
   RefreshControl,
   TouchableOpacity,
   Pressable,
+  TextInput,
+  Modal,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import Animated, {
   FadeInDown,
   FadeInRight,
   FadeInUp,
+  FadeIn,
+  SlideInDown,
+  SlideOutDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
+  withSequence,
   interpolate,
   Extrapolate,
+  runOnJS,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-// import { BlurView } from "expo-blur";
-import {
-  Ionicons,
-  // MaterialCommunityIcons,
-  // FontAwesome5,
-  // Feather,
-} from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
-// Import your colors
 import colors, { successGradient } from "../helpers/colors";
-import { useFetchAnalyticsQuery } from "../context/instanceSlice";
+import {
+  useFetchAnalyticsQuery,
+  useTransferFundsMutation,
+} from "../context/instanceSlice";
 import AppText from "../components/AppText";
 import { StatusBar } from "expo-status-bar";
 import LottieAnimator from "../components/LottieAnimator";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
+// ─── Wallet colour map ───────────────────────────────────────────────────────
+const WALLET_STYLES = {
+  school: {
+    gradient: [colors.accentDeep, colors.accent],
+    icon: "school",
+    label: "School Wallet",
+    short: "SCH",
+  },
+  student: {
+    gradient: [colors.greenDark, colors.green],
+    icon: "person",
+    label: "Student Wallet",
+    short: "STU",
+  },
+  guru: {
+    gradient: [colors.primaryDeep, colors.primary],
+    icon: "star",
+    label: "Guru Wallet",
+    short: "GRU",
+  },
+};
+
+const WALLET_KEYS = Object.keys(WALLET_STYLES);
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+const fmt = (n) =>
+  typeof n === "number" ? `₦${n.toLocaleString()}` : n ?? "₦0";
+
+// =============================================================================
+// ANALYTICS SCREEN
+// =============================================================================
 const AnalyticsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState("overview");
@@ -52,26 +90,19 @@ const AnalyticsScreen = () => {
     setRefreshing(false);
   }, []);
 
-  const headerStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(
-        scrollY.value,
-        [0, 100],
-        [1, 0.8],
-        Extrapolate.CLAMP,
-      ),
-      transform: [
-        {
-          translateY: interpolate(
-            scrollY.value,
-            [0, 100],
-            [0, -10],
-            Extrapolate.CLAMP,
-          ),
-        },
-      ],
-    };
-  });
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 100], [1, 0.8], Extrapolate.CLAMP),
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [0, 100],
+          [0, -10],
+          Extrapolate.CLAMP,
+        ),
+      },
+    ],
+  }));
 
   if (loading && !analytics) {
     return (
@@ -195,7 +226,9 @@ const AnalyticsScreen = () => {
   );
 };
 
-// Tab Button Component
+// =============================================================================
+// TAB BUTTON
+// =============================================================================
 const TabButton = ({ label, icon, active, onPress }) => {
   const scale = useSharedValue(1);
 
@@ -234,7 +267,9 @@ const TabButton = ({ label, icon, active, onPress }) => {
   );
 };
 
-// Overview Tab
+// =============================================================================
+// OVERVIEW TAB
+// =============================================================================
 const OverviewTab = ({ analytics }) => {
   if (!analytics) return null;
 
@@ -275,7 +310,6 @@ const OverviewTab = ({ analytics }) => {
 
   return (
     <View style={styles.tabContent}>
-      {/* Quick Stats Grid */}
       <View style={styles.statsGrid}>
         {quickStats.map((stat, index) => (
           <Animated.View
@@ -287,7 +321,6 @@ const OverviewTab = ({ analytics }) => {
         ))}
       </View>
 
-      {/* Featured Metrics */}
       <Animated.View entering={FadeInUp.delay(400).springify()}>
         <SectionHeader title="Key Metrics" icon="trending-up" />
       </Animated.View>
@@ -327,7 +360,6 @@ const OverviewTab = ({ analytics }) => {
         />
       </Animated.View>
 
-      {/* Leaderboard Preview */}
       <Animated.View entering={FadeInUp.delay(800).springify()}>
         <SectionHeader title="Top Performers" icon="medal" />
       </Animated.View>
@@ -346,7 +378,9 @@ const OverviewTab = ({ analytics }) => {
   );
 };
 
-// Users Tab
+// =============================================================================
+// USERS TAB
+// =============================================================================
 const UsersTab = ({ analytics }) => {
   if (!analytics) return null;
 
@@ -409,7 +443,9 @@ const UsersTab = ({ analytics }) => {
   );
 };
 
-// Schools Tab
+// =============================================================================
+// SCHOOLS TAB
+// =============================================================================
 const SchoolsTab = ({ analytics }) => {
   if (!analytics) return null;
 
@@ -506,7 +542,9 @@ const SchoolsTab = ({ analytics }) => {
   );
 };
 
-// Content Tab
+// =============================================================================
+// CONTENT TAB
+// =============================================================================
 const ContentTab = ({ analytics }) => {
   if (!analytics) return null;
 
@@ -622,7 +660,9 @@ const ContentTab = ({ analytics }) => {
   );
 };
 
-// Quizzes Tab
+// =============================================================================
+// QUIZZES TAB
+// =============================================================================
 const QuizzesTab = ({ analytics }) => {
   if (!analytics) return null;
 
@@ -701,35 +741,585 @@ const QuizzesTab = ({ analytics }) => {
   );
 };
 
-// Financial Tab
+// =============================================================================
+// TRANSFER FUNDS MODAL
+// =============================================================================
+const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
+  const [fromWallet, setFromWallet] = useState(null);
+  const [toWallet, setToWallet] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [step, setStep] = useState("form"); // 'form' | 'confirm' | 'success' | 'error'
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const successScale = useSharedValue(0);
+  const arrowRotate = useSharedValue(0);
+  const shakeX = useSharedValue(0);
+
+  const getBalance = (type) =>
+    accounts?.find((a) => a.accountType === type)?.balance ?? 0;
+
+  const parsedAmount = parseFloat(amount.replace(/,/g, "")) || 0;
+  const fromBalance = fromWallet ? getBalance(fromWallet) : 0;
+  const isInsufficient = parsedAmount > fromBalance && fromWallet != null;
+  const canProceed =
+    fromWallet &&
+    toWallet &&
+    fromWallet !== toWallet &&
+    parsedAmount > 0 &&
+    !isInsufficient;
+
+  useEffect(() => {
+    if (visible) {
+      setFromWallet(null);
+      setToWallet(null);
+      setAmount("");
+      setDescription("");
+      setStep("form");
+      setErrorMsg("");
+      successScale.value = 0;
+    }
+  }, [visible]);
+
+  const handleSwap = () => {
+    arrowRotate.value = withSpring(arrowRotate.value + 180);
+    const tmp = fromWallet;
+    setFromWallet(toWallet);
+    setToWallet(tmp);
+  };
+
+  const arrowStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${arrowRotate.value}deg` }],
+  }));
+
+  const successStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: successScale.value }],
+  }));
+
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
+
+  const triggerShake = () => {
+    shakeX.value = withSequence(
+      withTiming(-8, { duration: 60 }),
+      withTiming(8, { duration: 60 }),
+      withTiming(-6, { duration: 60 }),
+      withTiming(6, { duration: 60 }),
+      withTiming(0, { duration: 60 }),
+    );
+  };
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onTransfer({
+        fromWallet,
+        toWallet,
+        amount: parsedAmount,
+        description,
+      });
+      setStep("success");
+      successScale.value = withSpring(1);
+    } catch (e) {
+      setErrorMsg(e?.message || "Transfer failed. Please try again.");
+      setStep("error");
+      runOnJS(triggerShake)();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderWalletPicker = (selected, onSelect) => (
+    <View style={tfStyles.pickerRow}>
+      {WALLET_KEYS.map((key) => {
+        const ws = WALLET_STYLES[key];
+        const active = selected === key;
+        return (
+          <TouchableOpacity
+            key={key}
+            onPress={() => onSelect(key)}
+            style={[
+              tfStyles.pickerChip,
+              active && { borderColor: ws.gradient[0], borderWidth: 2 },
+            ]}
+            activeOpacity={0.75}
+          >
+            <LinearGradient
+              colors={
+                active ? ws.gradient : [colors.extraLight, colors.extraLight]
+              }
+              style={tfStyles.pickerChipInner}
+            >
+              <Ionicons
+                name={ws.icon}
+                size={18}
+                color={active ? colors.white : colors.medium}
+              />
+              <AppText
+                style={[
+                  tfStyles.pickerChipLabel,
+                  active && { color: colors.white },
+                ]}
+                fontWeight={active ? "bold" : "normal"}
+              >
+                {ws.label?.replace(" Wallet", "")}
+              </AppText>
+              {active && (
+                <View style={tfStyles.pickerChipBadge}>
+                  <Ionicons name="checkmark" size={10} color={ws.gradient[0]} />
+                </View>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  // ── FORM STEP ──────────────────────────────────────────────────────────────
+  const renderForm = () => (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View>
+        {/* From */}
+        <View style={tfStyles.fieldGroup}>
+          <View style={tfStyles.fieldLabelRow}>
+            <Ionicons name="arrow-up-circle" size={16} color={colors.heart} />
+            <AppText style={tfStyles.fieldLabel}>From Wallet</AppText>
+          </View>
+          {renderWalletPicker(fromWallet, (k) => {
+            setFromWallet(k);
+            if (k === toWallet) setToWallet(null);
+          })}
+          {fromWallet && (
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              style={tfStyles.balancePill}
+            >
+              <AppText style={tfStyles.balancePillText}>
+                Available: {fmt(getBalance(fromWallet))}
+              </AppText>
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Swap */}
+        <View style={tfStyles.swapRow}>
+          <View style={tfStyles.swapLine} />
+          <TouchableOpacity
+            onPress={handleSwap}
+            activeOpacity={0.7}
+            style={tfStyles.swapBtn}
+          >
+            <Animated.View style={arrowStyle}>
+              <Ionicons name="swap-vertical" size={20} color={colors.white} />
+            </Animated.View>
+          </TouchableOpacity>
+          <View style={tfStyles.swapLine} />
+        </View>
+
+        {/* To */}
+        <View style={tfStyles.fieldGroup}>
+          <View style={tfStyles.fieldLabelRow}>
+            <Ionicons name="arrow-down-circle" size={16} color={colors.green} />
+            <AppText style={tfStyles.fieldLabel}>To Wallet</AppText>
+          </View>
+          {renderWalletPicker(toWallet, (k) => {
+            setToWallet(k);
+            if (k === fromWallet) setFromWallet(null);
+          })}
+        </View>
+
+        {/* Amount */}
+        <View style={tfStyles.fieldGroup}>
+          <View style={tfStyles.fieldLabelRow}>
+            <Ionicons name="cash-outline" size={16} color={colors.primary} />
+            <AppText style={tfStyles.fieldLabel}>Amount (₦)</AppText>
+          </View>
+          <Animated.View
+            style={[tfStyles.amountInputWrap, isInsufficient && shakeStyle]}
+          >
+            <AppText style={tfStyles.nairaSign}>₦</AppText>
+            <TextInput
+              style={tfStyles.amountInput}
+              keyboardType="numeric"
+              placeholder="0.00"
+              placeholderTextColor={colors.lighter}
+              value={amount}
+              onChangeText={setAmount}
+              maxLength={12}
+            />
+          </Animated.View>
+          {isInsufficient && (
+            <Animated.View
+              entering={FadeIn.duration(150)}
+              style={tfStyles.errorInline}
+            >
+              <Ionicons name="warning" size={13} color={colors.heart} />
+              <AppText style={tfStyles.errorInlineText}>
+                Exceeds available balance ({fmt(fromBalance)})
+              </AppText>
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Note */}
+        <View style={tfStyles.fieldGroup}>
+          <View style={tfStyles.fieldLabelRow}>
+            <Ionicons name="create-outline" size={16} color={colors.medium} />
+            <AppText style={tfStyles.fieldLabel}>Note (optional)</AppText>
+          </View>
+          <TextInput
+            style={tfStyles.noteInput}
+            placeholder="Add a description..."
+            placeholderTextColor={colors.lighter}
+            value={description}
+            onChangeText={setDescription}
+            maxLength={80}
+          />
+        </View>
+
+        {/* CTA */}
+        <TouchableOpacity
+          onPress={() => canProceed && setStep("confirm")}
+          activeOpacity={canProceed ? 0.8 : 1}
+          style={{ marginTop: 8 }}
+        >
+          <LinearGradient
+            colors={
+              canProceed
+                ? [colors.primaryDeep, colors.primary]
+                : [colors.lighter, colors.lighter]
+            }
+            style={tfStyles.ctaBtn}
+          >
+            <AppText
+              style={[
+                tfStyles.ctaLabel,
+                !canProceed && { color: colors.medium },
+              ]}
+              fontWeight="bold"
+            >
+              Review Transfer
+            </AppText>
+            <Ionicons
+              name="arrow-forward"
+              size={18}
+              color={canProceed ? colors.white : colors.medium}
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+
+  // ── CONFIRM STEP ───────────────────────────────────────────────────────────
+  const renderConfirm = () => {
+    const from = WALLET_STYLES[fromWallet];
+    const to = WALLET_STYLES[toWallet];
+    return (
+      <Animated.View entering={FadeInDown.duration(250)}>
+        <AppText style={tfStyles.confirmTitle}>Confirm Transfer</AppText>
+        <AppText style={tfStyles.confirmSub}>
+          Please review before proceeding
+        </AppText>
+
+        <View style={tfStyles.flowCard}>
+          <LinearGradient colors={from.gradient} style={tfStyles.flowPill}>
+            <Ionicons name={from.icon} size={22} color={colors.white} />
+            <View>
+              <AppText style={tfStyles.flowPillType}>{from.label}</AppText>
+              <AppText style={tfStyles.flowPillBal}>
+                {fmt(getBalance(fromWallet))}
+              </AppText>
+            </View>
+          </LinearGradient>
+
+          <View style={tfStyles.flowMid}>
+            <View style={tfStyles.flowAmountBadge}>
+              <AppText style={tfStyles.flowAmount}>{fmt(parsedAmount)}</AppText>
+            </View>
+            <Ionicons name="arrow-down" size={28} color={colors.primary} />
+          </View>
+
+          <LinearGradient colors={to.gradient} style={tfStyles.flowPill}>
+            <Ionicons name={to.icon} size={22} color={colors.white} />
+            <View>
+              <AppText style={tfStyles.flowPillType}>{to.label}</AppText>
+              <AppText style={tfStyles.flowPillBal}>
+                {fmt(getBalance(toWallet))}
+              </AppText>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {description ? (
+          <View style={tfStyles.notePreview}>
+            <Ionicons
+              name="document-text-outline"
+              size={14}
+              color={colors.medium}
+            />
+            <AppText style={tfStyles.notePreviewText}>{description}</AppText>
+          </View>
+        ) : null}
+
+        <View style={tfStyles.confirmBtnRow}>
+          <TouchableOpacity
+            style={tfStyles.backBtn}
+            onPress={() => setStep("form")}
+            activeOpacity={0.7}
+          >
+            <AppText style={tfStyles.backBtnLabel}>Edit</AppText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={handleConfirm}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
+            <LinearGradient
+              colors={[colors.primaryDeep, colors.primary]}
+              style={[tfStyles.ctaBtn, { marginTop: 0 }]}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.white} size="small" />
+              ) : (
+                <>
+                  <AppText style={tfStyles.ctaLabel} fontWeight="bold">
+                    Confirm
+                  </AppText>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={18}
+                    color={colors.white}
+                  />
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  };
+
+  // ── SUCCESS STEP ───────────────────────────────────────────────────────────
+  const renderSuccess = () => (
+    <Animated.View entering={FadeIn.duration(300)} style={tfStyles.resultWrap}>
+      <Animated.View style={[tfStyles.successRing, successStyle]}>
+        <LinearGradient
+          colors={[...successGradient].reverse()}
+          style={tfStyles.successCircle}
+        >
+          <Ionicons name="checkmark" size={40} color={colors.white} />
+        </LinearGradient>
+      </Animated.View>
+      <AppText style={tfStyles.resultTitle} fontWeight="bold">
+        Transfer Successful!
+      </AppText>
+      <AppText style={tfStyles.resultSub}>
+        {fmt(parsedAmount)} moved from{" "}
+        <AppText fontWeight="bold">{WALLET_STYLES[fromWallet]?.label}</AppText>{" "}
+        to <AppText fontWeight="bold">{WALLET_STYLES[toWallet]?.label}</AppText>
+      </AppText>
+      <TouchableOpacity
+        onPress={onClose}
+        activeOpacity={0.8}
+        style={{ width: "100%", marginTop: 24 }}
+      >
+        <LinearGradient
+          colors={[...successGradient].reverse()}
+          style={tfStyles.ctaBtn}
+        >
+          <AppText style={tfStyles.ctaLabel} fontWeight="bold">
+            Done
+          </AppText>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  // ── ERROR STEP ─────────────────────────────────────────────────────────────
+  const renderError = () => (
+    <Animated.View entering={FadeIn.duration(300)} style={tfStyles.resultWrap}>
+      <View
+        style={[
+          tfStyles.successCircle,
+          { backgroundColor: colors.heart + "20" },
+        ]}
+      >
+        <Ionicons name="close" size={40} color={colors.heart} />
+      </View>
+      <AppText
+        style={[tfStyles.resultTitle, { color: colors.heart }]}
+        fontWeight="bold"
+      >
+        Transfer Failed
+      </AppText>
+      <AppText style={tfStyles.resultSub}>{errorMsg}</AppText>
+      <TouchableOpacity
+        onPress={() => setStep("form")}
+        activeOpacity={0.8}
+        style={{ width: "100%", marginTop: 24 }}
+      >
+        <LinearGradient
+          colors={[colors.primaryDeep, colors.primary]}
+          style={tfStyles.ctaBtn}
+        >
+          <AppText style={tfStyles.ctaLabel} fontWeight="bold">
+            Try Again
+          </AppText>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable
+        style={tfStyles.backdrop}
+        onPress={step === "form" ? onClose : undefined}
+      >
+        <Animated.View
+          entering={SlideInDown.springify()}
+          exiting={SlideOutDown.duration(200)}
+          style={tfStyles.sheet}
+        >
+          <Pressable>
+            <View style={tfStyles.handle} />
+
+            {/* Sheet Header */}
+            <View style={tfStyles.sheetHeader}>
+              <View style={tfStyles.sheetTitleRow}>
+                <LinearGradient
+                  colors={[colors.primaryDeep, colors.primary]}
+                  style={tfStyles.sheetIconBg}
+                >
+                  <Ionicons
+                    name="swap-horizontal"
+                    size={18}
+                    color={colors.white}
+                  />
+                </LinearGradient>
+                <AppText style={tfStyles.sheetTitle} fontWeight="bold">
+                  Transfer Funds
+                </AppText>
+              </View>
+              {step === "form" && (
+                <TouchableOpacity
+                  onPress={onClose}
+                  hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={28}
+                    color={colors.lighter}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 32 }}
+            >
+              {step === "form" && renderForm()}
+              {step === "confirm" && renderConfirm()}
+              {step === "success" && renderSuccess()}
+              {step === "error" && renderError()}
+            </ScrollView>
+          </Pressable>
+        </Animated.View>
+      </Pressable>
+    </Modal>
+  );
+};
+
+// =============================================================================
+// FINANCIAL TAB
+// =============================================================================
 const FinancialTab = ({ analytics }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const [transferFunds, { isLoading, isSuccess, isError, error }] =
+    useTransferFundsMutation();
+
   if (!analytics) return null;
+
+  const accounts = analytics.wallets?.accounts || [];
+
+  const handleTransfer = async (payload) => {
+    // Wire to your API: await api.post("/payouts/wallets/transfer", payload);
+    // Rethrow on failure so the modal shows the error step
+  };
 
   return (
     <View style={styles.tabContent}>
+      {/* ── Total balance hero ───────────────────────────────────── */}
       <Animated.View entering={FadeInUp.delay(100).springify()}>
-        <InfoCard
-          title="Total Balance"
-          value={`₦${(analytics.wallets?.totalBalance || 0).toLocaleString()}`}
-          subtitle="Across all wallets"
-          icon="wallet"
-          gradient={[...successGradient].reverse()}
-        />
+        <View style={styles.heroCard}>
+          <LinearGradient
+            colors={[...successGradient].reverse()}
+            style={styles.heroGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.heroCircle} />
+            <View style={styles.heroCircleSmall} />
+            <View style={styles.heroContent}>
+              <View>
+                <AppText style={styles.heroLabel}>Total Balance</AppText>
+                <AppText style={styles.heroValue} fontWeight="bold">
+                  {fmt(analytics.wallets?.totalBalance || 0)}
+                </AppText>
+                <AppText style={styles.heroSub}>Across all wallets</AppText>
+              </View>
+              <TouchableOpacity
+                onPress={() => setModalVisible(true)}
+                style={styles.heroTransferBtn}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name="swap-horizontal"
+                  size={16}
+                  color={colors.white}
+                />
+                <AppText style={styles.heroTransferLabel} fontWeight="bold">
+                  Transfer
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </View>
       </Animated.View>
 
+      {/* ── Wallet accounts ──────────────────────────────────────── */}
       <Animated.View entering={FadeInUp.delay(200).springify()}>
         <SectionHeader title="Wallet Accounts" icon="cash" />
       </Animated.View>
 
-      {analytics.wallets?.accounts?.map((account, index) => (
+      {accounts.map((account, index) => (
         <Animated.View
           key={index}
-          entering={FadeInRight.delay(300 + index * 100).springify()}
+          entering={FadeInUp.delay(300 + index * 100).springify()}
         >
-          <WalletCard account={account} />
+          <WalletCard
+            account={account}
+            onTransferPress={() => setModalVisible(true)}
+          />
         </Animated.View>
       ))}
 
+      {/* ── Transactions ─────────────────────────────────────────── */}
       <Animated.View entering={FadeInUp.delay(500).springify()}>
         <SectionHeader title="Transactions" icon="swap-horizontal" />
       </Animated.View>
@@ -744,6 +1334,7 @@ const FinancialTab = ({ analytics }) => {
         />
       </Animated.View>
 
+      {/* ── Payouts ──────────────────────────────────────────────── */}
       <Animated.View entering={FadeInUp.delay(700).springify()}>
         <SectionHeader title="Payouts" icon="trending-down" />
       </Animated.View>
@@ -787,19 +1378,100 @@ const FinancialTab = ({ analytics }) => {
           gradient={[...successGradient].reverse()}
         />
       </Animated.View>
+
+      {/* ── Transfer Modal ────────────────────────────────────────── */}
+      <TransferFundsModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        accounts={accounts}
+        onTransfer={handleTransfer}
+      />
     </View>
   );
 };
 
-// Stat Card Component
+// =============================================================================
+// WALLET CARD
+// =============================================================================
+const WalletCard = ({ account, onTransferPress }) => {
+  const ws = WALLET_STYLES[account.accountType] || WALLET_STYLES.student;
+
+  return (
+    <View style={styles.walletCard}>
+      <LinearGradient colors={ws.gradient} style={styles.walletCardGradient}>
+        {/* Top row */}
+        <View style={styles.walletCardContent}>
+          <View style={styles.walletCardLeft}>
+            <View style={styles.walletTypeRow}>
+              <View style={styles.walletIconBg}>
+                <Ionicons name={ws.icon} size={16} color={colors.white} />
+              </View>
+              <AppText style={styles.walletType} fontWeight="bold">
+                {ws.label.toUpperCase()}
+              </AppText>
+            </View>
+            <AppText style={styles.walletBalance}>
+              {fmt(account.balance)}
+            </AppText>
+          </View>
+          <Ionicons name="wallet" size={32} color="rgba(255,255,255,0.3)" />
+        </View>
+
+        {/* Divider */}
+        <View style={styles.walletDivider} />
+
+        {/* Footer row */}
+        <View style={styles.walletFooterRow}>
+          <View style={styles.walletStat}>
+            <Ionicons
+              name="arrow-up-circle-outline"
+              size={14}
+              color="rgba(255,255,255,0.7)"
+            />
+            <AppText style={styles.walletFooterLabel}>Credits</AppText>
+            <AppText style={styles.walletFooterValue}>
+              {fmt(account.totalCredits)}
+            </AppText>
+          </View>
+          <View style={styles.walletStatDivider} />
+          <View style={styles.walletStat}>
+            <Ionicons
+              name="arrow-down-circle-outline"
+              size={14}
+              color="rgba(255,255,255,0.7)"
+            />
+            <AppText style={styles.walletFooterLabel}>Debits</AppText>
+            <AppText style={styles.walletFooterValue}>
+              {fmt(account.totalDebits)}
+            </AppText>
+          </View>
+          <View style={styles.walletStatDivider} />
+          <TouchableOpacity
+            onPress={onTransferPress}
+            activeOpacity={0.75}
+            style={styles.walletTransferBtn}
+          >
+            <Ionicons
+              name="swap-horizontal"
+              size={14}
+              color="rgba(255,255,255,0.9)"
+            />
+            <AppText style={styles.walletTransferLabel}>Transfer</AppText>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    </View>
+  );
+};
+
+// =============================================================================
+// SHARED COMPONENTS
+// =============================================================================
 const StatCard = ({ label, value, icon, gradient, change, positive }) => {
   const scale = useSharedValue(0);
 
   useEffect(() => {
-    scale.value = withSpring(1, {
-      damping: 25,
-      stiffness: 100,
-    });
+    scale.value = withSpring(1);
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -849,96 +1521,82 @@ const StatCard = ({ label, value, icon, gradient, change, positive }) => {
   );
 };
 
-// Metric Card Component
-const MetricCard = ({ title, value, subtitle, icon, iconColor, gradient }) => {
-  return (
-    <View style={styles.metricCard}>
-      <LinearGradient
-        colors={gradient}
-        style={styles.metricCardGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.metricCardContent}>
-          <View style={styles.metricCardLeft}>
-            <AppText style={styles.metricCardTitle}>{title}</AppText>
-            <AppText style={styles.metricCardValue}>
-              {typeof value === "number" ? value.toLocaleString() : value}
-            </AppText>
-            <AppText style={styles.metricCardSubtitle}>{subtitle}</AppText>
-          </View>
-          <View
-            style={[styles.metricCardIcon, { backgroundColor: colors.white }]}
-          >
-            <Ionicons name={icon} size={28} color={iconColor} />
-          </View>
+const MetricCard = ({ title, value, subtitle, icon, iconColor, gradient }) => (
+  <View style={styles.metricCard}>
+    <LinearGradient
+      colors={gradient}
+      style={styles.metricCardGradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.metricCardContent}>
+        <View style={styles.metricCardLeft}>
+          <AppText style={styles.metricCardTitle}>{title}</AppText>
+          <AppText style={styles.metricCardValue}>
+            {typeof value === "number" ? value.toLocaleString() : value}
+          </AppText>
+          <AppText style={styles.metricCardSubtitle}>{subtitle}</AppText>
         </View>
-      </LinearGradient>
-    </View>
-  );
-};
-
-// Info Card Component
-const InfoCard = ({ title, value, subtitle, icon, gradient }) => {
-  return (
-    <View style={styles.infoCard}>
-      <LinearGradient
-        colors={gradient}
-        style={styles.infoCardGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.infoCardContent}>
-          <Ionicons name={icon} size={40} color={colors.white} />
-          <View style={styles.infoCardText}>
-            <AppText style={styles.infoCardValue}>
-              {typeof value === "number" ? value.toLocaleString() : value}
-            </AppText>
-            <AppText style={styles.infoCardTitle}>{title}</AppText>
-            {subtitle && (
-              <AppText style={styles.infoCardSubtitle}>{subtitle}</AppText>
-            )}
-          </View>
+        <View
+          style={[styles.metricCardIcon, { backgroundColor: colors.white }]}
+        >
+          <Ionicons name={icon} size={28} color={iconColor} />
         </View>
-      </LinearGradient>
-    </View>
-  );
-};
-
-// Mini Stat Card
-const MiniStatCard = ({ label, value, icon, color }) => {
-  return (
-    <View style={styles.miniStatCard}>
-      <View style={[styles.miniStatIcon, { backgroundColor: color + "20" }]}>
-        <Ionicons name={icon} size={24} color={color} />
       </View>
-      <AppText style={styles.miniStatValue}>
-        {typeof value === "number" ? value.toLocaleString() : value || 0}
-      </AppText>
-      <AppText style={styles.miniStatLabel}>{label}</AppText>
-    </View>
-  );
-};
+    </LinearGradient>
+  </View>
+);
 
-// Section Header
-const SectionHeader = ({ title, icon }) => {
-  return (
-    <View style={styles.sectionHeader}>
-      <Ionicons name={icon} size={20} color={colors.primary} />
-      <AppText style={styles.sectionHeaderText}>{title}</AppText>
-    </View>
-  );
-};
+const InfoCard = ({ title, value, subtitle, icon, gradient }) => (
+  <View style={styles.infoCard}>
+    <LinearGradient
+      colors={gradient}
+      style={styles.infoCardGradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.infoCardContent}>
+        <Ionicons name={icon} size={40} color={colors.white} />
+        <View style={styles.infoCardText}>
+          <AppText style={styles.infoCardValue}>
+            {typeof value === "number" ? value.toLocaleString() : value}
+          </AppText>
+          <AppText style={styles.infoCardTitle}>{title}</AppText>
+          {subtitle && (
+            <AppText style={styles.infoCardSubtitle}>{subtitle}</AppText>
+          )}
+        </View>
+      </View>
+    </LinearGradient>
+  </View>
+);
 
-// Leaderboard Item
+const MiniStatCard = ({ label, value, icon, color }) => (
+  <View style={styles.miniStatCard}>
+    <View style={[styles.miniStatIcon, { backgroundColor: color + "20" }]}>
+      <Ionicons name={icon} size={24} color={color} />
+    </View>
+    <AppText style={styles.miniStatValue}>
+      {typeof value === "number" ? value.toLocaleString() : value || 0}
+    </AppText>
+    <AppText style={styles.miniStatLabel}>{label}</AppText>
+  </View>
+);
+
+const SectionHeader = ({ title, icon }) => (
+  <View style={styles.sectionHeader}>
+    <Ionicons name={icon} size={20} color={colors.primary} />
+    <AppText style={styles.sectionHeaderText}>{title}</AppText>
+  </View>
+);
+
 const LeaderboardItem = ({ user, rank, showPoints, showStreak }) => {
-  const getMedalColor = (rank) => {
-    if (rank === 1) return colors.warning;
-    if (rank === 2) return colors.medium;
-    if (rank === 3) return "#CD7F32";
+  const getMedalColor = (r) => {
+    if (r === 1) return colors.warning;
+    if (r === 2) return colors.medium;
+    if (r === 3) return "#CD7F32";
     return colors.lighter;
   };
-
   return (
     <View style={styles.leaderboardItem}>
       <View
@@ -964,93 +1622,82 @@ const LeaderboardItem = ({ user, rank, showPoints, showStreak }) => {
   );
 };
 
-// Distribution Card
-const DistributionCard = ({ title, data }) => {
-  return (
-    <View style={styles.distributionCard}>
-      <AppText style={styles.distributionTitle}>{title}</AppText>
-      {data.map((item, index) => (
-        <View key={index} style={styles.distributionItem}>
-          <AppText style={styles.distributionLabel}>
-            {item._id || "Unknown"}
-          </AppText>
-          <View style={styles.distributionRight}>
-            <AppText style={styles.distributionValue}>{item.count}</AppText>
-            <View
-              style={[
-                styles.distributionBar,
-                {
-                  width: `${Math.min((item.count / Math.max(...data.map((d) => d.count))) * 100, 100)}%`,
-                  backgroundColor: colors.primary,
-                },
-              ]}
-            />
-          </View>
+const DistributionCard = ({ title, data }) => (
+  <View style={styles.distributionCard}>
+    <AppText style={styles.distributionTitle}>{title}</AppText>
+    {data.map((item, index) => (
+      <View key={index} style={styles.distributionItem}>
+        <AppText style={styles.distributionLabel}>
+          {item._id || "Unknown"}
+        </AppText>
+        <View style={styles.distributionRight}>
+          <AppText style={styles.distributionValue}>{item.count}</AppText>
+          <View
+            style={[
+              styles.distributionBar,
+              {
+                width: `${Math.min(
+                  (item.count / Math.max(...data.map((d) => d.count))) * 100,
+                  100,
+                )}%`,
+                backgroundColor: colors.primary,
+              },
+            ]}
+          />
         </View>
-      ))}
-    </View>
-  );
-};
-
-// Activity Card
-const ActivityCard = ({ title, value, icon, color }) => {
-  return (
-    <View style={styles.activityCard}>
-      <View style={[styles.activityIcon, { backgroundColor: color + "20" }]}>
-        <Ionicons name={icon} size={24} color={color} />
       </View>
-      <View style={styles.activityContent}>
-        <AppText style={styles.activityTitle}>{title}</AppText>
-        <AppText style={styles.activityValue}>
-          {typeof value === "number" ? value.toLocaleString() : value || 0}
-        </AppText>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.lighter} />
-    </View>
-  );
-};
+    ))}
+  </View>
+);
 
-// School Rank Item
-const SchoolRankItem = ({ school, rank }) => {
-  return (
-    <View style={styles.schoolRankItem}>
-      <AppText style={styles.schoolRank}>#{rank}</AppText>
-      <View style={styles.schoolRankContent}>
-        <AppText style={styles.schoolName}>{school.name}</AppText>
-        <AppText style={styles.schoolCount}>
-          {school.studentCount} students
-        </AppText>
-      </View>
-      <Ionicons name="people" size={20} color={colors.primary} />
+const ActivityCard = ({ title, value, icon, color }) => (
+  <View style={styles.activityCard}>
+    <View style={[styles.activityIcon, { backgroundColor: color + "20" }]}>
+      <Ionicons name={icon} size={24} color={color} />
     </View>
-  );
-};
-
-// Content Rank Item
-const ContentRankItem = ({ name, count, label, rank }) => {
-  return (
-    <View style={styles.contentRankItem}>
-      <AppText style={styles.contentRank}>#{rank}</AppText>
-      <View style={styles.contentRankContent}>
-        <AppText style={styles.contentName}>{name}</AppText>
-        <AppText style={styles.contentCount}>
-          {count} {label}
-        </AppText>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.lighter} />
+    <View style={styles.activityContent}>
+      <AppText style={styles.activityTitle}>{title}</AppText>
+      <AppText style={styles.activityValue}>
+        {typeof value === "number" ? value.toLocaleString() : value || 0}
+      </AppText>
     </View>
-  );
-};
+    <Ionicons name="chevron-forward" size={20} color={colors.lighter} />
+  </View>
+);
 
-// Quiz Performer Item
+const SchoolRankItem = ({ school, rank }) => (
+  <View style={styles.schoolRankItem}>
+    <AppText style={styles.schoolRank}>#{rank}</AppText>
+    <View style={styles.schoolRankContent}>
+      <AppText style={styles.schoolName}>{school.name}</AppText>
+      <AppText style={styles.schoolCount}>
+        {school.studentCount} students
+      </AppText>
+    </View>
+    <Ionicons name="people" size={20} color={colors.primary} />
+  </View>
+);
+
+const ContentRankItem = ({ name, count, label, rank }) => (
+  <View style={styles.contentRankItem}>
+    <AppText style={styles.contentRank}>#{rank}</AppText>
+    <View style={styles.contentRankContent}>
+      <AppText style={styles.contentName}>{name}</AppText>
+      <AppText style={styles.contentCount}>
+        {count} {label}
+      </AppText>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color={colors.lighter} />
+  </View>
+);
+
 const QuizPerformerItem = ({ user, rank }) => {
-  const getMedalColor = (rank) => {
-    if (rank === 1) return colors.warning;
-    if (rank === 2) return colors.medium;
-    if (rank === 3) return "#CD7F32";
+  const getMedalColor = (r) => {
+    if (r === 1) return colors.warning;
+    if (r === 2) return colors.medium;
+    if (r === 3) return "#CD7F32";
     return colors.lighter;
   };
-
   return (
     <View style={styles.quizPerformerItem}>
       <View
@@ -1081,42 +1728,9 @@ const QuizPerformerItem = ({ user, rank }) => {
   );
 };
 
-// Wallet Card
-const WalletCard = ({ account }) => {
-  return (
-    <View style={styles.walletCard}>
-      <LinearGradient
-        colors={
-          account.accountType === "school"
-            ? [colors.accentDeep, colors.accent]
-            : [colors.greenDark, colors.green]
-        }
-        style={styles.walletCardGradient}
-      >
-        <View style={styles.walletCardContent}>
-          <View>
-            <AppText style={styles.walletType}>
-              {account.accountType.toUpperCase()} WALLET
-            </AppText>
-            <AppText style={styles.walletBalance}>
-              ₦{account.balance.toLocaleString()}
-            </AppText>
-          </View>
-          <Ionicons name="wallet" size={32} color={colors.white} />
-        </View>
-        <View style={styles.walletFooter}>
-          <AppText style={styles.walletFooterText}>
-            Credits: ₦{account.totalCredits.toLocaleString()}
-          </AppText>
-          <AppText style={styles.walletFooterText}>
-            Debits: ₦{account.totalDebits.toLocaleString()}
-          </AppText>
-        </View>
-      </LinearGradient>
-    </View>
-  );
-};
-
+// =============================================================================
+// STYLES — MAIN SCREEN
+// =============================================================================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1577,42 +2191,477 @@ const styles = StyleSheet.create({
     color: colors.medium,
     marginRight: 6,
   },
+
+  // ── Hero card (Financial) ──────────────────────────────────────────
+  heroCard: {
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  heroGradient: {
+    borderRadius: 20,
+    overflow: "hidden",
+    padding: 24,
+  },
+  heroCircle: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    right: -40,
+    top: -40,
+  },
+  heroCircleSmall: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    right: 60,
+    bottom: -20,
+  },
+  heroContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  heroLabel: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  heroValue: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: colors.white,
+    marginBottom: 4,
+  },
+  heroSub: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+  },
+  heroTransferBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  heroTransferLabel: {
+    fontSize: 13,
+    color: colors.white,
+    fontWeight: "700",
+  },
+
+  // ── Wallet card ────────────────────────────────────────────────────
   walletCard: {
     marginBottom: 12,
+    borderRadius: 18,
+    overflow: "hidden",
+    boxShadow: `0px 8px 24px rgba(0,0,0,0.12)`,
   },
   walletCardGradient: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
   },
   walletCardContent: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     padding: 20,
+    paddingBottom: 14,
+  },
+  walletCardLeft: {
+    flex: 1,
+  },
+  walletTypeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  walletIconBg: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   walletType: {
-    fontSize: 12,
-    color: colors.white,
-    opacity: 0.9,
-    marginBottom: 8,
+    fontSize: 11,
+    color: "rgba(255,255,255,0.85)",
     fontWeight: "700",
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   walletBalance: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "800",
     color: colors.white,
   },
-  walletFooter: {
+  walletDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginHorizontal: 20,
+  },
+  walletFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  walletStat: {
+    flex: 1,
+    alignItems: "center",
+    gap: 3,
+  },
+  walletStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginHorizontal: 8,
+  },
+  walletFooterLabel: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 2,
+  },
+  walletFooterValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.white,
+  },
+  walletTransferBtn: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  walletTransferLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.9)",
+  },
+});
+
+// =============================================================================
+// STYLES — TRANSFER MODAL
+// =============================================================================
+const tfStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    maxHeight: height * 0.9,
+    boxShadow: `0px -4px 30px rgba(0,0,0,0.15)`,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.lighter,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lightly || "#f0f0f0",
+    marginBottom: 20,
   },
-  walletFooterText: {
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sheetIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.black,
+  },
+  fieldGroup: {
+    marginBottom: 20,
+  },
+  fieldLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.dark || colors.black,
+  },
+  pickerRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  pickerChip: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  pickerChipInner: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    borderRadius: 12,
+    position: "relative",
+  },
+  pickerChipLabel: {
     fontSize: 12,
+    fontWeight: "700",
+    color: colors.medium,
+    letterSpacing: 0.5,
+  },
+  pickerChipBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  balancePill: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: colors.greenLighter || colors.green + "20",
+  },
+  balancePillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.greenDark || colors.green,
+  },
+  swapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    gap: 12,
+  },
+  swapLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.lightly || "#eee",
+  },
+  swapBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    boxShadow: `0px 4px 12px ${colors.primary}50`,
+  },
+  amountInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: colors.lightly || "#eee",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    backgroundColor: colors.extraLight || "#fafafa",
+  },
+  nairaSign: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.medium,
+    marginRight: 4,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.black,
+    paddingVertical: 12,
+  },
+  errorInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+  },
+  errorInlineText: {
+    fontSize: 12,
+    color: colors.heart,
+  },
+  noteInput: {
+    borderWidth: 1.5,
+    borderColor: colors.lightly || "#eee",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: colors.black,
+    backgroundColor: colors.extraLight || "#fafafa",
+  },
+  ctaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  ctaLabel: {
+    fontSize: 16,
+    fontWeight: "700",
     color: colors.white,
-    opacity: 0.8,
+  },
+  confirmTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.black,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  confirmSub: {
+    fontSize: 14,
+    color: colors.medium,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  flowCard: {
+    backgroundColor: colors.extraLight || "#fafafa",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 4,
+  },
+  flowPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    width: "100%",
+  },
+  flowPillType: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "600",
+  },
+  flowPillBal: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  flowMid: {
+    alignItems: "center",
+    paddingVertical: 8,
+    gap: 4,
+  },
+  flowAmountBadge: {
+    backgroundColor: colors.primaryDeep || colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  flowAmount: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  notePreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.extraLight || "#f5f5f5",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  notePreviewText: {
+    fontSize: 14,
+    color: colors.medium,
+    flex: 1,
+  },
+  confirmBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  backBtn: {
+    width: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: colors.lightly || "#eee",
+    borderRadius: 16,
+  },
+  backBtnLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.medium,
+  },
+  resultWrap: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  successRing: {
+    marginBottom: 20,
+  },
+  successCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  resultTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.black,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  resultSub: {
+    fontSize: 15,
+    color: colors.medium,
+    textAlign: "center",
+    lineHeight: 22,
   },
 });
 

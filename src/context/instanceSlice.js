@@ -90,7 +90,17 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: "/analytics",
         timeout: 35000,
       }),
-      // providesTags: ["FETCH_INSTANCE"],
+      providesTags: ["ANALYTICS"],
+    }),
+    transferFunds: builder.mutation({
+      query: (data) => {
+        return {
+          url: "/payouts/wallets/transfer",
+          method: "POST",
+          body: data,
+        };
+      },
+      invalidatesTags: ["ANALYTICS"],
     }),
     createCategory: builder.mutation({
       query: (data) => {
@@ -203,6 +213,7 @@ export const {
   useFetchSubjectCategoriesQuery,
   useFetchPremiumQuizMutation,
   useUpdateInstanceMutation,
+  useTransferFundsMutation,
   useFetchAnalyticsQuery,
   useSubmitFreemiumQuizMutation,
   useLazyFetchInstanceQuery,
