@@ -168,7 +168,6 @@ const TeacherQuizScreen = () => {
         });
       }
     } else if (isReview) {
-      console.log("Test scores released!");
       try {
         await changeSchoolQuiz({
           status: "result",
@@ -177,7 +176,7 @@ const TeacherQuizScreen = () => {
         }).unwrap();
         setPopper({
           vis: true,
-          msg: "Results sent to students",
+          msg: "Quiz Results sent to students",
           type: "success",
           cb: async () => await onRefresh(),
           timer: 3000,
@@ -295,8 +294,8 @@ const TeacherQuizScreen = () => {
                   isActive
                     ? "Finish Quiz"
                     : isReview
-                      ? "Release Quiz Scores"
-                      : "Start Quiz"
+                    ? "Release Quiz Scores"
+                    : "Start Quiz"
                 }
               />
 

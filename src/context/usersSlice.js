@@ -13,9 +13,81 @@ const initialState = {
 // ── Cache config ──────────────────────────────────────────────────────────────
 const ANALYTICS_CACHE_KEY = "user_analytics_me";
 const ANALYTICS_CACHE_TTL = 1000 * 60 * 20; // 20 minutes
+const LEADERBOARD_CACHE_TTL = 1000 * 60 * 10; // 10 minutes
 //   Analytics is the heaviest endpoint so we cache it aggressively.
 //   20 min is intentional — quiz data only changes on submission,
 //   and the student is unlikely to submit a quiz mid-session.
+
+/**
+ * Generic queryFn that:
+ *  1. Returns the AsyncStorage cache immediately when offset === 0
+ *     and the cached data is still fresh (or when offline).
+ *  2. Fetches fresh data from the API.
+ *  3. Persists the fresh page-0 response back to AsyncStorage.
+ *
+ * @param {Function} buildUrl   - (arg) => URL string
+ * @param {string}   cacheKey   - AsyncStorage key
+ */
+const makeLeaderboardQueryFn =
+  (buildUrl, cacheKey) => async (arg, _queryApi, _extraOptions, baseQuery) => {
+    const isFirstPage = (arg?.offset ?? 0) === 0;
+
+    // ── 1. Serve cache for the first page ─────────────────────────────
+    if (isFirstPage) {
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const age = Date.now() - timestamp;
+          const isFresh = age < LEADERBOARD_CACHE_TTL;
+
+          if (isFresh) {
+            // Fresh cache — return it straight away; the component can still
+            // trigger a background refetch via the normal RTK polling/refetch API.
+            return { data: { ...data, _fromCache: true, _cacheAge: age } };
+          }
+
+          // Stale cache — try the network but fall back to the stale data
+          // so the user sees something while offline.
+          const result = await baseQuery(buildUrl(arg));
+          if (result.error) {
+            // Offline / network failure → return stale cache with a flag
+            return {
+              data: { ...data, _fromCache: true, _cacheAge: age, _stale: true },
+            };
+          }
+
+          // Network succeeded → persist & return fresh data
+          try {
+            await AsyncStorage.setItem(
+              cacheKey,
+              JSON.stringify({ data: result.data, timestamp: Date.now() }),
+            );
+          } catch (_) {}
+
+          return { data: { ...result.data, _fromCache: false } };
+        }
+      } catch (_) {
+        // AsyncStorage read failed — fall through to network fetch
+      }
+    }
+
+    // ── 2. Non-first-page (or no cache yet) → always hit the network ──
+    const result = await baseQuery(buildUrl(arg));
+    if (result.error) return { error: result.error };
+
+    // Persist only the first page
+    if (isFirstPage) {
+      try {
+        await AsyncStorage.setItem(
+          cacheKey,
+          JSON.stringify({ data: result.data, timestamp: Date.now() }),
+        );
+      } catch (_) {}
+    }
+
+    return { data: { ...result.data, _fromCache: false } };
+  };
 
 /** Wipe the analytics AsyncStorage entry so the next query hits the network. */
 export const invalidateAnalyticsCache = async () => {
@@ -404,69 +476,127 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["SEARCH_STUDENTS"],
     }),
+    // fetchProLeaderboard: builder.query({
+    //   query: ({ limit = 50, offset = 0 } = {}) => ({
+    //     url: `/users/pro_leaderboard?limit=${limit}&offset=${offset}`,
+    //     timeout: 15000,
+    //   }),
+    //   serializeQueryArgs: ({ endpointName }) => {
+    //     return endpointName;
+    //   },
+    //   merge: (currentCache, newItems, { arg }) => {
+    //     if (arg?.offset === 0) {
+    //       return newItems;
+    //     }
+    //     return {
+    //       ...newItems,
+    //       data: {
+    //         ...newItems.data,
+    //         leaderboard: [
+    //           ...(currentCache?.data?.leaderboard || []),
+    //           ...(newItems?.data?.leaderboard || []),
+    //         ],
+    //       },
+    //     };
+    //   },
+    //   forceRefetch: ({ currentArg, previousArg }) => {
+    //     return currentArg?.offset !== previousArg?.offset;
+    //   },
+    //   providesTags: ["PRO_LEADERBOARD"],
+    // }),
+
+    // fetchGlobalLeaderboard: builder.query({
+    //   query: ({
+    //     limit = 50,
+    //     offset = 0,
+    //     timeframe = "all-time",
+    //     sortBy = "totalPoints",
+    //   } = {}) => ({
+    //     url: `/users/leaderboard/global?limit=${limit}&offset=${offset}&timeframe=${timeframe}&sortBy=${sortBy}`,
+    //     timeout: 15000,
+    //   }),
+    //   serializeQueryArgs: ({ endpointName }) => {
+    //     return endpointName;
+    //   },
+    //   merge: (currentCache, newItems, { arg }) => {
+    //     if (arg?.offset === 0) {
+    //       return newItems;
+    //     }
+    //     return {
+    //       ...newItems,
+    //       data: {
+    //         ...newItems.data,
+    //         leaderboard: [
+    //           ...(currentCache?.data?.leaderboard || []),
+    //           ...(newItems?.data?.leaderboard || []),
+    //         ],
+    //       },
+    //     };
+    //   },
+    //   forceRefetch: ({ currentArg, previousArg }) => {
+    //     return currentArg?.offset !== previousArg?.offset;
+    //   },
+    //   providesTags: ["GLOBAL_LEADERBOARD"],
+    // }),
+
     fetchProLeaderboard: builder.query({
-      query: ({ limit = 50, offset = 0 } = {}) => ({
-        url: `/users/pro_leaderboard?limit=${limit}&offset=${offset}`,
-        timeout: 15000,
-      }),
-      serializeQueryArgs: ({ endpointName }) => {
-        return endpointName;
-      },
+      queryFn: makeLeaderboardQueryFn(
+        ({ limit = 50, offset = 0 } = {}) => ({
+          url: `/users/pro_leaderboard?limit=${limit}&offset=${offset}`,
+          // url: `/leaderboard/pro?limit=${limit}&offset=${offset}`,
+          timeout: 15000,
+        }),
+        "leaderboard_pro", // AsyncStorage key
+      ),
+      serializeQueryArgs: ({ endpointName }) => endpointName,
       merge: (currentCache, newItems, { arg }) => {
-        if (arg?.offset === 0) {
-          return newItems;
-        }
+        if ((arg?.offset ?? 0) === 0) return newItems;
         return {
           ...newItems,
           data: {
             ...newItems.data,
             leaderboard: [
-              ...(currentCache?.data?.leaderboard || []),
-              ...(newItems?.data?.leaderboard || []),
+              ...(currentCache?.data?.leaderboard ?? []),
+              ...(newItems?.data?.leaderboard ?? []),
             ],
           },
         };
       },
-      forceRefetch: ({ currentArg, previousArg }) => {
-        return currentArg?.offset !== previousArg?.offset;
-      },
-      providesTags: ["PRO_LEADERBOARD"],
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset,
     }),
 
     fetchGlobalLeaderboard: builder.query({
-      query: ({
-        limit = 50,
-        offset = 0,
-        timeframe = "all-time",
-        sortBy = "totalPoints",
-      } = {}) => ({
-        url: `/users/leaderboard/global?limit=${limit}&offset=${offset}&timeframe=${timeframe}&sortBy=${sortBy}`,
-        timeout: 15000,
-      }),
-      serializeQueryArgs: ({ endpointName }) => {
-        return endpointName;
-      },
+      queryFn: makeLeaderboardQueryFn(
+        ({
+          limit = 50,
+          offset = 0,
+          timeframe = "all-time",
+          sortBy = "totalPoints",
+        } = {}) => ({
+          url: `/users/leaderboard/global?limit=${limit}&offset=${offset}&timeframe=${timeframe}&sortBy=${sortBy}`,
+          // url: `/leaderboard/global?limit=${limit}&offset=${offset}`,
+          timeout: 15000,
+        }),
+        "leaderboard_global", // AsyncStorage key
+      ),
+      serializeQueryArgs: ({ endpointName }) => endpointName,
       merge: (currentCache, newItems, { arg }) => {
-        if (arg?.offset === 0) {
-          return newItems;
-        }
+        if ((arg?.offset ?? 0) === 0) return newItems;
         return {
           ...newItems,
           data: {
             ...newItems.data,
             leaderboard: [
-              ...(currentCache?.data?.leaderboard || []),
-              ...(newItems?.data?.leaderboard || []),
+              ...(currentCache?.data?.leaderboard ?? []),
+              ...(newItems?.data?.leaderboard ?? []),
             ],
           },
         };
       },
-      forceRefetch: ({ currentArg, previousArg }) => {
-        return currentArg?.offset !== previousArg?.offset;
-      },
-      providesTags: ["GLOBAL_LEADERBOARD"],
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset,
     }),
-
     fetchUserInfo: builder.query({
       query: (userId) => ({
         url: `/users/userInfo?userId=${userId}`,

@@ -1,5 +1,5 @@
 import { Dimensions, FlatList, Image, StyleSheet, View } from "react-native";
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams } from "expo-router";
 
@@ -21,6 +21,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useFetchSchoolLeaderboardQuery } from "../context/schoolSlice";
 
 const { width, height } = Dimensions.get("screen");
+const LIMIT = 25;
 
 export const LeaderboardItem = ({ item, isPro, index }) => {
   if (index < 3) return null;
@@ -65,12 +66,7 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
           name={getFullName(item)}
           horizontal
         />
-        <View
-          style={{
-            flex: 1,
-            alignItems: "flex-end",
-          }}
-        >
+        <View style={{ flex: 1, alignItems: "flex-end" }}>
           <AppText fontWeight="heavy" size={"large"}>
             {pointText}{" "}
           </AppText>
@@ -184,52 +180,51 @@ const LeaderboardScreen = () => {
   const route = useLocalSearchParams();
   const routeData = Boolean(route?.data) ? JSON.parse(route?.data) : {};
 
-  // Pagination state
-  const [offset, setOffset] = useState(0);
+  // ─── Pagination: use a ref so RTK's forceRefetch fires without
+  //     re-rendering the whole component on each page load ────────────
+  const offsetRef = useRef(0);
+  const [offset, setOffset] = useState(0); // drives the actual query arg
   const [hasMore, setHasMore] = useState(true);
-  const LIMIT = 50;
+  // Guard against onEndReached firing multiple times before the next
+  // batch arrives (common with fast scrollers).
+  const isLoadingMore = useRef(false);
 
-  // Determine which leaderboard to fetch
+  // ─── Account-type routing ────────────────────────────────────────
   const isPro =
     user?.accountType === "professional" || user?.accountType === "manager";
   const isStudent = user?.accountType === "student";
   const isTeacher = user?.accountType === "teacher";
   const isSchoolView = routeData?.screen === "School";
 
-  // Conditionally call the right query hook
   const shouldFetchPro = isPro && !isSchoolView;
   const shouldFetchSchool = (isStudent || isTeacher) && isSchoolView;
   const shouldFetchGlobal = (isStudent || isTeacher) && !isSchoolView;
 
-  // Professional leaderboard
+  // ─── Queries ─────────────────────────────────────────────────────
   const {
     data: proData,
     isLoading: proLoading,
     isFetching: proFetching,
-    error,
     refetch: proRefetch,
   } = useFetchProLeaderboardQuery(
     { limit: LIMIT, offset },
     { skip: !shouldFetchPro },
   );
 
-  // School leaderboard
   const {
     data: schoolData,
     isLoading: schoolLoading,
     isFetching: schoolFetching,
-
     refetch: schoolRefetch,
   } = useFetchSchoolLeaderboardQuery(
     { limit: LIMIT, offset },
     { skip: !shouldFetchSchool },
   );
 
-  // Global leaderboard
   const {
     data: globalData,
     isLoading: globalLoading,
-
+    error: globalError,
     isFetching: globalFetching,
     refetch: globalRefetch,
   } = useFetchGlobalLeaderboardQuery(
@@ -237,7 +232,7 @@ const LeaderboardScreen = () => {
     { skip: !shouldFetchGlobal },
   );
 
-  // Determine which data to use
+  // ─── Active data / helpers ────────────────────────────────────────
   const activeData = useMemo(() => {
     if (shouldFetchPro) return proData;
     if (shouldFetchSchool) return schoolData;
@@ -269,28 +264,43 @@ const LeaderboardScreen = () => {
     globalRefetch,
   ]);
 
-  // Extract leaderboard data
   const boardData = activeData?.data;
   const leaderboardArr = boardData?.leaderboard ?? [];
+  // Show a banner when the list is being served from AsyncStorage cache
+  // const isFromCache = Boolean(activeData?._fromCache);
 
-  // Load more handler
+  // ─── Load more ───────────────────────────────────────────────────
   const handleLoadMore = useCallback(() => {
-    if (isFetching || !hasMore) return;
+    // Bail if: already fetching, no more pages, or a load-more is in flight
+    if (isFetching || !hasMore || isLoadingMore.current) return;
 
     const pagination = boardData?.pagination;
-    if (pagination?.hasMore) {
-      setOffset((prevOffset) => prevOffset + LIMIT);
-    } else {
+    if (!pagination?.hasMore) {
       setHasMore(false);
+      return;
     }
+
+    isLoadingMore.current = true;
+    const nextOffset = offsetRef.current + LIMIT;
+    offsetRef.current = nextOffset;
+    setOffset(nextOffset); // triggers the query with the new offset
   }, [isFetching, hasMore, boardData]);
 
-  // Refresh handler
+  // Reset the in-flight guard once RTK stops fetching
+  // (runs after every render where isFetching changes)
+  if (!isFetching && isLoadingMore.current) {
+    isLoadingMore.current = false;
+  }
+
+  // ─── Pull-to-refresh ─────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    // Reset pagination back to page 1
+    offsetRef.current = 0;
     setOffset(0);
     setHasMore(true);
+    isLoadingMore.current = false;
     try {
       await refetch();
     } catch (err) {
@@ -300,54 +310,42 @@ const LeaderboardScreen = () => {
     }
   }, [refetch]);
 
-  // Footer component
-  const renderFooter = useCallback(() => {
-    if (!isFetching || refreshing || isLoading) return null;
-
-    return (
-      <View style={styles.footerLoader}>
-        <LottieAnimator visible />
-        <AppText style={styles.loadingText}>Loading more...</AppText>
-      </View>
-    );
-  }, [isFetching, refreshing]);
-
-  // List footer
+  // ─── Footer ───────────────────────────────────────────────────────
   const ListFooter = useCallback(() => {
-    if (isFetching && !refreshing) {
-      return renderFooter();
+    // Show spinner while fetching additional pages (not on initial load / refresh)
+    if (isFetching && !refreshing && offset > 0) {
+      return (
+        <View style={styles.footerLoader}>
+          <LottieAnimator visible />
+          <AppText style={styles.loadingText}>Loading more…</AppText>
+        </View>
+      );
     }
     return (
       <View
-        style={leaderboardArr?.length < 4 ? styles.footerMain : styles.footer}
+        style={leaderboardArr.length < 4 ? styles.footerMain : styles.footer}
       />
     );
-  }, [leaderboardArr?.length, isFetching, refreshing]);
+  }, [isFetching, refreshing, offset, leaderboardArr.length]);
 
-  // Determine background color
+  // ─── Misc ─────────────────────────────────────────────────────────
   const backgroundColor = useMemo(() => {
     if (isPro) return colors.greenDark;
     if (isSchoolView) return colors.primary;
     return colors.accent;
   }, [isPro, isSchoolView]);
 
-  // Get rank suffix
   const getRankSuffix = (rank) => {
     if (!rank) return "TH";
-
     const lastTwo = rank % 100;
     if (lastTwo >= 11 && lastTwo <= 13) return "TH";
-
     const last = rank % 10;
-
     if (last === 1) return "ST";
     if (last === 2) return "ND";
     if (last === 3) return "RD";
-
     return "TH";
   };
 
-  // Title
   const title = useMemo(() => {
     if (isSchoolView) return boardData?.school?.name || "My School Leaderboard";
     if (isPro) return "Pro Leaderboard";
@@ -360,6 +358,12 @@ const LeaderboardScreen = () => {
         title={title}
         Component={() => (
           <View style={styles.mine}>
+            {/* Subtle "cached" badge so users know they're offline */}
+            {/* {isFromCache && (
+              <AppText size="xsmall" style={styles.cacheBadge}>
+                📶 Cached
+              </AppText>
+            )} */}
             <AppText
               fontWeight="black"
               size={"xxlarge"}
@@ -375,33 +379,35 @@ const LeaderboardScreen = () => {
         hideNavigator
         titleColor="#fff"
       />
+
       <FlatList
         data={leaderboardArr}
         keyExtractor={(item) => item._id ?? nanoid()}
         refreshing={refreshing}
         onRefresh={onRefresh}
         showsVerticalScrollIndicator={false}
-        // Infinite scroll
+        // ── Infinite scroll ──────────────────────────────────────
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
+        // ── Sections ─────────────────────────────────────────────
         ListHeaderComponent={() => (
-          <LeaderboardWinners
-            isPro={isPro}
-            data={leaderboardArr?.slice(0, 3)}
-          />
+          <LeaderboardWinners isPro={isPro} data={leaderboardArr.slice(0, 3)} />
         )}
         ListFooterComponent={ListFooter}
         renderItem={({ item, index }) => (
           <LeaderboardItem item={item} isPro={isPro} index={index} />
         )}
-        // Performance optimizations
-        removeClippedSubviews={true}
+        // ── Performance ───────────────────────────────────────────
+        removeClippedSubviews
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
         initialNumToRender={15}
         windowSize={10}
       />
+
       <StatusBar style="light" />
+
+      {/* Full-screen loader only on first page load */}
       <LottieAnimator
         visible={isLoading && offset === 0}
         absolute
@@ -447,6 +453,11 @@ const styles = StyleSheet.create({
   },
   mineText: {
     color: colors.white,
+  },
+  cacheBadge: {
+    color: colors.white,
+    opacity: 0.7,
+    marginBottom: 2,
   },
   separator: {
     width: "95%",

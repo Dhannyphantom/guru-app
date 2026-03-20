@@ -12,6 +12,91 @@ const initialState = {
 const DASHBOARD_CACHE_KEY = "school_dashboard";
 const DASHBOARD_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
+// ─── Leaderboard cache constants ────────────────────────────────────────────
+// Page 0 is persisted so the list renders instantly on next open,
+// even when the device is offline. Subsequent pages are always fetched live.
+const LEADERBOARD_CACHE_KEY = "leaderboard";
+const LEADERBOARD_CACHE_TTL = 1000 * 60 * 10; // 10 minutes
+
+/**
+ * Build a consistent AsyncStorage key for a leaderboard endpoint.
+ * We only cache offset=0 (the first page) so the stale-while-revalidate
+ * experience works without storing unbounded data.
+ */
+const leaderboardCacheKey = (namespace, id = "") =>
+  `${LEADERBOARD_CACHE_KEY}_${namespace}${id ? `_${id}` : ""}`;
+
+/**
+ * Generic queryFn that:
+ *  1. Returns the AsyncStorage cache immediately when offset === 0
+ *     and the cached data is still fresh (or when offline).
+ *  2. Fetches fresh data from the API.
+ *  3. Persists the fresh page-0 response back to AsyncStorage.
+ *
+ * @param {Function} buildUrl   - (arg) => URL string
+ * @param {string}   cacheKey   - AsyncStorage key
+ */
+const makeLeaderboardQueryFn =
+  (buildUrl, cacheKey) => async (arg, _queryApi, _extraOptions, baseQuery) => {
+    const isFirstPage = (arg?.offset ?? 0) === 0;
+
+    // ── 1. Serve cache for the first page ─────────────────────────────
+    if (isFirstPage) {
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const age = Date.now() - timestamp;
+          const isFresh = age < LEADERBOARD_CACHE_TTL;
+
+          if (isFresh) {
+            // Fresh cache — return it straight away; the component can still
+            // trigger a background refetch via the normal RTK polling/refetch API.
+            return { data: { ...data, _fromCache: true, _cacheAge: age } };
+          }
+
+          // Stale cache — try the network but fall back to the stale data
+          // so the user sees something while offline.
+          const result = await baseQuery(buildUrl(arg));
+          if (result.error) {
+            // Offline / network failure → return stale cache with a flag
+            return {
+              data: { ...data, _fromCache: true, _cacheAge: age, _stale: true },
+            };
+          }
+
+          // Network succeeded → persist & return fresh data
+          try {
+            await AsyncStorage.setItem(
+              cacheKey,
+              JSON.stringify({ data: result.data, timestamp: Date.now() }),
+            );
+          } catch (_) {}
+
+          return { data: { ...result.data, _fromCache: false } };
+        }
+      } catch (_) {
+        // AsyncStorage read failed — fall through to network fetch
+      }
+    }
+
+    // ── 2. Non-first-page (or no cache yet) → always hit the network ──
+    const result = await baseQuery(buildUrl(arg));
+    if (result.error) return { error: result.error };
+
+    // Persist only the first page
+    if (isFirstPage) {
+      try {
+        await AsyncStorage.setItem(
+          cacheKey,
+          JSON.stringify({ data: result.data, timestamp: Date.now() }),
+        );
+      } catch (_) {}
+    }
+
+    return { data: { ...result.data, _fromCache: false } };
+  };
+
 export const extendedUserApiSlice = apiSlice.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
@@ -69,78 +154,95 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         params,
       }),
     }),
+
+    // ─────────────────────────────────────────────────────────────────
+    // SCHOOL LEADERBOARD  (with AsyncStorage cache on page 0)
+    // ─────────────────────────────────────────────────────────────────
     fetchSchoolLeaderboard: builder.query({
-      query: ({
-        limit = 50,
-        offset = 0,
-        sortBy = "totalPoints",
-        classLevel,
-      } = {}) => ({
-        url: `/school/leaderboard?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
-          classLevel ? `&classLevel=${classLevel}` : ""
-        }`,
-        timeout: 15000,
-      }),
-      serializeQueryArgs: ({ endpointName }) => {
-        return endpointName;
-      },
+      queryFn: makeLeaderboardQueryFn(
+        ({
+          limit = 50,
+          offset = 0,
+          sortBy = "totalPoints",
+          classLevel,
+        } = {}) => ({
+          url: `/school/leaderboard?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
+            classLevel ? `&classLevel=${classLevel}` : ""
+          }`,
+          timeout: 15000,
+        }),
+        leaderboardCacheKey("school"),
+      ),
+      // A single stable cache entry for this endpoint so RTK merges pages
+      serializeQueryArgs: ({ endpointName }) => endpointName,
       merge: (currentCache, newItems, { arg }) => {
-        if (arg?.offset === 0) {
+        if ((arg?.offset ?? 0) === 0) {
+          // First page (or refresh) → replace everything
           return newItems;
         }
+        // Subsequent pages → append
         return {
           ...newItems,
           data: {
             ...newItems.data,
             leaderboard: [
-              ...(currentCache?.data?.leaderboard || []),
-              ...(newItems?.data?.leaderboard || []),
+              ...(currentCache?.data?.leaderboard ?? []),
+              ...(newItems?.data?.leaderboard ?? []),
             ],
           },
         };
       },
-      forceRefetch: ({ currentArg, previousArg }) => {
-        return currentArg?.offset !== previousArg?.offset;
-      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset,
       providesTags: ["SCHOOL_LEADERBOARD"],
     }),
 
+    // ─────────────────────────────────────────────────────────────────
+    // SCHOOL LEADERBOARD BY ID  (with AsyncStorage cache on page 0)
+    // ─────────────────────────────────────────────────────────────────
     fetchSchoolLeaderboardById: builder.query({
-      query: ({
-        schoolId,
-        limit = 50,
-        offset = 0,
-        sortBy = "totalPoints",
-        classLevel,
-      } = {}) => ({
-        url: `/leaderboard/school/${schoolId}?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
-          classLevel ? `&classLevel=${classLevel}` : ""
-        }`,
-        timeout: 15000,
-      }),
-      serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        return `${endpointName}-${queryArgs.schoolId}`;
+      queryFn: (arg, queryApi, extraOptions, baseQuery) => {
+        const cacheKey = leaderboardCacheKey("school", arg?.schoolId);
+        return makeLeaderboardQueryFn(
+          ({
+            schoolId,
+            limit = 50,
+            offset = 0,
+            sortBy = "totalPoints",
+            classLevel,
+          } = {}) => ({
+            url: `/leaderboard/school/${schoolId}?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
+              classLevel ? `&classLevel=${classLevel}` : ""
+            }`,
+
+            // url: `/leaderboard/school/${schoolId}?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
+            //   classLevel ? `&classLevel=${classLevel}` : ""
+            // }`,
+            timeout: 15000,
+          }),
+          cacheKey,
+        )(arg, queryApi, extraOptions, baseQuery);
       },
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}-${queryArgs.schoolId}`,
       merge: (currentCache, newItems, { arg }) => {
-        if (arg?.offset === 0) {
-          return newItems;
-        }
+        if ((arg?.offset ?? 0) === 0) return newItems;
         return {
           ...newItems,
           data: {
             ...newItems.data,
             leaderboard: [
-              ...(currentCache?.data?.leaderboard || []),
-              ...(newItems?.data?.leaderboard || []),
+              ...(currentCache?.data?.leaderboard ?? []),
+              ...(newItems?.data?.leaderboard ?? []),
             ],
           },
         };
       },
-      forceRefetch: ({ currentArg, previousArg }) => {
-        return currentArg?.offset !== previousArg?.offset;
-      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset,
       providesTags: ["SCHOOL_LEADERBOARD"],
     }),
+
     fetchAssignmentById: builder.query({
       query: (params) => ({
         url: "/school/assignment",
@@ -233,7 +335,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
-      invalidatesTags: ["FETCH_QUIZ"],
+      invalidatesTags: ["FETCH_QUIZ", "SCHOOL"],
     }),
     getQuizQuestions: builder.mutation({
       query: (data) => {
@@ -272,7 +374,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
-      invalidatesTags: ["FETCH_ASSIGNMENTS"],
+      invalidatesTags: ["FETCH_ASSIGNMENTS", "SCHOOL"],
     }),
     createAnnouncement: builder.mutation({
       query: (data) => {
@@ -322,7 +424,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     // ==========================================
     // CLASSES (CRUD)
     // ==========================================
-    // FETCH SCHOOL CLASSES
     fetchSchoolClasses: builder.query({
       query: (schoolId) => ({
         url: `/school/${schoolId}/classes`,
@@ -330,8 +431,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["SCHOOL_CLASSES"],
     }),
-
-    // CREATE CLASS (single or "all")
     createClass: builder.mutation({
       query: ({ schoolId, ...body }) => ({
         url: `/school/${schoolId}/classes`,
@@ -340,8 +439,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-
-    // CREATE CLASS (single or "all")
     transferStudents: builder.mutation({
       query: ({ schoolId, classLevel, ...body }) => ({
         url: `/school/${schoolId}/classes/${classLevel}/transfer`,
@@ -350,17 +447,14 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-
     shiftClasses: builder.mutation({
       query: ({ schoolId, action }) => ({
         url: `/school/${schoolId}/class-shift`,
         method: "POST",
-        body: { action }, // "upgrade" | "downgrade"
+        body: { action },
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-
-    // UPDATE CLASS
     updateClass: builder.mutation({
       query: ({ schoolId, classId, ...body }) => ({
         url: `/school/${schoolId}/classes/${classId}`,
@@ -369,8 +463,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-
-    // DELETE CLASS
     deleteClass: builder.mutation({
       query: ({ schoolId, classId }) => ({
         url: `/school/${schoolId}/classes/${classId}`,
@@ -378,7 +470,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-    // ADD STUDENT TO CLASS
     addStudentToClass: builder.mutation({
       query: ({ schoolId, classId, studentId }) => ({
         url: `/school/${schoolId}/classes/${classId}/students`,
@@ -387,8 +478,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-
-    // REMOVE STUDENT FROM CLASS
     removeStudentFromClass: builder.mutation({
       query: ({ schoolId, classId, studentId }) => ({
         url: `/school/${schoolId}/classes/${classId}/students/${studentId}`,
@@ -396,7 +485,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-    // ADD TEACHER TO CLASS
     addTeacherToClass: builder.mutation({
       query: ({ schoolId, classId, teacherId }) => ({
         url: `/school/${schoolId}/classes/${classId}/teachers`,
@@ -405,8 +493,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["SCHOOL_CLASSES"],
     }),
-
-    // REMOVE TEACHER FROM CLASS
     removeTeacherFromClass: builder.mutation({
       query: ({ schoolId, classId, teacherId }) => ({
         url: `/school/${schoolId}/classes/${classId}/teachers/${teacherId}`,
@@ -416,7 +502,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
     fetchSchoolDashboard: builder.query({
       queryFn: async (schoolId, _queryApi, _extraOptions, baseQuery) => {
-        // ── 1. Try cache first ───────────────────────────────────────
         try {
           const cached = await AsyncStorage.getItem(
             `${DASHBOARD_CACHE_KEY}_${schoolId}`,
@@ -430,12 +515,9 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           }
         } catch (_) {}
 
-        // ── 2. Fetch fresh ───────────────────────────────────────────
         const result = await baseQuery(`/school/${schoolId}/dashboard`);
-
         if (result.error) return { error: result.error };
 
-        // ── 3. Persist to AsyncStorage ───────────────────────────────
         try {
           await AsyncStorage.setItem(
             `${DASHBOARD_CACHE_KEY}_${schoolId}`,
@@ -445,7 +527,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
 
         return { data: { ...result.data, _fromCache: false } };
       },
-      // RTK cache: keep in memory for 5 mins between re-mounts
       keepUnusedDataFor: 300,
     }),
   }),
@@ -466,12 +547,10 @@ export const schoolSlice = createSlice({
   },
 });
 
-// export const {} = schoolSlice.actions;
 // SELECTORS
 export const selectSchool = (state) => state.school.school;
 export const selectSchoolVerified = (state) => state.school.verified;
 
-//
 export const {
   useCreateSchoolMutation,
   useLazyFetchSchoolQuery,
