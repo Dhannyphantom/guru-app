@@ -8,6 +8,16 @@ const initialState = {
   categories: [],
 };
 
+// ─── Utility: build a query string from a params object ──────────────────────
+// (strips undefined/null/empty-string values)
+const buildQuery = (params = {}) => {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+  return qs ? `?${qs}` : "";
+};
+
 export const extendedUserApiSlice = apiSlice.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
@@ -184,6 +194,67 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       },
       invalidatesTags: ["FETCH_INSTANCE"],
     }),
+    // ------------------------------------------------------------------
+    // Wallet transactions list
+    // ------------------------------------------------------------------
+    fetchWalletTransactions: builder.query({
+      query: (params = {}) => `/transactions/wallet${buildQuery(params)}`,
+      // Cache key includes all filter params so each unique filter set
+      // gets its own cache entry
+      serializeQueryArgs: ({ queryArgs }) => queryArgs,
+      // Merge pages for infinite-scroll (optional — remove if using
+      // standard pagination buttons instead)
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg?.page && arg.page > 1) {
+          currentCache.data.transactions.push(...newItems.data.transactions);
+          currentCache.data.pagination = newItems.data.pagination;
+        } else {
+          return newItems;
+        }
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        JSON.stringify(currentArg) !== JSON.stringify(previousArg),
+      providesTags: ["WalletTransactions"],
+    }),
+
+    // ------------------------------------------------------------------
+    // Single wallet transaction by reference
+    // ------------------------------------------------------------------
+    fetchWalletTransactionByRef: builder.query({
+      query: (reference) => `/transactions/wallet/${reference}`,
+      providesTags: (result, error, reference) => [
+        { type: "WalletTransactions", id: reference },
+      ],
+    }),
+
+    // ------------------------------------------------------------------
+    // Payout requests list
+    // ------------------------------------------------------------------
+    fetchPayoutRequests: builder.query({
+      query: (params = {}) => `/transactions/payouts${buildQuery(params)}`,
+      serializeQueryArgs: ({ queryArgs }) => queryArgs,
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg?.page && arg.page > 1) {
+          currentCache.data.payouts.push(...newItems.data.payouts);
+          currentCache.data.pagination = newItems.data.pagination;
+        } else {
+          return newItems;
+        }
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        JSON.stringify(currentArg) !== JSON.stringify(previousArg),
+      providesTags: ["PayoutRequests"],
+    }),
+
+    // ------------------------------------------------------------------
+    // Single payout request by reference
+    // ------------------------------------------------------------------
+    fetchPayoutByRef: builder.query({
+      query: (reference) => `/transactions/payouts/${reference}`,
+      providesTags: (result, error, reference) => [
+        { type: "PayoutRequests", id: reference },
+      ],
+    }),
   }),
 });
 
@@ -219,6 +290,11 @@ export const {
   useLazyFetchInstanceQuery,
   useLazyFetchSubjTopicsQuery,
   useCreateTopicMutation,
+  //
+  useFetchWalletTransactionsQuery,
+  useFetchWalletTransactionByRefQuery,
+  useFetchPayoutRequestsQuery,
+  useFetchPayoutByRefQuery,
 } = extendedUserApiSlice;
 
 export default instanceSlice.reducer;

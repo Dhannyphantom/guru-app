@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Dimensions,
   RefreshControl,
-  TouchableOpacity,
   Pressable,
   TextInput,
   Modal,
@@ -43,6 +42,7 @@ import {
 import AppText from "../components/AppText";
 import { StatusBar } from "expo-status-bar";
 import LottieAnimator from "../components/LottieAnimator";
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("window");
 
@@ -139,9 +139,9 @@ const AnalyticsScreen = () => {
               </AppText>
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(200).springify()}>
-              <TouchableOpacity style={styles.refreshButton}>
+              <Pressable style={styles.refreshButton}>
                 <Ionicons name="refresh" size={24} color={colors.white} />
-              </TouchableOpacity>
+              </Pressable>
             </Animated.View>
           </View>
         </LinearGradient>
@@ -840,14 +840,13 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
         const ws = WALLET_STYLES[key];
         const active = selected === key;
         return (
-          <TouchableOpacity
+          <Pressable
             key={key}
             onPress={() => onSelect(key)}
             style={[
               tfStyles.pickerChip,
               active && { borderColor: ws.gradient[0], borderWidth: 2 },
             ]}
-            activeOpacity={0.75}
           >
             <LinearGradient
               colors={
@@ -876,7 +875,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
                 </View>
               )}
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>
@@ -911,15 +910,11 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
         {/* Swap */}
         <View style={tfStyles.swapRow}>
           <View style={tfStyles.swapLine} />
-          <TouchableOpacity
-            onPress={handleSwap}
-            activeOpacity={0.7}
-            style={tfStyles.swapBtn}
-          >
+          <Pressable onPress={handleSwap} style={tfStyles.swapBtn}>
             <Animated.View style={arrowStyle}>
               <Ionicons name="swap-vertical" size={20} color={colors.white} />
             </Animated.View>
-          </TouchableOpacity>
+          </Pressable>
           <View style={tfStyles.swapLine} />
         </View>
 
@@ -990,12 +985,11 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
         </View>
 
         {/* CTA */}
-        <TouchableOpacity
+        <Pressable
           onPress={() => {
             Keyboard.dismiss();
             if (canProceed) setStep("confirm");
           }}
-          activeOpacity={canProceed ? 0.8 : 1}
           style={{ marginTop: 8 }}
         >
           <LinearGradient
@@ -1022,7 +1016,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
               color={canProceed ? colors.white : colors.medium}
             />
           </LinearGradient>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -1079,18 +1073,13 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
         ) : null}
 
         <View style={tfStyles.confirmBtnRow}>
-          <TouchableOpacity
-            style={tfStyles.backBtn}
-            onPress={() => setStep("form")}
-            activeOpacity={0.7}
-          >
+          <Pressable style={tfStyles.backBtn} onPress={() => setStep("form")}>
             <AppText style={tfStyles.backBtnLabel}>Edit</AppText>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={{ flex: 1 }}
             onPress={handleConfirm}
-            activeOpacity={0.8}
             disabled={loading}
           >
             <LinearGradient
@@ -1113,7 +1102,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
                 </>
               )}
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </Animated.View>
     );
@@ -1138,11 +1127,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
         <AppText fontWeight="bold">{WALLET_STYLES[fromWallet]?.label}</AppText>{" "}
         to <AppText fontWeight="bold">{WALLET_STYLES[toWallet]?.label}</AppText>
       </AppText>
-      <TouchableOpacity
-        onPress={onClose}
-        activeOpacity={0.8}
-        style={{ width: "100%", marginTop: 24 }}
-      >
+      <Pressable onPress={onClose} style={{ width: "100%", marginTop: 24 }}>
         <LinearGradient
           colors={[...successGradient].reverse()}
           style={tfStyles.ctaBtn}
@@ -1151,7 +1136,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
             Done
           </AppText>
         </LinearGradient>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 
@@ -1175,9 +1160,8 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
         Transfer Failed
       </AppText>
       <AppText style={tfStyles.resultSub}>{errorMsg}</AppText>
-      <TouchableOpacity
+      <Pressable
         onPress={() => setStep("form")}
-        activeOpacity={0.8}
         style={{ width: "100%", marginTop: 24 }}
       >
         <LinearGradient
@@ -1188,7 +1172,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
             Try Again
           </AppText>
         </LinearGradient>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 
@@ -1246,7 +1230,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
                 </AppText>
               </View>
               {step === "form" && (
-                <TouchableOpacity
+                <Pressable
                   onPress={onClose}
                   hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
                 >
@@ -1255,7 +1239,7 @@ const TransferFundsModal = ({ visible, onClose, accounts, onTransfer }) => {
                     size={28}
                     color={colors.lighter}
                   />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
 
@@ -1285,6 +1269,8 @@ const FinancialTab = ({ analytics }) => {
   // FIX: destructure only transferFunds — isLoading/isError are handled
   // inside the modal's own local loading/error state via try/catch
   const [transferFunds] = useTransferFundsMutation();
+
+  const router = useRouter();
 
   if (!analytics) return null;
 
@@ -1322,10 +1308,9 @@ const FinancialTab = ({ analytics }) => {
                 </AppText>
                 <AppText style={styles.heroSub}>Across all wallets</AppText>
               </View>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setModalVisible(true)}
                 style={styles.heroTransferBtn}
-                activeOpacity={0.85}
               >
                 <Ionicons
                   name="swap-horizontal"
@@ -1335,7 +1320,7 @@ const FinancialTab = ({ analytics }) => {
                 <AppText style={styles.heroTransferLabel} fontWeight="bold">
                   Transfer
                 </AppText>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </LinearGradient>
         </View>
@@ -1364,13 +1349,15 @@ const FinancialTab = ({ analytics }) => {
       </Animated.View>
 
       <Animated.View entering={FadeInUp.delay(600).springify()}>
-        <InfoCard
-          title="Total Transactions"
-          value={analytics.transactions?.total}
-          subtitle={`${analytics.transactions?.recent} in last 30 days`}
-          icon="receipt"
-          gradient={[colors.accentDeep, colors.accent]}
-        />
+        <Pressable onPress={() => router.push("/pros/transactions")}>
+          <InfoCard
+            title="Total Transactions"
+            value={analytics.transactions?.total}
+            subtitle={`${analytics.transactions?.recent} in last 30 days`}
+            icon="receipt"
+            gradient={[colors.accentDeep, colors.accent]}
+          />
+        </Pressable>
       </Animated.View>
 
       {/* ── Payouts ──────────────────────────────────────────────── */}
@@ -1485,18 +1472,14 @@ const WalletCard = ({ account, onTransferPress }) => {
             </AppText>
           </View>
           <View style={styles.walletStatDivider} />
-          <TouchableOpacity
-            onPress={onTransferPress}
-            activeOpacity={0.75}
-            style={styles.walletTransferBtn}
-          >
+          <Pressable onPress={onTransferPress} style={styles.walletTransferBtn}>
             <Ionicons
               name="swap-horizontal"
               size={14}
               color="rgba(255,255,255,0.9)"
             />
             <AppText style={styles.walletTransferLabel}>Transfer</AppText>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </LinearGradient>
     </View>

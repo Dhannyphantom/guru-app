@@ -42,6 +42,8 @@ export const apiSlice = createApi({
     "ADMIN_SUPPORT_TICKETS",
     "SCHOOL_CLASSES",
     "MY_QUESTIONS",
+    "WalletTransactions", // ← add these
+    "PayoutRequests",
   ],
   endpoints: (builder) => ({}),
 });
