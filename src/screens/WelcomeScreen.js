@@ -100,7 +100,7 @@ const SLIDES = [
   {
     id: 3,
     title: "Welcome to Guru",
-    body: "Your smart companion for academic excellence.\nCreate your account or sign in to start learning and winning today.",
+    body: "Your smart companion for academic excellence.\nSign up or sign in to start learning and winning today.",
     gradientStart: "#66BB6A",
     primaryImage: null, // Lottie replaces image on last slide
     secondaryImage: null,

@@ -73,7 +73,7 @@ const Main = () => {
   const dispatch = useDispatch();
   const { status, message, forceUpdate, openStore } = useAppUpdate({
     endpoint: `${baseUrl}/admin/app_version`,
-    androidPackageName: "com.phantom.guru",
+    androidPackageName: "com.phantom.guruedutech",
     iosAppId: "6XXXXXXXXX",
     checkOnResume: true,
   });

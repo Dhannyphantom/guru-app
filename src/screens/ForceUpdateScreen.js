@@ -9,6 +9,8 @@ import {
   StatusBar,
 } from "react-native";
 import AppText from "../components/AppText";
+import AppLogo from "../components/AppLogo";
+import colors from "../helpers/colors";
 
 const { width } = Dimensions.get("window");
 
@@ -102,12 +104,13 @@ const UpdateIcon = () => {
         <Animated.View
           style={[styles.iconInner, { transform: [{ translateY: bounce }] }]}
         >
+          <AppLogo hideName transparent size={90} />
           {/* Arrow shaft */}
-          <View style={styles.arrowShaft} />
+          {/* <View style={styles.arrowShaft} /> */}
           {/* Arrow head */}
-          <View style={styles.arrowHead} />
+          {/* <View style={styles.arrowHead} /> */}
           {/* Baseline */}
-          <View style={styles.arrowBase} />
+          {/* <View style={styles.arrowBase} /> */}
         </Animated.View>
       </View>
     </View>
@@ -248,7 +251,8 @@ export default function ForceUpdateScreen({
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
-const ACCENT = "#6ee7b7"; // Mint green
+const ACCENT = colors.primary; // Mint green
+// const ACCENT = "#6ee7b7"; // Mint green
 const ACCENT_DIM = "#34d399";
 const BG = "#0a0a0f";
 const CARD_BG = "#13131a";
@@ -436,7 +440,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   buttonText: {
-    color: "#0a0f0d",
+    color: "#fff",
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: 0.3,
