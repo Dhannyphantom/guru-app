@@ -3,16 +3,12 @@
  * OnboardingScreen.jsx
  * Guru App — Fully animated onboarding with Reanimated 3
  *
- * Each slide has:
- *  - A "primary" image shown on mount
- *  - A "secondary" image that swaps in after IMAGE_SWAP_DELAY ms
- *  - Smooth background color interpolation between slides
- *  - Staggered text/button enter animations
- *  - Dot indicator with animated active pill
- *
- * Dependencies (already in your project):
- *   react-native-reanimated >= 3
- *   @expo/vector-icons (Ionicons)
+ * Animation model:
+ *  - Background: interpolateColor between slides
+ *  - Text (title/body/nav): slide in from right on forward, left on back
+ *  - Primary image: slides in from right/left, slides OUT when user navigates
+ *  - Secondary image: keeps the original springy FadeInUp (unchanged)
+ *  - Last slide image: replaced by <LottieAnimator name="student_hi" />
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -26,12 +22,10 @@ import {
 import Animated, {
   Easing,
   FadeIn,
-  FadeInDown,
   FadeInUp,
-  FadeOut,
   FadeOutDown,
-  FadeOutUp,
   interpolateColor,
+  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -40,15 +34,24 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import AppText from "../components/AppText"; // ← adjust path to your project
+import AppText from "../components/AppText";
+import LottieAnimator from "../components/LottieAnimator"; // ← adjust path
+import AppLogo from "../components/AppLogo";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const { width: W, height: H } = Dimensions.get("window");
-const IMAGE_SWAP_DELAY = 2400; // ms before secondary image swaps in
-const TRANSITION_DURATION = 420;
+const IMAGE_SWAP_DELAY = 2400;
+const TRANSITION_DURATION = 400;
 
-// ─── Color palette ───────────────────────────────────────────────────────────
+// How far things slide off-screen
+const SLIDE_OFFSET = W * 0.55;
+const TEXT_SLIDE_OFFSET = W * 0.6;
+
+// Spring config for slide-ins
+const SPRING_IN = { damping: 18, stiffness: 140, mass: 0.9 };
+
+// ─── Colors ───────────────────────────────────────────────────────────────────
 
 const Colors = {
   primary: "#689F38",
@@ -59,69 +62,56 @@ const Colors = {
   medium: "#707070",
 };
 
-// ─── Slide data ───────────────────────────────────────────────────────────────
-// Replace require() paths with your actual image assets.
-// Each slide has primaryImage + secondaryImage (the swap).
+// ─── Slides ───────────────────────────────────────────────────────────────────
 
 const SLIDES = [
   {
     id: 0,
-    title: "Study Smarter,\nNot Harder",
-    body: "Turn boring study time into fun, interactive quizzes that actually keep you coming back.",
-    gradientStart: "#FFB347",
-    bgColor: "#FFF3E0",
+    title: "Study Smarter, Not Harder",
+    body: "Turn boring study time into fun, interactive quizzes and Start playing your way to better grades.",
+
+    //
+    gradientStart: "#7E57C2",
+    bgColor: "#EDE7F6",
+    accentColor: Colors.accent,
     primaryImage: require("../../assets/images/onboarding/student.png"),
     secondaryImage: require("../../assets/images/onboarding/student_joy.png"),
-    accentColor: Colors.warning,
   },
   {
     id: 1,
-    title: "Learn. Play. \nWin.",
+    title: "Learn. Play. Win.",
     body: "Answer questions, earn points, and climb the leaderboard as you improve every day.",
-    gradientStart: "#66BB6A",
-    bgColor: "#F1F8E9",
+    gradientStart: "#EF5350",
+    bgColor: "#FFEBEE",
+    accentColor: Colors.heart,
     primaryImage: require("../../assets/images/onboarding/question.png"),
     secondaryImage: require("../../assets/images/onboarding/trophy_guy.png"),
-    accentColor: Colors.primary,
   },
   {
     id: 2,
-    title: "Turn Knowledge\nInto Rewards",
+    title: "Turn Knowledge Into Rewards",
     body: "Boost your grades, compete with others, and earn rewards while learning.",
-    gradientStart: "#7E57C2",
-    bgColor: "#EDE7F6",
+    gradientStart: "#FFB347",
+    bgColor: "#FFF3E0",
+    accentColor: Colors.warning,
     primaryImage: require("../../assets/images/onboarding/money.png"),
     secondaryImage: require("../../assets/images/onboarding/expend.png"),
-    accentColor: Colors.accent,
   },
   {
     id: 3,
-    title: "Welcome to\nGuru",
-    body: "Create your account or sign in to start learning, competing, and winning today.",
-    gradientStart: "#EF5350",
-    bgColor: "#FFEBEE",
-    primaryImage: require("../../assets/images/onboarding/online-class.png"),
-    secondaryImage: require("../../assets/images/onboarding/money.png"),
-    accentColor: Colors.heart,
+    title: "Welcome to Guru",
+    body: "Your smart companion for academic excellence.\nCreate your account or sign in to start learning and winning today.",
+    gradientStart: "#66BB6A",
+    primaryImage: null, // Lottie replaces image on last slide
+    secondaryImage: null,
+
+    bgColor: "#F1F8E9",
+    accentColor: Colors.primary,
     isLast: true,
   },
 ];
 
-// ─── Dot indicator ────────────────────────────────────────────────────────────
-
-function Dots({ total, activeIndex, accentColor }) {
-  return (
-    <View style={styles.dotsRow}>
-      {Array.from({ length: total }).map((_, i) => (
-        <AnimatedDot
-          key={i}
-          isActive={i === activeIndex}
-          accentColor={accentColor}
-        />
-      ))}
-    </View>
-  );
-}
+// ─── Animated Dot ─────────────────────────────────────────────────────────────
 
 function AnimatedDot({ isActive, accentColor }) {
   const width = useSharedValue(isActive ? 24 : 8);
@@ -151,12 +141,54 @@ function AnimatedDot({ isActive, accentColor }) {
   );
 }
 
-// ─── Slide image pair (primary → secondary swap) ──────────────────────────────
+function Dots({ total, activeIndex, accentColor }) {
+  return (
+    <View style={styles.dotsRow}>
+      {Array.from({ length: total }).map((_, i) => (
+        <AnimatedDot
+          key={i}
+          isActive={i === activeIndex}
+          accentColor={accentColor}
+        />
+      ))}
+    </View>
+  );
+}
 
-function SlideImages({ slide }) {
+// ─── Slide Images ─────────────────────────────────────────────────────────────
+// - Primary image slides IN from the correct side on mount
+// - When isExiting=true it slides OUT to the opposite side
+// - Secondary image keeps original FadeInUp spring (unchanged)
+// - Last slide renders LottieAnimator instead
+
+function SlideImages({ slide, direction, isExiting, exitDirection }) {
   const [showSecondary, setShowSecondary] = useState(false);
   const swapTimer = useRef(null);
 
+  // Primary image shared values
+  const primaryX = useSharedValue(
+    direction === "back" ? -SLIDE_OFFSET : SLIDE_OFFSET,
+  );
+  const primaryOpacity = useSharedValue(0);
+
+  // Slide primary in on mount
+  useEffect(() => {
+    primaryX.value = withSpring(0, SPRING_IN);
+    primaryOpacity.value = withTiming(1, { duration: 300 });
+  }, []);
+
+  // Slide primary out when parent signals exit
+  useEffect(() => {
+    if (!isExiting) return;
+    const toX = exitDirection === "forward" ? -SLIDE_OFFSET : SLIDE_OFFSET;
+    primaryX.value = withTiming(toX, {
+      duration: 230,
+      easing: Easing.in(Easing.cubic),
+    });
+    primaryOpacity.value = withTiming(0, { duration: 210 });
+  }, [isExiting]);
+
+  // Secondary swap timer (reset on slide.id change)
   useEffect(() => {
     setShowSecondary(false);
     swapTimer.current = setTimeout(
@@ -166,18 +198,34 @@ function SlideImages({ slide }) {
     return () => clearTimeout(swapTimer.current);
   }, [slide.id]);
 
+  const primaryAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: primaryX.value }],
+    opacity: primaryOpacity.value,
+  }));
+
+  // ── Last slide: Lottie ──
+  if (slide.isLast) {
+    return (
+      <View style={styles.imageContainer} pointerEvents="none">
+        <Animated.View style={[styles.slideImage, primaryAnimStyle]}>
+          <LottieAnimator name="student_hi" style={styles.lottie} />
+        </Animated.View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.imageContainer} pointerEvents="none">
+      {/* Primary — slides in/out */}
       {!showSecondary && (
         <Animated.Image
-          key="primary"
           source={slide.primaryImage}
-          style={styles.slideImage}
+          style={[styles.slideImage, primaryAnimStyle]}
           resizeMode="contain"
-          entering={FadeIn.duration(500).easing(Easing.out(Easing.cubic))}
-          exiting={FadeOut.duration(340)}
         />
       )}
+
+      {/* Secondary — original springy FadeInUp, unchanged */}
       {showSecondary && (
         <Animated.Image
           key="secondary"
@@ -195,23 +243,36 @@ function SlideImages({ slide }) {
   );
 }
 
-// ─── Main Onboarding Screen ───────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [direction, setDirection] = useState("forward");
 
+  // Controls whether SlideImages should animate out its primary image
+  const [imageExiting, setImageExiting] = useState(false);
+
+  // Shared values
   const bgProgress = useSharedValue(0);
-  const cardY = useSharedValue(0);
-  const cardOpacity = useSharedValue(1);
+
+  // Text block slide shared values
+  const titleX = useSharedValue(0);
+  const titleOpacity = useSharedValue(1);
+  const bodyX = useSharedValue(0);
+  const bodyOpacity = useSharedValue(1);
+
+  // Nav row: no slide, just a subtle pulse (scale + opacity)
+  const navOpacity = useSharedValue(1);
+  const navScale = useSharedValue(1);
 
   const current = SLIDES[currentIndex];
   const prev = SLIDES[prevIndex];
   const isLast = currentIndex === SLIDES.length - 1;
 
-  // ── Animated background ─────────────────────────────────────────────────
+  // ── Background ──────────────────────────────────────────────────────────
   const bgAnimStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
       bgProgress.value,
@@ -220,7 +281,6 @@ export default function OnboardingScreen() {
     ),
   }));
 
-  // Decorative blobs also shift color with the slide
   const blobAnimStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
       bgProgress.value,
@@ -229,47 +289,95 @@ export default function OnboardingScreen() {
     ),
   }));
 
-  // ── Card animated style ─────────────────────────────────────────────────
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ translateY: cardY.value }],
+  // ── Text animated styles ────────────────────────────────────────────────
+  const titleAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: titleX.value }],
+    opacity: titleOpacity.value,
+  }));
+  const bodyAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: bodyX.value }],
+    opacity: bodyOpacity.value,
+  }));
+  // Nav pulses: briefly dips then bounces back on each slide change
+  const navAnimStyle = useAnimatedStyle(() => ({
+    opacity: navOpacity.value,
+    transform: [{ scale: navScale.value }],
   }));
 
-  // ── Slide transition helper ─────────────────────────────────────────────
+  // ── Transition helper ───────────────────────────────────────────────────
   const doTransition = useCallback(
-    (nextIndex, direction) => {
+    (nextIndex, dir) => {
       if (isTransitioning) return;
       setIsTransitioning(true);
+      setDirection(dir);
 
-      const outY = direction === "forward" ? -18 : 18;
-      cardOpacity.value = withTiming(0, { duration: 220 });
-      cardY.value = withTiming(outY, { duration: 220 });
+      const outX =
+        dir === "forward" ? -TEXT_SLIDE_OFFSET * 0.7 : TEXT_SLIDE_OFFSET * 0.7;
+      const outEasing = Easing.in(Easing.cubic);
+
+      // 1. Slide text out + image out simultaneously
+      titleX.value = withTiming(outX, { duration: 200, easing: outEasing });
+      titleOpacity.value = withTiming(0, { duration: 170 });
+
+      bodyX.value = withTiming(outX, { duration: 215, easing: outEasing });
+      bodyOpacity.value = withTiming(0, { duration: 185 });
+
+      // Nav: subtle dip (scale down + dim) then spring back up
+      navOpacity.value = withTiming(0.5, { duration: 180 });
+      navScale.value = withTiming(0.93, { duration: 180 });
+
+      setImageExiting(true);
 
       setTimeout(() => {
+        // 2. Swap content
         setPrevIndex(currentIndex);
         setCurrentIndex(nextIndex);
+        setImageExiting(false); // new SlideImages mounts with fresh key
 
-        cardY.value = direction === "forward" ? 28 : -28;
-        cardOpacity.value = 0;
-
+        // 3. Background transition
         bgProgress.value = 0;
         bgProgress.value = withTiming(1, {
           duration: TRANSITION_DURATION,
           easing: Easing.out(Easing.cubic),
         });
 
-        cardOpacity.value = withTiming(1, { duration: 360 });
-        cardY.value = withSpring(0, { damping: 16, stiffness: 130 });
+        // 4. Slide new text in from the opposite side (staggered)
+        const inX =
+          dir === "forward"
+            ? TEXT_SLIDE_OFFSET * 0.7
+            : -TEXT_SLIDE_OFFSET * 0.7;
 
-        setTimeout(() => setIsTransitioning(false), 400);
-      }, 230);
+        titleX.value = inX;
+        titleOpacity.value = 0;
+        titleX.value = withSpring(0, SPRING_IN);
+        titleOpacity.value = withTiming(1, { duration: 300 });
+
+        bodyX.value = inX;
+        bodyOpacity.value = 0;
+        setTimeout(() => {
+          bodyX.value = withSpring(0, SPRING_IN);
+          bodyOpacity.value = withTiming(1, { duration: 300 });
+        }, 50);
+
+        // Nav springs back up after the dip
+        navOpacity.value = withSpring(1, { damping: 14, stiffness: 180 });
+        navScale.value = withSpring(1, { damping: 12, stiffness: 200 });
+
+        setTimeout(() => setIsTransitioning(false), 430);
+      }, 240);
     },
     [currentIndex, isTransitioning],
   );
 
   const goNext = useCallback(() => {
     if (isLast) {
-      router.replace("/(auth)/sign-up");
+      router.push({
+        pathname: "/(auth)/register",
+        params: {
+          isSelectAccountType: true,
+        },
+      });
+
       return;
     }
     doTransition(currentIndex + 1, "forward");
@@ -292,49 +400,52 @@ export default function OnboardingScreen() {
       <Animated.View style={[styles.blobTL, blobAnimStyle]} />
       <Animated.View style={[styles.blobBR, blobAnimStyle]} />
 
-      {/* Image area */}
+      {/* Image area — key forces remount so SlideImages resets its own state */}
       <View style={[styles.imageArea, { paddingTop: insets.top + 12 }]}>
-        <SlideImages slide={current} key={currentIndex} />
+        <SlideImages
+          key={currentIndex}
+          slide={current}
+          direction={direction}
+          isExiting={imageExiting}
+          exitDirection={direction}
+        />
       </View>
 
-      {/* Bottom card */}
-      <Animated.View style={[styles.card, cardAnimStyle]}>
-        {/* Title — keyed Animated.View drives enter/exit; AppText handles font */}
-        <Animated.View
-          key={`title-${currentIndex}`}
-          entering={FadeInUp.delay(60).duration(380).springify().damping(14)}
-          exiting={FadeOutUp.duration(200)}
-        >
+      {/* Bottom card — plain View, text blocks handle their own animation */}
+      <View style={styles.card}>
+        {/* Title */}
+        <Animated.View style={titleAnimStyle}>
           <AppText
-            size={26}
+            size={"xxlarge"}
             fontWeight="bold"
-            style={[styles.title, { color: current.accentColor }]}
+            style={{ ...styles.title, color: current.accentColor }}
           >
             {current.title}
           </AppText>
         </Animated.View>
 
-        {/* Body — same pattern */}
-        <Animated.View
-          key={`body-${currentIndex}`}
-          entering={FadeInUp.delay(120).duration(400).springify().damping(14)}
-          exiting={FadeOutUp.duration(200)}
-        >
-          <AppText size={15} fontWeight="regular" style={styles.body}>
+        {/* Body */}
+        <Animated.View style={bodyAnimStyle}>
+          <AppText size={"large"} fontWeight="regular" style={styles.body}>
             {current.body}
           </AppText>
         </Animated.View>
 
-        {/* Dots + navigation */}
         <Animated.View
-          key={`nav-${currentIndex}`}
-          entering={FadeInDown.delay(180).duration(380)}
-          style={styles.navRow}
+          layout={LinearTransition.springify()}
+          style={{ alignItems: "center" }}
         >
-          {/* Back button */}
+          <AppLogo transparent hideName size={W * 0.25} />
+        </Animated.View>
+
+        {/* Navigation row */}
+        <Animated.View
+          layout={LinearTransition.springify()}
+          style={[styles.navRow, navAnimStyle]}
+        >
           {currentIndex > 0 ? (
             <Pressable onPress={goBack} style={styles.backBtn} hitSlop={12}>
-              <Ionicons name="arrow-back" size={20} color={Colors.medium} />
+              <Ionicons name="return-up-back" size={20} color={Colors.medium} />
               <AppText size={14} fontWeight="medium" style={styles.backLabel}>
                 Back
               </AppText>
@@ -349,7 +460,6 @@ export default function OnboardingScreen() {
             accentColor={current.accentColor}
           />
 
-          {/* Next / Get Started button */}
           <Pressable
             onPress={goNext}
             style={({ pressed }) => [
@@ -363,7 +473,7 @@ export default function OnboardingScreen() {
             </AppText>
             {!isLast && (
               <Ionicons
-                name="arrow-forward"
+                name="return-up-forward"
                 size={16}
                 color={Colors.white}
                 style={{ marginLeft: 4 }}
@@ -381,7 +491,7 @@ export default function OnboardingScreen() {
             <AppText size={14} fontWeight="regular" style={styles.signInLabel}>
               Already have an account?{" "}
             </AppText>
-            <Pressable onPress={() => router.replace("/(auth)/sign-in")}>
+            <Pressable onPress={() => router.push("/(auth)/login")}>
               <AppText
                 size={14}
                 fontWeight="semibold"
@@ -392,7 +502,7 @@ export default function OnboardingScreen() {
             </Pressable>
           </Animated.View>
         )}
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 }
@@ -406,8 +516,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF3E0",
   },
-
-  // Decorative blobs
   blobTL: {
     position: "absolute",
     top: -W * 0.28,
@@ -426,12 +534,11 @@ const styles = StyleSheet.create({
     borderRadius: W * 0.3,
     opacity: 0.35,
   },
-
-  // Image area
   imageArea: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden", // clip sliding images at the edges
   },
   imageContainer: {
     width: W * 0.82,
@@ -444,35 +551,33 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-
-  // Bottom card
+  lottie: {
+    width: "100%",
+    height: "100%",
+  },
   card: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
+    borderTopLeftRadius: 50,
+    borderTopRightRadius: 50,
     paddingHorizontal: 28,
     paddingTop: 32,
     paddingBottom: 28,
     minHeight: CARD_HEIGHT,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    elevation: 14,
+    overflow: "hidden", // clip sliding text at the card edges
+    boxShadow: `2px 8px 18px rgba(0, 0, 0, 0.25)`,
   },
-
   title: {
     lineHeight: 36,
     letterSpacing: -0.4,
     marginBottom: 12,
+    textAlign: "center",
   },
   body: {
     lineHeight: 24,
     color: Colors.medium,
-    marginBottom: 28,
+    marginBottom: 10,
+    textAlign: "center",
   },
-
-  // Navigation
   navRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -489,8 +594,6 @@ const styles = StyleSheet.create({
   backPlaceholder: {
     width: 64,
   },
-
-  // Dots
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -500,8 +603,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-
-  // Next button
   nextBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -509,18 +610,12 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderRadius: 50,
     gap: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 6,
+    boxShadow: `2px 4px 10px rgba(0, 0, 0, 0.15)`,
   },
   nextLabel: {
     color: Colors.white,
     letterSpacing: 0.2,
   },
-
-  // Sign in row (last slide)
   signInRow: {
     flexDirection: "row",
     alignItems: "center",
