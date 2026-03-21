@@ -568,6 +568,7 @@ export const {
   useRemoveTeacherFromClassMutation,
   useCreateAssignmentMutation,
   useLazyFetchClassesQuery,
+  useFetchClassesQuery,
   useCreateAnnouncementMutation,
   useShiftClassesMutation,
   useCreateSchoolQuizMutation,

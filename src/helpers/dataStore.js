@@ -468,30 +468,6 @@ export const schoolActions = [
   },
 ];
 
-export const otherClasses = [
-  {
-    _id: nanoid(),
-    name: "The Conquerors (SS3)",
-  },
-  {
-    _id: nanoid(),
-    name: "The Eccentrics (SS1)",
-  },
-  {
-    _id: nanoid(),
-    name: "The Overcomers (JSS3)",
-  },
-
-  {
-    _id: nanoid(),
-    name: "The Achievers (JSS2)",
-  },
-  {
-    _id: nanoid(),
-    name: "The Titans (JSS1)",
-  },
-];
-
 export const rewards = [
   {
     _id: nanoid(),
