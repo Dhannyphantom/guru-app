@@ -94,7 +94,7 @@ const SLIDES = [
     gradientStart: "#FFB347",
     bgColor: "#FFF3E0",
     accentColor: Colors.warning,
-    primaryImage: require("../../assets/images/onboarding/money.png"),
+    primaryImage: require("../../assets/images/onboarding/online-class.png"),
     secondaryImage: require("../../assets/images/onboarding/expend.png"),
   },
   {
@@ -433,7 +433,7 @@ export default function OnboardingScreen() {
 
         <Animated.View
           layout={LinearTransition.springify()}
-          style={{ alignItems: "center" }}
+          style={[{ alignItems: "center" }, navAnimStyle]}
         >
           <AppLogo transparent hideName size={W * 0.25} />
         </Animated.View>
