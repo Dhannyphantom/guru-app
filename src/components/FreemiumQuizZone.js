@@ -319,6 +319,10 @@ const FreemiumQuizZone = ({ setVisible }) => {
     if (next) setQuizInfo((p) => ({ ...p, ...next }));
   };
 
+  const onLoaded = (qBank) => {
+    setQuizInfo((p) => ({ ...p, view: "start", qBank }));
+  };
+
   const handleNext = async () => {
     if (isIntro) {
       setQuizInfo((p) => ({ ...p, view: "category", bar: 2 }));
@@ -346,13 +350,12 @@ const FreemiumQuizZone = ({ setVisible }) => {
         topicId: quizInfo.topic._id,
       }).unwrap();
 
-      console.log({ res });
-
       const qBank = res?.data ?? [];
 
       // Drive progress bar to 100%, then switch to the question view.
+
       animProgress.value = withTiming(1, { duration: 600 }, () => {
-        runOnJS(goToStart)(qBank, setQuizInfo);
+        runOnJS(onLoaded)(qBank);
       });
     } catch (err) {
       console.log({ err });
