@@ -26,6 +26,8 @@ const LEADERBOARD_CACHE_TTL = 1000 * 60 * 10; // 10 minutes
 const leaderboardCacheKey = (namespace, id = "") =>
   `${LEADERBOARD_CACHE_KEY}_${namespace}${id ? `_${id}` : ""}`;
 
+const SCHOOLS_LB_CACHE_KEY = leaderboardCacheKey("schools_global");
+
 /**
  * Generic queryFn that:
  *  1. Returns the AsyncStorage cache immediately when offset === 0
@@ -133,6 +135,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["FETCH_ASSIGNMENTS"],
     }),
+
     fetchAssignmentHistory: builder.query({
       query: (params) => ({
         url: "/school/assignment/history",
@@ -195,6 +198,45 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       forceRefetch: ({ currentArg, previousArg }) =>
         currentArg?.offset !== previousArg?.offset,
       providesTags: ["SCHOOL_LEADERBOARD"],
+    }),
+
+    fetchSchoolsLeaderboard: builder.query({
+      queryFn: makeLeaderboardQueryFn(
+        ({ limit = 25, offset = 0, sortBy = "totalPoints" } = {}) => ({
+          url: `/school/leaderboard_schools?limit=${limit}&offset=${offset}&sortBy=${sortBy}`,
+          timeout: 15000,
+        }),
+        SCHOOLS_LB_CACHE_KEY,
+      ),
+
+      // One stable cache entry — RTK merges pages into it via `merge`
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        // Include sortBy so switching sort busts the cache cleanly
+        `${endpointName}-${queryArgs?.sortBy ?? "totalPoints"}`,
+
+      merge: (currentCache, newItems, { arg }) => {
+        if ((arg?.offset ?? 0) === 0) {
+          // First page (or refresh / sort change) → replace everything
+          return newItems;
+        }
+        // Subsequent pages → append school entries
+        return {
+          ...newItems,
+          data: {
+            ...newItems.data,
+            leaderboard: [
+              ...(currentCache?.data?.leaderboard ?? []),
+              ...(newItems?.data?.leaderboard ?? []),
+            ],
+          },
+        };
+      },
+
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset ||
+        currentArg?.sortBy !== previousArg?.sortBy,
+
+      providesTags: ["SCHOOLS_LEADERBOARD"],
     }),
 
     // ─────────────────────────────────────────────────────────────────
@@ -582,6 +624,7 @@ export const {
   useDeleteAssignmentMutation,
   useUpdateAssignmentMutation,
   useUpdateAssignmentStatusMutation,
+  useFetchSchoolsLeaderboardQuery,
   usePublishAssignmentMutation,
   useFetchAssignmentHistoryQuery,
   useUpdateSchoolQuizMutation,

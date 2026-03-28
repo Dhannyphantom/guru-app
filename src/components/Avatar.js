@@ -341,6 +341,7 @@ const Avatar = ({
   imagePicker,
   imagePickerError,
   maxWidth,
+  numberOfLines = 2,
   border,
   disabled,
   textFontweight = "bold",
@@ -476,7 +477,7 @@ const Avatar = ({
         <AppText
           size={textFontsize}
           fontWeight={textFontweight}
-          numberOfLines={2}
+          numberOfLines={numberOfLines}
           ellipsizeMode="tail"
           style={{
             ...styles.name,

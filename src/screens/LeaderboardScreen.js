@@ -1,4 +1,11 @@
-import { Dimensions, FlatList, Image, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import React, { useState, useCallback, useMemo, useRef } from "react";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams } from "expo-router";
@@ -18,10 +25,119 @@ import {
 } from "../context/usersSlice";
 import LottieAnimator from "../components/LottieAnimator";
 import { nanoid } from "@reduxjs/toolkit";
-import { useFetchSchoolLeaderboardQuery } from "../context/schoolSlice";
+import {
+  useFetchSchoolLeaderboardQuery,
+  useFetchSchoolsLeaderboardQuery,
+} from "../context/schoolSlice";
 
 const { width, height } = Dimensions.get("screen");
 const LIMIT = 25;
+
+// ─── Filter modes (only relevant when shouldFetchGlobal is true) ─────────────
+const FILTER_STUDENTS = "students";
+const FILTER_SCHOOLS = "schools";
+
+// ─── School leaderboard item ─────────────────────────────────────────────────
+export const SchoolLeaderboardItem = ({ item, index }) => {
+  if (index < 3) return null;
+
+  const pointText = formatPoints(item.totalPoints ?? 0);
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.light,
+        paddingLeft: 10,
+        borderTopStartRadius: index === 3 ? 10 : 0,
+        borderTopEndRadius: index === 3 ? 10 : 0,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          padding: 12,
+          paddingVertical: 18,
+        }}
+      >
+        <AppText fontWeight="black" size="xxlarge">
+          {item.rank ?? index + 1}
+        </AppText>
+        {/* School avatar — fall back to the rep's avatar, then initials */}
+        <Avatar
+          style={{ marginLeft: 15 }}
+          size={50}
+          source={item?.repAvatar?.image ?? item?.avatar?.image}
+          contStyle={{ flex: 1 }}
+          textStyle={{
+            flex: 1,
+            marginLeft: 15,
+            maxWidth: null,
+            textAlign: "flex-start",
+          }}
+          name={item.name ?? "School"}
+          horizontal
+        />
+        <View style={{ flex: 1, alignItems: "flex-end" }}>
+          <AppText fontWeight="heavy" size="large">
+            {pointText}
+          </AppText>
+          <AppText size="xsmall" style={{ color: colors.grey, marginTop: 2 }}>
+            {item.studentCount ?? 0} students
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.separator} />
+    </View>
+  );
+};
+
+// ─── Top-3 champions (reused for both students and schools) ──────────────────
+const LeaderboardChampion = ({
+  name,
+  userID,
+  avatar,
+  award,
+  loading,
+  numberOfLines,
+  isPro,
+  isSchools,
+  points,
+  hideSuffix,
+}) => {
+  return (
+    <View
+      style={{
+        alignSelf: "center",
+        alignItems: "center",
+        marginHorizontal: isSchools ? -5 : 10,
+      }}
+    >
+      <Avatar
+        name={name ?? `#${award}`}
+        award={award}
+        userID={userID}
+        source={avatar}
+        numberOfLines={numberOfLines}
+        size={width * 0.2}
+        textStyle={{
+          marginTop: 18,
+          marginBottom: 6,
+          width: "100%",
+          color: colors.white,
+        }}
+        textFontsize="medium"
+      />
+      <Points
+        value={points ?? 0}
+        hideSuffix={hideSuffix ?? isPro}
+        fontSize="xsmall"
+        style={{ backgroundColor: colors.unchange }}
+      />
+      <LottieAnimator visible={loading} wTransparent absolute size={80} />
+    </View>
+  );
+};
 
 export const LeaderboardItem = ({ item, isPro, index }) => {
   if (index < 3) return null;
@@ -78,44 +194,7 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
   );
 };
 
-const LeaderboardChampion = ({
-  name,
-  userID,
-  avatar,
-  award,
-  loading,
-  isPro,
-  points,
-}) => {
-  return (
-    <View
-      style={{
-        alignSelf: "center",
-        alignItems: "center",
-        marginHorizontal: 10,
-      }}
-    >
-      <Avatar
-        name={name ?? `User ${award}`}
-        award={award}
-        userID={userID}
-        source={avatar}
-        size={width * 0.2}
-        textStyle={{ marginTop: 18, marginBottom: 6, color: colors.white }}
-        textFontsize="medium"
-      />
-      <Points
-        value={points ?? 0}
-        hideSuffix={isPro}
-        fontSize="xsmall"
-        style={{ backgroundColor: colors.unchange }}
-      />
-      <LottieAnimator visible={loading} wTransparent absolute size={80} />
-    </View>
-  );
-};
-
-export const LeaderboardWinners = ({ data, isPro }) => {
+export const LeaderboardWinners = ({ data, isPro, isSchools }) => {
   const formattedData = [
     { ...data[2], isEmpty: Boolean(data[2]), award: 3 },
     { ...data[0], isEmpty: Boolean(data[0]), award: 1 },
@@ -124,6 +203,22 @@ export const LeaderboardWinners = ({ data, isPro }) => {
 
   const renderChamps = ({ item }) => {
     if (!item?.isEmpty) return <View style={{ width: width * 0.2 }} />;
+
+    if (isSchools) {
+      return (
+        <LeaderboardChampion
+          name={`${item.name}, ${item?.lga}`}
+          award={item.award}
+          avatar={item?.repAvatar?.image ?? item?.avatar?.image}
+          hideSuffix={false}
+          isSchools={isSchools}
+          numberOfLines={2}
+          points={item.totalPoints ?? 0}
+          loading={false}
+        />
+      );
+    }
+
     return (
       <LeaderboardChampion
         name={getFullName(item)}
@@ -175,21 +270,56 @@ export const LeaderboardWinners = ({ data, isPro }) => {
   );
 };
 
+// ─── Filter toggle pill (Students | Schools) ─────────────────────────────────
+const FilterToggle = ({ active, onChange, backgroundColor }) => {
+  const activeBg = colors.white;
+  const activeText = backgroundColor; // contrast with header
+
+  return (
+    <View
+      style={[styles.filterWrap, { borderColor: "rgba(255,255,255,0.35)" }]}
+    >
+      {[FILTER_STUDENTS, FILTER_SCHOOLS].map((mode) => {
+        const isActive = active === mode;
+        return (
+          <Pressable
+            key={mode}
+            onPress={() => onChange(mode)}
+            style={[
+              styles.filterPill,
+              isActive && { backgroundColor: activeBg },
+            ]}
+          >
+            <AppText
+              fontWeight={isActive ? "heavy" : "medium"}
+              size="small"
+              style={{ color: isActive ? activeText : colors.white }}
+            >
+              {mode === FILTER_STUDENTS ? "Students" : "Schools"}
+            </AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
 const LeaderboardScreen = () => {
   const user = useSelector(selectUser);
   const route = useLocalSearchParams();
   const routeData = Boolean(route?.data) ? JSON.parse(route?.data) : {};
 
-  // ─── Pagination: use a ref so RTK's forceRefetch fires without
-  //     re-rendering the whole component on each page load ────────────
+  // ─── Filter state (Students vs Schools) — only when shouldFetchGlobal ──
+  const [filterMode, setFilterMode] = useState(FILTER_STUDENTS);
+  const isSchoolsMode = filterMode === FILTER_SCHOOLS;
+
+  // ─── Pagination ──────────────────────────────────────────────────────────
   const offsetRef = useRef(0);
-  const [offset, setOffset] = useState(0); // drives the actual query arg
+  const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  // Guard against onEndReached firing multiple times before the next
-  // batch arrives (common with fast scrollers).
   const isLoadingMore = useRef(false);
 
-  // ─── Account-type routing ────────────────────────────────────────
+  // ─── Account-type routing ────────────────────────────────────────────────
   const isPro =
     user?.accountType === "professional" || user?.accountType === "manager";
   const isStudent = user?.accountType === "student";
@@ -200,7 +330,11 @@ const LeaderboardScreen = () => {
   const shouldFetchSchool = (isStudent || isTeacher) && isSchoolView;
   const shouldFetchGlobal = (isStudent || isTeacher) && !isSchoolView;
 
-  // ─── Queries ─────────────────────────────────────────────────────
+  // Only fetch schools leaderboard when the toggle is active
+  const shouldFetchSchoolsLB = shouldFetchGlobal && isSchoolsMode;
+  const shouldFetchStudentsLB = shouldFetchGlobal && !isSchoolsMode;
+
+  // ─── Queries ─────────────────────────────────────────────────────────────
   const {
     data: proData,
     isLoading: proLoading,
@@ -224,54 +358,82 @@ const LeaderboardScreen = () => {
   const {
     data: globalData,
     isLoading: globalLoading,
-    error: globalError,
     isFetching: globalFetching,
     refetch: globalRefetch,
   } = useFetchGlobalLeaderboardQuery(
     { limit: LIMIT, offset },
-    { skip: !shouldFetchGlobal },
+    { skip: !shouldFetchStudentsLB },
   );
 
-  // ─── Active data / helpers ────────────────────────────────────────
+  const {
+    data: schoolsLBData,
+    isLoading: schoolsLBLoading,
+    isFetching: schoolsLBFetching,
+    refetch: schoolsLBRefetch,
+  } = useFetchSchoolsLeaderboardQuery(
+    { limit: LIMIT, offset },
+    { skip: !shouldFetchSchoolsLB },
+  );
+
+  // ─── Active data / helpers ───────────────────────────────────────────────
   const activeData = useMemo(() => {
     if (shouldFetchPro) return proData;
     if (shouldFetchSchool) return schoolData;
-    if (shouldFetchGlobal) return globalData;
+    if (shouldFetchSchoolsLB) return schoolsLBData;
+    if (shouldFetchStudentsLB) return globalData;
     return null;
   }, [
     shouldFetchPro,
     shouldFetchSchool,
-    shouldFetchGlobal,
+    shouldFetchSchoolsLB,
+    shouldFetchStudentsLB,
     proData,
     schoolData,
     globalData,
+    schoolsLBData,
   ]);
 
-  const isLoading = proLoading || schoolLoading || globalLoading;
-  const isFetching = proFetching || schoolFetching || globalFetching;
+  const isLoading =
+    proLoading || schoolLoading || globalLoading || schoolsLBLoading;
+  const isFetching =
+    proFetching || schoolFetching || globalFetching || schoolsLBFetching;
 
   const refetch = useMemo(() => {
     if (shouldFetchPro) return proRefetch;
     if (shouldFetchSchool) return schoolRefetch;
-    if (shouldFetchGlobal) return globalRefetch;
+    if (shouldFetchSchoolsLB) return schoolsLBRefetch;
+    if (shouldFetchStudentsLB) return globalRefetch;
     return () => {};
   }, [
     shouldFetchPro,
     shouldFetchSchool,
-    shouldFetchGlobal,
+    shouldFetchSchoolsLB,
+    shouldFetchStudentsLB,
     proRefetch,
     schoolRefetch,
     globalRefetch,
+    schoolsLBRefetch,
   ]);
 
   const boardData = activeData?.data;
   const leaderboardArr = boardData?.leaderboard ?? [];
-  // Show a banner when the list is being served from AsyncStorage cache
-  // const isFromCache = Boolean(activeData?._fromCache);
 
-  // ─── Load more ───────────────────────────────────────────────────
+  // ─── Handle filter switch — reset pagination ─────────────────────────────
+  const handleFilterChange = useCallback(
+    (mode) => {
+      if (mode === filterMode) return;
+      // Reset pagination so the new list starts at page 0
+      offsetRef.current = 0;
+      setOffset(0);
+      setHasMore(true);
+      isLoadingMore.current = false;
+      setFilterMode(mode);
+    },
+    [filterMode],
+  );
+
+  // ─── Load more ───────────────────────────────────────────────────────────
   const handleLoadMore = useCallback(() => {
-    // Bail if: already fetching, no more pages, or a load-more is in flight
     if (isFetching || !hasMore || isLoadingMore.current) return;
 
     const pagination = boardData?.pagination;
@@ -283,20 +445,17 @@ const LeaderboardScreen = () => {
     isLoadingMore.current = true;
     const nextOffset = offsetRef.current + LIMIT;
     offsetRef.current = nextOffset;
-    setOffset(nextOffset); // triggers the query with the new offset
+    setOffset(nextOffset);
   }, [isFetching, hasMore, boardData]);
 
-  // Reset the in-flight guard once RTK stops fetching
-  // (runs after every render where isFetching changes)
   if (!isFetching && isLoadingMore.current) {
     isLoadingMore.current = false;
   }
 
-  // ─── Pull-to-refresh ─────────────────────────────────────────────
+  // ─── Pull-to-refresh ─────────────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Reset pagination back to page 1
     offsetRef.current = 0;
     setOffset(0);
     setHasMore(true);
@@ -310,9 +469,8 @@ const LeaderboardScreen = () => {
     }
   }, [refetch]);
 
-  // ─── Footer ───────────────────────────────────────────────────────
+  // ─── Footer ──────────────────────────────────────────────────────────────
   const ListFooter = useCallback(() => {
-    // Show spinner while fetching additional pages (not on initial load / refresh)
     if (isFetching && !refreshing && offset > 0) {
       return (
         <View style={styles.footerLoader}>
@@ -328,7 +486,7 @@ const LeaderboardScreen = () => {
     );
   }, [isFetching, refreshing, offset, leaderboardArr.length]);
 
-  // ─── Misc ─────────────────────────────────────────────────────────
+  // ─── Misc ─────────────────────────────────────────────────────────────────
   const backgroundColor = useMemo(() => {
     if (isPro) return colors.greenDark;
     if (isSchoolView) return colors.primary;
@@ -349,8 +507,15 @@ const LeaderboardScreen = () => {
   const title = useMemo(() => {
     if (isSchoolView) return boardData?.school?.name || "My School Leaderboard";
     if (isPro) return "Pro Leaderboard";
+    if (isSchoolsMode) return "Schools Leaderboard";
     return "Leaderboard";
-  }, [isSchoolView, isPro, boardData?.school?.name]);
+  }, [isSchoolView, isPro, isSchoolsMode, boardData?.school?.name]);
+
+  // Rank shown in header: for schools mode show the user's school rank
+  const headerRank = useMemo(() => {
+    if (isSchoolsMode) return boardData?.currentUser?.rank ?? 0;
+    return boardData?.currentUser?.rank ?? 0;
+  }, [isSchoolsMode, boardData]);
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -358,20 +523,14 @@ const LeaderboardScreen = () => {
         title={title}
         Component={() => (
           <View style={styles.mine}>
-            {/* Subtle "cached" badge so users know they're offline */}
-            {/* {isFromCache && (
-              <AppText size="xsmall" style={styles.cacheBadge}>
-                📶 Cached
-              </AppText>
-            )} */}
             <AppText
               fontWeight="black"
               size={"xxlarge"}
               style={styles.mineText}
             >
-              {boardData?.currentUser?.rank ?? 0}
+              {headerRank}
               <AppText style={styles.mineText} fontWeight="black">
-                {getRankSuffix(boardData?.currentUser?.rank)}
+                {getRankSuffix(headerRank)}
               </AppText>
             </AppText>
           </View>
@@ -380,24 +539,40 @@ const LeaderboardScreen = () => {
         titleColor="#fff"
       />
 
+      {/* Filter toggle — only shown for global (student/teacher non-school) view */}
+      {shouldFetchGlobal && (
+        <View style={styles.filterContainer}>
+          <FilterToggle
+            active={filterMode}
+            onChange={handleFilterChange}
+            backgroundColor={backgroundColor}
+          />
+        </View>
+      )}
+
       <FlatList
         data={leaderboardArr}
-        keyExtractor={(item) => item._id ?? nanoid()}
+        keyExtractor={(item) => item._id?.toString() ?? nanoid()}
         refreshing={refreshing}
         onRefresh={onRefresh}
         showsVerticalScrollIndicator={false}
-        // ── Infinite scroll ──────────────────────────────────────
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        // ── Sections ─────────────────────────────────────────────
         ListHeaderComponent={() => (
-          <LeaderboardWinners isPro={isPro} data={leaderboardArr.slice(0, 3)} />
+          <LeaderboardWinners
+            isPro={isPro}
+            isSchools={isSchoolsMode}
+            data={leaderboardArr.slice(0, 3)}
+          />
         )}
         ListFooterComponent={ListFooter}
-        renderItem={({ item, index }) => (
-          <LeaderboardItem item={item} isPro={isPro} index={index} />
-        )}
-        // ── Performance ───────────────────────────────────────────
+        renderItem={({ item, index }) =>
+          isSchoolsMode ? (
+            <SchoolLeaderboardItem item={item} index={index} />
+          ) : (
+            <LeaderboardItem item={item} isPro={isPro} index={index} />
+          )
+        }
         removeClippedSubviews
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
@@ -407,7 +582,6 @@ const LeaderboardScreen = () => {
 
       <StatusBar style="light" />
 
-      {/* Full-screen loader only on first page load */}
       <LottieAnimator
         visible={isLoading && offset === 0}
         absolute
@@ -454,15 +628,28 @@ const styles = StyleSheet.create({
   mineText: {
     color: colors.white,
   },
-  cacheBadge: {
-    color: colors.white,
-    opacity: 0.7,
-    marginBottom: 2,
-  },
   separator: {
     width: "95%",
     backgroundColor: colors.lightly,
     height: 2,
     alignSelf: "center",
+  },
+  filterContainer: {
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  filterWrap: {
+    flexDirection: "row",
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: 3,
+    bottom: 10,
+  },
+  filterPill: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
 });
