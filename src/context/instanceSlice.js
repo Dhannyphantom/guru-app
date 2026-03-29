@@ -183,9 +183,28 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
     }),
     updateInstance: builder.mutation({
       query: (data) => {
-        const formData = data?.media
-          ? getFormData(data, data?.bucket, false)
-          : data;
+        const isMedia = data?.media;
+
+        let formData = data;
+        if (isMedia) {
+          formData = new FormData();
+          formData.append(
+            "data",
+            JSON.stringify({
+              ...data,
+              media: true,
+              bucket: data?.bucket,
+            }),
+          );
+          formData.append("file", {
+            uri: data?.image.uri,
+            name: data?.image.fileName,
+            type: data?.image.mimeType,
+          });
+        }
+
+        // ? getFormData(data, data?.bucket, false)
+        // : data;
         return {
           url: `/instance/${data?.route}`,
           method: "PUT",

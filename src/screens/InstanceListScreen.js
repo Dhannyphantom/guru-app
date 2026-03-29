@@ -432,7 +432,12 @@ const InstanceListScreen = () => {
         onEndReachedThreshold={0.4}
         renderItem={({ item, index }) =>
           RenderComponent && (
-            <RenderComponent data={item} extra={form?.subject} index={index} />
+            <RenderComponent
+              data={item}
+              nav="/pros/create"
+              extra={form?.subject}
+              index={index}
+            />
           )
         }
       />

@@ -19,7 +19,6 @@ import { createSubjInitials, createSubjSchema } from "../helpers/yupSchemas";
 import {
   useCreateSubjectMutation,
   useFetchCategoriesQuery,
-  useLazyFetchCategoriesQuery,
   useUpdateInstanceMutation,
 } from "../context/instanceSlice";
 import LottieAnimator from "./LottieAnimator";
@@ -27,7 +26,7 @@ import PromptModal from "./PromptModal";
 import WebLayout from "./WebLayout";
 import { useRouter } from "expo-router";
 
-const { width, height } = Dimensions.get("screen");
+// const { width, height } = Dimensions.get("screen");
 
 const NewSubjects = ({ addInstanceActions, type, data }) => {
   const [instances, setInstances] = useState({ 0: createSubjInitials });
@@ -95,14 +94,15 @@ const NewSubjects = ({ addInstanceActions, type, data }) => {
             data?.image?.uri != formValues?.image?.uri && !formValues?.delete,
           bucket: "subjects",
         }).unwrap();
+        console.log({ res });
         setPopper({
           vis: true,
           msg: "Subject updated successfully ",
           type: "success",
           timer: 2000,
-          cb: () => {
-            router.back();
-          },
+          // cb: () => {
+          //   router.back();
+          // },
         });
       } catch (err) {
         console.log(err);
@@ -121,9 +121,9 @@ const NewSubjects = ({ addInstanceActions, type, data }) => {
           msg: "Subjects created successfully",
           type: "success",
           timer: 2000,
-          cb: () => {
-            router.back();
-          },
+          // cb: () => {
+          //   router.back();
+          // },
         });
       } catch (err) {
         console.log(err);
@@ -272,7 +272,7 @@ const NewSubjects = ({ addInstanceActions, type, data }) => {
       </Formik>
 
       <PopMessage popData={popper} setPopData={setPopper} />
-      <LottieAnimator visible={isLoading} absolute wTransparent />
+      <LottieAnimator visible={isLoading || updating} absolute wTransparent />
       <PromptModal
         prompt={prompt}
         onPress={handlePrompt}

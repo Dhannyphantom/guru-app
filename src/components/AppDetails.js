@@ -218,7 +218,7 @@ export const SubjectItem = ({ data, loading, isEdit }) => {
   const handleNav = () => {
     if (isEdit) {
       router.push({
-        pathname: "/create",
+        pathname: "/pros/create",
         params: { name: "subjects", type: "edit", data: JSON.stringify(data) },
       });
     } else {
