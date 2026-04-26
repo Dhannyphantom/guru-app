@@ -76,6 +76,7 @@ const ClassMates = ({ data = [] }) => {
       <Avatar
         source={item?.user?.avatar?.image}
         data={item}
+        userID={item?.user?._id}
         border={{ width: 2, color: colors.lightly }}
         name={`${item?.user?.firstName} ${item?.user?.lastName}`}
         textStyle={{ textTransform: "capitalize" }}

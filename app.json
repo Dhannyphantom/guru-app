@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.phantom.guruedutech",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +24,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.READ_CONTACTS"],
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ],
       "googleServicesFile": "./google-services.json",
       "package": "com.phantom.guruedutech"
     },
@@ -52,7 +59,9 @@
           "icon": "./assets/images/notifications.png",
           "color": "#689F38",
           "defaultChannel": "default",
-          "sounds": ["./assets/sounds/alert_notification.wav"],
+          "sounds": [
+            "./assets/sounds/alert_notification.wav"
+          ],
           "enableBackgroundRemoteNotifications": true
         }
       ],

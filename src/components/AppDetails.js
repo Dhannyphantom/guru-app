@@ -392,6 +392,7 @@ export const Authors = ({ data = [] }) => {
         <Avatar
           size={width * 0.3}
           source={user?.avatar?.image}
+          userID={user?._id}
           data={item}
           border={{ width: 4, color: colors.lightly }}
           name={`${user.preffix} ${user.firstName} ${user.lastName}`}

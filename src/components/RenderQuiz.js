@@ -387,7 +387,9 @@ const RenderQuiz = ({ setVisible }) => {
       ) : isStart ? (
         <Screen>
           <QuestionDisplay
-            handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
+            handleQuit={() =>
+              setPrompt({ vis: true, penalize: true, data: QUIT_PROMPT })
+            }
             setQuizInfoView={(val) => setQuizInfo({ ...quizInfo, view: val })}
             hardReset={() => setQuizInfo(initials)}
             setQuizSession={setSession}
