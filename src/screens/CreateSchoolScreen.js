@@ -62,11 +62,12 @@ const CreationModal = ({ hideModal, data }) => {
           school profile has successfully been created
         </AppText>
         <AppText fontWeight="bold" style={styles.createdTxt}>
-          Subscribe now to give your students and teachers access to Guru
+          Congratulations! Your school account is now active with a
+          complimentary 3-month premium subscription.
         </AppText>
 
         <View>
-          <AppButton
+          {/* <AppButton
             title={"Subscribe Now"}
             onPress={() => {
               hideModal?.();
@@ -78,8 +79,12 @@ const CreationModal = ({ hideModal, data }) => {
                 },
               });
             }}
+          /> */}
+          <AppButton
+            title={"Start Your Premium Experience"}
+            type="accent"
+            onPress={hideModal}
           />
-          <AppButton title={"Maybe Later"} type="accent" onPress={hideModal} />
         </View>
       </Animated.View>
     </>

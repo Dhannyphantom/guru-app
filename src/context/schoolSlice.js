@@ -435,6 +435,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: data,
         };
       },
+      invalidatesTags: ["SCHOOL"],
     }),
     verifySchoolInstance: builder.mutation({
       query: (data) => {
@@ -453,6 +454,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
           body: { schoolId },
         };
       },
+      inavalidatesTags: ["SCHOOL"],
     }),
     createClassx: builder.mutation({
       query: (data) => {

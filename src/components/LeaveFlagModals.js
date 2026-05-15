@@ -414,6 +414,7 @@ export const FlagStudentModal = ({ visible, onClose, school, targetUser }) => {
       setTimeout(handleClose, 2000);
     } catch (err) {
       setError(err?.data?.message ?? "Could not submit report. Try again.");
+      console.log(err);
     }
   };
 

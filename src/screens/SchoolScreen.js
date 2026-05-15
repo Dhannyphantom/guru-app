@@ -71,7 +71,7 @@ const TOUR_KEY_PROFILE_TEACHER = "guru_school_profile_teacher_tour_seen";
 // ─────────────────────────────────────────────────────────────────────────────
 // ClassMates
 // ─────────────────────────────────────────────────────────────────────────────
-const ClassMates = ({ data = [], onFlagStudent }) => {
+const ClassMates = ({ data = [], setLeaveModalVis, onFlagStudent }) => {
   const user = useSelector(selectUser);
   const isTeacher = user?.accountType === "teacher";
 
@@ -125,6 +125,21 @@ const ClassMates = ({ data = [], onFlagStudent }) => {
               color={colors.medium}
             />
           </AnimatedPressable>
+        )}
+        {user?.accountType === "student" && (
+          <Pressable
+            onPress={() => setLeaveModalVis(true)}
+            style={styles.leaveBtn2}
+          >
+            <Ionicons name="exit-outline" size={18} color={colors.heart} />
+            <AppText
+              fontWeight="bold"
+              size="medium"
+              style={{ color: colors.heart, marginLeft: 8 }}
+            >
+              Leave School
+            </AppText>
+          </Pressable>
         )}
       </View>
       <View style={styles.classmatesSection}>
@@ -670,6 +685,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
                 {/* Pass onFlagStudent to the updated ClassMates */}
                 <ClassMates
                   data={data?.students}
+                  setLeaveModalVis={setLeaveModalVis}
                   onFlagStudent={handleFlagStudent}
                 />
               </WalkthroughableView>
@@ -916,6 +932,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 30,
     borderWidth: 1.5,
+    borderColor: colors.heart + "50",
+    backgroundColor: colors.heart + "0A",
+  },
+  leaveBtn2: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    marginRight: 10,
     borderColor: colors.heart + "50",
     backgroundColor: colors.heart + "0A",
   },
