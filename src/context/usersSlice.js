@@ -361,6 +361,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         method: "PUT",
         body: user,
       }),
+      invalidatesTags: ["USER", "SCHOOL"],
     }),
     updateReward: builder.mutation({
       query: (data) => ({

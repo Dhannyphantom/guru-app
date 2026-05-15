@@ -275,6 +275,7 @@ export const getImageObj = (source) => {
 export const hasCompletedProfile = (user) => {
   if (
     !user?.email ||
+    !user?.emailVerified ||
     !user?.address ||
     (user?.accountType === "student" && !user?.class?.level) ||
     !user?.birthday ||
