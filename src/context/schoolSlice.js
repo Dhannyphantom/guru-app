@@ -571,6 +571,22 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       },
       keepUnusedDataFor: 300,
     }),
+    leaveSchool: builder.mutation({
+      query: (data) => ({
+        url: "/school/leave",
+        method: "POST",
+        body: data, // { schoolId, nextSchoolId? }
+      }),
+      invalidatesTags: ["SCHOOL", "SCHOOL_CLASSES"],
+    }),
+
+    flagStudent: builder.mutation({
+      query: (data) => ({
+        url: "/school/flag",
+        method: "POST",
+        body: data, // { schoolId, targetUserId, reason? }
+      }),
+    }),
   }),
 });
 
@@ -638,6 +654,8 @@ export const {
   useLazyFetchSchoolInstanceQuery,
   useSubmitAssignmentMutation,
   useJoinSchoolMutation,
+  useLeaveSchoolMutation,
+  useFlagStudentMutation,
 } = extendedUserApiSlice;
 
 export default schoolSlice.reducer;

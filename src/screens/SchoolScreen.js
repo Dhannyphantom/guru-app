@@ -15,7 +15,7 @@ import { StatusBar } from "expo-status-bar";
 import colors from "../helpers/colors";
 import AppText from "../components/AppText";
 import { Authors } from "../components/AppDetails";
-import { schoolActions } from "../helpers/dataStore";
+import { PAD_BOTTOM, schoolActions } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
 import AppButton from "../components/AppButton";
 
@@ -56,6 +56,10 @@ import {
   CopilotProvider,
 } from "react-native-copilot";
 import GuruTooltip from "../components/GuruTooltip";
+import {
+  LeaveSchoolModal,
+  FlagStudentModal,
+} from "../components/LeaveFlagModals";
 
 const WalkthroughableView = walkthroughable(View);
 
@@ -67,25 +71,39 @@ const TOUR_KEY_PROFILE_TEACHER = "guru_school_profile_teacher_tour_seen";
 // ─────────────────────────────────────────────────────────────────────────────
 // ClassMates
 // ─────────────────────────────────────────────────────────────────────────────
-const ClassMates = ({ data = [] }) => {
+const ClassMates = ({ data = [], onFlagStudent }) => {
   const user = useSelector(selectUser);
-  const isTeacher = user?.accountType == "teacher";
+  const isTeacher = user?.accountType === "teacher";
 
-  const renderClassmates = ({ item }) => (
-    <View style={{ width: width * 0.33, marginBottom: 20 }}>
-      <Avatar
-        source={item?.user?.avatar?.image}
-        data={item}
-        userID={item?.user?._id}
-        border={{ width: 2, color: colors.lightly }}
-        name={`${item?.user?.firstName} ${item?.user?.lastName}`}
-        textStyle={{ textTransform: "capitalize" }}
-        textFontsize="medium"
-        maxWidth={width * 0.2}
-        contStyle={{ width: width * 0.26 }}
-      />
-    </View>
-  );
+  const renderClassmates = ({ item }) => {
+    const isOwnCard = item?.user?._id === user?._id;
+
+    return (
+      <View style={{ width: width * 0.33, marginBottom: 20 }}>
+        <Avatar
+          source={item?.user?.avatar?.image}
+          data={item}
+          userID={item?.user?._id}
+          border={{ width: 2, color: colors.lightly }}
+          name={`${item?.user?.firstName} ${item?.user?.lastName}`}
+          textStyle={{ textTransform: "capitalize" }}
+          textFontsize="medium"
+          maxWidth={width * 0.2}
+          contStyle={{ width: width * 0.26 }}
+        />
+        {/* Flag button — shown to all verified members except on their own card */}
+        {!isOwnCard && (
+          <Pressable
+            onPress={() => onFlagStudent?.(item?.user)}
+            hitSlop={8}
+            style={styles.flagBtn}
+          >
+            <Ionicons name="flag-outline" size={14} color={colors.medium} />
+          </Pressable>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={{ marginTop: 30 }}>
@@ -490,6 +508,14 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const [tourReady, setTourReady] = useState(false);
+  const [leaveModalVis, setLeaveModalVis] = useState(false);
+  const [flagTarget, setFlagTarget] = useState(null); // user object to flag
+
+  const school = useSelector(selectSchool); // already imported via schoolSlice
+
+  const handleFlagStudent = useCallback((userObj) => {
+    setFlagTarget(userObj);
+  }, []);
 
   const TOUR_KEY = isTeacher
     ? TOUR_KEY_PROFILE_TEACHER
@@ -582,6 +608,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
       <Animated.FlatList
         data={["School"]}
         onScroll={scrollHandler}
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         scrollEventThrottle={16}
         refreshControl={getRefresher({ refreshing, onRefresh })}
         onLayout={onListLayout}
@@ -634,17 +661,55 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
               text={
                 isTeacher
                   ? "All verified students appear here. ✅\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students."
-                  : "These are your classmates! 💪\nSee who else has joined your school. The more active everyone is, the more competitive the leaderboard gets!"
+                  : "These are your classmates! 💪\nSee who else has joined your school. The more active everyone is, the more competitive the leaderboard gets!\n\nTap the 🏳 icon on a student to report them if they don't belong here."
               }
               order={4}
               name="school_classmates_section"
             >
               <WalkthroughableView style={{ minHeight: 120 }}>
-                <ClassMates data={data?.students} />
+                {/* Pass onFlagStudent to the updated ClassMates */}
+                <ClassMates
+                  data={data?.students}
+                  onFlagStudent={handleFlagStudent}
+                />
               </WalkthroughableView>
             </CopilotStep>
+
+            {/* ── Leave School button ──────────────────────────────────────────────── */}
+            <View style={styles.leaveSection}>
+              <Pressable
+                onPress={() => setLeaveModalVis(true)}
+                style={styles.leaveBtn}
+              >
+                <Ionicons name="exit-outline" size={18} color={colors.heart} />
+                <AppText
+                  fontWeight="bold"
+                  size="medium"
+                  style={{ color: colors.heart, marginLeft: 8 }}
+                >
+                  Leave School
+                </AppText>
+              </Pressable>
+            </View>
           </View>
         )}
+      />
+      {/* Leave School modal */}
+      <LeaveSchoolModal
+        visible={leaveModalVis}
+        onClose={() => setLeaveModalVis(false)}
+        onSuccess={() => {
+          setLeaveModalVis(false);
+          fetchSchoolData(); // or navigate to JoinSchool screen
+        }}
+      />
+
+      {/* Flag Student modal */}
+      <FlagStudentModal
+        visible={Boolean(flagTarget)}
+        onClose={() => setFlagTarget(null)}
+        school={school}
+        targetUser={flagTarget}
       />
     </>
   );
@@ -839,6 +904,28 @@ const styles = StyleSheet.create({
     width,
     alignItems: "center",
     minHeight: height * 0.5,
+  },
+  leaveSection: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  leaveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    borderWidth: 1.5,
+    borderColor: colors.heart + "50",
+    backgroundColor: colors.heart + "0A",
+  },
+  flagBtn: {
+    position: "absolute",
+    bottom: 22, // sits just below the avatar label
+    right: 6,
+    backgroundColor: colors.extraLight,
+    borderRadius: 20,
+    padding: 4,
   },
   rowWide: {
     flexDirection: "row",
