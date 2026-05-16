@@ -37,6 +37,7 @@ import { router } from "expo-router";
 import AppText from "../components/AppText";
 import LottieAnimator from "../components/LottieAnimator"; // ← adjust path
 import AppLogo from "../components/AppLogo";
+import colors from "../helpers/colors";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -454,11 +455,25 @@ export default function OnboardingScreen() {
             <View style={styles.backPlaceholder} />
           )}
 
-          <Dots
-            total={SLIDES.length}
-            activeIndex={currentIndex}
-            accentColor={current.accentColor}
-          />
+          <Pressable
+            onPress={() => router.push("/(auth)/login")}
+            style={{ alignItems: "center", marginTop: 20 }}
+          >
+            <Dots
+              total={SLIDES.length}
+              activeIndex={currentIndex}
+              accentColor={current.accentColor}
+            />
+            <Pressable style={{ margin: 10 }}>
+              <AppText
+                fontWeight="medium"
+                size="small"
+                style={{ color: colors.medium }}
+              >
+                Skip
+              </AppText>
+            </Pressable>
+          </Pressable>
 
           <Pressable
             onPress={goNext}
