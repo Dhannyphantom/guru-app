@@ -3,6 +3,7 @@ import { apiSlice } from "./apiSlice";
 import usersReducer from "./usersSlice";
 import instanceReducer from "./instanceSlice";
 import schoolReducer from "./schoolSlice";
+import "./competitionSlice";
 
 const store = configureStore({
   reducer: {

@@ -27,6 +27,7 @@ const colorArr = [
   colors.warning,
   colors.heart,
   colors.google,
+  colors.primaryDeep,
 ];
 const bgMain = [
   colors.light,
@@ -35,6 +36,7 @@ const bgMain = [
   colors.warningLight,
   colors.heartLight,
   colors.heartLighter,
+  colors.primaryLighter,
 ];
 
 // Compact header with tighter layout
@@ -98,6 +100,8 @@ const ProItem = ({ item, index }) => {
   const handleActionItem = (item) => {
     if (isAnalytics) {
       router.navigate("/pros/panel");
+    } else if (item?.key === "competition") {
+      router.navigate("/pros/competition");
     } else if (item?.key === "library") {
       router.navigate("/pros/edit");
     } else {
@@ -146,7 +150,7 @@ const ProScreen = () => {
   const isManager = user?.accountType === "manager";
 
   const filtered = proActions?.filter((item) => {
-    return !["panel", "category", "subjects"].includes(item.key);
+    return !["panel", "category", "subjects", "competition"].includes(item.key);
   });
 
   return (
@@ -184,7 +188,8 @@ const styles = StyleSheet.create({
     flex: null,
     backgroundColor: colors.light,
     paddingRight: 16,
-    elevation: 1,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
+
     paddingBottom: 10,
   },
   headerRow: {
@@ -236,7 +241,7 @@ const styles = StyleSheet.create({
 
   // ── Card ────────────────────────────────────────────────
   actionOverlay: {
-    elevation: 8,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
     paddingLeft: 4,
     paddingBottom: 4,
     borderRadius: 22,

@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.phantom.guruedutech",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Guru uses your photo library so you can upload profile pictures",
+        "NSCameraUsageDescription": "Guru uses your camera so you can take profile photos"
       }
     },
     "android": {
@@ -50,7 +52,7 @@
         {
           "androidAppId": "ca-app-pub-3603875446667492~8760578808",
           "iosAppId": "ca-app-pub-3603875446667492~5124586123",
-          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+          "delayAppMeasurementInit": true
         }
       ],
       [

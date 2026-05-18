@@ -12,6 +12,7 @@ import {
   useSubmitFreemiumQuizMutation,
   useSubmitPremiumQuizMutation,
 } from "../context/instanceSlice";
+import { useSubmitCompetitionQuizMutation } from "../context/competitionSlice";
 import {
   LeaderboardItem,
   LeaderboardWinners,
@@ -57,6 +58,10 @@ const FinishedQuiz = ({
   const [leaderboard, setLeaderboard] = useState(session?.leaderboard ?? []);
   const [submitPremiumQuiz, { isLoading: premLoading, data: results }] =
     useSubmitPremiumQuizMutation();
+  const [
+    submitCompetitionQuiz,
+    { isLoading: compLoading, data: competitionResults },
+  ] = useSubmitCompetitionQuizMutation();
 
   const percentage = Math.round((stat?.point / stat?.total) * 100);
   const lowPercent = percentage < 50;
@@ -122,6 +127,16 @@ const FinishedQuiz = ({
       } catch (error) {
         console.log("Freemium error", error);
       }
+    } else if (data?.type === "competition") {
+      try {
+        await submitCompetitionQuiz({
+          competitionId: data.competitionId,
+          questions: session?.questions,
+          ...durationPayload,
+        }).unwrap();
+      } catch (error) {
+        console.log("Competition error", error);
+      }
     } else {
       try {
         await submitPremiumQuiz({
@@ -136,9 +151,13 @@ const FinishedQuiz = ({
     }
   };
 
-  const msg = lowPercent
-    ? `Hard luck!. Study more and come back for more practice!`
-    : `You've done well, retake quiz or move to next topic or subject category`;
+  const competitionRank = competitionResults?.data?.rank;
+  const msg =
+    data?.type === "competition" && competitionRank
+      ? `You finished #${competitionRank} in the monthly championship!`
+      : lowPercent
+        ? `Hard luck!. Study more and come back for more practice!`
+        : `You've done well, retake quiz or move to next topic or subject category`;
 
   useEffect(() => {
     socket.emit("quiz_end", {
@@ -222,6 +241,7 @@ const FinishedQuiz = ({
               {Number(
                 results?.data?.pointsEarned ??
                   freemiumResults?.data?.pointsEarned ??
+                  competitionResults?.data?.pointsEarned ??
                   stat?.pointsEarned ??
                   stat?.point,
               ).toFixed(1)}
@@ -234,12 +254,14 @@ const FinishedQuiz = ({
                 value={
                   results?.data?.correctAnswers ??
                   freemiumResults?.data?.correctAnswers ??
+                  competitionResults?.data?.correctAnswers ??
                   stat?.correctAnswers ??
                   stat?.answeredCorrectly
                 }
                 subValue={`of ${
                   results?.data?.totalQuestions ??
                   freemiumResults?.data?.totalQuestions ??
+                  competitionResults?.data?.totalQuestions ??
                   calculateQuestionCount(session?.questions) ??
                   "..."
                 }`}
@@ -249,6 +271,7 @@ const FinishedQuiz = ({
                 value={
                   results?.data?.accuracy ??
                   freemiumResults?.data?.accuracy ??
+                  competitionResults?.data?.accuracy ??
                   stat?.accuracy ??
                   stat?.total
                 }
@@ -294,6 +317,7 @@ const FinishedQuiz = ({
               value={Number(
                 results?.data?.pointsEarned ??
                   freemiumResults?.data?.pointsEarned ??
+                  competitionResults?.data?.pointsEarned ??
                   stat?.point,
               ).toFixed(1)}
               bgColor={colors.warning}
@@ -344,7 +368,9 @@ const FinishedQuiz = ({
             style={{ alignSelf: "center" }}
             onPress={() => setStat({ ...stat, vis: !stat.vis })}
           />
-          {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
+          {!isMultiplayer && data?.type !== "competition" && (
+            <AppButton title={"Retry"} onPress={retryQuiz} />
+          )}
         </View>
       )}
     </View>

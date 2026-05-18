@@ -929,6 +929,12 @@ export const proActions = [
   },
   {
     _id: nanoid(),
+    name: "Quiz\nCompetition",
+    text: "Configure monthly online quiz championship",
+    key: "competition",
+  },
+  {
+    _id: nanoid(),
     name: "Create\nQuestion",
     text: "Create and customise multiple choice questions",
     key: "questions",
@@ -960,6 +966,12 @@ export const proActions = [
 ];
 
 export const panelItems = [
+  {
+    id: nanoid(),
+    name: "Quiz Competition",
+    icon: "trophy",
+    screen: "/pros/competition",
+  },
   {
     id: nanoid(),
     name: "Professionals",

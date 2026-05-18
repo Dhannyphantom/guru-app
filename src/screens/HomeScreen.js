@@ -65,6 +65,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
+import MonthlyQuizCard from "../components/MonthlyQuizCard";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { apiSlice } from "../context/apiSlice";
 // import useDoubleBackExit from "../hooks/useDoubleBackExit";
@@ -406,6 +407,8 @@ const HomeScreen = () => {
                   <DailyTask stats={stats?.data ?? cache?.stat} />
                 </WalkthroughableView>
               </CopilotStep>
+              <MonthlyQuizCard />
+
               <Invited data={invite} onPress={handleInvite} />
               <CopilotStep
                 text={
