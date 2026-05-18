@@ -718,6 +718,12 @@ const ProfileScreen = () => {
             onPress={() => router.push("/profile/settings")}
             iconColor={colors.medium}
           />
+          <ProfileLink
+            title="Delete account"
+            icon="trash-outline"
+            iconColor={colors.heartDark}
+            onPress={() => router.push("/profile/delete-account")}
+          />
           <View style={s.sep} />
           <ProfileLink
             title="Sign out"

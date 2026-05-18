@@ -392,8 +392,6 @@ const MonthlyQuizCard = () => {
     pollingInterval: 60000,
   });
 
-  console.log({ data });
-
   const comp = data?.data;
   const isSubscribed = user?.subscription?.isActive;
 

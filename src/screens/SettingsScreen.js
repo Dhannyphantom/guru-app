@@ -3,7 +3,6 @@ import { StyleSheet, View } from "react-native";
 import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
 import colors from "../helpers/colors";
-// import Separator from "../components/Separator";
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultSettings } from "../helpers/dataStore";
@@ -40,13 +39,12 @@ const SettingsScreen = () => {
         <AppText size={"large"} weight="bold" style={styles.headerTitle}>
           Settings
         </AppText>
-        {/* <Separator /> */}
         <ProfileLink
           title={`Turn ${
             settingsData?.notifications ? "off" : "on"
           } notifications`}
           icon={
-            setSettingsData?.notifications
+            settingsData?.notifications
               ? "notifications-off"
               : "notifications"
           }
@@ -54,9 +52,19 @@ const SettingsScreen = () => {
       </View>
       <View style={styles.section}>
         <AppText size={"large"} weight="bold" style={styles.headerTitle}>
+          Account
+        </AppText>
+        <ProfileLink
+          title="Delete account"
+          icon="trash"
+          iconColor={colors.heartDark}
+          onPress={() => router.push("/profile/delete-account")}
+        />
+      </View>
+      <View style={styles.section}>
+        <AppText size={"large"} weight="bold" style={styles.headerTitle}>
           Help
         </AppText>
-        {/* <Separator /> */}
         <View>
           <ProfileLink
             title={"Contact us"}

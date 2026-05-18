@@ -279,7 +279,7 @@ const FAQ_DATA = [
         id: "a3",
         question: "Can I delete my account?",
         answer:
-          "Contact support through the app or email with your deletion request. Account deletion is permanent and irreversible - it removes all your data, points, progress, quiz history, and connections.",
+          "Yes. Go to Profile → Delete account (or Settings & More → Account → Delete account). Check the confirmation box, enter your password, and tap Delete my account permanently. This removes your profile, points, progress, quiz history, and school connections.",
       },
       {
         id: "a4",

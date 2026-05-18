@@ -363,6 +363,13 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["USER", "SCHOOL"],
     }),
+    deleteAccount: builder.mutation({
+      query: (body) => ({
+        url: "/users/account/delete",
+        method: "POST",
+        body,
+      }),
+    }),
     updateReward: builder.mutation({
       query: (data) => ({
         url: "/users/rewards",
@@ -917,6 +924,7 @@ export const {
   useFetchAppInfoQuery,
   useLazyFetchAppInfoQuery,
   useUpdateUserProfileMutation,
+  useDeleteAccountMutation,
   useRenewSubscriptionMutation,
   useStudentActionMutation,
   useFetchUserStatsQuery,

@@ -45,6 +45,7 @@ import {
   InterstitialAd,
   TestIds,
 } from "react-native-google-mobile-ads";
+import { nonPersonalizedAdRequestOptions } from "../helpers/adsRequestOptions";
 
 const { width } = Dimensions.get("screen");
 
@@ -360,9 +361,10 @@ const QuestionStudyScreen = () => {
 
   useEffect(() => {
     if (hasActiveSub) return;
-    const rewarded = RewardedAd.createForAdRequest(rewardedAdUnitId, {
-      requestNonPersonalizedAdsOnly: true,
-    });
+    const rewarded = RewardedAd.createForAdRequest(
+      rewardedAdUnitId,
+      nonPersonalizedAdRequestOptions,
+    );
 
     const retryLoadAd = () => {
       if (retryCount.current >= MAX_RETRIES) return;
@@ -417,7 +419,7 @@ const QuestionStudyScreen = () => {
 
     const interstitial = InterstitialAd.createForAdRequest(
       interstitialAdUnitId,
-      { requestNonPersonalizedAdsOnly: true },
+      nonPersonalizedAdRequestOptions,
     );
 
     interstitialRef.current = interstitial;

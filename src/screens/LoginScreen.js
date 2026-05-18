@@ -23,6 +23,7 @@ import { FormikButton } from "../components/AppButton";
 import { FormikInput } from "../components/FormInput";
 import { Formik } from "formik";
 import yupSchemas from "../helpers/yupSchemas";
+import { parseApiError } from "../helpers/parseApiError";
 import {
   useSignInUserMutation,
   useResetUserPasswordMutation,
@@ -1017,20 +1018,14 @@ const LoginScreen = () => {
     await loginUser(formValues)
       .unwrap()
       .catch((err) => {
-        const networkErr =
-          typeof err?.status == "string" && err?.status?.includes("FETCH_ERROR")
-            ? "Network request failed, Poor internet connection"
-            : null;
-        console.log(err);
-        const msg = networkErr ?? err?.error ?? "Something went wrong";
+        const msg = parseApiError(err);
         setErrMsg(msg);
         const isCredentialError =
-          !networkErr &&
-          (err?.status === 401 ||
-            err?.status === 400 ||
-            msg?.toLowerCase().includes("invalid") ||
-            msg?.toLowerCase().includes("wrong") ||
-            msg?.toLowerCase().includes("incorrect"));
+          err?.status === 401 ||
+          err?.status === 400 ||
+          msg?.toLowerCase().includes("invalid") ||
+          msg?.toLowerCase().includes("wrong") ||
+          msg?.toLowerCase().includes("incorrect");
         setShowForgotPrompt(isCredentialError);
       });
   };
@@ -1049,7 +1044,9 @@ const LoginScreen = () => {
         </View>
 
         {(isError || errMsg) && (
-          <AppText style={styles.errorText}>{error?.data ?? errMsg}</AppText>
+          <AppText style={styles.errorText}>
+            {errMsg ?? parseApiError(error)}
+          </AppText>
         )}
 
         {showForgotPrompt && (
@@ -1086,7 +1083,9 @@ const LoginScreen = () => {
         </View>
 
         {(isError || errMsg) && (
-          <AppText style={styles.errorText}>{error?.data ?? errMsg}</AppText>
+          <AppText style={styles.errorText}>
+            {errMsg ?? parseApiError(error)}
+          </AppText>
         )}
 
         {showForgotPrompt && (

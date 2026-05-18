@@ -36,32 +36,21 @@ Sentry.init({
   // spotlight: __DEV__,
 });
 
-mobileAds()
-  .setRequestConfiguration({
-    // Update all future requests suitable for parental guidance
+let adsInitialized = false;
+
+async function initializeMobileAds() {
+  if (adsInitialized) return;
+  adsInitialized = true;
+
+  await mobileAds().setRequestConfiguration({
     maxAdContentRating: MaxAdContentRating.PG,
-
-    // Indicates that you want your content treated as child-directed for purposes of COPPA.
     tagForChildDirectedTreatment: true,
-
-    // Indicates that you want the ad request to be handled in a
-    // manner suitable for users under the age of consent.
     tagForUnderAgeOfConsent: true,
-
-    // An array of test device IDs to allow.
     testDeviceIdentifiers: ["EMULATOR"],
-  })
-  .then(() => {
-    //
-    // console.log("Request config successfully set!");
   });
 
-mobileAds()
-  .initialize()
-  .then((adapterStatuses) => {
-    //
-    // console.log("Initialization complete!");
-  });
+  await mobileAds().initialize();
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -95,10 +84,10 @@ const Main = () => {
           "sf-semibold": require("../../assets/fonts/SF-Pro-Display-Semibold.otf"),
           "sf-thin": require("../../assets/fonts/SF-Pro-Display-Thin.otf"),
         });
+        await initializeMobileAds();
       } catch (e) {
         console.warn(e);
       } finally {
-        // Tell the application to render
         setAppIsReady(true);
       }
     }
@@ -107,7 +96,6 @@ const Main = () => {
 
   useEffect(() => {
     if (appIsReady) {
-      // Hide the splash screen once the app is ready
       SplashScreen.hideAsync();
     }
   }, [appIsReady]);
