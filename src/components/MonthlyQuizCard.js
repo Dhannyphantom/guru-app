@@ -24,6 +24,7 @@ import {
 } from "../context/competitionSlice";
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
+import LottieAnimator from "./LottieAnimator";
 
 // ─────────────────────────────────────────────
 // 🎨 Theme — edit these to restyle the whole card/modal
@@ -190,7 +191,7 @@ const CompetitionDetailsModal = ({
       return (
         <>
           <AppText size="small" style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 10 }}>
-            Subscribe to participate in the monthly quiz championship
+            Subscribe to participate in the monthly quiz championship and earn prize rewards
           </AppText>
           <AppButton title="Subscribe Now" onPress={() => { onClose(); onParticipate?.("subscribe"); }} />
         </>
@@ -242,8 +243,15 @@ const CompetitionDetailsModal = ({
               </AppText>
 
               {isLoading ? (
-                <AppText style={{ color: "#fff", marginTop: 20 }}>Loading...</AppText>
-              ) : (
+                <View style={{flex: 1,minHeight: 300, justifyContent: "center", alignItems: "center"}} >
+                  
+                  <LottieAnimator
+                            visible={true}
+                            absolute={false}
+                            // style={{ width: 28, height: 28 }}
+                          />   
+                </View>
+                   ) : (
                 <>
                   <View style={styles.modalStatsRow}>
                     <View style={styles.modalStat}>
@@ -508,11 +516,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#7B0000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
+       boxShadow: `2px 8px 18px ${ACCENT}60`,
+
   },
   cardGlow: {
     position: "absolute",

@@ -110,6 +110,8 @@ const CompetitionQuizScreen = () => {
           }}
           setQuizInfoView={() => {}}
           hardReset={hardReset}
+          qColor={colors.white}
+          subjColor={colors.primaryLight}
           questionBank={questionBank}
         />
       ) : null}
@@ -130,7 +132,8 @@ export default CompetitionQuizScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#232526",
+    // backgroundColor: "#1a1a2e",
   },
   center: {
     flex: 1,

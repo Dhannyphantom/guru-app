@@ -91,6 +91,8 @@ const QuestionDisplay = ({
   setQuizInfoView,
   hardReset,
   questionBank = [],
+  qColor = colors.black,
+  subjColor = colors.primaryDeep,
   sessionId,
 }) => {
   const timerRef = useRef(null);
@@ -340,11 +342,11 @@ const QuestionDisplay = ({
     <>
       <View style={styles.questions}>
         <View style={styles.header}>
-          <AppText size="large" fontWeight="heavy">
+          <AppText size="large" style={{color: qColor}} fontWeight="heavy">
             {active.current}/{totalQuestions}
           </AppText>
 
-          <AppText style={styles.subjectTxt} size="xxlarge" fontWeight="black">
+          <AppText style={{...styles.subjectTxt, color: subjColor}} size="xxlarge" fontWeight="black">
             {questionStore?.[active.subject]?.subject?.name}
           </AppText>
 

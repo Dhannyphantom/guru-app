@@ -415,6 +415,8 @@ const FreemiumQuizZone = ({ setVisible }) => {
             hardReset={() => setQuizInfo(initials)}
             setQuizSession={setSession}
             questionBank={quizInfo.qBank ?? []}
+             qColor={colors.white}
+                      subjColor={colors.primaryLight}
           />
         </Screen>
       ) : isQuiz ? (
