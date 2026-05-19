@@ -25,9 +25,10 @@ import {
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
 
+// Full month names — no truncation
 const MONTHS = [
-  "Jan","Feb","Mar","Apr","May","Jun",
-  "Jul","Aug","Sep","Oct","Nov","Dec",
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
 ];
 
 const formatDuration = (seconds) => {
@@ -92,10 +93,10 @@ const InlineCountdown = ({ countdown }) => {
   );
 };
 
-// Compact prize pill
+// Compact prize pill — emoji slightly larger via fontSize override
 const PrizePill = ({ emoji, reward }) => (
   <View style={styles.prizePill}>
-    <AppText size="small">{emoji}</AppText>
+    <AppText size="small" style={styles.pillEmoji}>{emoji}</AppText>
     <AppText fontWeight="bold" size="xxsmall" style={{ color: "#FFD700" }}>
       {formatPoints(reward)}
     </AppText>
@@ -138,7 +139,13 @@ const CompetitionDetailsModal = ({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
-          <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={styles.modalGradient}>
+          {/* Modal gradient: deep green → accent purple, cohesive with app palette */}
+          <LinearGradient
+            colors={["#1B4332", "#2D6A4F", "#311b92"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.modalGradient}
+          >
             <Pressable style={styles.modalClose} onPress={onClose}>
               <Ionicons name="close" size={26} color="#fff" />
             </Pressable>
@@ -164,21 +171,21 @@ const CompetitionDetailsModal = ({
                 <>
                   <View style={styles.modalStatsRow}>
                     <View style={styles.modalStat}>
-                      <Ionicons name="people" size={20} color="#FFD700" />
+                      <Ionicons name="people" size={20} color="#a8e063" />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.participantsCount ?? 0}
                       </AppText>
                       <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Participants</AppText>
                     </View>
                     <View style={styles.modalStat}>
-                      <Ionicons name="help-circle" size={20} color="#FFD700" />
+                      <Ionicons name="help-circle" size={20} color="#a8e063" />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.totalQuestions ?? 0}
                       </AppText>
                       <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Questions</AppText>
                     </View>
                     <View style={styles.modalStat}>
-                      <Ionicons name="time" size={20} color="#FFD700" />
+                      <Ionicons name="time" size={20} color="#a8e063" />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {formatDuration(comp?.approxDuration)}
                       </AppText>
@@ -188,7 +195,7 @@ const CompetitionDetailsModal = ({
 
                   {comp?.rules ? (
                     <View style={styles.rulesBox}>
-                      <AppText fontWeight="bold" size="small" style={{ color: "#FFD700" }}>Rules</AppText>
+                      <AppText fontWeight="bold" size="small" style={{ color: "#a8e063" }}>Rules</AppText>
                       <AppText size="small" style={{ color: "rgba(255,255,255,0.85)" }}>{comp.rules}</AppText>
                     </View>
                   ) : null}
@@ -223,7 +230,7 @@ const CompetitionDetailsModal = ({
                       </AppText>
                       {comp.leaderboard.slice(0, 5).map((p, i) => (
                         <View key={p.user?._id || i} style={styles.lbRow}>
-                          <AppText fontWeight="bold" style={{ color: "#FFD700", width: 28 }}>#{p.rank}</AppText>
+                          <AppText fontWeight="bold" style={{ color: "#a8e063", width: 28 }}>#{p.rank}</AppText>
                           <Avatar size={32} source={p.user?.avatar?.image} />
                           <AppText style={{ flex: 1, color: "#fff", marginLeft: 10 }} fontWeight="semibold">
                             @{p.user?.username}
@@ -295,8 +302,19 @@ const MonthlyQuizCard = () => {
 
   const countdown = useCountdown(countdownTarget, Boolean(comp && countdownTarget));
 
+  // Capitalize each subject name
   const subjectNames = useMemo(
-    () => comp?.subjects?.map((s) => s.subject?.name).filter(Boolean) || [],
+    () =>
+      comp?.subjects
+        ?.map((s) => s.subject?.name)
+        .filter(Boolean)
+        .map((name) =>
+          name
+            .toLowerCase()
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ")
+        ) || [],
     [comp],
   );
 
@@ -312,20 +330,25 @@ const MonthlyQuizCard = () => {
 
   if (isLoading || !comp) return null;
 
-  const statusColor = comp.isLive ? "#4ADE80" : comp.isUpcoming ? "#FFD700" : "#94A3B8";
+  // Status colors tied to app palette
+  const statusColor = comp.isLive ? colors.green : comp.isUpcoming ? colors.warning : colors.medium;
   const statusText = comp.isLive ? "LIVE" : comp.isUpcoming ? "UPCOMING" : "ENDED";
 
   return (
     <>
       <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.wrapper}>
         <Pressable onPress={() => setDetailsOpen(true)}>
+          {/*
+            Card gradient: deep forest green → rich accent purple
+            Contrasts beautifully against the primaryLight (#C5E1A5) screen background
+          */}
           <LinearGradient
-            colors={["#6B21A8", "#4C1D95", "#1e1b4b"]}
+            colors={["#1B4332", "#2D6A4F", "#4527A0"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.card}
           >
-            {/* Glow accent */}
+            {/* Glow accent — gold tint top-right */}
             <View style={styles.cardGlow} />
 
             {/* Row 1: Title + status badge */}
@@ -340,7 +363,7 @@ const MonthlyQuizCard = () => {
                 <AppText size="xxsmall" style={styles.cardMonth}>
                   {MONTHS[comp.month - 1]} {comp.year}
                   {" · "}
-                  <AppText size="xxsmall" style={{ color: "#C4B5FD" }}>
+                  <AppText size="xxsmall" style={{ color: "#a8e063" }}>
                     {comp.totalQuestions}Q · {formatDuration(comp.approxDuration)}
                   </AppText>
                 </AppText>
@@ -355,13 +378,12 @@ const MonthlyQuizCard = () => {
 
             {/* Row 2: Countdown + prizes side by side */}
             <View style={styles.middleRow}>
-              {/* Countdown */}
               {countdown && !countdown.done && countdownTarget ? (
                 <InlineCountdown countdown={countdown} />
               ) : (
                 <View style={styles.participantsChip}>
-                  <Ionicons name="people-outline" size={13} color="#C4B5FD" />
-                  <AppText size="xxsmall" style={{ color: "#C4B5FD", marginLeft: 4 }}>
+                  <Ionicons name="people-outline" size={13} color="#a8e063" />
+                  <AppText size="xxsmall" style={{ color: "#a8e063", marginLeft: 4 }}>
                     {comp.totalParticipants || 0} joined
                   </AppText>
                 </View>
@@ -375,19 +397,19 @@ const MonthlyQuizCard = () => {
               </View>
             </View>
 
-            {/* Row 3: Subject tags + tap hint */}
+            {/* Row 3: Subject tags (capitalized) + tap hint */}
             <View style={styles.cardFooter}>
               <View style={styles.tagsRow}>
                 {subjectNames.slice(0, 2).map((name) => (
                   <View key={name} style={styles.tag}>
-                    <AppText size="xxsmall" fontWeight="bold" style={{ color: "#E9D5FF" }}>
+                    <AppText size="xxsmall" fontWeight="bold" style={{ color: "#DCEDC8" }}>
                       {name}
                     </AppText>
                   </View>
                 ))}
                 {subjectNames.length > 2 && (
                   <View style={styles.tag}>
-                    <AppText size="xxsmall" style={{ color: "#E9D5FF" }}>
+                    <AppText size="xxsmall" style={{ color: "#DCEDC8" }}>
                       +{subjectNames.length - 2}
                     </AppText>
                   </View>
@@ -423,10 +445,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     overflow: "hidden",
     elevation: 8,
-    shadowColor: "#6B21A8",
+    // Shadow color pulled from accentDeep for richness
+    shadowColor: "#311b92",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
   },
   cardGlow: {
     position: "absolute",
@@ -435,7 +458,8 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: "rgba(255,215,0,0.10)",
+    // Gold glow shifted to soft lime to match green theme
+    backgroundColor: "rgba(168,224,99,0.12)",
   },
   cardHeader: {
     flexDirection: "row",
@@ -446,7 +470,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 11,
-    backgroundColor: "rgba(255,215,0,0.15)",
+    backgroundColor: "rgba(255,215,0,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -471,7 +495,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
-  // Middle row: countdown left, prizes right
+  // Middle row
   middleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -490,7 +514,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   inlineValue: {
-    color: "#FFD700",
+    // Lime green countdown digits — punchy on dark green background
+    color: "#a8e063",
     fontSize: 16,
     lineHeight: 20,
   },
@@ -517,12 +542,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(255,215,0,0.1)",
+    backgroundColor: "rgba(255,215,0,0.12)",
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.2)",
+    borderColor: "rgba(255,215,0,0.25)",
+  },
+  // Slightly larger emoji in prize pills
+  pillEmoji: {
+    fontSize: 16,
   },
 
   // Footer
@@ -533,7 +562,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 9,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: "rgba(255,255,255,0.10)",
   },
   tagsRow: {
     flexDirection: "row",
@@ -542,15 +571,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tag: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    // Soft lime-tinted tag background to complement green gradient
+    backgroundColor: "rgba(168,224,99,0.12)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(168,224,99,0.22)",
   },
 
-  // Modal styles (unchanged)
+  // ── Modal styles ──────────────────────────────────────────────
   prizeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -566,7 +596,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-end",
   },
   modalSheet: {
@@ -586,7 +616,7 @@ const styles = StyleSheet.create({
   },
   modalBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,215,0,0.15)",
+    backgroundColor: "rgba(255,215,0,0.18)",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -601,7 +631,7 @@ const styles = StyleSheet.create({
   modalStatsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.07)",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -611,13 +641,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rulesBox: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.07)",
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
   },
   sectionTitle: {
-    color: "#FFD700",
+    // Section headers in app's lime green accent
+    color: "#a8e063",
     marginBottom: 10,
   },
   lbRow: {
@@ -630,7 +661,7 @@ const styles = StyleSheet.create({
   participatedBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(74,222,128,0.1)",
+    backgroundColor: "rgba(74,222,128,0.12)",
     padding: 14,
     borderRadius: 14,
     marginTop: 16,
@@ -642,7 +673,8 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 20,
     paddingBottom: 32,
-    backgroundColor: "rgba(26,26,46,0.95)",
+    // Footer tinted to match modal gradient bottom stop
+    backgroundColor: "rgba(27,67,50,0.97)",
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.08)",
   },
