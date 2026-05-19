@@ -1,12 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState } from "react";
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -25,6 +19,7 @@ import {
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
 import LottieAnimator from "./LottieAnimator";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─────────────────────────────────────────────
 // 🎨 Theme — edit these to restyle the whole card/modal
@@ -32,12 +27,12 @@ import LottieAnimator from "./LottieAnimator";
 const GRADIENTS = {
   /** Main card & modal background */
   // card: ["#42275a",  "#734b6d"],
-  card: ["#232526",  "#414345"],
+  card: ["#232526", "#414345"],
   /** Reversed for variety if needed */
   cardReversed: ["#414345", "#232526"],
   // cardReversed: ["#FF5F6D", "#C0392B", "#7B0000"],
   /** Warm sunset accent for highlights */
-  accent: ["#232526",  "#414345"],
+  accent: ["#232526", "#414345"],
   // accent: ["#FF5F6D", "#FFC371"],
 };
 
@@ -51,8 +46,18 @@ const GLOW_COLOR = "rgba(255,195,113,0.10)";
 // ─────────────────────────────────────────────
 
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const formatDuration = (seconds) => {
@@ -109,7 +114,9 @@ const InlineCountdown = ({ countdown }) => {
           <AppText fontWeight="black" size="medium" style={styles.inlineValue}>
             {String(v).padStart(2, "0")}
           </AppText>
-          <AppText size="xxsmall" style={styles.inlineLabel}>{l}</AppText>
+          <AppText size="xxsmall" style={styles.inlineLabel}>
+            {l}
+          </AppText>
           {i < 3 && <AppText style={styles.inlineSep}>:</AppText>}
         </View>
       ))}
@@ -124,14 +131,22 @@ const LiveStatusChip = ({ hasParticipated }) =>
   hasParticipated ? (
     <View style={styles.liveChipDone}>
       <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
-      <AppText fontWeight="bold" size="xxsmall" style={{ color: "#4ADE80", marginLeft: 4 }}>
+      <AppText
+        fontWeight="bold"
+        size="xxsmall"
+        style={{ color: "#4ADE80", marginLeft: 4 }}
+      >
         Completed
       </AppText>
     </View>
   ) : (
     <View style={styles.liveChipPlay}>
       <Ionicons name="play-circle" size={14} color="#fff" />
-      <AppText fontWeight="bold" size="xxsmall" style={{ color: "#fff", marginLeft: 4 }}>
+      <AppText
+        fontWeight="bold"
+        size="xxsmall"
+        style={{ color: "#fff", marginLeft: 4 }}
+      >
         Tap to Play
       </AppText>
     </View>
@@ -142,7 +157,9 @@ const LiveStatusChip = ({ hasParticipated }) =>
 // ─────────────────────────────────────────────
 const PrizePill = ({ emoji, reward }) => (
   <View style={styles.prizePill}>
-    <AppText size="small" style={styles.pillEmoji}>{emoji}</AppText>
+    <AppText size="small" style={styles.pillEmoji}>
+      {emoji}
+    </AppText>
     <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
       {formatPoints(reward)}
     </AppText>
@@ -184,21 +201,48 @@ const CompetitionDetailsModal = ({
     skip: !visible || !competitionId,
   });
   const comp = data?.data;
-  const statusLabel = comp?.isLive ? "LIVE NOW" : comp?.isUpcoming ? "UPCOMING" : "ENDED";
+  const statusLabel = comp?.isLive
+    ? "LIVE NOW"
+    : comp?.isUpcoming
+    ? "UPCOMING"
+    : "ENDED";
+  const insets = useSafeAreaInsets();
 
   const renderFooter = () => {
     if (!isSubscribed) {
       return (
         <>
-          <AppText size="small" style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 10 }}>
-            Subscribe to participate in the monthly quiz championship and earn prize rewards
+          <AppText
+            size="small"
+            style={{
+              color: "rgba(255,255,255,0.8)",
+              textAlign: "center",
+              marginBottom: 10,
+            }}
+          >
+            Subscribe to participate in the monthly quiz championship and earn
+            prize rewards
           </AppText>
-          <AppButton title="Subscribe Now" onPress={() => { onClose(); onParticipate?.("subscribe"); }} />
+          <AppButton
+            title="Subscribe Now"
+            onPress={() => {
+              onClose();
+              onParticipate?.("subscribe");
+            }}
+          />
         </>
       );
     }
     if (comp?.isLive && !comp?.hasParticipated) {
-      return <AppButton title="Start Competition" onPress={() => { onClose(); onParticipate?.("start"); }} />;
+      return (
+        <AppButton
+          title="Start Competition"
+          onPress={() => {
+            onClose();
+            onParticipate?.("start");
+          }}
+        />
+      );
     }
     if (comp?.isUpcoming) {
       return <AppButton title="Opens Soon" type="white" onPress={onClose} />;
@@ -207,7 +251,12 @@ const CompetitionDetailsModal = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         {/* Sheet fills up to 92% of screen height using flex, not maxHeight alone */}
         <View style={styles.modalSheet}>
@@ -229,29 +278,44 @@ const CompetitionDetailsModal = ({
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.modalBadge}>
-                <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
+                <AppText
+                  fontWeight="bold"
+                  size="xxsmall"
+                  style={{ color: ACCENT }}
+                >
                   {statusLabel}
                 </AppText>
               </View>
 
-              <AppText fontWeight="black" size="xxlarge" style={styles.modalTitle}>
+              <AppText
+                fontWeight="black"
+                size="xxlarge"
+                style={styles.modalTitle}
+              >
                 {comp?.title || "Monthly Quiz"}
               </AppText>
 
               <AppText size="small" style={styles.modalSub}>
-                {MONTHS[(comp?.month || 1) - 1]} {comp?.year} · First Saturday · 24 hours
+                {MONTHS[(comp?.month || 1) - 1]} {comp?.year} · First Saturday ·
+                24 hours
               </AppText>
 
               {isLoading ? (
-                <View style={{flex: 1,minHeight: 300, justifyContent: "center", alignItems: "center"}} >
-                  
+                <View
+                  style={{
+                    flex: 1,
+                    minHeight: 300,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
                   <LottieAnimator
-                            visible={true}
-                            absolute={false}
-                            // style={{ width: 28, height: 28 }}
-                          />   
+                    visible={true}
+                    absolute={false}
+                    // style={{ width: 28, height: 28 }}
+                  />
                 </View>
-                   ) : (
+              ) : (
                 <>
                   <View style={styles.modalStatsRow}>
                     <View style={styles.modalStat}>
@@ -259,64 +323,141 @@ const CompetitionDetailsModal = ({
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.participantsCount ?? 0}
                       </AppText>
-                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>Participants</AppText>
+                      <AppText
+                        size="xxsmall"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                      >
+                        Participants
+                      </AppText>
                     </View>
                     <View style={styles.modalStat}>
                       <Ionicons name="help-circle" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.totalQuestions ?? 0}
                       </AppText>
-                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>Questions</AppText>
+                      <AppText
+                        size="xxsmall"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                      >
+                        Questions
+                      </AppText>
                     </View>
                     <View style={styles.modalStat}>
                       <Ionicons name="time" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {formatDuration(comp?.approxDuration)}
                       </AppText>
-                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>Duration</AppText>
+                      <AppText
+                        size="xxsmall"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                      >
+                        Duration
+                      </AppText>
                     </View>
                   </View>
 
                   {comp?.rules ? (
                     <View style={styles.rulesBox}>
-                      <AppText fontWeight="bold" size="small" style={{ color: ACCENT }}>Rules</AppText>
-                      <AppText size="small" style={{ color: "rgba(255,255,255,0.85)" }}>{comp.rules}</AppText>
+                      <AppText
+                        fontWeight="bold"
+                        size="small"
+                        style={{ color: ACCENT }}
+                      >
+                        Rules
+                      </AppText>
+                      <AppText
+                        size="small"
+                        style={{
+                          lineHeight: 20,
+                          color: "rgba(255,255,255,0.85)",
+                        }}
+                      >
+                        {comp.rules}
+                      </AppText>
                     </View>
                   ) : null}
 
-                  <AppText fontWeight="bold" size="medium" style={styles.sectionTitle}>Prize Pool</AppText>
-                  <PrizeRow place="1st" title={comp?.prizes?.first?.title || "Champion"} reward={comp?.prizes?.first?.reward} medal="#FFD700" />
-                  <PrizeRow place="2nd" title={comp?.prizes?.second?.title || "Runner-up"} reward={comp?.prizes?.second?.reward} medal="#C0C0C0" />
-                  <PrizeRow place="3rd" title={comp?.prizes?.third?.title || "Third Place"} reward={comp?.prizes?.third?.reward} medal="#CD7F32" />
+                  <AppText
+                    fontWeight="bold"
+                    size="medium"
+                    style={styles.sectionTitle}
+                  >
+                    Prize Pool
+                  </AppText>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <PrizeRow
+                      place="1st"
+                      title={comp?.prizes?.first?.title || "Champion"}
+                      reward={comp?.prizes?.first?.reward}
+                      medal="#FFD700"
+                    />
+                    <PrizeRow
+                      place="2nd"
+                      title={comp?.prizes?.second?.title || "Runner-up"}
+                      reward={comp?.prizes?.second?.reward}
+                      medal="#C0C0C0"
+                    />
+                    <PrizeRow
+                      place="3rd"
+                      title={comp?.prizes?.third?.title || "Third Place"}
+                      reward={comp?.prizes?.third?.reward}
+                      medal="#CD7F32"
+                    />
+                  </View>
 
-                  {(comp?.lastWinners?.length > 0 || comp?.finalRankings?.length > 0) && (
+                  {(comp?.lastWinners?.length > 0 ||
+                    comp?.finalRankings?.length > 0) && (
                     <>
-                      <AppText fontWeight="bold" size="medium" style={{...styles.sectionTitle,  marginTop: 16 }}>
+                      <AppText
+                        fontWeight="bold"
+                        size="medium"
+                        style={{ ...styles.sectionTitle, marginTop: 16 }}
+                      >
                         Last Winners
                       </AppText>
                       <LeaderboardWinners
                         isPro={false}
-                        data={(comp.lastWinners || comp.finalRankings || []).slice(0, 3).map((w) => ({
-                          _id: w.user?._id || w.user,
-                          username: w.user?.username,
-                          firstName: w.user?.firstName,
-                          points: w.score,
-                          avatar: w.user?.avatar,
-                        }))}
+                        data={(comp.lastWinners || comp.finalRankings || [])
+                          .slice(0, 3)
+                          .map((w) => ({
+                            _id: w.user?._id || w.user,
+                            username: w.user?.username,
+                            firstName: w.user?.firstName,
+                            points: w.score,
+                            avatar: w.user?.avatar,
+                          }))}
                       />
                     </>
                   )}
 
                   {comp?.leaderboard?.length > 0 && comp?.isLive && (
                     <>
-                      <AppText fontWeight="bold" size="medium" style={{...styles.sectionTitle,  marginTop: 16 }}>
+                      <AppText
+                        fontWeight="bold"
+                        size="medium"
+                        style={{ ...styles.sectionTitle, marginTop: 16 }}
+                      >
                         Live Leaderboard
                       </AppText>
                       {comp.leaderboard.slice(0, 5).map((p, i) => (
                         <View key={p.user?._id || i} style={styles.lbRow}>
-                          <AppText fontWeight="bold" style={{ color: ACCENT, width: 28 }}>#{p.rank}</AppText>
+                          <AppText
+                            fontWeight="bold"
+                            style={{ color: ACCENT, width: 28 }}
+                          >
+                            #{p.rank}
+                          </AppText>
                           <Avatar size={32} source={p.user?.avatar?.image} />
-                          <AppText style={{ flex: 1, color: "#fff", marginLeft: 10 }} fontWeight="semibold">
+                          <AppText
+                            style={{ flex: 1, color: "#fff", marginLeft: 10 }}
+                            fontWeight="semibold"
+                          >
                             @{p.user?.username}
                           </AppText>
                           <AppText fontWeight="bold" style={{ color: ACCENT }}>
@@ -329,9 +470,17 @@ const CompetitionDetailsModal = ({
 
                   {comp?.hasParticipated && (
                     <View style={styles.participatedBanner}>
-                      <Ionicons name="checkmark-circle" size={22} color="#4ADE80" />
-                      <AppText style={{ color: "#4ADE80", marginLeft: 8 }} fontWeight="bold">
-                        You completed this{comp.myRank ? ` · Rank #${comp.myRank}` : ""}
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={22}
+                        color="#4ADE80"
+                      />
+                      <AppText
+                        style={{ color: "#4ADE80", marginLeft: 8 }}
+                        fontWeight="bold"
+                      >
+                        You completed this
+                        {comp.myRank ? ` · Rank #${comp.myRank}` : ""}
                       </AppText>
                     </View>
                   )}
@@ -340,7 +489,9 @@ const CompetitionDetailsModal = ({
             </ScrollView>
 
             {/* Footer sits BELOW the ScrollView — no absolute positioning */}
-            <View style={styles.modalFooter}>
+            <View
+              style={[styles.modalFooter, { paddingBottom: insets.bottom }]}
+            >
               {renderFooter()}
             </View>
           </LinearGradient>
@@ -384,7 +535,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
             .toLowerCase()
             .split(" ")
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(" ")
+            .join(" "),
         ) || [],
     [comp],
   );
@@ -395,14 +546,25 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
       return;
     }
     if (action === "start" && comp?._id) {
-      router.push({ pathname: "/main/competition", params: { competitionId: comp._id } });
+      router.push({
+        pathname: "/main/competition",
+        params: { competitionId: comp._id },
+      });
     }
   };
 
   if (isLoading || !comp) return null;
 
-  const statusColor = comp.isLive ? colors.green : comp.isUpcoming ? colors.warning : colors.lighter;
-  const statusText = comp.isLive ? "LIVE" : comp.isUpcoming ? "UPCOMING" : "ENDED";
+  const statusColor = comp.isLive
+    ? colors.green
+    : comp.isUpcoming
+    ? colors.warning
+    : colors.lighter;
+  const statusText = comp.isLive
+    ? "LIVE"
+    : comp.isUpcoming
+    ? "UPCOMING"
+    : "ENDED";
 
   // What to show in the middle-left slot
   const renderMiddleLeft = () => {
@@ -414,8 +576,15 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
     }
     return (
       <View style={styles.participantsChip}>
-        <Ionicons name="people-outline" size={13} color="rgba(255,255,255,0.6)" />
-        <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)", marginLeft: 4 }}>
+        <Ionicons
+          name="people-outline"
+          size={13}
+          color="rgba(255,255,255,0.6)"
+        />
+        <AppText
+          size="xxsmall"
+          style={{ color: "rgba(255,255,255,0.6)", marginLeft: 4 }}
+        >
           {comp.totalParticipants || 0} joined
         </AppText>
       </View>
@@ -424,7 +593,10 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 
   return (
     <>
-      <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.wrapper}>
+      <Animated.View
+        entering={FadeInDown.delay(200).springify()}
+        style={styles.wrapper}
+      >
         <Pressable onPress={() => setDetailsOpen(true)}>
           <LinearGradient
             colors={GRADIENTS.card}
@@ -440,20 +612,40 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
                 <Ionicons name="trophy" size={18} color={ACCENT} />
               </View>
               <View style={{ flex: 1 }}>
-                <AppText fontWeight="black" size="medium" style={styles.cardTitle} numberOfLines={1}>
+                <AppText
+                  fontWeight="black"
+                  size="medium"
+                  style={styles.cardTitle}
+                  numberOfLines={1}
+                >
                   {comp.title}
                 </AppText>
                 <AppText size="xxsmall" style={styles.cardMonth}>
                   {MONTHS[comp.month - 1]} {comp.year}
                   {" · "}
-                  <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.75)" }}>
-                    {comp.totalQuestions}Q · {formatDuration(comp.approxDuration)}
+                  <AppText
+                    size="xxsmall"
+                    style={{ color: "rgba(255,255,255,0.75)" }}
+                  >
+                    {comp.totalQuestions}Q ·{" "}
+                    {formatDuration(comp.approxDuration)}
                   </AppText>
                 </AppText>
               </View>
-              <View style={[styles.liveBadge, { backgroundColor: statusColor + "33" }]}>
-                <View style={[styles.liveDot, { backgroundColor: statusColor }]} />
-                <AppText fontWeight="bold" size="xxsmall" style={{ color: statusColor }}>
+              <View
+                style={[
+                  styles.liveBadge,
+                  { backgroundColor: statusColor + "33" },
+                ]}
+              >
+                <View
+                  style={[styles.liveDot, { backgroundColor: statusColor }]}
+                />
+                <AppText
+                  fontWeight="bold"
+                  size="xxsmall"
+                  style={{ color: statusColor }}
+                >
                   {statusText}
                 </AppText>
               </View>
@@ -474,7 +666,11 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
               <View style={styles.tagsRow}>
                 {subjectNames.slice(0, 2).map((name) => (
                   <View key={name} style={styles.tag}>
-                    <AppText size="xxsmall" fontWeight="bold" style={{ color: "#FFE4CC" }}>
+                    <AppText
+                      size="xxsmall"
+                      fontWeight="bold"
+                      style={{ color: "#FFE4CC" }}
+                    >
                       {name}
                     </AppText>
                   </View>
@@ -487,7 +683,11 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
                   </View>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color="rgba(255,255,255,0.4)"
+              />
             </View>
           </LinearGradient>
         </Pressable>
@@ -495,7 +695,10 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 
       <CompetitionDetailsModal
         visible={detailsOpen}
-        onClose={() => { setDetailsOpen(false); refetch(); }}
+        onClose={() => {
+          setDetailsOpen(false);
+          refetch();
+        }}
         competitionId={comp._id}
         isSubscribed={isSubscribed}
         onParticipate={handleParticipate}
@@ -516,8 +719,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     overflow: "hidden",
-       boxShadow: `2px 8px 18px ${ACCENT}60`,
-
+    boxShadow: `2px 8px 18px ${ACCENT}60`,
   },
   cardGlow: {
     position: "absolute",
@@ -686,13 +888,13 @@ const styles = StyleSheet.create({
   // flex container so scroll + footer stack properly
   modalSheet: {
     maxHeight: "92%",
-    flex: 1,                    // must be set so children can measure height
+    flex: 1, // must be set so children can measure height
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: "hidden",
   },
   modalGradient: {
-    flex: 1,                    // fills modalSheet; ScrollView + footer stack inside
+    flex: 1, // fills modalSheet; ScrollView + footer stack inside
     flexDirection: "column",
     paddingTop: 16,
   },
@@ -703,7 +905,7 @@ const styles = StyleSheet.create({
   },
   modalScrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 16,         // breathing room above footer
+    paddingBottom: 16, // breathing room above footer
   },
   modalBadge: {
     alignSelf: "flex-start",

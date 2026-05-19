@@ -413,7 +413,7 @@ export default function OnboardingScreen() {
       </View>
 
       {/* Bottom card — plain View, text blocks handle their own animation */}
-      <View style={styles.card}>
+      <View style={[styles.card, { paddingBottom: insets.bottom }]}>
         {/* Title */}
         <Animated.View style={titleAnimStyle}>
           <AppText

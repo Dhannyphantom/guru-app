@@ -139,7 +139,7 @@ export const DailyTask = ({ stats }) => {
             flexDirection: "row",
             justifyContent: "space-between",
             marginTop: 15,
-            marginBottom: 10
+            marginBottom: 10,
           }}
         >
           <View>
@@ -150,7 +150,7 @@ export const DailyTask = ({ stats }) => {
             >
               Daily Task
             </AppText>
-            <AppText style={{color: colors.medium}} fontWeight="medium">
+            <AppText style={{ color: colors.medium }} fontWeight="medium">
               @{user?.username}
             </AppText>
           </View>
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     flexDirection: "row",
     padding: 6,
-    marginBottom: 25,
+    marginBottom: 15,
   },
   box: {
     width: Platform.OS == "web" ? "35%" : width * 0.35,
