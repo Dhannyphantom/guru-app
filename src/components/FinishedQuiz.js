@@ -154,10 +154,10 @@ const FinishedQuiz = ({
   const competitionRank = competitionResults?.data?.rank;
   const msg =
     data?.type === "competition" && competitionRank
-      ? `You finished #${competitionRank} in the monthly championship!`
+      ? `You finished #${competitionRank} in the Monthly Tournament!`
       : lowPercent
-        ? `Hard luck!. Study more and come back for more practice!`
-        : `You've done well, retake quiz or move to next topic or subject category`;
+      ? `Hard luck!. Study more and come back for more practice!`
+      : `You've done well, retake quiz or move to next topic or subject category`;
 
   useEffect(() => {
     socket.emit("quiz_end", {

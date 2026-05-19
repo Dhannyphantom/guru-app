@@ -930,7 +930,7 @@ export const proActions = [
   {
     _id: nanoid(),
     name: "Quiz\nCompetition",
-    text: "Configure monthly online quiz championship",
+    text: "Configure monthly online Quiz Tournament",
     key: "competition",
   },
   {

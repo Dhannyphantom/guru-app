@@ -220,11 +220,12 @@ const CompetitionDetailsModal = ({
               marginBottom: 10,
             }}
           >
-            Subscribe to participate in the monthly quiz championship and earn
-            prize rewards
+            Unlock access to the Monthly Quiz Tournament and stand a chance to
+            earn prizes
           </AppText>
           <AppButton
             title="Subscribe Now"
+            type="accent"
             onPress={() => {
               onClose();
               onParticipate?.("subscribe");
@@ -450,8 +451,9 @@ const CompetitionDetailsModal = ({
                           <AppText
                             fontWeight="bold"
                             style={{ color: ACCENT, width: 28 }}
+                            size="xlarge"
                           >
-                            #{p.rank}
+                            {p.rank}
                           </AppText>
                           <Avatar size={32} source={p.user?.avatar?.image} />
                           <AppText
@@ -480,7 +482,7 @@ const CompetitionDetailsModal = ({
                         fontWeight="bold"
                       >
                         You completed this
-                        {comp.myRank ? ` · Rank #${comp.myRank}` : ""}
+                        {comp.myRank ? ` · Position #${comp.myRank}` : ""}
                       </AppText>
                     </View>
                   )}

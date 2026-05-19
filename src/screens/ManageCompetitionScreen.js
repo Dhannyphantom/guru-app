@@ -156,7 +156,7 @@ const ManageCompetitionScreen = () => {
   const [form, setForm] = useState({
     month: now.getMonth() + 1,
     year: now.getFullYear(),
-    title: "Monthly Guru Quiz Championship",
+    title: "Monthly Guru Quiz Tournament",
     rules:
       "Competition runs for 24 hours on the first Saturday of the month. One attempt per student. Highest score wins; ties broken by fastest completion time.",
     subjects: [],
@@ -318,7 +318,7 @@ const ManageCompetitionScreen = () => {
                   setForm({
                     month: now.getMonth() + 1,
                     year: now.getFullYear(),
-                    title: "Monthly Guru Quiz Championship",
+                    title: "Monthly Guru Quiz Tournament",
                     rules: form.rules,
                     subjects: [],
                     prizes: defaultPrizes(),

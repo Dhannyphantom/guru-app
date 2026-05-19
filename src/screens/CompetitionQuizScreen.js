@@ -13,6 +13,7 @@ import AppText from "../components/AppText";
 import LottieAnimator from "../components/LottieAnimator";
 import colors from "../helpers/colors";
 import { useFetchCompetitionQuestionsMutation } from "../context/competitionSlice";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const QUIT_PROMPT = {
   title: "Exit Competition",
@@ -31,8 +32,10 @@ const CompetitionQuizScreen = () => {
   const [quizSession, setQuizSession] = useState(null);
   const [popper, setPopper] = useState({ vis: false });
   const [quitPrompt, setQuitPrompt] = useState(false);
+  const insets = useSafeAreaInsets();
 
-  const [fetchQuestions, { isLoading }] = useFetchCompetitionQuestionsMutation();
+  const [fetchQuestions, { isLoading }] =
+    useFetchCompetitionQuestionsMutation();
 
   const loadQuestions = async () => {
     try {
@@ -80,24 +83,29 @@ const CompetitionQuizScreen = () => {
 
   if (view === "finished" && quizSession) {
     return (
-      <FinishedQuiz
-        hideModal={hideFinished}
-        data={{ type: "competition", competitionId }}
-        session={quizSession}
-        duration={Date.now() - startTimeRef.current}
-        retried={false}
-      />
+      <View style={{ paddingBottom: insets.bottom }}>
+        <FinishedQuiz
+          hideModal={hideFinished}
+          data={{ type: "competition", competitionId }}
+          session={quizSession}
+          duration={Date.now() - startTimeRef.current}
+          retried={false}
+        />
+      </View>
     );
   }
 
   return (
-    <Screen style={styles.container}>
+    <Screen style={[styles.container, { paddingBottom: insets.bottom }]}>
       <StatusBar style="light" />
 
       {view === "loading" || isLoading ? (
         <View style={styles.center}>
           <LottieAnimator name="loading" visible loop />
-          <AppText fontWeight="bold" style={{ color: colors.white, marginTop: 16 }}>
+          <AppText
+            fontWeight="bold"
+            style={{ color: colors.white, marginTop: 16 }}
+          >
             Preparing your competition questions...
           </AppText>
         </View>
