@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState } from "react";
 import {
-  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -26,27 +25,15 @@ import {
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
 
-// const { width } = Dimensions.get("screen");
-
 const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "Jan","Feb","Mar","Apr","May","Jun",
+  "Jul","Aug","Sep","Oct","Nov","Dec",
 ];
 
 const formatDuration = (seconds) => {
   if (!seconds) return "~0 min";
   const mins = Math.ceil(seconds / 60);
-  if (mins < 60) return `~${mins} min`;
+  if (mins < 60) return `~${mins}m`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
@@ -57,7 +44,6 @@ const useCountdown = (targetDate, active) => {
 
   useEffect(() => {
     if (!targetDate || !active) return;
-
     const tick = () => {
       const diff = new Date(targetDate).getTime() - Date.now();
       if (diff <= 0) {
@@ -72,7 +58,6 @@ const useCountdown = (targetDate, active) => {
         done: false,
       });
     };
-
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -81,17 +66,43 @@ const useCountdown = (targetDate, active) => {
   return remaining;
 };
 
-const CountdownUnit = ({ value, label }) => (
-  <View style={styles.countdownUnit}>
-    <AppText fontWeight="black" size="large" style={styles.countdownValue}>
-      {String(value).padStart(2, "0")}
-    </AppText>
-    <AppText size="xxsmall" style={styles.countdownLabel}>
-      {label}
+// Compact inline countdown: 00d 00h 00m 00s
+const InlineCountdown = ({ countdown }) => {
+  if (!countdown || countdown.done) return null;
+  const parts = [
+    { v: countdown.days, l: "d" },
+    { v: countdown.hours, l: "h" },
+    { v: countdown.minutes, l: "m" },
+    { v: countdown.seconds, l: "s" },
+  ];
+  return (
+    <View style={styles.inlineCountdown}>
+      {parts.map(({ v, l }, i) => (
+        <View key={l} style={styles.inlineUnit}>
+          <AppText fontWeight="black" size="medium" style={styles.inlineValue}>
+            {String(v).padStart(2, "0")}
+          </AppText>
+          <AppText size="xxsmall" style={styles.inlineLabel}>{l}</AppText>
+          {i < 3 && (
+            <AppText style={styles.inlineSep}>:</AppText>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+};
+
+// Compact prize pill
+const PrizePill = ({ emoji, reward }) => (
+  <View style={styles.prizePill}>
+    <AppText size="small">{emoji}</AppText>
+    <AppText fontWeight="bold" size="xxsmall" style={{ color: "#FFD700" }}>
+      {formatPoints(reward)}
     </AppText>
   </View>
 );
 
+// Full prize row for modal
 const PrizeRow = ({ place, title, reward, medal }) => (
   <View style={styles.prizeRow}>
     <View style={[styles.medalBadge, { backgroundColor: medal }]}>
@@ -99,7 +110,7 @@ const PrizeRow = ({ place, title, reward, medal }) => (
         {place}
       </AppText>
     </View>
-    <View style={{}}>
+    <View>
       <AppText fontWeight="bold" size="small" style={{ color: "#fff" }}>
         {title}
       </AppText>
@@ -121,58 +132,34 @@ const CompetitionDetailsModal = ({
     skip: !visible || !competitionId,
   });
   const comp = data?.data;
-
-  const statusLabel = comp?.isLive
-    ? "LIVE NOW"
-    : comp?.isUpcoming
-    ? "UPCOMING"
-    : "ENDED";
+  const statusLabel = comp?.isLive ? "LIVE NOW" : comp?.isUpcoming ? "UPCOMING" : "ENDED";
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
-          <LinearGradient
-            colors={["#1a1a2e", "#16213e", "#0f3460"]}
-            style={styles.modalGradient}
-          >
+          <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={styles.modalGradient}>
             <Pressable style={styles.modalClose} onPress={onClose}>
               <Ionicons name="close" size={26} color="#fff" />
             </Pressable>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalBadge}>
-                <AppText
-                  fontWeight="bold"
-                  size="xxsmall"
-                  style={{ color: "#FFD700" }}
-                >
+                <AppText fontWeight="bold" size="xxsmall" style={{ color: "#FFD700" }}>
                   {statusLabel}
                 </AppText>
               </View>
 
-              <AppText
-                fontWeight="black"
-                size="xxlarge"
-                style={styles.modalTitle}
-              >
+              <AppText fontWeight="black" size="xxlarge" style={styles.modalTitle}>
                 {comp?.title || "Monthly Quiz"}
               </AppText>
 
               <AppText size="small" style={styles.modalSub}>
-                {MONTHS[(comp?.month || 1) - 1]} {comp?.year} · First Saturday ·
-                24 hours
+                {MONTHS[(comp?.month || 1) - 1]} {comp?.year} · First Saturday · 24 hours
               </AppText>
 
               {isLoading ? (
-                <AppText style={{ color: "#fff", marginTop: 20 }}>
-                  Loading...
-                </AppText>
+                <AppText style={{ color: "#fff", marginTop: 20 }}>Loading...</AppText>
               ) : (
                 <>
                   <View style={styles.modalStatsRow}>
@@ -181,136 +168,67 @@ const CompetitionDetailsModal = ({
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.participantsCount ?? 0}
                       </AppText>
-                      <AppText
-                        size="xxsmall"
-                        style={{ color: "rgba(255,255,255,0.6)" }}
-                      >
-                        Participants
-                      </AppText>
+                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Participants</AppText>
                     </View>
                     <View style={styles.modalStat}>
                       <Ionicons name="help-circle" size={20} color="#FFD700" />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.totalQuestions ?? 0}
                       </AppText>
-                      <AppText
-                        size="xxsmall"
-                        style={{ color: "rgba(255,255,255,0.6)" }}
-                      >
-                        Questions
-                      </AppText>
+                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Questions</AppText>
                     </View>
                     <View style={styles.modalStat}>
                       <Ionicons name="time" size={20} color="#FFD700" />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {formatDuration(comp?.approxDuration)}
                       </AppText>
-                      <AppText
-                        size="xxsmall"
-                        style={{ color: "rgba(255,255,255,0.6)" }}
-                      >
-                        Duration
-                      </AppText>
+                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Duration</AppText>
                     </View>
                   </View>
 
                   {comp?.rules ? (
                     <View style={styles.rulesBox}>
-                      <AppText
-                        fontWeight="bold"
-                        size="small"
-                        style={{ color: "#FFD700" }}
-                      >
-                        Rules
-                      </AppText>
-                      <AppText
-                        size="small"
-                        style={{ color: "rgba(255,255,255,0.85)" }}
-                      >
-                        {comp.rules}
-                      </AppText>
+                      <AppText fontWeight="bold" size="small" style={{ color: "#FFD700" }}>Rules</AppText>
+                      <AppText size="small" style={{ color: "rgba(255,255,255,0.85)" }}>{comp.rules}</AppText>
                     </View>
                   ) : null}
 
-                  <AppText
-                    fontWeight="bold"
-                    size="medium"
-                    style={styles.sectionTitle}
-                  >
-                    Prize Pool
-                  </AppText>
-                  <PrizeRow
-                    place="1st"
-                    title={comp?.prizes?.first?.title || "Champion"}
-                    reward={comp?.prizes?.first?.reward}
-                    medal="#FFD700"
-                  />
-                  <PrizeRow
-                    place="2nd"
-                    title={comp?.prizes?.second?.title || "Runner-up"}
-                    reward={comp?.prizes?.second?.reward}
-                    medal="#C0C0C0"
-                  />
-                  <PrizeRow
-                    place="3rd"
-                    title={comp?.prizes?.third?.title || "Third Place"}
-                    reward={comp?.prizes?.third?.reward}
-                    medal="#CD7F32"
-                  />
+                  <AppText fontWeight="bold" size="medium" style={styles.sectionTitle}>Prize Pool</AppText>
+                  <PrizeRow place="1st" title={comp?.prizes?.first?.title || "Champion"} reward={comp?.prizes?.first?.reward} medal="#FFD700" />
+                  <PrizeRow place="2nd" title={comp?.prizes?.second?.title || "Runner-up"} reward={comp?.prizes?.second?.reward} medal="#C0C0C0" />
+                  <PrizeRow place="3rd" title={comp?.prizes?.third?.title || "Third Place"} reward={comp?.prizes?.third?.reward} medal="#CD7F32" />
 
-                  {(comp?.lastWinners?.length > 0 ||
-                    comp?.finalRankings?.length > 0) && (
+                  {(comp?.lastWinners?.length > 0 || comp?.finalRankings?.length > 0) && (
                     <>
-                      <AppText
-                        fontWeight="bold"
-                        size="medium"
-                        style={[styles.sectionTitle, { marginTop: 16 }]}
-                      >
+                      <AppText fontWeight="bold" size="medium" style={[styles.sectionTitle, { marginTop: 16 }]}>
                         Last Winners
                       </AppText>
                       <LeaderboardWinners
                         isPro={false}
-                        data={(comp.lastWinners || comp.finalRankings || [])
-                          .slice(0, 3)
-                          .map((w) => ({
-                            _id: w.user?._id || w.user,
-                            username: w.user?.username,
-                            firstName: w.user?.firstName,
-                            points: w.score,
-                            avatar: w.user?.avatar,
-                          }))}
+                        data={(comp.lastWinners || comp.finalRankings || []).slice(0, 3).map((w) => ({
+                          _id: w.user?._id || w.user,
+                          username: w.user?.username,
+                          firstName: w.user?.firstName,
+                          points: w.score,
+                          avatar: w.user?.avatar,
+                        }))}
                       />
                     </>
                   )}
 
                   {comp?.leaderboard?.length > 0 && comp?.isLive && (
                     <>
-                      <AppText
-                        fontWeight="bold"
-                        size="medium"
-                        style={[styles.sectionTitle, { marginTop: 16 }]}
-                      >
+                      <AppText fontWeight="bold" size="medium" style={[styles.sectionTitle, { marginTop: 16 }]}>
                         Live Leaderboard
                       </AppText>
                       {comp.leaderboard.slice(0, 5).map((p, i) => (
                         <View key={p.user?._id || i} style={styles.lbRow}>
-                          <AppText
-                            fontWeight="bold"
-                            style={{ color: "#FFD700", width: 28 }}
-                          >
-                            #{p.rank}
-                          </AppText>
+                          <AppText fontWeight="bold" style={{ color: "#FFD700", width: 28 }}>#{p.rank}</AppText>
                           <Avatar size={32} source={p.user?.avatar?.image} />
-                          <AppText
-                            style={{ flex: 1, color: "#fff", marginLeft: 10 }}
-                            fontWeight="semibold"
-                          >
+                          <AppText style={{ flex: 1, color: "#fff", marginLeft: 10 }} fontWeight="semibold">
                             @{p.user?.username}
                           </AppText>
-                          <AppText
-                            fontWeight="bold"
-                            style={{ color: "#FFD700" }}
-                          >
+                          <AppText fontWeight="bold" style={{ color: "#FFD700" }}>
                             {formatPoints(p.score)}
                           </AppText>
                         </View>
@@ -320,17 +238,9 @@ const CompetitionDetailsModal = ({
 
                   {comp?.hasParticipated && (
                     <View style={styles.participatedBanner}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color="#4ADE80"
-                      />
-                      <AppText
-                        style={{ color: "#4ADE80", marginLeft: 8 }}
-                        fontWeight="bold"
-                      >
-                        You completed this competition
-                        {comp.myRank ? ` · Rank #${comp.myRank}` : ""}
+                      <Ionicons name="checkmark-circle" size={22} color="#4ADE80" />
+                      <AppText style={{ color: "#4ADE80", marginLeft: 8 }} fontWeight="bold">
+                        You completed this{comp.myRank ? ` · Rank #${comp.myRank}` : ""}
                       </AppText>
                     </View>
                   )}
@@ -343,32 +253,13 @@ const CompetitionDetailsModal = ({
             <View style={styles.modalFooter}>
               {!isSubscribed ? (
                 <>
-                  <AppText
-                    size="small"
-                    style={{
-                      color: "rgba(255,255,255,0.8)",
-                      textAlign: "center",
-                      marginBottom: 10,
-                    }}
-                  >
+                  <AppText size="small" style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 10 }}>
                     Subscribe to participate in the monthly quiz championship
                   </AppText>
-                  <AppButton
-                    title="Subscribe Now"
-                    onPress={() => {
-                      onClose();
-                      onParticipate?.("subscribe");
-                    }}
-                  />
+                  <AppButton title="Subscribe Now" onPress={() => { onClose(); onParticipate?.("subscribe"); }} />
                 </>
               ) : comp?.isLive && !comp?.hasParticipated ? (
-                <AppButton
-                  title="Start Competition"
-                  onPress={() => {
-                    onClose();
-                    onParticipate?.("start");
-                  }}
-                />
+                <AppButton title="Start Competition" onPress={() => { onClose(); onParticipate?.("start"); }} />
               ) : comp?.isUpcoming ? (
                 <AppButton title="Opens Soon" type="white" onPress={onClose} />
               ) : (
@@ -402,25 +293,12 @@ const MonthlyQuizCard = () => {
     return null;
   }, [comp]);
 
-  const countdown = useCountdown(
-    countdownTarget,
-    Boolean(comp && countdownTarget),
-  );
+  const countdown = useCountdown(countdownTarget, Boolean(comp && countdownTarget));
 
   const subjectNames = useMemo(
     () => comp?.subjects?.map((s) => s.subject?.name).filter(Boolean) || [],
     [comp],
   );
-
-  const topicNames = useMemo(() => {
-    const names = [];
-    comp?.subjects?.forEach((s) => {
-      s.topics?.forEach((t) => {
-        if (t?.name) names.push(t.name);
-      });
-    });
-    return names;
-  }, [comp]);
 
   const handleParticipate = (action) => {
     if (action === "subscribe") {
@@ -428,180 +306,94 @@ const MonthlyQuizCard = () => {
       return;
     }
     if (action === "start" && comp?._id) {
-      router.push({
-        pathname: "/main/competition",
-        params: { competitionId: comp._id },
-      });
+      router.push({ pathname: "/main/competition", params: { competitionId: comp._id } });
     }
-  };
-
-  const handleCardPress = () => {
-    if (!comp) return;
-    setDetailsOpen(true);
   };
 
   if (isLoading || !comp) return null;
 
-  const statusColor = comp.isLive
-    ? "#4ADE80"
-    : comp.isUpcoming
-    ? "#FFD700"
-    : "#94A3B8";
-  const statusText = comp.isLive
-    ? "LIVE"
-    : comp.isUpcoming
-    ? "STARTS IN"
-    : "ENDED";
+  const statusColor = comp.isLive ? "#4ADE80" : comp.isUpcoming ? "#FFD700" : "#94A3B8";
+  const statusText = comp.isLive ? "LIVE" : comp.isUpcoming ? "UPCOMING" : "ENDED";
 
   return (
     <>
-      <Animated.View
-        entering={FadeInDown.delay(200).springify()}
-        style={styles.wrapper}
-      >
-        <Pressable onPress={handleCardPress}>
+      <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.wrapper}>
+        <Pressable onPress={() => setDetailsOpen(true)}>
           <LinearGradient
             colors={["#6B21A8", "#4C1D95", "#1e1b4b"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.card}
           >
+            {/* Glow accent */}
             <View style={styles.cardGlow} />
 
+            {/* Row 1: Title + status badge */}
             <View style={styles.cardHeader}>
               <View style={styles.trophyIcon}>
-                <Ionicons name="trophy" size={22} color="#FFD700" />
+                <Ionicons name="trophy" size={18} color="#FFD700" />
               </View>
               <View style={{ flex: 1 }}>
-                <AppText
-                  fontWeight="black"
-                  size="large"
-                  style={styles.cardTitle}
-                >
+                <AppText fontWeight="black" size="medium" style={styles.cardTitle} numberOfLines={1}>
                   {comp.title}
                 </AppText>
-                <AppText size="xsmall" style={styles.cardMonth}>
-                  {MONTHS[comp.month - 1]} {comp.year} Championship
+                <AppText size="xxsmall" style={styles.cardMonth}>
+                  {MONTHS[comp.month - 1]} {comp.year}
+                  {" · "}
+                  <AppText size="xxsmall" style={{ color: "#C4B5FD" }}>
+                    {comp.totalQuestions}Q · {formatDuration(comp.approxDuration)}
+                  </AppText>
                 </AppText>
               </View>
-              <View
-                style={[
-                  styles.liveBadge,
-                  { backgroundColor: statusColor + "33" },
-                ]}
-              >
-                <View
-                  style={[styles.liveDot, { backgroundColor: statusColor }]}
-                />
-                <AppText
-                  fontWeight="bold"
-                  size="xxsmall"
-                  style={{ color: statusColor }}
-                >
+              <View style={[styles.liveBadge, { backgroundColor: statusColor + "33" }]}>
+                <View style={[styles.liveDot, { backgroundColor: statusColor }]} />
+                <AppText fontWeight="bold" size="xxsmall" style={{ color: statusColor }}>
                   {statusText}
                 </AppText>
               </View>
             </View>
 
-            {countdown && !countdown.done && countdownTarget && (
-              <View style={styles.countdownRow}>
-                <CountdownUnit value={countdown.days} label="Days" />
-                <AppText style={styles.countdownSep}>:</AppText>
-                <CountdownUnit value={countdown.hours} label="Hrs" />
-                <AppText style={styles.countdownSep}>:</AppText>
-                <CountdownUnit value={countdown.minutes} label="Min" />
-                <AppText style={styles.countdownSep}>:</AppText>
-                <CountdownUnit value={countdown.seconds} label="Sec" />
-              </View>
-            )}
-
-            <View style={styles.tagsRow}>
-              {subjectNames.slice(0, 3).map((name) => (
-                <View key={name} style={styles.tag}>
-                  <AppText
-                    size="xxsmall"
-                    fontWeight="bold"
-                    style={{ color: "#E9D5FF" }}
-                  >
-                    {name}
-                  </AppText>
-                </View>
-              ))}
-              {subjectNames.length > 3 && (
-                <View style={styles.tag}>
-                  <AppText size="xxsmall" style={{ color: "#E9D5FF" }}>
-                    +{subjectNames.length - 3}
+            {/* Row 2: Countdown + prizes side by side */}
+            <View style={styles.middleRow}>
+              {/* Countdown */}
+              {countdown && !countdown.done && countdownTarget ? (
+                <InlineCountdown countdown={countdown} />
+              ) : (
+                <View style={styles.participantsChip}>
+                  <Ionicons name="people-outline" size={13} color="#C4B5FD" />
+                  <AppText size="xxsmall" style={{ color: "#C4B5FD", marginLeft: 4 }}>
+                    {comp.totalParticipants || 0} joined
                   </AppText>
                 </View>
               )}
-            </View>
 
-            {topicNames.length > 0 && (
-              <AppText
-                size="xxsmall"
-                style={styles.topicsText}
-                numberOfLines={1}
-              >
-                Topics: {topicNames.slice(0, 4).join(" · ")}
-                {topicNames.length > 4 ? "…" : ""}
-              </AppText>
-            )}
-
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={14} color="#C4B5FD" />
-                <AppText size="xxsmall" style={styles.metaText}>
-                  {formatDuration(comp.approxDuration)}
-                </AppText>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="help-circle-outline"
-                  size={14}
-                  color="#C4B5FD"
-                />
-                <AppText size="xxsmall" style={styles.metaText}>
-                  {comp.totalQuestions} Qs
-                </AppText>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="people-outline" size={14} color="#C4B5FD" />
-                <AppText size="xxsmall" style={styles.metaText}>
-                  {comp.totalParticipants || 0}
-                </AppText>
+              {/* Prize pills */}
+              <View style={styles.prizePillsRow}>
+                <PrizePill emoji="🥇" reward={comp.prizes?.first?.reward} />
+                <PrizePill emoji="🥈" reward={comp.prizes?.second?.reward} />
+                <PrizePill emoji="🥉" reward={comp.prizes?.third?.reward} />
               </View>
             </View>
 
-            <View style={styles.prizesPreview}>
-              <PrizeRow
-                place="🥇"
-                title={comp.prizes?.first?.title || "1st"}
-                reward={comp.prizes?.first?.reward}
-                medal="#FFD700"
-              />
-              <PrizeRow
-                place="🥈"
-                title={comp.prizes?.second?.title || "2nd"}
-                reward={comp.prizes?.second?.reward}
-                medal="#C0C0C0"
-              />
-              <PrizeRow
-                place="🥉"
-                title={comp.prizes?.third?.title || "3rd"}
-                reward={comp.prizes?.third?.reward}
-                medal="#CD7F32"
-              />
-            </View>
-
+            {/* Row 3: Subject tags + tap hint */}
             <View style={styles.cardFooter}>
-              <AppText size="xsmall" style={{ color: "rgba(255,255,255,0.6)" }}>
-                Tap for details & rules
-              </AppText>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color="rgba(255,255,255,0.5)"
-              />
+              <View style={styles.tagsRow}>
+                {subjectNames.slice(0, 2).map((name) => (
+                  <View key={name} style={styles.tag}>
+                    <AppText size="xxsmall" fontWeight="bold" style={{ color: "#E9D5FF" }}>
+                      {name}
+                    </AppText>
+                  </View>
+                ))}
+                {subjectNames.length > 2 && (
+                  <View style={styles.tag}>
+                    <AppText size="xxsmall" style={{ color: "#E9D5FF" }}>
+                      +{subjectNames.length - 2}
+                    </AppText>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
             </View>
           </LinearGradient>
         </Pressable>
@@ -609,10 +401,7 @@ const MonthlyQuizCard = () => {
 
       <CompetitionDetailsModal
         visible={detailsOpen}
-        onClose={() => {
-          setDetailsOpen(false);
-          refetch();
-        }}
+        onClose={() => { setDetailsOpen(false); refetch(); }}
         competitionId={comp._id}
         isSubscribed={isSubscribed}
         onParticipate={handleParticipate}
@@ -629,33 +418,34 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   card: {
-    borderRadius: 22,
-    padding: 18,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     overflow: "hidden",
     elevation: 8,
     shadowColor: "#6B21A8",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
-    shadowRadius: 16,
+    shadowRadius: 12,
   },
   cardGlow: {
     position: "absolute",
-    top: -40,
-    right: -40,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255,215,0,0.12)",
+    top: -30,
+    right: -30,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,215,0,0.10)",
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   trophyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     backgroundColor: "rgba(255,215,0,0.15)",
     alignItems: "center",
     justifyContent: "center",
@@ -664,89 +454,108 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   cardMonth: {
-    color: "rgba(255,255,255,0.55)",
-    marginTop: 2,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 1,
   },
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
-    gap: 5,
+    gap: 4,
   },
   liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  countdownRow: {
+
+  // Middle row: countdown left, prizes right
+  middleRow: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginTop: 14,
-    marginBottom: 4,
+    justifyContent: "space-between",
+    marginTop: 10,
   },
-  countdownUnit: {
+  inlineCountdown: {
+    flexDirection: "row",
     alignItems: "center",
-    minWidth: 44,
+    gap: 0,
   },
-  countdownValue: {
+  inlineUnit: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 1,
+    position: "relative",
+  },
+  inlineValue: {
     color: "#FFD700",
-    fontSize: 22,
+    fontSize: 16,
+    lineHeight: 20,
   },
-  countdownLabel: {
+  inlineLabel: {
     color: "rgba(255,255,255,0.5)",
-    marginTop: 2,
+    fontSize: 10,
   },
-  countdownSep: {
+  inlineSep: {
     color: "rgba(255,255,255,0.3)",
-    fontSize: 20,
-    marginBottom: 14,
+    fontSize: 14,
+    marginHorizontal: 2,
+    lineHeight: 20,
+  },
+  participantsChip: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  prizePillsRow: {
+    flexDirection: "row",
+    gap: 5,
+  },
+  prizePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(255,215,0,0.1)",
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255,215,0,0.2)",
+  },
+
+  // Footer
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
+    paddingTop: 9,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)",
   },
   tagsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginTop: 12,
+    gap: 5,
+    flex: 1,
   },
   tag: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  topicsText: {
-    color: "rgba(255,255,255,0.55)",
-    marginTop: 8,
-  },
-  metaRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginTop: 12,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  metaText: {
-    color: "#C4B5FD",
-  },
-  prizesPreview: {
-    // flex: 1,
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-    gap: 6,
-  },
+
+  // Modal styles (unchanged)
   prizeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    marginBottom: 8,
   },
   medalBadge: {
     width: 32,
@@ -754,15 +563,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
   },
   modalOverlay: {
     flex: 1,
@@ -792,9 +592,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
-  modalTitle: {
-    color: "#fff",
-  },
+  modalTitle: { color: "#fff" },
   modalSub: {
     color: "rgba(255,255,255,0.6)",
     marginTop: 4,
