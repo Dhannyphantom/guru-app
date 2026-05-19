@@ -68,6 +68,7 @@ import AppText from "../components/AppText";
 import MonthlyQuizCard from "../components/MonthlyQuizCard";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { apiSlice } from "../context/apiSlice";
+import { useFetchActiveCompetitionQuery } from "../context/competitionSlice";
 // import useDoubleBackExit from "../hooks/useDoubleBackExit";
 
 const WalkthroughableView = walkthroughable(View);
@@ -107,6 +108,10 @@ const HomeScreen = () => {
     useFetchCategoriesQuery();
   const { data: subjects, isLoading: fetchingSubjects } =
     useFetchSubjectsQuery();
+      const { data: competitionData, isLoading: competitionLoading, refetch: competitionRefetch } = useFetchActiveCompetitionQuery(null, {
+    refetchOnFocus: true,
+    pollingInterval: 60000,
+  });
 
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -169,6 +174,7 @@ const HomeScreen = () => {
     try {
       await refetch();
       await reftechStat().unwrap();
+      await competitionRefetch()
     } catch (_errr) {
       console.log({ _errr });
     } finally {
@@ -407,7 +413,7 @@ const HomeScreen = () => {
                   <DailyTask stats={stats?.data ?? cache?.stat} />
                 </WalkthroughableView>
               </CopilotStep>
-              <MonthlyQuizCard />
+              <MonthlyQuizCard data={competitionData} refetch={competitionRefetch} isLoading={competitionLoading} />
 
               <Invited data={invite} onPress={handleInvite} />
               <CopilotStep

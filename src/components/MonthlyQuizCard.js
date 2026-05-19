@@ -25,7 +25,30 @@ import {
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
 
-// Full month names — no truncation
+// ─────────────────────────────────────────────
+// 🎨 Theme — edit these to restyle the whole card/modal
+// ─────────────────────────────────────────────
+const GRADIENTS = {
+  /** Main card & modal background */
+  // card: ["#42275a",  "#734b6d"],
+  card: ["#232526",  "#414345"],
+  /** Reversed for variety if needed */
+  cardReversed: ["#414345", "#232526"],
+  // cardReversed: ["#FF5F6D", "#C0392B", "#7B0000"],
+  /** Warm sunset accent for highlights */
+  accent: ["#232526",  "#414345"],
+  // accent: ["#FF5F6D", "#FFC371"],
+};
+
+/** Single accent color used for badges, dots, text highlights */
+const ACCENT = "#FFC371";
+/** Dimmed accent for secondary text */
+const ACCENT_DIM = "rgba(255,195,113,0.55)";
+/** Card glow tint */
+const GLOW_COLOR = "rgba(255,195,113,0.10)";
+
+// ─────────────────────────────────────────────
+
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
@@ -67,7 +90,9 @@ const useCountdown = (targetDate, active) => {
   return remaining;
 };
 
+// ─────────────────────────────────────────────
 // Compact inline countdown: 00d 00h 00m 00s
+// ─────────────────────────────────────────────
 const InlineCountdown = ({ countdown }) => {
   if (!countdown || countdown.done) return null;
   const parts = [
@@ -84,26 +109,48 @@ const InlineCountdown = ({ countdown }) => {
             {String(v).padStart(2, "0")}
           </AppText>
           <AppText size="xxsmall" style={styles.inlineLabel}>{l}</AppText>
-          {i < 3 && (
-            <AppText style={styles.inlineSep}>:</AppText>
-          )}
+          {i < 3 && <AppText style={styles.inlineSep}>:</AppText>}
         </View>
       ))}
     </View>
   );
 };
 
-// Compact prize pill — emoji slightly larger via fontSize override
+// ─────────────────────────────────────────────
+// Live status chip — replaces countdown when LIVE
+// ─────────────────────────────────────────────
+const LiveStatusChip = ({ hasParticipated }) =>
+  hasParticipated ? (
+    <View style={styles.liveChipDone}>
+      <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
+      <AppText fontWeight="bold" size="xxsmall" style={{ color: "#4ADE80", marginLeft: 4 }}>
+        Completed
+      </AppText>
+    </View>
+  ) : (
+    <View style={styles.liveChipPlay}>
+      <Ionicons name="play-circle" size={14} color="#fff" />
+      <AppText fontWeight="bold" size="xxsmall" style={{ color: "#fff", marginLeft: 4 }}>
+        Tap to Play
+      </AppText>
+    </View>
+  );
+
+// ─────────────────────────────────────────────
+// Compact prize pill
+// ─────────────────────────────────────────────
 const PrizePill = ({ emoji, reward }) => (
   <View style={styles.prizePill}>
     <AppText size="small" style={styles.pillEmoji}>{emoji}</AppText>
-    <AppText fontWeight="bold" size="xxsmall" style={{ color: "#FFD700" }}>
+    <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
       {formatPoints(reward)}
     </AppText>
   </View>
 );
 
+// ─────────────────────────────────────────────
 // Full prize row for modal
+// ─────────────────────────────────────────────
 const PrizeRow = ({ place, title, reward, medal }) => (
   <View style={styles.prizeRow}>
     <View style={[styles.medalBadge, { backgroundColor: medal }]}>
@@ -122,6 +169,9 @@ const PrizeRow = ({ place, title, reward, medal }) => (
   </View>
 );
 
+// ─────────────────────────────────────────────
+// Competition Details Modal
+// ─────────────────────────────────────────────
 const CompetitionDetailsModal = ({
   visible,
   onClose,
@@ -135,24 +185,50 @@ const CompetitionDetailsModal = ({
   const comp = data?.data;
   const statusLabel = comp?.isLive ? "LIVE NOW" : comp?.isUpcoming ? "UPCOMING" : "ENDED";
 
+  const renderFooter = () => {
+    if (!isSubscribed) {
+      return (
+        <>
+          <AppText size="small" style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 10 }}>
+            Subscribe to participate in the monthly quiz championship
+          </AppText>
+          <AppButton title="Subscribe Now" onPress={() => { onClose(); onParticipate?.("subscribe"); }} />
+        </>
+      );
+    }
+    if (comp?.isLive && !comp?.hasParticipated) {
+      return <AppButton title="Start Competition" onPress={() => { onClose(); onParticipate?.("start"); }} />;
+    }
+    if (comp?.isUpcoming) {
+      return <AppButton title="Opens Soon" type="white" onPress={onClose} />;
+    }
+    return <AppButton title="Close" type="white" onPress={onClose} />;
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
+        {/* Sheet fills up to 92% of screen height using flex, not maxHeight alone */}
         <View style={styles.modalSheet}>
-          {/* Modal gradient: deep green → accent purple, cohesive with app palette */}
           <LinearGradient
-            colors={["#1B4332", "#2D6A4F", "#311b92"]}
+            colors={GRADIENTS.card}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.modalGradient}
           >
+            {/* Close button */}
             <Pressable style={styles.modalClose} onPress={onClose}>
               <Ionicons name="close" size={26} color="#fff" />
             </Pressable>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Scrollable content — flex: 1 ensures it never bleeds under footer */}
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.modalBadge}>
-                <AppText fontWeight="bold" size="xxsmall" style={{ color: "#FFD700" }}>
+                <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
                   {statusLabel}
                 </AppText>
               </View>
@@ -171,31 +247,31 @@ const CompetitionDetailsModal = ({
                 <>
                   <View style={styles.modalStatsRow}>
                     <View style={styles.modalStat}>
-                      <Ionicons name="people" size={20} color="#a8e063" />
+                      <Ionicons name="people" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.participantsCount ?? 0}
                       </AppText>
-                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Participants</AppText>
+                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>Participants</AppText>
                     </View>
                     <View style={styles.modalStat}>
-                      <Ionicons name="help-circle" size={20} color="#a8e063" />
+                      <Ionicons name="help-circle" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {comp?.totalQuestions ?? 0}
                       </AppText>
-                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Questions</AppText>
+                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>Questions</AppText>
                     </View>
                     <View style={styles.modalStat}>
-                      <Ionicons name="time" size={20} color="#a8e063" />
+                      <Ionicons name="time" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
                         {formatDuration(comp?.approxDuration)}
                       </AppText>
-                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)" }}>Duration</AppText>
+                      <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>Duration</AppText>
                     </View>
                   </View>
 
                   {comp?.rules ? (
                     <View style={styles.rulesBox}>
-                      <AppText fontWeight="bold" size="small" style={{ color: "#a8e063" }}>Rules</AppText>
+                      <AppText fontWeight="bold" size="small" style={{ color: ACCENT }}>Rules</AppText>
                       <AppText size="small" style={{ color: "rgba(255,255,255,0.85)" }}>{comp.rules}</AppText>
                     </View>
                   ) : null}
@@ -207,7 +283,7 @@ const CompetitionDetailsModal = ({
 
                   {(comp?.lastWinners?.length > 0 || comp?.finalRankings?.length > 0) && (
                     <>
-                      <AppText fontWeight="bold" size="medium" style={[styles.sectionTitle, { marginTop: 16 }]}>
+                      <AppText fontWeight="bold" size="medium" style={{...styles.sectionTitle,  marginTop: 16 }}>
                         Last Winners
                       </AppText>
                       <LeaderboardWinners
@@ -225,17 +301,17 @@ const CompetitionDetailsModal = ({
 
                   {comp?.leaderboard?.length > 0 && comp?.isLive && (
                     <>
-                      <AppText fontWeight="bold" size="medium" style={[styles.sectionTitle, { marginTop: 16 }]}>
+                      <AppText fontWeight="bold" size="medium" style={{...styles.sectionTitle,  marginTop: 16 }}>
                         Live Leaderboard
                       </AppText>
                       {comp.leaderboard.slice(0, 5).map((p, i) => (
                         <View key={p.user?._id || i} style={styles.lbRow}>
-                          <AppText fontWeight="bold" style={{ color: "#a8e063", width: 28 }}>#{p.rank}</AppText>
+                          <AppText fontWeight="bold" style={{ color: ACCENT, width: 28 }}>#{p.rank}</AppText>
                           <Avatar size={32} source={p.user?.avatar?.image} />
                           <AppText style={{ flex: 1, color: "#fff", marginLeft: 10 }} fontWeight="semibold">
                             @{p.user?.username}
                           </AppText>
-                          <AppText fontWeight="bold" style={{ color: "#FFD700" }}>
+                          <AppText fontWeight="bold" style={{ color: ACCENT }}>
                             {formatPoints(p.score)}
                           </AppText>
                         </View>
@@ -251,27 +327,13 @@ const CompetitionDetailsModal = ({
                       </AppText>
                     </View>
                   )}
-
-                  <View style={{ height: 100 }} />
                 </>
               )}
             </ScrollView>
 
+            {/* Footer sits BELOW the ScrollView — no absolute positioning */}
             <View style={styles.modalFooter}>
-              {!isSubscribed ? (
-                <>
-                  <AppText size="small" style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 10 }}>
-                    Subscribe to participate in the monthly quiz championship
-                  </AppText>
-                  <AppButton title="Subscribe Now" onPress={() => { onClose(); onParticipate?.("subscribe"); }} />
-                </>
-              ) : comp?.isLive && !comp?.hasParticipated ? (
-                <AppButton title="Start Competition" onPress={() => { onClose(); onParticipate?.("start"); }} />
-              ) : comp?.isUpcoming ? (
-                <AppButton title="Opens Soon" type="white" onPress={onClose} />
-              ) : (
-                <AppButton title="Close" type="white" onPress={onClose} />
-              )}
+              {renderFooter()}
             </View>
           </LinearGradient>
         </View>
@@ -280,15 +342,13 @@ const CompetitionDetailsModal = ({
   );
 };
 
-const MonthlyQuizCard = () => {
+// ─────────────────────────────────────────────
+// Main Card
+// ─────────────────────────────────────────────
+const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
   const user = useSelector(selectUser);
   const router = useRouter();
   const [detailsOpen, setDetailsOpen] = useState(false);
-
-  const { data, isLoading, refetch } = useFetchActiveCompetitionQuery(null, {
-    refetchOnFocus: true,
-    pollingInterval: 60000,
-  });
 
   const comp = data?.data;
   const isSubscribed = user?.subscription?.isActive;
@@ -300,9 +360,12 @@ const MonthlyQuizCard = () => {
     return null;
   }, [comp]);
 
-  const countdown = useCountdown(countdownTarget, Boolean(comp && countdownTarget));
+  // Only run countdown for upcoming; for live we show the status chip instead
+  const countdown = useCountdown(
+    comp?.isUpcoming ? countdownTarget : null,
+    Boolean(comp?.isUpcoming && countdownTarget),
+  );
 
-  // Capitalize each subject name
   const subjectNames = useMemo(
     () =>
       comp?.subjects
@@ -330,31 +393,43 @@ const MonthlyQuizCard = () => {
 
   if (isLoading || !comp) return null;
 
-  // Status colors tied to app palette
-  const statusColor = comp.isLive ? colors.green : comp.isUpcoming ? colors.warning : colors.medium;
+  const statusColor = comp.isLive ? colors.green : comp.isUpcoming ? colors.warning : colors.lighter;
   const statusText = comp.isLive ? "LIVE" : comp.isUpcoming ? "UPCOMING" : "ENDED";
+
+  // What to show in the middle-left slot
+  const renderMiddleLeft = () => {
+    if (comp.isLive) {
+      return <LiveStatusChip hasParticipated={comp.hasParticipated} />;
+    }
+    if (countdown && !countdown.done) {
+      return <InlineCountdown countdown={countdown} />;
+    }
+    return (
+      <View style={styles.participantsChip}>
+        <Ionicons name="people-outline" size={13} color="rgba(255,255,255,0.6)" />
+        <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.6)", marginLeft: 4 }}>
+          {comp.totalParticipants || 0} joined
+        </AppText>
+      </View>
+    );
+  };
 
   return (
     <>
       <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.wrapper}>
         <Pressable onPress={() => setDetailsOpen(true)}>
-          {/*
-            Card gradient: deep forest green → rich accent purple
-            Contrasts beautifully against the primaryLight (#C5E1A5) screen background
-          */}
           <LinearGradient
-            colors={["#1B4332", "#2D6A4F", "#4527A0"]}
+            colors={GRADIENTS.card}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0, y: 1 }}
             style={styles.card}
           >
-            {/* Glow accent — gold tint top-right */}
             <View style={styles.cardGlow} />
 
             {/* Row 1: Title + status badge */}
             <View style={styles.cardHeader}>
               <View style={styles.trophyIcon}>
-                <Ionicons name="trophy" size={18} color="#FFD700" />
+                <Ionicons name="trophy" size={18} color={ACCENT} />
               </View>
               <View style={{ flex: 1 }}>
                 <AppText fontWeight="black" size="medium" style={styles.cardTitle} numberOfLines={1}>
@@ -363,7 +438,7 @@ const MonthlyQuizCard = () => {
                 <AppText size="xxsmall" style={styles.cardMonth}>
                   {MONTHS[comp.month - 1]} {comp.year}
                   {" · "}
-                  <AppText size="xxsmall" style={{ color: "#a8e063" }}>
+                  <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.75)" }}>
                     {comp.totalQuestions}Q · {formatDuration(comp.approxDuration)}
                   </AppText>
                 </AppText>
@@ -376,20 +451,9 @@ const MonthlyQuizCard = () => {
               </View>
             </View>
 
-            {/* Row 2: Countdown + prizes side by side */}
+            {/* Row 2: Middle-left slot + prize pills */}
             <View style={styles.middleRow}>
-              {countdown && !countdown.done && countdownTarget ? (
-                <InlineCountdown countdown={countdown} />
-              ) : (
-                <View style={styles.participantsChip}>
-                  <Ionicons name="people-outline" size={13} color="#a8e063" />
-                  <AppText size="xxsmall" style={{ color: "#a8e063", marginLeft: 4 }}>
-                    {comp.totalParticipants || 0} joined
-                  </AppText>
-                </View>
-              )}
-
-              {/* Prize pills */}
+              {renderMiddleLeft()}
               <View style={styles.prizePillsRow}>
                 <PrizePill emoji="🥇" reward={comp.prizes?.first?.reward} />
                 <PrizePill emoji="🥈" reward={comp.prizes?.second?.reward} />
@@ -397,19 +461,19 @@ const MonthlyQuizCard = () => {
               </View>
             </View>
 
-            {/* Row 3: Subject tags (capitalized) + tap hint */}
+            {/* Row 3: Subject tags + chevron */}
             <View style={styles.cardFooter}>
               <View style={styles.tagsRow}>
                 {subjectNames.slice(0, 2).map((name) => (
                   <View key={name} style={styles.tag}>
-                    <AppText size="xxsmall" fontWeight="bold" style={{ color: "#DCEDC8" }}>
+                    <AppText size="xxsmall" fontWeight="bold" style={{ color: "#FFE4CC" }}>
                       {name}
                     </AppText>
                   </View>
                 ))}
                 {subjectNames.length > 2 && (
                   <View style={styles.tag}>
-                    <AppText size="xxsmall" style={{ color: "#DCEDC8" }}>
+                    <AppText size="xxsmall" style={{ color: "#FFE4CC" }}>
                       +{subjectNames.length - 2}
                     </AppText>
                   </View>
@@ -445,10 +509,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     overflow: "hidden",
     elevation: 8,
-    // Shadow color pulled from accentDeep for richness
-    shadowColor: "#311b92",
+    shadowColor: "#7B0000",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.45,
     shadowRadius: 14,
   },
   cardGlow: {
@@ -458,8 +521,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    // Gold glow shifted to soft lime to match green theme
-    backgroundColor: "rgba(168,224,99,0.12)",
+    backgroundColor: GLOW_COLOR,
   },
   cardHeader: {
     flexDirection: "row",
@@ -470,7 +532,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 11,
-    backgroundColor: "rgba(255,215,0,0.18)",
+    backgroundColor: "rgba(255,195,113,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -505,26 +567,23 @@ const styles = StyleSheet.create({
   inlineCountdown: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 0,
   },
   inlineUnit: {
     flexDirection: "row",
     alignItems: "baseline",
     gap: 1,
-    position: "relative",
   },
   inlineValue: {
-    // Lime green countdown digits — punchy on dark green background
-    color: "#a8e063",
+    color: ACCENT,
     fontSize: 16,
     lineHeight: 20,
   },
   inlineLabel: {
-    color: "rgba(255,255,255,0.5)",
+    color: ACCENT_DIM,
     fontSize: 10,
   },
   inlineSep: {
-    color: "rgba(255,255,255,0.3)",
+    color: "rgba(255,255,255,0.25)",
     fontSize: 14,
     marginHorizontal: 2,
     lineHeight: 20,
@@ -532,6 +591,28 @@ const styles = StyleSheet.create({
   participantsChip: {
     flexDirection: "row",
     alignItems: "center",
+  },
+
+  // Live status chips
+  liveChipPlay: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,95,109,0.35)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,95,109,0.5)",
+  },
+  liveChipDone: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(74,222,128,0.15)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.3)",
   },
 
   prizePillsRow: {
@@ -542,14 +623,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(255,215,0,0.12)",
+    backgroundColor: "rgba(255,195,113,0.12)",
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.25)",
+    borderColor: "rgba(255,195,113,0.25)",
   },
-  // Slightly larger emoji in prize pills
   pillEmoji: {
     fontSize: 16,
   },
@@ -571,13 +651,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tag: {
-    // Soft lime-tinted tag background to complement green gradient
-    backgroundColor: "rgba(168,224,99,0.12)",
+    backgroundColor: "rgba(255,255,255,0.10)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(168,224,99,0.22)",
+    borderColor: "rgba(255,255,255,0.18)",
   },
 
   // ── Modal styles ──────────────────────────────────────────────
@@ -599,24 +678,31 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-end",
   },
+  // flex container so scroll + footer stack properly
   modalSheet: {
     maxHeight: "92%",
+    flex: 1,                    // must be set so children can measure height
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: "hidden",
   },
   modalGradient: {
-    padding: 20,
+    flex: 1,                    // fills modalSheet; ScrollView + footer stack inside
+    flexDirection: "column",
     paddingTop: 16,
-    minHeight: 400,
   },
   modalClose: {
     alignSelf: "flex-end",
     padding: 4,
+    paddingHorizontal: 20,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,         // breathing room above footer
   },
   modalBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,215,0,0.18)",
+    backgroundColor: "rgba(255,195,113,0.18)",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -647,8 +733,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    // Section headers in app's lime green accent
-    color: "#a8e063",
+    color: ACCENT,
     marginBottom: 10,
   },
   lbRow: {
@@ -666,15 +751,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 16,
   },
+  // Footer is now a normal flex child — no absolute positioning
   modalFooter: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     paddingBottom: 32,
-    // Footer tinted to match modal gradient bottom stop
-    backgroundColor: "rgba(27,67,50,0.97)",
+    backgroundColor: GRADIENTS.card[1],
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.08)",
   },

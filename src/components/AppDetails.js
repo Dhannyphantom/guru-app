@@ -121,7 +121,7 @@ export const DailyTask = ({ stats }) => {
         <AppText
           fontWeight="black"
           size={"xlarge"}
-          style={{ marginTop: 15, color: colors.medium }}
+          style={{ marginBottom: 15, color: colors.medium }}
         >
           Streaks: {user?.streak || 0}
         </AppText>
@@ -131,7 +131,7 @@ export const DailyTask = ({ stats }) => {
           flex: 1,
           marginRight: 8,
           justifyContent: "space-between",
-          marginBottom: 20,
+          marginBottom: 10,
         }}
       >
         <View
@@ -139,18 +139,19 @@ export const DailyTask = ({ stats }) => {
             flexDirection: "row",
             justifyContent: "space-between",
             marginTop: 15,
+            marginBottom: 10
           }}
         >
           <View>
             <AppText
-              style={{ marginBottom: 10, color: colors.medium }}
+              style={{ marginBottom: 4, color: colors.medium }}
               fontWeight="black"
               size={"xxlarge"}
             >
               Daily Task
             </AppText>
-            <AppText fontWeight="light">
-              {Math.max(stats?.daily?.questionsRemaining, 0)} questions left
+            <AppText style={{color: colors.medium}} fontWeight="medium">
+              @{user?.username}
             </AppText>
           </View>
           <View style={{ alignItems: "center" }}>
@@ -434,7 +435,6 @@ export const Authors = ({ data = [] }) => {
 const styles = StyleSheet.create({
   container: {
     width: Platform.OS == "web" ? "45%" : width * 0.95,
-    height: height * 0.23,
     maxWidth: Platform.OS == "web" ? 700 : null,
     backgroundColor: "transparent",
     alignSelf: "center",
@@ -446,7 +446,6 @@ const styles = StyleSheet.create({
   },
   box: {
     width: Platform.OS == "web" ? "35%" : width * 0.35,
-    height: "100%",
     backgroundColor: "transparent",
     alignSelf: "center",
     borderRadius: 18,

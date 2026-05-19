@@ -10,6 +10,7 @@ const { width, height } = Dimensions.get("screen");
 
 const PromptModal = ({ prompt, setPrompt, onPress }) => {
   // prompt = {vis, data: title, msg, btn,cb, type}
+  if (!prompt) return null;
   const { vis, data } = prompt;
   if (!vis) return null;
 
