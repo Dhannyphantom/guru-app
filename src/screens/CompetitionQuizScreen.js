@@ -83,7 +83,7 @@ const CompetitionQuizScreen = () => {
 
   if (view === "finished" && quizSession) {
     return (
-      <View style={{ paddingBottom: insets.bottom }}>
+      <View style={{ flex: 1, paddingBottom: insets.bottom }}>
         <FinishedQuiz
           hideModal={hideFinished}
           data={{ type: "competition", competitionId }}

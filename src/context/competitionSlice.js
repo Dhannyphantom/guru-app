@@ -31,6 +31,13 @@ export const competitionApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["COMPETITION", "COMPETITION_LEADERBOARD", "USER_STAT"],
     }),
+    publishResults: builder.mutation({
+      query: (competitionId) => ({
+        url: ` /competition/manage/${competitionId}/publish-results`,
+        method: "POST",
+      }),
+      invalidatesTags: ["COMPETITION", "COMPETITION_LEADERBOARD", "USER_STAT"],
+    }),
     fetchCompetitionsList: builder.query({
       query: () => "/competition/manage/list",
       providesTags: ["COMPETITION_MANAGE"],
@@ -70,6 +77,7 @@ export const {
   useFetchCompetitionLeaderboardQuery,
   useFetchCompetitionQuestionsMutation,
   useSubmitCompetitionQuizMutation,
+  usePublishResultsMutation,
   useFetchCompetitionsListQuery,
   useFetchCompetitionSubjectsTopicsQuery,
   useCreateCompetitionMutation,

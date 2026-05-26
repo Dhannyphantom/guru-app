@@ -108,7 +108,11 @@ const HomeScreen = () => {
     useFetchCategoriesQuery();
   const { data: subjects, isLoading: fetchingSubjects } =
     useFetchSubjectsQuery();
-      const { data: competitionData, isLoading: competitionLoading, refetch: competitionRefetch } = useFetchActiveCompetitionQuery(null, {
+  const {
+    data: competitionData,
+    isLoading: competitionLoading,
+    refetch: competitionRefetch,
+  } = useFetchActiveCompetitionQuery(null, {
     refetchOnFocus: true,
     pollingInterval: 60000,
   });
@@ -174,7 +178,7 @@ const HomeScreen = () => {
     try {
       await refetch();
       await reftechStat().unwrap();
-      await competitionRefetch()
+      await competitionRefetch();
     } catch (_errr) {
       console.log({ _errr });
     } finally {
@@ -413,7 +417,11 @@ const HomeScreen = () => {
                   <DailyTask stats={stats?.data ?? cache?.stat} />
                 </WalkthroughableView>
               </CopilotStep>
-              <MonthlyQuizCard data={competitionData} refetch={competitionRefetch} isLoading={competitionLoading} />
+              <MonthlyQuizCard
+                data={competitionData}
+                refetch={competitionRefetch}
+                isLoading={competitionLoading}
+              />
 
               <Invited data={invite} onPress={handleInvite} />
               <CopilotStep
@@ -543,7 +551,7 @@ async function registerForPushNotificationsAsync() {
     }
 
     if (finalStatus !== "granted") {
-      alert("Failed to get push token for push notification!");
+      // alert("Failed to get push token for push notification!");
       return;
     }
     // Learn more about projectId:

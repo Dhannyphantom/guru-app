@@ -24,6 +24,7 @@ import {
   useFetchCompetitionSubjectsTopicsQuery,
   useFetchCompetitionsListQuery,
   usePublishCompetitionMutation,
+  usePublishResultsMutation,
   useUpdateCompetitionMutation,
 } from "../context/competitionSlice";
 
@@ -42,11 +43,33 @@ const MONTHS = [
   { label: "December", value: 12 },
 ];
 
+const PRIZE_TYPES = ["points", "cash"];
+
 const defaultPrizes = () => ({
-  first: { title: "Champion", reward: 500 },
-  second: { title: "Runner-up", reward: 300 },
-  third: { title: "Third Place", reward: 150 },
+  first: {
+    title: "Champion",
+    type: "points",
+    reward: 500,
+    currency: null,
+    description: null,
+  },
+  second: {
+    title: "Runner-up",
+    type: "points",
+    reward: 300,
+    currency: null,
+    description: null,
+  },
+  third: {
+    title: "Third Place",
+    type: "points",
+    reward: 150,
+    currency: null,
+    description: null,
+  },
 });
+
+// ─── Subject config row ───────────────────────────────────────────────────────
 
 const SubjectConfigRow = ({ config, subjectsData, onChange, onRemove }) => {
   const subjectData = subjectsData?.find(
@@ -129,6 +152,123 @@ const SubjectConfigRow = ({ config, subjectsData, onChange, onRemove }) => {
   );
 };
 
+// ─── Prize row editor ─────────────────────────────────────────────────────────
+
+const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
+  const isCash = prize?.type === "cash";
+
+  return (
+    <View style={styles.prizeEditorCard}>
+      {/* Header */}
+      <View style={styles.prizeEditorHeader}>
+        <View
+          style={[styles.prizeOrdinalBadge, isCash && styles.prizeOrdinalCash]}
+        >
+          <AppText
+            fontWeight="black"
+            size="xsmall"
+            style={{ color: "#1a1a2e" }}
+          >
+            {ordinal}
+          </AppText>
+        </View>
+        <AppText fontWeight="bold">
+          {place.charAt(0).toUpperCase() + place.slice(1)} Place
+        </AppText>
+      </View>
+
+      {/* Title */}
+      <AppText size="xsmall" style={styles.fieldLabel}>
+        Prize Title
+      </AppText>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. Champion"
+        value={prize?.title || ""}
+        onChangeText={(v) => onChange({ ...prize, title: v })}
+      />
+
+      {/* Type toggle */}
+      <AppText size="xsmall" style={styles.fieldLabel}>
+        Prize Type
+      </AppText>
+      <View style={styles.typeToggleRow}>
+        {PRIZE_TYPES.map((t) => (
+          <Pressable
+            key={t}
+            style={[
+              styles.typeToggleBtn,
+              prize?.type === t && styles.typeToggleBtnActive,
+            ]}
+            onPress={() =>
+              onChange({
+                ...prize,
+                type: t,
+                currency: t === "points" ? null : prize?.currency || "NGN",
+              })
+            }
+          >
+            <AppText
+              size="xsmall"
+              fontWeight="bold"
+              style={{
+                color: prize?.type === t ? colors.white : colors.medium,
+              }}
+            >
+              {t === "points" ? "🏆 GT Points" : "💵 Cash"}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Amount */}
+      <AppText size="xsmall" style={styles.fieldLabel}>
+        {isCash ? "Cash Amount" : "GT Points"}
+      </AppText>
+      <View style={styles.amountRow}>
+        {isCash && (
+          <TextInput
+            style={[styles.input, styles.currencyInput]}
+            placeholder="NGN"
+            value={prize?.currency || "NGN"}
+            onChangeText={(v) =>
+              onChange({ ...prize, currency: v.toUpperCase() })
+            }
+            autoCapitalize="characters"
+            maxLength={4}
+          />
+        )}
+        <TextInput
+          style={[styles.input, { flex: 1 }]}
+          keyboardType="number-pad"
+          placeholder={isCash ? "5000" : "500"}
+          value={String(prize?.reward || 0)}
+          onChangeText={(v) =>
+            onChange({ ...prize, reward: parseInt(v, 10) || 0 })
+          }
+        />
+      </View>
+
+      {/* Description (optional, only shown for cash) */}
+      {isCash && (
+        <>
+          <AppText size="xsmall" style={styles.fieldLabel}>
+            Payout Note (optional)
+          </AppText>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Paid via bank transfer within 7 days"
+            value={prize?.description || ""}
+            onChangeText={(v) => onChange({ ...prize, description: v })}
+          />
+        </>
+      )}
+    </View>
+  );
+};
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 const ManageCompetitionScreen = () => {
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -147,8 +287,11 @@ const ManageCompetitionScreen = () => {
     useUpdateCompetitionMutation();
   const [publishCompetition, { isLoading: publishing }] =
     usePublishCompetitionMutation();
+  const [publishResults, { isLoading: publishingResults }] =
+    usePublishResultsMutation();
 
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedComp, setSelectedComp] = useState(null);
   const [popper, setPopper] = useState({ vis: false });
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
 
@@ -171,6 +314,7 @@ const ManageCompetitionScreen = () => {
 
   const loadCompetition = (comp) => {
     setSelectedId(comp._id);
+    setSelectedComp(comp);
     setForm({
       month: comp.month,
       year: comp.year,
@@ -182,7 +326,13 @@ const ManageCompetitionScreen = () => {
         questionsCount: s.questionsCount,
         timePerQuestion: s.timePerQuestion || 40,
       })),
-      prizes: comp.prizes || defaultPrizes(),
+      prizes: comp.prizes
+        ? {
+            first: { ...defaultPrizes().first, ...comp.prizes.first },
+            second: { ...defaultPrizes().second, ...comp.prizes.second },
+            third: { ...defaultPrizes().third, ...comp.prizes.third },
+          }
+        : defaultPrizes(),
     });
   };
 
@@ -216,6 +366,7 @@ const ManageCompetitionScreen = () => {
       } else {
         const res = await createCompetition(form).unwrap();
         setSelectedId(res.data?._id);
+        setSelectedComp(res.data);
         setPopper({ vis: true, type: "success", msg: "Draft created" });
       }
       refetchList();
@@ -254,16 +405,46 @@ const ManageCompetitionScreen = () => {
     }
   };
 
+  const handlePublishResults = async () => {
+    if (!selectedId) return;
+    try {
+      await publishResults(selectedId).unwrap();
+      setPopper({
+        vis: true,
+        type: "success",
+        msg: "Results published — participants can now view their scores!",
+      });
+      refetchList();
+    } catch (err) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: err?.data?.message || "Failed to publish results",
+      });
+    }
+  };
+
   const usedSubjectIds = form.subjects.map((s) => s.subject?._id || s.subject);
   const availableSubjects = (subjectsData?.data || []).filter(
     (s) => !usedSubjectIds.includes(s._id),
   );
+
+  // Derive button visibility from selectedComp (fresh from list)
+  const compFromList = competitions.find((c) => c._id === selectedId);
+  const canPublish = selectedId && compFromList?.status === "draft";
+  const canPublishResults =
+    selectedId &&
+    (compFromList?.status === "finished" ||
+      (compFromList?.status === "active" &&
+        new Date() >= new Date(compFromList?.endTime))) &&
+    !compFromList?.resultsPublished;
 
   return (
     <View style={styles.container}>
       <AppHeader title="Monthly Quiz Competition" />
 
       <View style={styles.body}>
+        {/* ── Left panel: competition list ── */}
         <View style={styles.listPanel}>
           <AppText fontWeight="bold" size="small" style={styles.panelTitle}>
             Competitions
@@ -308,6 +489,23 @@ const ManageCompetitionScreen = () => {
                     {item.status}
                   </AppText>
                 </View>
+                {/* Results published indicator */}
+                {item.resultsPublished && (
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: colors.primaryLight, marginTop: 2 },
+                    ]}
+                  >
+                    <AppText
+                      size="xxsmall"
+                      fontWeight="bold"
+                      style={{ color: colors.primary }}
+                    >
+                      results live
+                    </AppText>
+                  </View>
+                )}
               </Pressable>
             )}
             ListFooterComponent={
@@ -315,6 +513,7 @@ const ManageCompetitionScreen = () => {
                 style={styles.newBtn}
                 onPress={() => {
                   setSelectedId(null);
+                  setSelectedComp(null);
                   setForm({
                     month: now.getMonth() + 1,
                     year: now.getFullYear(),
@@ -334,6 +533,7 @@ const ManageCompetitionScreen = () => {
           />
         </View>
 
+        {/* ── Right panel: form ── */}
         <ScrollView
           style={styles.formPanel}
           showsVerticalScrollIndicator={false}
@@ -402,6 +602,7 @@ const ManageCompetitionScreen = () => {
             onChangeText={(v) => setForm({ ...form, rules: v })}
           />
 
+          {/* Subjects */}
           <AppText fontWeight="bold" style={styles.sectionHeader}>
             Subjects & Questions
           </AppText>
@@ -449,60 +650,41 @@ const ManageCompetitionScreen = () => {
             />
           )}
 
+          {/* Prizes */}
           <AppText fontWeight="bold" style={styles.sectionHeader}>
-            Prizes (GT Points)
+            Prizes
           </AppText>
 
-          {["first", "second", "third"].map((place, i) => (
-            <View key={place} style={styles.prizeRow}>
-              <AppText fontWeight="bold" style={{ width: 50 }}>
-                {i + 1}
-                {i === 0 ? "st" : i === 1 ? "nd" : "rd"}
-              </AppText>
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Title"
-                value={form.prizes[place]?.title}
-                onChangeText={(v) =>
-                  setForm({
-                    ...form,
-                    prizes: {
-                      ...form.prizes,
-                      [place]: { ...form.prizes[place], title: v },
-                    },
-                  })
-                }
-              />
-              <TextInput
-                style={[styles.input, { width: 80, marginLeft: 8 }]}
-                keyboardType="number-pad"
-                placeholder="GT"
-                value={String(form.prizes[place]?.reward || 0)}
-                onChangeText={(v) =>
-                  setForm({
-                    ...form,
-                    prizes: {
-                      ...form.prizes,
-                      [place]: {
-                        ...form.prizes[place],
-                        reward: parseInt(v, 10) || 0,
-                      },
-                    },
-                  })
-                }
-              />
-            </View>
+          {[
+            { place: "first", ordinal: "1st", medal: "#FFD700" },
+            { place: "second", ordinal: "2nd", medal: "#C0C0C0" },
+            { place: "third", ordinal: "3rd", medal: "#CD7F32" },
+          ].map(({ place, ordinal, medal }) => (
+            <PrizeEditor
+              key={place}
+              place={place}
+              ordinal={ordinal}
+              medal={medal}
+              prize={form.prizes[place]}
+              onChange={(updated) =>
+                setForm({
+                  ...form,
+                  prizes: { ...form.prizes, [place]: updated },
+                })
+              }
+            />
           ))}
 
+          {/* Action buttons */}
           <View style={styles.actions}>
             <AppButton
               title={selectedId ? "Save Changes" : "Create Draft"}
               onPress={handleSave}
-              style={{ flex: 1 }}
+              contStyle={{ flex: 1 }}
             />
-            {selectedId && (
+            {canPublish && (
               <AppButton
-                title="Publish"
+                title="Go Live"
                 type="accent"
                 onPress={handlePublish}
                 contStyle={{ flex: 1, marginLeft: 10 }}
@@ -510,12 +692,54 @@ const ManageCompetitionScreen = () => {
             )}
           </View>
 
+          {/* Publish Results — separate from Go Live */}
+          {canPublishResults && (
+            <View style={styles.publishResultsBox}>
+              <Ionicons name="ribbon" size={20} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <AppText fontWeight="bold">Ready to release results?</AppText>
+                <AppText
+                  size="xsmall"
+                  style={{ color: colors.medium, marginTop: 2 }}
+                >
+                  Participants will see their scores, rank, and the leaderboard.
+                  This cannot be undone.
+                </AppText>
+              </View>
+              <AppButton
+                title="Publish Results"
+                onPress={handlePublishResults}
+                contStyle={{ marginTop: 0 }}
+              />
+            </View>
+          )}
+
+          {/* Already published notice */}
+          {compFromList?.resultsPublished && (
+            <View style={[styles.publishResultsBox, styles.publishedBox]}>
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={colors.green}
+              />
+              <AppText
+                fontWeight="bold"
+                style={{ marginLeft: 10, color: colors.green }}
+              >
+                Results are live — participants can see their scores
+              </AppText>
+            </View>
+          )}
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
 
       <PopMessage popData={popper} setPopData={setPopper} />
-      <LottieAnimator visible={creating || updating || publishing} absolute />
+      <LottieAnimator
+        visible={creating || updating || publishing || publishingResults}
+        absolute
+      />
     </View>
   );
 };
@@ -541,9 +765,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.lighter,
   },
-  listItemActive: {
-    backgroundColor: colors.primaryLight,
-  },
+  listItemActive: { backgroundColor: colors.primaryLight },
   statusPill: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
@@ -557,10 +779,7 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 14,
   },
-  formPanel: {
-    flex: 1,
-    padding: 16,
-  },
+  formPanel: { flex: 1, padding: 16 },
   fieldLabel: {
     color: colors.medium,
     marginBottom: 4,
@@ -575,10 +794,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "sf-medium",
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
+  textArea: { minHeight: 80, textAlignVertical: "top" },
   row: { flexDirection: "row", gap: 12 },
   pickerRow: {
     flexDirection: "row",
@@ -625,11 +841,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  topicChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 4,
-  },
+  topicChips: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
   pickerBox: {
     backgroundColor: colors.light,
     borderRadius: 12,
@@ -641,13 +853,71 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.lighter,
   },
-  prizeRow: {
+  actions: { flexDirection: "row", marginTop: 20 },
+
+  // Prize editor
+  prizeEditorCard: {
+    backgroundColor: colors.light,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.lighter,
+  },
+  prizeEditorHeader: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
     marginBottom: 8,
   },
-  actions: {
+  prizeOrdinalBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "#FFD700",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  prizeOrdinalCash: { backgroundColor: "#4ADE80" },
+  typeToggleRow: {
     flexDirection: "row",
-    marginTop: 20,
+    gap: 8,
+    marginBottom: 4,
+  },
+  typeToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.lighter,
+    alignItems: "center",
+    backgroundColor: colors.white,
+  },
+  typeToggleBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  amountRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  currencyInput: {
+    width: 60,
+    textAlign: "center",
+  },
+
+  // Publish results banner
+  publishResultsBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primaryLight,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 16,
+    gap: 0,
+    flexWrap: "wrap",
+  },
+  publishedBox: {
+    backgroundColor: "rgba(74,222,128,0.12)",
   },
 });

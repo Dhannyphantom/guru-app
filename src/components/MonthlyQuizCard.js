@@ -1,10 +1,18 @@
+/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated2, { FadeInDown } from "react-native-reanimated";
 import { useSelector } from "react-redux";
 
 import AppText from "./AppText";
@@ -15,32 +23,25 @@ import { selectUser } from "../context/usersSlice";
 import {
   useFetchActiveCompetitionQuery,
   useFetchCompetitionDetailsQuery,
+  usePublishResultsMutation,
 } from "../context/competitionSlice";
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
 import LottieAnimator from "./LottieAnimator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PopMessage from "./PopMessage";
 
 // ─────────────────────────────────────────────
-// 🎨 Theme — edit these to restyle the whole card/modal
+// 🎨 Theme
 // ─────────────────────────────────────────────
 const GRADIENTS = {
-  /** Main card & modal background */
-  // card: ["#42275a",  "#734b6d"],
   card: ["#232526", "#414345"],
-  /** Reversed for variety if needed */
   cardReversed: ["#414345", "#232526"],
-  // cardReversed: ["#FF5F6D", "#C0392B", "#7B0000"],
-  /** Warm sunset accent for highlights */
   accent: ["#232526", "#414345"],
-  // accent: ["#FF5F6D", "#FFC371"],
 };
 
-/** Single accent color used for badges, dots, text highlights */
 const ACCENT = "#FFC371";
-/** Dimmed accent for secondary text */
 const ACCENT_DIM = "rgba(255,195,113,0.55)";
-/** Card glow tint */
 const GLOW_COLOR = "rgba(255,195,113,0.10)";
 
 // ─────────────────────────────────────────────
@@ -67,6 +68,24 @@ const formatDuration = (seconds) => {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
+};
+
+/**
+ * Format a prize's reward for display.
+ * points → "500 GT"  |  cash → "₦5,000" (or "5,000 NGN" fallback)
+ */
+const formatPrizeReward = (prize) => {
+  if (!prize) return "—";
+  if (prize.type === "cash") {
+    const symbol = currencySymbol(prize.currency);
+    return `${symbol}${Number(prize.reward || 0).toLocaleString()}`;
+  }
+  return formatPoints(prize.reward);
+};
+
+const currencySymbol = (code) => {
+  const map = { NGN: "₦", USD: "$", GBP: "£", EUR: "€", GHS: "₵", KES: "KSh " };
+  return map[code] || (code ? `${code} ` : "");
 };
 
 const useCountdown = (targetDate, active) => {
@@ -96,9 +115,7 @@ const useCountdown = (targetDate, active) => {
   return remaining;
 };
 
-// ─────────────────────────────────────────────
-// Compact inline countdown: 00d 00h 00m 00s
-// ─────────────────────────────────────────────
+// ─── Inline countdown ─────────────────────────────────────────────────────────
 const InlineCountdown = ({ countdown }) => {
   if (!countdown || countdown.done) return null;
   const parts = [
@@ -124,9 +141,7 @@ const InlineCountdown = ({ countdown }) => {
   );
 };
 
-// ─────────────────────────────────────────────
-// Live status chip — replaces countdown when LIVE
-// ─────────────────────────────────────────────
+// ─── Live status chip ─────────────────────────────────────────────────────────
 const LiveStatusChip = ({ hasParticipated }) =>
   hasParticipated ? (
     <View style={styles.liveChipDone}>
@@ -152,44 +167,152 @@ const LiveStatusChip = ({ hasParticipated }) =>
     </View>
   );
 
-// ─────────────────────────────────────────────
-// Compact prize pill
-// ─────────────────────────────────────────────
-const PrizePill = ({ emoji, reward }) => (
+// ─── Prize pill (card) ────────────────────────────────────────────────────────
+const PrizePill = ({ emoji, prize }) => (
   <View style={styles.prizePill}>
     <AppText size="small" style={styles.pillEmoji}>
       {emoji}
     </AppText>
     <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
-      {formatPoints(reward)}
+      {formatPrizeReward(prize)}
     </AppText>
+    {prize?.type === "cash" && (
+      <View style={styles.cashDot}>
+        <AppText size="xxsmall" style={{ color: "#4ADE80", fontSize: 7 }}>
+          CASH
+        </AppText>
+      </View>
+    )}
   </View>
 );
 
-// ─────────────────────────────────────────────
-// Full prize row for modal
-// ─────────────────────────────────────────────
-const PrizeRow = ({ place, title, reward, medal }) => (
-  <View style={styles.prizeRow}>
-    <View style={[styles.medalBadge, { backgroundColor: medal }]}>
-      <AppText fontWeight="black" size="xsmall" style={{ color: "#1a1a2e" }}>
-        {place}
-      </AppText>
+// ─── Prize row (modal) ────────────────────────────────────────────────────────
+const PrizeRow = ({ place, prize, medal }) => {
+  const isCash = prize?.type === "cash";
+  return (
+    <View style={styles.prizeRow}>
+      <View style={[styles.medalBadge, { backgroundColor: medal }]}>
+        <AppText fontWeight="black" size="xsmall" style={{ color: "#1a1a2e" }}>
+          {place}
+        </AppText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <AppText fontWeight="bold" size="small" style={{ color: "#fff" }}>
+            {prize?.title || "—"}
+          </AppText>
+          {isCash && (
+            <View style={styles.cashBadge}>
+              <AppText
+                size="xxsmall"
+                fontWeight="bold"
+                style={{ color: "#4ADE80" }}
+              >
+                💵 CASH
+              </AppText>
+            </View>
+          )}
+        </View>
+        <AppText size="xsmall" style={{ color: "rgba(255,255,255,0.7)" }}>
+          {formatPrizeReward(prize)}
+          {isCash && prize?.description ? ` · ${prize.description}` : ""}
+        </AppText>
+      </View>
     </View>
-    <View>
-      <AppText fontWeight="bold" size="small" style={{ color: "#fff" }}>
-        {title}
+  );
+};
+
+// ─── Animated participant count ───────────────────────────────────────────────
+const AnimatedParticipantCount = ({ count }) => {
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.06,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[styles.participantCountBox, { transform: [{ scale: pulse }] }]}
+    >
+      <Ionicons name="people" size={22} color={ACCENT} />
+      <AppText
+        fontWeight="black"
+        size="xxlarge"
+        style={styles.participantCountNum}
+      >
+        {(count || 0).toLocaleString()}
       </AppText>
-      <AppText size="xsmall" style={{ color: "rgba(255,255,255,0.7)" }}>
-        {formatPoints(reward)}
+      <AppText size="xsmall" style={styles.participantCountLabel}>
+        {count === 1 ? "participant" : "participants"}
       </AppText>
+    </Animated.View>
+  );
+};
+
+// ─── Results pending state (shown in modal when ended but not published) ──────
+const ResultsPendingPanel = ({ participantsCount }) => (
+  <View style={styles.pendingPanel}>
+    <LottieAnimator
+      name="student_jumping"
+      visible
+      absolute={false}
+      style={styles.pendingLottie}
+    />
+
+    <AppText fontWeight="black" size="large" style={styles.pendingTitle}>
+      Results Coming Soon!
+    </AppText>
+    <AppText size="small" style={styles.pendingSubtitle}>
+      You crushed it! Sit back, relax, and wait while our admins crunch the
+      numbers. We'll release the final scores shortly.
+    </AppText>
+
+    <View style={styles.pendingDivider} />
+
+    <AppText size="xsmall" style={styles.pendingParticipantsLabel}>
+      TOTAL PARTICIPANTS
+    </AppText>
+    <AnimatedParticipantCount count={participantsCount} />
+
+    <View style={styles.pendingChipsRow}>
+      <View style={styles.pendingChip}>
+        <Ionicons name="hourglass" size={14} color={ACCENT} />
+        <AppText
+          size="xxsmall"
+          fontWeight="bold"
+          style={{ color: ACCENT, marginLeft: 5 }}
+        >
+          Scores being verified
+        </AppText>
+      </View>
+      <View style={styles.pendingChip}>
+        <Ionicons name="trophy" size={14} color={ACCENT} />
+        <AppText
+          size="xxsmall"
+          fontWeight="bold"
+          style={{ color: ACCENT, marginLeft: 5 }}
+        >
+          Winners announced soon
+        </AppText>
+      </View>
     </View>
   </View>
 );
 
-// ─────────────────────────────────────────────
-// Competition Details Modal
-// ─────────────────────────────────────────────
+// ─── Competition Details Modal ────────────────────────────────────────────────
 const CompetitionDetailsModal = ({
   visible,
   onClose,
@@ -197,18 +320,80 @@ const CompetitionDetailsModal = ({
   isSubscribed,
   onParticipate,
 }) => {
-  const { data, isLoading } = useFetchCompetitionDetailsQuery(competitionId, {
+  const user = useSelector(selectUser);
+  const isManager = user?.accountType === "manager";
+
+  const [popper, setPopper] = useState({ vis: false });
+
+  const {
+    data,
+    isLoading,
+    refetch: refetchList,
+  } = useFetchCompetitionDetailsQuery(competitionId, {
     skip: !visible || !competitionId,
   });
+  const [publishResults, { isLoading: publishingResults }] =
+    usePublishResultsMutation();
   const comp = data?.data;
+  const insets = useSafeAreaInsets();
+
   const statusLabel = comp?.isLive
     ? "LIVE NOW"
     : comp?.isUpcoming
     ? "UPCOMING"
+    : comp?.resultsPublished
+    ? "RESULTS OUT"
     : "ENDED";
-  const insets = useSafeAreaInsets();
+
+  // Ended but results not yet published — show pending panel (for participants)
+  const showResultsPending = !isManager && !comp?.resultsPublished;
+
+  const canPublishResults =
+    (comp?.status === "finished" ||
+      (comp?.status === "active" && new Date() >= new Date(comp?.endTime))) &&
+    !comp?.resultsPublished;
+
+  const onPublishResults = async () => {
+    if (!canPublishResults) {
+      return setPopper({
+        vis: true,
+        type: "failed",
+        msg: "Cannot publish results yet, Tournament is still Live!",
+      });
+    }
+
+    // Publish
+    try {
+      await publishResults(competitionId).unwrap();
+      setPopper({
+        vis: true,
+        type: "success",
+        msg: "Results published — participants can now view their scores!",
+      });
+      refetchList();
+    } catch (err) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: err?.data?.message || "Failed to publish results",
+      });
+    }
+  };
 
   const renderFooter = () => {
+    if (isManager) {
+      return (
+        <>
+          <AppButton
+            title="Publish Results"
+            type="accent"
+            onPress={() => {
+              onPublishResults?.();
+            }}
+          />
+        </>
+      );
+    }
     if (!isSubscribed) {
       return (
         <>
@@ -259,7 +444,6 @@ const CompetitionDetailsModal = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        {/* Sheet fills up to 92% of screen height using flex, not maxHeight alone */}
         <View style={styles.modalSheet}>
           <LinearGradient
             colors={GRADIENTS.card}
@@ -267,12 +451,10 @@ const CompetitionDetailsModal = ({
             end={{ x: 1, y: 1 }}
             style={styles.modalGradient}
           >
-            {/* Close button */}
             <Pressable style={styles.modalClose} onPress={onClose}>
               <Ionicons name="close" size={26} color="#fff" />
             </Pressable>
 
-            {/* Scrollable content — flex: 1 ensures it never bleeds under footer */}
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={styles.modalScrollContent}
@@ -310,19 +492,18 @@ const CompetitionDetailsModal = ({
                     alignItems: "center",
                   }}
                 >
-                  <LottieAnimator
-                    visible={true}
-                    absolute={false}
-                    // style={{ width: 28, height: 28 }}
-                  />
+                  <LottieAnimator visible absolute={false} />
                 </View>
               ) : (
                 <>
+                  {/* Stats row */}
                   <View style={styles.modalStatsRow}>
                     <View style={styles.modalStat}>
                       <Ionicons name="people" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
-                        {comp?.participantsCount ?? 0}
+                        {comp?.participantsCount ??
+                          comp?.totalParticipants ??
+                          0}
                       </AppText>
                       <AppText
                         size="xxsmall"
@@ -357,6 +538,7 @@ const CompetitionDetailsModal = ({
                     </View>
                   </View>
 
+                  {/* Rules */}
                   {comp?.rules ? (
                     <View style={styles.rulesBox}>
                       <AppText
@@ -378,6 +560,7 @@ const CompetitionDetailsModal = ({
                     </View>
                   ) : null}
 
+                  {/* Prize Pool */}
                   <AppText
                     fontWeight="bold"
                     size="medium"
@@ -394,118 +577,164 @@ const CompetitionDetailsModal = ({
                   >
                     <PrizeRow
                       place="1st"
-                      title={comp?.prizes?.first?.title || "Champion"}
-                      reward={comp?.prizes?.first?.reward}
-                      medal="#FFD700"
+                      prize={comp?.prizes?.first}
+                      medal="#ffe869"
                     />
                     <PrizeRow
                       place="2nd"
-                      title={comp?.prizes?.second?.title || "Runner-up"}
-                      reward={comp?.prizes?.second?.reward}
+                      prize={comp?.prizes?.second}
                       medal="#C0C0C0"
                     />
                     <PrizeRow
                       place="3rd"
-                      title={comp?.prizes?.third?.title || "Third Place"}
-                      reward={comp?.prizes?.third?.reward}
+                      prize={comp?.prizes?.third}
                       medal="#CD7F32"
                     />
                   </View>
 
-                  {(comp?.lastWinners?.length > 0 ||
-                    comp?.finalRankings?.length > 0) && (
+                  {/* Results pending panel — replaces all score/ranking UI */}
+                  {showResultsPending ? (
+                    <ResultsPendingPanel
+                      participantsCount={
+                        comp?.participantsCount ?? comp?.totalParticipants ?? 0
+                      }
+                    />
+                  ) : (
                     <>
-                      <AppText
-                        fontWeight="bold"
-                        size="medium"
-                        style={{ ...styles.sectionTitle, marginTop: 16 }}
-                      >
-                        Last Winners
-                      </AppText>
-                      <LeaderboardWinners
-                        isPro={false}
-                        data={(comp.lastWinners || comp.finalRankings || [])
-                          .slice(0, 3)
-                          .map((w) => ({
-                            _id: w.user?._id || w.user,
-                            username: w.user?.username,
-                            firstName: w.user?.firstName,
-                            points: w.score,
-                            avatar: w.user?.avatar,
-                          }))}
-                      />
-                    </>
-                  )}
-
-                  {comp?.leaderboard?.length > 0 && comp?.isLive && (
-                    <>
-                      <AppText
-                        fontWeight="bold"
-                        size="medium"
-                        style={{ ...styles.sectionTitle, marginTop: 16 }}
-                      >
-                        Live Leaderboard
-                      </AppText>
-                      {comp.leaderboard.slice(0, 5).map((p, i) => (
-                        <View key={p.user?._id || i} style={styles.lbRow}>
+                      {/* Last winners */}
+                      {(comp?.lastWinners?.length > 0 ||
+                        comp?.finalRankings?.length > 0) && (
+                        <>
                           <AppText
                             fontWeight="bold"
-                            style={{ color: ACCENT, width: 28 }}
-                            size="xlarge"
+                            size="medium"
+                            style={{ ...styles.sectionTitle, marginTop: 16 }}
                           >
-                            {p.rank}
+                            {comp?.isEnded && comp?.resultsPublished
+                              ? "Winners"
+                              : "Last Winners"}
                           </AppText>
-                          <Avatar size={32} source={p.user?.avatar?.image} />
+                          <LeaderboardWinners
+                            isPro={false}
+                            data={(comp.lastWinners || comp.finalRankings || [])
+                              .slice(0, 3)
+                              .map((w) => ({
+                                _id: w.user?._id || w.user,
+                                username: w.user?.username,
+                                firstName: w.user?.firstName,
+                                points: w.score,
+                                avatar: w.user?.avatar,
+                              }))}
+                          />
+                        </>
+                      )}
+
+                      {/* Live leaderboard */}
+                      {comp?.leaderboard?.length > 0 && comp?.isLive && (
+                        <>
                           <AppText
-                            style={{ flex: 1, color: "#fff", marginLeft: 10 }}
-                            fontWeight="semibold"
+                            fontWeight="bold"
+                            size="medium"
+                            style={{ ...styles.sectionTitle, marginTop: 16 }}
                           >
-                            @{p.user?.username}
+                            Live Leaderboard
                           </AppText>
-                          <AppText fontWeight="bold" style={{ color: ACCENT }}>
-                            {formatPoints(p.score)}
+                          {comp.leaderboard.slice(0, 5).map((p, i) => (
+                            <View key={p.user?._id || i} style={styles.lbRow}>
+                              <AppText
+                                fontWeight="bold"
+                                style={{ color: ACCENT, width: 28 }}
+                                size="xlarge"
+                              >
+                                {p.rank}
+                              </AppText>
+                              <Avatar
+                                size={32}
+                                source={p.user?.avatar?.image}
+                              />
+                              <AppText
+                                style={{
+                                  flex: 1,
+                                  color: "#fff",
+                                  marginLeft: 10,
+                                }}
+                                fontWeight="semibold"
+                              >
+                                @{p.user?.username}
+                              </AppText>
+                              <AppText
+                                fontWeight="bold"
+                                style={{ color: ACCENT }}
+                              >
+                                {formatPoints(p.score)}
+                              </AppText>
+                            </View>
+                          ))}
+                        </>
+                      )}
+
+                      {/* My result banner (only shown after results published) */}
+                      {comp?.hasParticipated && comp?.resultsPublished && (
+                        <View style={styles.participatedBanner}>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={22}
+                            color="#4ADE80"
+                          />
+                          <AppText
+                            style={{ color: "#4ADE80", marginLeft: 8 }}
+                            fontWeight="bold"
+                          >
+                            You completed this
+                            {comp.myRank ? ` · Position #${comp.myRank}` : ""}
                           </AppText>
                         </View>
-                      ))}
-                    </>
-                  )}
+                      )}
 
-                  {comp?.hasParticipated && (
-                    <View style={styles.participatedBanner}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color="#4ADE80"
-                      />
-                      <AppText
-                        style={{ color: "#4ADE80", marginLeft: 8 }}
-                        fontWeight="bold"
-                      >
-                        You completed this
-                        {comp.myRank ? ` · Position #${comp.myRank}` : ""}
-                      </AppText>
-                    </View>
+                      {/* Participated but results not published yet — shouldn't show
+                          (covered by ResultsPendingPanel above) — safety fallback */}
+                      {comp?.hasParticipated &&
+                        !comp?.resultsPublished &&
+                        !comp?.isLive && (
+                          <View
+                            style={[
+                              styles.participatedBanner,
+                              { backgroundColor: "rgba(255,195,113,0.12)" },
+                            ]}
+                          >
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={22}
+                              color={ACCENT}
+                            />
+                            <AppText
+                              style={{ color: ACCENT, marginLeft: 8 }}
+                              fontWeight="bold"
+                            >
+                              You completed this — results coming soon
+                            </AppText>
+                          </View>
+                        )}
+                    </>
                   )}
                 </>
               )}
             </ScrollView>
 
-            {/* Footer sits BELOW the ScrollView — no absolute positioning */}
             <View
               style={[styles.modalFooter, { paddingBottom: insets.bottom }]}
             >
               {renderFooter()}
             </View>
           </LinearGradient>
+          <PopMessage popData={popper} setPopData={setPopper} />
         </View>
       </View>
     </Modal>
   );
 };
 
-// ─────────────────────────────────────────────
-// Main Card
-// ─────────────────────────────────────────────
+// ─── Main Card ────────────────────────────────────────────────────────────────
 const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
   const user = useSelector(selectUser);
   const router = useRouter();
@@ -521,7 +750,6 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
     return null;
   }, [comp]);
 
-  // Only run countdown for upcoming; for live we show the status chip instead
   const countdown = useCountdown(
     comp?.isUpcoming ? countdownTarget : null,
     Boolean(comp?.isUpcoming && countdownTarget),
@@ -562,13 +790,15 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
     : comp.isUpcoming
     ? colors.warning
     : colors.lighter;
+
   const statusText = comp.isLive
     ? "LIVE"
     : comp.isUpcoming
     ? "UPCOMING"
+    : comp.resultsPublished
+    ? "RESULTS OUT"
     : "ENDED";
 
-  // What to show in the middle-left slot
   const renderMiddleLeft = () => {
     if (comp.isLive) {
       return <LiveStatusChip hasParticipated={comp.hasParticipated} />;
@@ -595,7 +825,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 
   return (
     <>
-      <Animated.View
+      <Animated2.View
         entering={FadeInDown.delay(200).springify()}
         style={styles.wrapper}
       >
@@ -653,17 +883,17 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
               </View>
             </View>
 
-            {/* Row 2: Middle-left slot + prize pills */}
+            {/* Row 2: Middle-left + prize pills */}
             <View style={styles.middleRow}>
               {renderMiddleLeft()}
               <View style={styles.prizePillsRow}>
-                <PrizePill emoji="🥇" reward={comp.prizes?.first?.reward} />
-                <PrizePill emoji="🥈" reward={comp.prizes?.second?.reward} />
-                <PrizePill emoji="🥉" reward={comp.prizes?.third?.reward} />
+                <PrizePill emoji="🥇" prize={comp.prizes?.first} />
+                <PrizePill emoji="🥈" prize={comp.prizes?.second} />
+                <PrizePill emoji="🥉" prize={comp.prizes?.third} />
               </View>
             </View>
 
-            {/* Row 3: Subject tags + chevron */}
+            {/* Row 3: Tags + chevron */}
             <View style={styles.cardFooter}>
               <View style={styles.tagsRow}>
                 {subjectNames.slice(0, 2).map((name) => (
@@ -693,7 +923,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
             </View>
           </LinearGradient>
         </Pressable>
-      </Animated.View>
+      </Animated2.View>
 
       <CompetitionDetailsModal
         visible={detailsOpen}
@@ -712,10 +942,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 export default MonthlyQuizCard;
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginHorizontal: 16,
-    marginBottom: 15,
-  },
+  wrapper: { marginHorizontal: 16, marginBottom: 15 },
   card: {
     borderRadius: 20,
     paddingHorizontal: 14,
@@ -732,11 +959,7 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     backgroundColor: GLOW_COLOR,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   trophyIcon: {
     width: 36,
     height: 36,
@@ -745,13 +968,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardTitle: {
-    color: "#fff",
-  },
-  cardMonth: {
-    color: "rgba(255,255,255,0.5)",
-    marginTop: 1,
-  },
+  cardTitle: { color: "#fff" },
+  cardMonth: { color: "rgba(255,255,255,0.5)", marginTop: 1 },
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -760,11 +978,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
 
   // Middle row
   middleRow: {
@@ -773,36 +987,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 10,
   },
-  inlineCountdown: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  inlineUnit: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 1,
-  },
-  inlineValue: {
-    color: ACCENT,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  inlineLabel: {
-    color: ACCENT_DIM,
-    fontSize: 10,
-  },
+  inlineCountdown: { flexDirection: "row", alignItems: "center" },
+  inlineUnit: { flexDirection: "row", alignItems: "baseline", gap: 1 },
+  inlineValue: { color: ACCENT, fontSize: 16, lineHeight: 20 },
+  inlineLabel: { color: ACCENT_DIM, fontSize: 10 },
   inlineSep: {
     color: "rgba(255,255,255,0.25)",
     fontSize: 14,
     marginHorizontal: 2,
     lineHeight: 20,
   },
-  participantsChip: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  participantsChip: { flexDirection: "row", alignItems: "center" },
 
-  // Live status chips
   liveChipPlay: {
     flexDirection: "row",
     alignItems: "center",
@@ -824,10 +1020,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(74,222,128,0.3)",
   },
 
-  prizePillsRow: {
-    flexDirection: "row",
-    gap: 5,
-  },
+  prizePillsRow: { flexDirection: "row", gap: 5 },
   prizePill: {
     flexDirection: "row",
     alignItems: "center",
@@ -839,8 +1032,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,195,113,0.25)",
   },
-  pillEmoji: {
-    fontSize: 16,
+  pillEmoji: { fontSize: 16 },
+  cashDot: {
+    backgroundColor: "rgba(74,222,128,0.2)",
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
   },
 
   // Footer
@@ -853,12 +1050,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.10)",
   },
-  tagsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 5,
-    flex: 1,
-  },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, flex: 1 },
   tag: {
     backgroundColor: "rgba(255,255,255,0.10)",
     paddingHorizontal: 8,
@@ -868,47 +1060,26 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
   },
 
-  // ── Modal styles ──────────────────────────────────────────────
-  prizeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  medalBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  // ── Modal ──────────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-end",
   },
-  // flex container so scroll + footer stack properly
   modalSheet: {
     maxHeight: "92%",
-    flex: 1, // must be set so children can measure height
+    flex: 1,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: "hidden",
   },
   modalGradient: {
-    flex: 1, // fills modalSheet; ScrollView + footer stack inside
+    flex: 1,
     flexDirection: "column",
     paddingTop: 16,
   },
-  modalClose: {
-    alignSelf: "flex-end",
-    padding: 4,
-    paddingHorizontal: 20,
-  },
-  modalScrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 16, // breathing room above footer
-  },
+  modalClose: { alignSelf: "flex-end", padding: 4, paddingHorizontal: 20 },
+  modalScrollContent: { paddingHorizontal: 20, paddingBottom: 16 },
   modalBadge: {
     alignSelf: "flex-start",
     backgroundColor: "rgba(255,195,113,0.18)",
@@ -918,11 +1089,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalTitle: { color: "#fff" },
-  modalSub: {
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 4,
-    marginBottom: 16,
-  },
+  modalSub: { color: "rgba(255,255,255,0.6)", marginTop: 4, marginBottom: 16 },
   modalStatsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -931,20 +1098,14 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  modalStat: {
-    alignItems: "center",
-    gap: 4,
-  },
+  modalStat: { alignItems: "center", gap: 4 },
   rulesBox: {
     backgroundColor: "rgba(255,255,255,0.07)",
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
   },
-  sectionTitle: {
-    color: ACCENT,
-    marginBottom: 10,
-  },
+  sectionTitle: { color: ACCENT, marginBottom: 10 },
   lbRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -960,7 +1121,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 16,
   },
-  // Footer is now a normal flex child — no absolute positioning
   modalFooter: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -968,5 +1128,99 @@ const styles = StyleSheet.create({
     backgroundColor: GRADIENTS.card[1],
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.08)",
+  },
+
+  // Prize rows (modal)
+  prizeRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  medalBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cashBadge: {
+    backgroundColor: "rgba(74,222,128,0.15)",
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.3)",
+  },
+
+  // Results pending panel
+  pendingPanel: {
+    alignItems: "center",
+    paddingVertical: 20,
+    marginTop: 16,
+  },
+  pendingLottie: {
+    width: 160,
+    height: 160,
+  },
+  pendingTitle: {
+    color: "#fff",
+    textAlign: "center",
+    marginTop: 8,
+  },
+  pendingSubtitle: {
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: 8,
+    paddingHorizontal: 8,
+  },
+  pendingDivider: {
+    width: "60%",
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    marginVertical: 20,
+  },
+  pendingParticipantsLabel: {
+    color: ACCENT_DIM,
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  participantCountBox: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,195,113,0.10)",
+    borderRadius: 20,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,195,113,0.22)",
+    gap: 2,
+  },
+  participantCountNum: {
+    color: ACCENT,
+    fontSize: 42,
+    lineHeight: 48,
+  },
+  participantCountLabel: {
+    color: ACCENT_DIM,
+    marginTop: 2,
+  },
+  pendingChipsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 20,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  pendingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,195,113,0.10)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: "rgba(255,195,113,0.22)",
   },
 });
