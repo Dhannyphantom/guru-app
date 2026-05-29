@@ -49,19 +49,11 @@ import PopMessage from "../components/PopMessage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  CopilotStep,
-  walkthroughable,
-  useCopilot,
-  CopilotProvider,
-} from "react-native-copilot";
-import GuruTooltip from "../components/GuruTooltip";
+import AppTutorial from "../components/AppTutorial";
 import {
   LeaveSchoolModal,
   FlagStudentModal,
 } from "../components/LeaveFlagModals";
-
-const WalkthroughableView = walkthroughable(View);
 
 const { width, height } = Dimensions.get("screen");
 
@@ -91,7 +83,6 @@ const ClassMates = ({ data = [], setLeaveModalVis, onFlagStudent }) => {
           maxWidth={width * 0.2}
           contStyle={{ width: width * 0.26 }}
         />
-        {/* Flag button — shown to all verified members except on their own card */}
         {!isOwnCard && (
           <Pressable
             onPress={() => onFlagStudent?.(item?.user)}
@@ -415,7 +406,7 @@ export const SchoolModal = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SchoolActions  –  no per-tile CopilotSteps, plain FlatList
+// SchoolActions
 // ─────────────────────────────────────────────────────────────────────────────
 const SchoolActions = ({ data, isTeacher }) => {
   const router = useRouter();
@@ -517,45 +508,78 @@ const SchoolActions = ({ data, isTeacher }) => {
 const SchoolProfile = ({ data, fetchSchoolData }) => {
   const user = useSelector(selectUser);
   const isTeacher = user?.accountType === "teacher";
-  const { start, copilotEvents } = useCopilot();
 
   const translationY = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
-  const [tourReady, setTourReady] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [leaveModalVis, setLeaveModalVis] = useState(false);
-  const [flagTarget, setFlagTarget] = useState(null); // user object to flag
+  const [flagTarget, setFlagTarget] = useState(null);
 
-  const school = useSelector(selectSchool); // already imported via schoolSlice
-
-  const handleFlagStudent = useCallback((userObj) => {
-    setFlagTarget(userObj);
-  }, []);
+  const school = useSelector(selectSchool);
 
   const TOUR_KEY = isTeacher
     ? TOUR_KEY_PROFILE_TEACHER
     : TOUR_KEY_PROFILE_STUDENT;
 
-  const onListLayout = useCallback(() => {
-    setTimeout(() => setTourReady(true), 400);
-  }, []);
+  // ── Tutorial steps ──────────────────────────────────────────────────────
+  const profileTutorialSteps = isTeacher
+    ? [
+        {
+          title: `Welcome to your School! 🏫`,
+          text: `Hi ${user?.username}! This is your school's profile page — everything you need to manage your students and run a great academic experience is right here.`,
+        },
+        {
+          title: "Your School Tools 🛠️",
+          text: `Swipe through the action tiles to access all features:\n\n📊 Dashboard — overview of all school activity\n🎯 Quiz — create & launch live quizzes\n📝 Assignments — set tasks and track submissions\n📢 Announcements — broadcast messages\n🏆 Leaderboard — top-performing students\n🏫 Classes — manage classrooms`,
+        },
+        {
+          title: "Your Teaching Team 👩‍🏫",
+          text: "Your fellow teachers are listed in the Teachers section.\nSee who else is part of your school's academic team and collaborate with them.",
+        },
+        {
+          title: "Managing Students ✅",
+          text: "All verified students appear in the Students section.\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students.",
+        },
+      ]
+    : [
+        {
+          title: `Welcome to your School! 🏫`,
+          text: `Hi ${user?.username}! This is your school's profile page. Everything you need for a great academic year is right here — quizzes, assignments, leaderboards and more!`,
+        },
+        {
+          title: "Your School Features 🎒",
+          text: `Swipe through the action tiles to see everything available:\n\n⏱️ Quiz — join live quizzes and check your results\n📚 Assignments — submit tasks before the deadline\n🔔 Announcements — important updates from teachers\n🥇 Leaderboard — see where you rank\n🏫 Classes — your assigned class`,
+        },
+        {
+          title: "Your Teachers 👨‍🏫",
+          text: "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄",
+        },
+        {
+          title: "Your Classmates 💪",
+          text: "See who else has joined your school!\nThe more active everyone is, the more competitive the leaderboard gets.\n\nTap the 🏳 icon on a student to report them if they don't belong here.",
+        },
+      ];
 
+  // ── Tour lifecycle ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!tourReady) return;
     const checkTour = async () => {
-      // await AsyncStorage.removeItem(TOUR_KEY); // ← remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
-        setTimeout(() => start(), 300);
+        setTimeout(() => setShowTutorial(true), 800);
       }
     };
     checkTour();
-  }, [tourReady]);
+  }, []);
 
-  useEffect(() => {
-    const handleStop = async () => await AsyncStorage.setItem(TOUR_KEY, "true");
-    copilotEvents.on("stop", handleStop);
-    return () => copilotEvents.off("stop", handleStop);
+  const handleTutorialDone = async () => {
+    setShowTutorial(false);
+    await AsyncStorage.setItem(TOUR_KEY, "true");
+  };
+
+  // ── Handlers ────────────────────────────────────────────────────────────
+  const handleFlagStudent = useCallback((userObj) => {
+    setFlagTarget(userObj);
   }, []);
 
   const onRefresh = useCallback(async () => {
@@ -604,11 +628,6 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     [data?.quizCount, data?.assignmentCount, data?.classCount],
   );
 
-  // Build the actions tip text dynamically so it matches what the user sees
-  const actionsTipText = isTeacher
-    ? "These are your school tools — swipe to see all of them! 👉\n\n📊 Dashboard — overview of all school activity\n🎯 Quiz — create & launch live quizzes\n📝 Assignments — set tasks and track submissions\n📢 Announcements — broadcast messages to your school\n🏆 Leaderboard — see your top-performing students\n🏫 Classes — manage classrooms and verify students"
-    : "These are your school features — swipe to see all of them! 👉\n\n⏱️ Quiz — join live quizzes and check your results\n📚 Assignments — submit your tasks before the deadline\n🔔 Announcements — important updates from your teachers\n🥇 Leaderboard — see where you rank among classmates\n🏫 Classes — your assigned class for quizzes & assignments";
-
   return (
     <>
       <Animated.View
@@ -626,72 +645,22 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
         contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         scrollEventThrottle={16}
         refreshControl={getRefresher({ refreshing, onRefresh })}
-        onLayout={onListLayout}
         ListHeaderComponent={
-          <CopilotStep
-            text={
-              isTeacher
-                ? `Welcome to your School, ${user?.username}! 🏫\n\nThis is your school's profile page — everything you need to manage your students and run a great academic experience is right here.`
-                : `Welcome to your School, ${user?.username}! 🏫\n\nThis is your school's profile page. Everything you need for a great academic year is right here — quizzes, assignments, leaderboards and more!`
-            }
-            order={1}
-            name="school_header_banner"
-          >
-            <WalkthroughableView>
-              <SchoolHeader
-                data={{ name: data.name, lga: data.lga, state: data.state }}
-                scrollY={translationY}
-              />
-            </WalkthroughableView>
-          </CopilotStep>
+          <SchoolHeader
+            data={{ name: data.name, lga: data.lga, state: data.state }}
+            scrollY={translationY}
+          />
         }
         renderItem={() => (
           <View>
-            {/* Single step covers the whole actions strip */}
-            <CopilotStep
-              text={actionsTipText}
-              order={2}
-              name="school_actions_strip"
-            >
-              <WalkthroughableView>
-                <SchoolActions data={actionData} isTeacher={isTeacher} />
-              </WalkthroughableView>
-            </CopilotStep>
+            <SchoolActions data={actionData} isTeacher={isTeacher} />
+            <Authors data={data?.teachers} />
+            <ClassMates
+              data={data?.students}
+              setLeaveModalVis={setLeaveModalVis}
+              onFlagStudent={handleFlagStudent}
+            />
 
-            <CopilotStep
-              text={
-                isTeacher
-                  ? "Your fellow teachers are listed here. 👩‍🏫👨‍🏫\nSee who else is part of your school's academic team."
-                  : "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄"
-              }
-              order={3}
-              name="school_teachers_section"
-            >
-              <WalkthroughableView>
-                <Authors data={data?.teachers} />
-              </WalkthroughableView>
-            </CopilotStep>
-
-            <CopilotStep
-              text={
-                isTeacher
-                  ? "All verified students appear here. ✅\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students."
-                  : "These are your classmates! 💪\nSee who else has joined your school. The more active everyone is, the more competitive the leaderboard gets!\n\nTap the 🏳 icon on a student to report them if they don't belong here."
-              }
-              order={4}
-              name="school_classmates_section"
-            >
-              <WalkthroughableView style={{ minHeight: 120 }}>
-                {/* Pass onFlagStudent to the updated ClassMates */}
-                <ClassMates
-                  data={data?.students}
-                  setLeaveModalVis={setLeaveModalVis}
-                  onFlagStudent={handleFlagStudent}
-                />
-              </WalkthroughableView>
-            </CopilotStep>
-
-            {/* ── Leave School button ──────────────────────────────────────────────── */}
             <View style={styles.leaveSection}>
               <Pressable
                 onPress={() => setLeaveModalVis(true)}
@@ -710,13 +679,14 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
           </View>
         )}
       />
+
       {/* Leave School modal */}
       <LeaveSchoolModal
         visible={leaveModalVis}
         onClose={() => setLeaveModalVis(false)}
         onSuccess={() => {
           setLeaveModalVis(false);
-          fetchSchoolData(); // or navigate to JoinSchool screen
+          fetchSchoolData();
         }}
       />
 
@@ -726,6 +696,13 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
         onClose={() => setFlagTarget(null)}
         school={school}
         targetUser={flagTarget}
+      />
+
+      {/* Tutorial modal */}
+      <AppTutorial
+        visible={showTutorial}
+        steps={profileTutorialSteps}
+        onDone={handleTutorialDone}
       />
     </>
   );
@@ -742,7 +719,6 @@ const SchoolScreen = ({ route }) => {
 
   const [popData, setPopData] = useState({ vis: false });
   const { data: school, isLoading, refetch } = useFetchSchoolQuery();
-  const insets = useSafeAreaInsets();
 
   const hasJoined = Boolean(
     school?.data && school?.isVerified && school?.data?.subscription?.isActive,
@@ -769,52 +745,19 @@ const SchoolScreen = ({ route }) => {
   return (
     <View style={styles.container}>
       {(isStudent || isTeacher) && hasJoined && (
-        <CopilotProvider
-          tooltipComponent={GuruTooltip}
-          tooltipStyle={{ backgroundColor: "transparent" }}
-          arrowSize={0}
-          overlay="svg"
-          animated
-          backdropColor="rgba(0, 0, 0, 0.75)"
-          verticalOffset={insets.top}
-        >
-          <SchoolProfileMemo
-            data={school?.data}
-            fetchSchoolData={getSchoolData}
-          />
-        </CopilotProvider>
+        <SchoolProfileMemo
+          data={school?.data}
+          fetchSchoolData={getSchoolData}
+        />
       )}
       {isStudent && !hasJoined && (
-        <CopilotProvider
-          tooltipComponent={GuruTooltip}
-          tooltipStyle={{ backgroundColor: "transparent" }}
-          arrowSize={0}
-          overlay="svg"
-          animated
-          backdropColor="rgba(0, 0, 0, 0.75)"
-          verticalOffset={insets.top}
-        >
-          <JoinSchool
-            schoolData={school?.data}
-            fetchSchoolData={getSchoolData}
-          />
-        </CopilotProvider>
+        <JoinSchool schoolData={school?.data} fetchSchoolData={getSchoolData} />
       )}
       {isTeacher && !hasJoined && (
-        <CopilotProvider
-          tooltipComponent={GuruTooltip}
-          tooltipStyle={{ backgroundColor: "transparent" }}
-          arrowSize={0}
-          overlay="svg"
-          animated
-          backdropColor="rgba(0, 0, 0, 0.75)"
-          verticalOffset={insets.top}
-        >
-          <CreateSchool
-            schoolData={school?.data}
-            fetchSchoolData={getSchoolData}
-          />
-        </CopilotProvider>
+        <CreateSchool
+          schoolData={school?.data}
+          fetchSchoolData={getSchoolData}
+        />
       )}
       {isPro && (
         <View style={styles.main}>
@@ -948,7 +891,7 @@ const styles = StyleSheet.create({
   },
   flagBtn: {
     position: "absolute",
-    bottom: 22, // sits just below the avatar label
+    bottom: 22,
     right: 6,
     backgroundColor: colors.extraLight,
     borderRadius: 20,

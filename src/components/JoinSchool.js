@@ -38,9 +38,7 @@ import { hasCompletedProfile } from "../helpers/helperFunctions";
 import getRefresher from "./Refresher";
 import { PAD_BOTTOM } from "../helpers/dataStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
-
-const WalkthroughableView = walkthroughable(View);
+import AppTutorial from "./AppTutorial";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -246,7 +244,6 @@ export const SearchSchool = ({
 // ─────────────────────────────────────────────────────────────────────────────
 const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const user = useSelector(selectUser);
-  const { start, copilotEvents } = useCopilot();
 
   const translationY = useSharedValue(0);
   const [searchSchool, { data, isLoading }] = useLazySearchSchoolsQuery();
@@ -258,23 +255,46 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
   const [popper, setPopper] = useState({ vis: false });
   const [modalError, setModalError] = useState(null);
   const [modalSuccess, setModalSuccess] = useState(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // ── Tutorial steps ────────────────────────────────────────────────────────
+  const joinTutorialSteps = [
+    {
+      title: `Hey ${user?.username}! 👋`,
+      text: `To unlock everything Guru has to offer, you need to join your school.\n\nThis connects you to your teachers, classmates, school quizzes, assignments and the school leaderboard!`,
+    },
+    {
+      title: "Search for Your School 🔍",
+      text: `Type the name of your school in the search bar and it will appear in the list below.\n\nSelect it to send a join request to your school rep.\n\nMake sure your profile is complete before joining!`,
+    },
+    {
+      title: "Pending Request ⏳",
+      text:
+        school?.status === "subscription"
+          ? "Your school is awaiting a subscription renewal.\n\nNotify your school rep or homeroom teacher to renew the school subscription so you can gain full access."
+          : "Once you send a join request, a card will appear here showing your pending status.\n\nYou're awaiting verification from your school rep — pull down to refresh and check if you've been approved!",
+    },
+    {
+      title: "Can't Find Your School? 🏫",
+      text: `If your school doesn't appear in the search results, it hasn't been registered yet.\n\nAsk your homeroom teacher to create a School Profile so you and your classmates can join.\n\nIf the subscription is expired, ask your rep to renew it.`,
+    },
+  ];
 
   // ── Tour lifecycle ────────────────────────────────────────────────────────
   useEffect(() => {
     const checkTour = async () => {
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
-        setTimeout(() => start(), 800);
+        setTimeout(() => setShowTutorial(true), 800);
       }
     };
     checkTour();
   }, []);
 
-  useEffect(() => {
-    const handleStop = async () => await AsyncStorage.setItem(TOUR_KEY, "true");
-    copilotEvents.on("stop", handleStop);
-    return () => copilotEvents.off("stop", handleStop);
-  }, []);
+  const handleTutorialDone = async () => {
+    setShowTutorial(false);
+    await AsyncStorage.setItem(TOUR_KEY, "true");
+  };
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -335,7 +355,6 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
         setModalSuccess(
           "Request to join sent successfully! Awaiting verification from your school rep.",
         );
-        // After a short delay, close the modal and update local school state
         setTimeout(() => {
           setSchool({ ...item, status: "verification" });
           setBools({ ...bools, search: false, searched: true });
@@ -370,16 +389,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
         refreshControl={getRefresher({ refreshing, onRefresh })}
         renderItem={() => (
           <View style={styles.container}>
-            {/* Step 1 – Welcome banner */}
-            <CopilotStep
-              text={`Hey ${user?.username}! 👋\n\nTo unlock everything Guru has to offer, you need to join your school.\n\nThis connects you to your teachers, classmates, school quizzes, assignments and the school leaderboard!`}
-              order={1}
-              name="join_school_header"
-            >
-              <WalkthroughableView>
-                <SchoolHeader name={"JOIN SCHOOL"} scrollY={translationY} />
-              </WalkthroughableView>
-            </CopilotStep>
+            <SchoolHeader name={"JOIN SCHOOL"} scrollY={translationY} />
 
             <AppText
               fontWeight="heavy"
@@ -389,30 +399,19 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
               Hi, {user?.username}
             </AppText>
 
-            {/* Step 2 – Search bar */}
-            <CopilotStep
-              text={
-                "Search for your school here! 🔍\n\nType the name of your school and it will appear in the list below.\nSelect it to send a join request to your school rep.\n\nMake sure your profile is complete before joining!"
-              }
-              order={2}
-              name="join_school_search"
-            >
-              <WalkthroughableView>
-                <SearchSchool
-                  onSchoolPicked={onSchoolPicked}
-                  data={data?.data}
-                  onSearch={onSearch}
-                  loading={{
-                    search: isLoading,
-                    searched: bools.searched,
-                    page: joinLoading,
-                  }}
-                  showSearch={bools.search}
-                  error={modalError}
-                  success={modalSuccess}
-                />
-              </WalkthroughableView>
-            </CopilotStep>
+            <SearchSchool
+              onSchoolPicked={onSchoolPicked}
+              data={data?.data}
+              onSearch={onSearch}
+              loading={{
+                search: isLoading,
+                searched: bools.searched,
+                page: joinLoading,
+              }}
+              showSearch={bools.search}
+              error={modalError}
+              success={modalSuccess}
+            />
 
             <View style={styles.row}>
               <Ionicons
@@ -437,21 +436,10 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
               </AppText>
             </View>
 
-            {/* Step 3 – Pending request card */}
             {school && (
-              <CopilotStep
-                text={
-                  school?.status === "subscription"
-                    ? "Your school is awaiting a subscription renewal. ⏳\n\nNotify your school rep or homeroom teacher to renew the school subscription so you can gain full access."
-                    : "Your join request has been sent! ✅\n\nYou're now awaiting verification from your school rep.\n\nPull down to refresh and check if you've been approved. Once verified, you'll have full access to school features!"
-                }
-                order={3}
-                name="join_school_pending"
-              >
-                <WalkthroughableView style={styles.pending}>
-                  <SchoolList item={school} status={school?.status} />
-                </WalkthroughableView>
-              </CopilotStep>
+              <View style={styles.pending}>
+                <SchoolList item={school} status={school?.status} />
+              </View>
             )}
 
             <View style={[styles.row, { marginTop: 10 }]}>
@@ -468,7 +456,15 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
           </View>
         )}
       />
+
       <PopMessage popData={popper} setPopData={setPopper} />
+
+      {/* ── Tutorial modal ── */}
+      <AppTutorial
+        visible={showTutorial}
+        steps={joinTutorialSteps}
+        onDone={handleTutorialDone}
+      />
     </>
   );
 };

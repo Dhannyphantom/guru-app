@@ -17,7 +17,6 @@ import {
 } from "../helpers/helperFunctions";
 import { useEffect, useState } from "react";
 import { SchoolList, SearchSchool } from "./JoinSchool";
-import AppModal from "./AppModal";
 import {
   useJoinSchoolMutation,
   useLazySearchSchoolsQuery,
@@ -26,9 +25,7 @@ import PopMessage from "./PopMessage";
 import getRefresher from "./Refresher";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
-
-const WalkthroughableView = walkthroughable(View);
+import AppTutorial from "./AppTutorial"; //
 
 const { width, height } = Dimensions.get("screen");
 
@@ -38,7 +35,6 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
   const user = useSelector(selectUser);
   const profile = hasCompletedProfile(user);
   const router = useRouter();
-  const { start, copilotEvents } = useCopilot();
 
   const [searchSchool, { data, isLoading }] = useLazySearchSchoolsQuery();
   const [joinSchool, { isLoading: joinLoading }] = useJoinSchoolMutation();
@@ -47,27 +43,49 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
   const [school, setSchool] = useState(null);
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const searchStyle = bools.search ? styles.searchOn : {};
   const translationY = useSharedValue(0);
 
+  // ── Tutorial steps ────────────────────────────────────────────────────────
+  const schoolTutorialSteps = [
+    {
+      title: `Welcome, ${user?.username}! 👩‍🏫`,
+      text: `As a teacher, you have two options to get started:\n\n1. Create a brand new School Profile and enjoy free 3-months subscription.\n2. Join an existing school if a colleague already created one.\n\nYou'll need an active school subscription before students can join!`,
+    },
+    {
+      title: "Create or Join a School",
+      text: `➕ Create School Profile\nFill in your school's details, pay the subscription fee and become your school's rep on Guru.\n\n🙋 Join School\nIf a colleague has already set up your school, search for it and send a join request.`,
+    },
+    {
+      title: "Pending School Status",
+      text:
+        school?.status === "subscription"
+          ? "Your school profile exists but needs a subscription! 💳\n\nTap the school card to proceed to payment and activate your school so students can join."
+          : "Your join request is pending verification. ⏳\n\nThe school rep must approve your request before you gain teacher access. Pull down to refresh.",
+    },
+    {
+      title: "School Subscription Info 💰",
+      text: `School subscriptions are billed per term (3 months).\n\nOnce active, all verified students and teachers get full Guru access for that term.\n\nRemember to renew at the start of each new term!`,
+    },
+  ];
+
   // ── Tour lifecycle ────────────────────────────────────────────────────────
   useEffect(() => {
     const checkTour = async () => {
-      // await AsyncStorage.removeItem(TOUR_KEY); // remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
-        setTimeout(() => start(), 800);
+        setTimeout(() => setShowTutorial(true), 800);
       }
     };
     checkTour();
   }, []);
 
-  useEffect(() => {
-    const handleStop = async () => await AsyncStorage.setItem(TOUR_KEY, "true");
-    copilotEvents.on("stop", handleStop);
-    return () => copilotEvents.off("stop", handleStop);
-  }, []);
+  const handleTutorialDone = async () => {
+    setShowTutorial(false);
+    await AsyncStorage.setItem(TOUR_KEY, "true");
+  };
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -168,19 +186,7 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
         keyboardShouldPersistTaps="handled"
         renderItem={() => (
           <View style={styles.container}>
-            {/* Step 1 – Welcome banner */}
-            <CopilotStep
-              text={`Welcome, ${user?.username}! 👩‍🏫\n\nAs a teacher, you have two options to get started with your school on Guru:\n\n1. Create a brand new School Profile for your school.\n2. Join an existing school profile if one has already been created by a colleague.\n\nEither way, you'll need an active school subscription before students can join!`}
-              order={1}
-              name="create_school_header"
-            >
-              <WalkthroughableView>
-                <SchoolHeader
-                  data={{ name: "MY SCHOOL" }}
-                  scrollY={translationY}
-                />
-              </WalkthroughableView>
-            </CopilotStep>
+            <SchoolHeader data={{ name: "MY SCHOOL" }} scrollY={translationY} />
 
             {bools?.search && (
               <SearchSchool
@@ -205,47 +211,27 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
               Hi, {user?.username}
             </AppText>
 
-            {/* Step 2 – Create / Join action buttons */}
-            <CopilotStep
-              text={
-                "These are your two setup options:\n\n➕ Create School Profile\nStart fresh! Fill in your school's details, pay the subscription fee and become your school's rep on Guru. Your students and fellow teachers can then find and join your school.\n\n🙋 Join School\nIf a colleague has already set up your school profile, search for it here and send a request to join as a teacher."
-              }
-              order={2}
-              name="create_school_actions"
-            >
-              <WalkthroughableView style={styles.main}>
-                <ProfileLink
-                  title={"Create School Profile"}
-                  onPress={() => createActions("create")}
-                  icon="add-circle"
-                />
-                <ProfileLink
-                  title={"Join School"}
-                  onPress={() => createActions("join")}
-                  icon="person-add"
-                />
-              </WalkthroughableView>
-            </CopilotStep>
+            <View style={styles.main}>
+              <ProfileLink
+                title={"Create School Profile"}
+                onPress={() => createActions("create")}
+                icon="add-circle"
+              />
+              <ProfileLink
+                title={"Join School"}
+                onPress={() => createActions("join")}
+                icon="person-add"
+              />
+            </View>
 
-            {/* Step 3 – Pending school card (subscription or verification) */}
             {school && Boolean(school?._id) && (
-              <CopilotStep
-                text={
-                  school?.status === "subscription"
-                    ? "Your school profile exists but needs a subscription! 💳\n\nTap this card to proceed to payment and activate your school.\n\nOnce subscribed, your students and teachers can join and access all of Guru's school features."
-                    : "Your join request is pending verification. ⏳\n\nThe school rep needs to approve your request before you gain teacher access.\n\nPull down to refresh and check if you've been verified."
-                }
-                order={3}
-                name="create_school_pending"
-              >
-                <WalkthroughableView style={styles.pending}>
-                  <SchoolList
-                    item={school}
-                    onPress={handleSchoolSub}
-                    status={school?.status}
-                  />
-                </WalkthroughableView>
-              </CopilotStep>
+              <View style={styles.pending}>
+                <SchoolList
+                  item={school}
+                  onPress={handleSchoolSub}
+                  status={school?.status}
+                />
+              </View>
             )}
 
             <View>
@@ -272,17 +258,7 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
                   them to learn and practice questions
                 </AppText>
               </View>
-            </View>
-
-            {/* Step 4 – Subscription cost callout */}
-            <CopilotStep
-              text={
-                "School subscriptions are billed per term (3 months). 💰\n\nOnce active, all verified students and teachers in your school get full access to Guru for that term.\n\nRemember to renew at the start of each new term to keep things running smoothly!"
-              }
-              order={4}
-              name="create_school_sub_info"
-            >
-              <WalkthroughableView style={[styles.row, { marginTop: 30 }]}>
+              <View style={[styles.row, { marginTop: 30 }]}>
                 <Ionicons
                   name="information-circle"
                   size={20}
@@ -296,12 +272,19 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
                   </AppText>
                   . i.e a three(3) months subscription
                 </AppText>
-              </WalkthroughableView>
-            </CopilotStep>
+              </View>
+            </View>
           </View>
         )}
       />
+
       <PopMessage popData={popper} setPopData={setPopper} />
+
+      <AppTutorial
+        visible={showTutorial}
+        steps={schoolTutorialSteps}
+        onDone={handleTutorialDone}
+      />
     </>
   );
 };

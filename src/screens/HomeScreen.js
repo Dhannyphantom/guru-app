@@ -1,6 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import {
-  // Dimensions,
   FlatList,
   Pressable,
   StyleSheet,
@@ -11,7 +10,6 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-// import { BlurView } from "expo-blur";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
@@ -32,9 +30,7 @@ import {
   useFetchUserQuery,
   useFetchUserStatsQuery,
   useUpdateUserProfileMutation,
-  // useUpdateUserProfileMutation,
 } from "../context/usersSlice";
-// import { hasCompletedProfile } from "../helpers/helperFunctions";
 import { useFetchSchoolQuery } from "../context/schoolSlice";
 import WebLayout from "../components/WebLayout";
 import Invited from "../components/Invited";
@@ -51,10 +47,10 @@ import Animated, {
   LinearTransition,
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
   withRepeat,
   withSequence,
+  withTiming,
   Easing,
 } from "react-native-reanimated";
 import {
@@ -66,13 +62,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import PopMessage from "../components/PopMessage";
 import AppText from "../components/AppText";
 import MonthlyQuizCard from "../components/MonthlyQuizCard";
-import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { apiSlice } from "../context/apiSlice";
 import { useFetchActiveCompetitionQuery } from "../context/competitionSlice";
-// import useDoubleBackExit from "../hooks/useDoubleBackExit";
-
-const WalkthroughableView = walkthroughable(View);
-const WalkthroughablePressable = walkthroughable(Pressable);
+import AppTutorial from "../components/AppTutorial"; // ← new
 
 const { width } = Dimensions.get("screen");
 
@@ -86,7 +78,30 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-// const { width, height } = Dimensions.get("screen");
+
+// ─── Tutorial steps for HomeScreen ───────────────────────────────────────────
+const HOME_TUTORIAL_STEPS = [
+  {
+    title: `Welcome to Guru, %name%! 🎓`,
+    text: "Your all-in-one quiz and learning companion. Let's give you a quick tour to get started.",
+  },
+  {
+    title: "Complete Your Profile",
+    text: "Go to the Profile tab to complete your details. You’ll be added to Guru School by default, but you can leave and join your own registered school anytime.",
+  },
+  {
+    title: "Earn While You Learn",
+    text: "Subscribe to unlock premium practice sessions where you earn Guru Tokens (GT) and redeem rewards like airtime, data, cash withdrawals, or subscription renewals. Free users can only access limited freemium sessions without GT rewards!",
+  },
+  {
+    title: "Connect With Friends",
+    text: "Tap 'Find Friends' to follow classmates for multiplayer quiz battles. Learning is more fun together!",
+  },
+  {
+    title: "Pick a Subject & Play",
+    text: "Click the Rocket Icon 🚀 below, start a session, and earn points. Subscribe to unlock the full Guru experience!",
+  },
+];
 
 const HomeScreen = () => {
   const [bools, setBools] = useState({ friendsModal: false });
@@ -94,6 +109,7 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
   const [cache, setCache] = useState({});
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useFetchSchoolQuery();
   const screenWidth = useWindowDimensions().width;
@@ -120,7 +136,6 @@ const HomeScreen = () => {
   const user = useSelector(selectUser);
   const router = useRouter();
   const dispatch = useDispatch();
-  const { start, copilotEvents } = useCopilot();
   const notificationCount = stats?.data?.notificationsCount ?? 0;
 
   // Badge scale animation
@@ -131,13 +146,7 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (notificationCount > 0) {
-      // Badge pop-in
-      badgeScale.value = withSpring(1, {
-        damping: 8,
-        stiffness: 150,
-      });
-
-      // Infinite smooth shake
+      badgeScale.value = withSpring(1, { damping: 8, stiffness: 150 });
       shake.value = withRepeat(
         withSequence(
           withTiming(-8, { duration: 80, easing: Easing.linear }),
@@ -146,7 +155,7 @@ const HomeScreen = () => {
           withTiming(6, { duration: 80 }),
           withTiming(0, { duration: 80 }),
         ),
-        -1, // infinite
+        -1,
         true,
       );
     } else {
@@ -155,25 +164,20 @@ const HomeScreen = () => {
     }
   }, [notificationCount]);
 
-  const animatedBadgeStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: badgeScale.value }],
-      opacity: badgeScale.value,
-    };
-  });
+  const animatedBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+    opacity: badgeScale.value,
+  }));
 
-  const animatedBellStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotate: `${shake.value}deg` }],
-    };
-  });
+  const animatedBellStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${shake.value}deg` }],
+  }));
 
   const toggleFriendsModal = (bool) => {
     setBools({ ...bools, friendsModal: bool });
   };
 
   const onRefresh = async () => {
-    // return;
     setRefreshing(true);
     try {
       await refetch();
@@ -217,43 +221,28 @@ const HomeScreen = () => {
 
   const fetchCache = async () => {
     let subjectList = await AsyncStorage.getItem("subjects");
-    if (subjectList) {
-      subjectList = JSON.parse(subjectList);
-    }
+    if (subjectList) subjectList = JSON.parse(subjectList);
 
     let catList = await AsyncStorage.getItem("categories");
-    if (catList) {
-      catList = JSON.parse(catList);
-    }
+    if (catList) catList = JSON.parse(catList);
 
     let stat = await AsyncStorage.getItem("user_stat");
-    if (stat) {
-      stat = JSON.parse(stat);
-    }
+    if (stat) stat = JSON.parse(stat);
 
     setCache({ ...cache, categories: catList, subjects: subjectList, stat });
   };
 
   useEffect(() => {
-    if (user) {
-      initializeSocket();
-    }
+    if (user) initializeSocket();
   }, [user]);
 
   useEffect(() => {
-    socket.on("receive_invite", (session) => {
-      // update invites list
-
-      setInvite(session);
-    });
-
+    socket.on("receive_invite", (session) => setInvite(session));
     return () => socket.off("receive_invite");
   }, []);
 
   useEffect(() => {
     socket.on("active_session", ({ active, host, sessionId }) => {
-      // update invites list
-
       if (active === true) {
         router.push({
           pathname: "/main/session",
@@ -273,29 +262,20 @@ const HomeScreen = () => {
         });
       }
     });
-
     return () => socket.off("active_session");
   }, []);
 
   useEffect(() => {
-    socket.on("un_invite", (session) => {
-      // update invites list
-
-      setInvite(null);
-    });
-
+    socket.on("un_invite", () => setInvite(null));
     return () => socket.off("un_invite");
   }, []);
 
   useEffect(() => {
-    if (stats?.invite) {
-      setInvite(stats?.invite);
-    }
+    if (stats?.invite) setInvite(stats?.invite);
   }, [stats]);
 
   useEffect(() => {
     try {
-      // refetch();
       fetchCache();
       registerForPushNotificationsAsync().then((token) => {
         updateUserProfile({ expoPushToken: token }).unwrap();
@@ -324,45 +304,31 @@ const HomeScreen = () => {
   useEffect(() => {
     const checkTour = async () => {
       if (fetchingCategories || !stats) return;
-      // await AsyncStorage.removeItem(TOUR_KEY);
       const seen = await AsyncStorage.getItem(TOUR_KEY);
-
       if (!seen) {
-        setTimeout(() => {
-          start();
-        }, 800);
+        setTimeout(() => setShowTutorial(true), 800);
       }
     };
-
     checkTour();
   }, [fetchingCategories, stats]);
-  // copilot event listener to set tour as seen on stop
-  useEffect(() => {
-    const handleStop = async () => {
-      await AsyncStorage.setItem(TOUR_KEY, "true");
-    };
 
-    copilotEvents.on("stop", handleStop);
+  const handleTutorialDone = async () => {
+    setShowTutorial(false);
+    await AsyncStorage.setItem(TOUR_KEY, "true");
+  };
 
-    return () => {
-      copilotEvents.off("stop", handleStop);
-    };
-  }, []);
+  // Personalise the first step's title with the user's name
+  const tutorialSteps = HOME_TUTORIAL_STEPS.map((s) => ({
+    ...s,
+    title: s.title.replace("%name%", capFirstLetter(user?.username ?? "")),
+  }));
 
   if (user?.accountType === "teacher") return <TeacherHomeScreen />;
 
   return (
     <Screen style={styles.container}>
       <View style={styles.header}>
-        <CopilotStep
-          text={`Complete these steps to get started\n\n1. Complete your profile \n\n2. Join your school in the school tab\n\n3. Subscribe to fully access Guru.`}
-          order={1}
-          name={`Welcome to Guru ${capFirstLetter(user?.username)}!`}
-        >
-          <WalkthroughableView style={{ alignSelf: "flex-start" }}>
-            <AppLogo />
-          </WalkthroughableView>
-        </CopilotStep>
+        <AppLogo />
         <View style={styles.headerIconContainer}>
           <SubStatus isSubscribed={user?.subscription?.isActive} />
           <Pressable
@@ -394,6 +360,7 @@ const HomeScreen = () => {
           </Pressable>
         </View>
       </View>
+
       <FlatList
         data={["HOME"]}
         contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
@@ -408,15 +375,8 @@ const HomeScreen = () => {
                 justifyContent: "space-around",
               }}
             >
-              <CopilotStep
-                text={"Track your daily progress here."}
-                order={3}
-                name="dailyTask"
-              >
-                <WalkthroughableView style={{ minWidth: 150 }}>
-                  <DailyTask stats={stats?.data ?? cache?.stat} />
-                </WalkthroughableView>
-              </CopilotStep>
+              <DailyTask stats={stats?.data ?? cache?.stat} />
+
               <MonthlyQuizCard
                 data={competitionData}
                 refetch={competitionRefetch}
@@ -424,37 +384,17 @@ const HomeScreen = () => {
               />
 
               <Invited data={invite} onPress={handleInvite} />
-              <CopilotStep
-                text={
-                  "Connect with your friends and classmates here.\nInvite your mutual friends for a multiplayer quiz session!"
-                }
-                order={4}
-                name="friends"
-              >
-                <WalkthroughableView>
-                  <Animated.View layout={LinearTransition}>
-                    <FindFriendsBoard
-                      onPress={() => toggleFriendsModal(true)}
-                    />
-                  </Animated.View>
-                </WalkthroughableView>
-              </CopilotStep>
+
+              <Animated.View layout={LinearTransition}>
+                <FindFriendsBoard onPress={() => toggleFriendsModal(true)} />
+              </Animated.View>
             </WebLayout>
 
-            <CopilotStep
-              text={
-                "Pick a subject to start practicing.\n\nYou can practice offline after participating in a quiz session at least once."
-              }
-              order={5}
-              name="categories"
-            >
-              <WalkthroughableView>
-                <SubjectCategory
-                  data={categories?.data ?? cache?.categories}
-                  loading={fetchingCategories}
-                />
-              </WalkthroughableView>
-            </CopilotStep>
+            <SubjectCategory
+              data={categories?.data ?? cache?.categories}
+              loading={fetchingCategories}
+            />
+
             <Subjects
               title={"My Subjects"}
               data={subjects?.data ?? cache?.subjects}
@@ -464,65 +404,18 @@ const HomeScreen = () => {
         )}
       />
 
-      {/* Tab anchors (pointer-events none, for layout only) */}
-
-      <View style={[styles.tabAnchors, { bottom: 8 }]} pointerEvents="none">
-        <View style={styles.tabAnchor} />
-        <CopilotStep
-          order={6}
-          name="leaderboard"
-          text="Check out the global leaderboard and see how you stack up against other Gurus!"
-        >
-          <WalkthroughableView style={styles.tabAnchor} />
-        </CopilotStep>
-
-        {/*
-    FIX: The play anchor was clipping because it was rendered at the screen edge
-    with a fixed bottom offset that pushed it partially off-screen.
-
-    Solution:
-    - Keep flex:1 so it stays centred in the middle fifth of the bar.
-    - Use a wider anchor (matchs CIRCLE_SIZE + padding) so Copilot has
-      enough space to render the tooltip above the button rather than
-      clipping it at the edge.
-    - Remove the hard-coded `bottom: 40` offset; let the parent row handle
-      vertical alignment and just use a taller anchor to cover the floating button.
-  */}
-        <CopilotStep
-          order={7}
-          name="play & earn"
-          text={
-            "When you're fully setup.\nAnd have an active subscription\n\nStart a quiz session HERE"
-          }
-        >
-          <WalkthroughableView style={styles.tabAnchorCenter} />
-        </CopilotStep>
-
-        <CopilotStep
-          order={8}
-          name="school"
-          text={
-            "Join your school to compete with your classmates and climb the school leaderboard!\n\nParticipate in school quiz and assignments"
-          }
-        >
-          <WalkthroughableView style={styles.tabAnchor} />
-        </CopilotStep>
-        <CopilotStep
-          order={9}
-          name="profile"
-          text={
-            "Complete your profile and subscription to unlock all features and become the ultimate Guru!\n\nFinish setting up your profile NOW!!!."
-          }
-        >
-          <WalkthroughableView style={styles.tabAnchor} />
-        </CopilotStep>
-      </View>
-
       <PopFriends
         visible={bools.friendsModal}
         setter={(bool) => setBools({ ...bools, friendsModal: bool })}
       />
       <PopMessage popData={popper} setPopData={setPopper} />
+
+      <AppTutorial
+        visible={showTutorial}
+        steps={tutorialSteps}
+        onDone={handleTutorialDone}
+      />
+
       <StatusBar style="dark" />
     </Screen>
   );
@@ -537,7 +430,7 @@ async function registerForPushNotificationsAsync() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: colors.primary,
-      sound: "default", // must match filename in `assets` folder
+      sound: "default",
     });
   }
 
@@ -550,27 +443,16 @@ async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
 
-    if (finalStatus !== "granted") {
-      // alert("Failed to get push token for push notification!");
-      return;
-    }
-    // Learn more about projectId:
-    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-    // EAS projectId is used here.
+    if (finalStatus !== "granted") return;
+
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
         Constants?.easConfig?.projectId;
-      if (!projectId) {
-        throw new Error("Project ID not found");
-      }
+      if (!projectId) throw new Error("Project ID not found");
 
       try {
-        token = (
-          await Notifications.getExpoPushTokenAsync({
-            projectId,
-          })
-        ).data;
+        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       } catch (_errorT) {}
     } catch (e) {
       token = `${e}`;
@@ -588,7 +470,6 @@ const styles = StyleSheet.create({
   notificationWrapper: {
     position: "relative",
   },
-
   badge: {
     position: "absolute",
     top: -4,
@@ -601,18 +482,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   badgeText: {
     color: "#fff",
   },
   container: {
     flex: 1,
     backgroundColor: colors.primaryLight,
-  },
-  friendsModal: {
-    flex: 1,
-    borderTopStartRadius: 25,
-    borderTopEndRadius: 25,
   },
   header: {
     flexDirection: "row",
@@ -623,34 +498,9 @@ const styles = StyleSheet.create({
   },
   headerIconContainer: {
     flexDirection: "row",
-    // alignItems: "center",
   },
   headerIcon: {
     padding: 20,
     paddingHorizontal: 10,
-  },
-  rowWide: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  tabAnchors: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    pointerEvents: "none",
-  },
-  tabAnchor: {
-    width: 50,
-    height: 50,
-  },
-  // Taller, wider anchor for the floating centre button.
-  // No hard-coded `bottom` — stays centred in the row via alignItems:"center".
-  tabAnchorCenter: {
-    width: 72, // wide enough that Copilot tooltip renders above, not clipped
-    height: 72, // tall enough to cover the floating circle button
   },
 });
