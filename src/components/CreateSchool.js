@@ -52,11 +52,11 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
   const schoolTutorialSteps = [
     {
       title: `Welcome, ${user?.username}! 👩‍🏫`,
-      text: `As a teacher, you have two options to get started:\n\n1. Create a brand new School Profile and enjoy free 3-months subscription.\n2. Join an existing school if a colleague already created one.\n\nYou'll need an active school subscription before students can join!`,
+      text: `As a teacher, you have two options to get started:\n\n1. Create a brand new School Profile and enjoy free 3-months subscription.\n2. Join an existing school if a colleague already created one.`,
     },
     {
       title: "Create or Join a School",
-      text: `➕ Create School Profile\nFill in your school's details, pay the subscription fee and become your school's rep on Guru.\n\n🙋 Join School\nIf a colleague has already set up your school, search for it and send a join request.`,
+      text: `Create School Profile\nFill in your school's details, Enjoy the 3-month subscription fee and become your school's rep on Guru.\n\nJoin School\nIf a colleague has already set up your school, search for it and send a join request.`,
     },
     {
       title: "Pending School Status",

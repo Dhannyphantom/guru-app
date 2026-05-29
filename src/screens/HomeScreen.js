@@ -82,24 +82,24 @@ Notifications.setNotificationHandler({
 // ─── Tutorial steps for HomeScreen ───────────────────────────────────────────
 const HOME_TUTORIAL_STEPS = [
   {
-    title: `Welcome to Guru, %name%! 🎓`,
-    text: "Your all-in-one quiz and learning companion. Let's give you a quick tour to get started.",
+    title: `Welcome to Guru, %name%!`,
+    text: "Your all-in-one exam prep and learning companion. Let's give you a quick tour to get started.",
   },
   {
     title: "Complete Your Profile",
-    text: "Go to the Profile tab to complete your details. You’ll be added to Guru School by default, but you can leave and join your own registered school anytime.",
+    text: "Go to the Profile tab to complete your details.\nYou’ll be added to Guru School by default, but you can leave and join your own registered school anytime.",
   },
   {
     title: "Earn While You Learn",
-    text: "Subscribe to unlock premium practice sessions where you earn Guru Tokens (GT) and redeem rewards like airtime, data, cash withdrawals, or subscription renewals. Free users can only access limited freemium sessions without GT rewards!",
+    text: "Subscribe to unlock premium practice sessions where you earn Guru Tokens (GT) and redeem rewards like airtime, data, cash withdrawals, or subscription renewals.\nFree users can only access limited freemium sessions without GT rewards!",
   },
   {
-    title: "Connect With Friends",
-    text: "Tap 'Find Friends' to follow classmates for multiplayer quiz battles. Learning is more fun together!",
+    title: "Practice Offline",
+    text: "Each premium practice session questions can be practiced offline anytime by selecting subjects on the home screen. Your answers are automatically saved as you progress.",
   },
   {
-    title: "Pick a Subject & Play",
-    text: "Click the Rocket Icon 🚀 below, start a session, and earn points. Subscribe to unlock the full Guru experience!",
+    title: "Pick a Subject & Win",
+    text: "Click the Rocket Icon 🚀 below, start a session, invite friends, and earn Guru Tokens. Subscribe NOW to unlock the full Guru experience!",
   },
 ];
 
@@ -304,6 +304,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const checkTour = async () => {
       if (fetchingCategories || !stats) return;
+      // await AsyncStorage.removeItem(TOUR_KEY); // ← for testing purposes, remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
         setTimeout(() => setShowTutorial(true), 800);
@@ -430,7 +431,7 @@ async function registerForPushNotificationsAsync() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: colors.primary,
-      sound: "default",
+      sound: "alert_notification.wav",
     });
   }
 

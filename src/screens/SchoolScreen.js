@@ -527,18 +527,18 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     ? [
         {
           title: `Welcome to your School! 🏫`,
-          text: `Hi ${user?.username}! This is your school's profile page — everything you need to manage your students and run a great academic experience is right here.`,
+          text: `Hi ${user?.username}! This is your school's profile page — everything you need to manage your students and run a great academic experience is right here\n\nEnjoy your 3-month access to all premium features!`,
         },
         {
-          title: "Your School Tools 🛠️",
-          text: `Swipe through the action tiles to access all features:\n\n📊 Dashboard — overview of all school activity\n🎯 Quiz — create & launch live quizzes\n📝 Assignments — set tasks and track submissions\n📢 Announcements — broadcast messages\n🏆 Leaderboard — top-performing students\n🏫 Classes — manage classrooms`,
+          title: "Your School Tools",
+          text: `Swipe through the action tiles to access all features:\n\nDashboard — overview of all school activity\nQuiz — create & launch live quizzes\nAssignments — set tasks and track submissions\nAnnouncements — broadcast messages\nLeaderboard — top-performing students\nClasses — manage classrooms`,
         },
         {
-          title: "Your Teaching Team 👩‍🏫",
+          title: "Your Teaching Team",
           text: "Your fellow teachers are listed in the Teachers section.\nSee who else is part of your school's academic team and collaborate with them.",
         },
         {
-          title: "Managing Students ✅",
+          title: "Managing Students",
           text: "All verified students appear in the Students section.\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students.",
         },
       ]
@@ -548,15 +548,19 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
           text: `Hi ${user?.username}! This is your school's profile page. Everything you need for a great academic year is right here — quizzes, assignments, leaderboards and more!`,
         },
         {
-          title: "Your School Features 🎒",
-          text: `Swipe through the action tiles to see everything available:\n\n⏱️ Quiz — join live quizzes and check your results\n📚 Assignments — submit tasks before the deadline\n🔔 Announcements — important updates from teachers\n🥇 Leaderboard — see where you rank\n🏫 Classes — your assigned class`,
+          title: "Not Seeing Your School?",
+          text: `If you don't see your school or Guru school details here, it means you haven't completed your profile details.\n\nGo to your Profile tab, complete your details, and you'll be joined to Guru EduTech!`,
         },
         {
-          title: "Your Teachers 👨‍🏫",
+          title: "Your School Features",
+          text: `Swipe through the action tiles to see everything available:\n\nQuiz — join live quizzes and check your results\nAssignments — submit tasks before the deadline\nAnnouncements — important updates from teachers\nLeaderboard — see where you rank`,
+        },
+        {
+          title: "Your Teachers",
           text: "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄",
         },
         {
-          title: "Your Classmates 💪",
+          title: "Your Classmates",
           text: "See who else has joined your school!\nThe more active everyone is, the more competitive the leaderboard gets.\n\nTap the 🏳 icon on a student to report them if they don't belong here.",
         },
       ];
@@ -564,6 +568,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
   // ── Tour lifecycle ──────────────────────────────────────────────────────
   useEffect(() => {
     const checkTour = async () => {
+      await AsyncStorage.removeItem(TOUR_KEY); // ← for testing purposes, remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
         setTimeout(() => setShowTutorial(true), 800);

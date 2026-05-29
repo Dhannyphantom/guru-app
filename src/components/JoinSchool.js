@@ -330,7 +330,7 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
           setModalError(
             error?.status === "TIMEOUT_ERROR"
               ? "Network Error, Try again"
-              : error?.error ?? "Something went wrong. Please try again.",
+              : (error?.error ?? "Something went wrong. Please try again."),
           );
         }
         break;

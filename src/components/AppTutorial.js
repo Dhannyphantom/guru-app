@@ -2,40 +2,33 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, Modal, Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
-  FadeIn,
-  FadeOut,
-  interpolate,
-  runOnJS,
+  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSpring,
   withTiming,
-  ZoomIn,
-  ZoomOut,
 } from "react-native-reanimated";
-import LottieAnimator from "./LottieAnimator"; // adjust path as needed
-import AppText from "./AppText"; // adjust path as needed
-import colors from "../helpers/colors"; // adjust path as needed
+import { scheduleOnRN } from "react-native-worklets";
+import LottieAnimator from "./LottieAnimator";
+import AppText from "./AppText";
+import AppButton from "./AppButton";
+import colors from "../helpers/colors";
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("screen");
+const { width: SCREEN_W } = Dimensions.get("screen");
 
 // ─── Step dot indicator ───────────────────────────────────────────────────────
-const StepDot = ({ active, index, total }) => {
-  const scale = useSharedValue(active ? 1 : 0.6);
-  const opacity = useSharedValue(active ? 1 : 0.35);
+const StepDot = ({ active }) => {
   const widthAnim = useSharedValue(active ? 24 : 8);
+  const opacity = useSharedValue(active ? 1 : 0.35);
 
   useEffect(() => {
-    scale.value = withSpring(active ? 1 : 0.6, { damping: 12 });
+    widthAnim.value = withSpring(active ? 24 : 8);
     opacity.value = withTiming(active ? 1 : 0.35, { duration: 300 });
-    widthAnim.value = withSpring(active ? 24 : 8, { damping: 12 });
   }, [active]);
 
   const animStyle = useAnimatedStyle(() => ({
     width: widthAnim.value,
     opacity: opacity.value,
-    transform: [{ scale: scale.value }],
   }));
 
   return <Animated.View style={[styles.dot, animStyle]} />;
@@ -46,20 +39,19 @@ const StepDot = ({ active, index, total }) => {
  * AppTutorial — Reusable animated onboarding / tutorial modal
  *
  * Props:
- *  visible      {boolean}   — controls modal visibility
- *  onDone       {function}  — called when user finishes or skips
- *  steps        {Array}     — array of { title, text, icon? } objects
- *  storageKey   {string}    — AsyncStorage key used externally to gate visibility
+ *  visible  {boolean}   — controls modal visibility
+ *  onDone   {function}  — called when user finishes or skips
+ *  steps    {Array}     — array of { title, text } objects
  */
 const AppTutorial = ({ visible = false, onDone, steps = [] }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // Card slide/fade shared values
-  const cardTranslateX = useSharedValue(0);
-  const cardOpacity = useSharedValue(1);
+  // Per-step text block slide/fade — Lottie is NOT included here
+  const contentTranslateX = useSharedValue(0);
+  const contentOpacity = useSharedValue(1);
 
-  // Card entrance animation
+  // Card entrance
   const cardEnterScale = useSharedValue(0.88);
   const cardEnterOpacity = useSharedValue(0);
 
@@ -68,28 +60,60 @@ const AppTutorial = ({ visible = false, onDone, steps = [] }) => {
 
   const isAnimating = useRef(false);
 
-  // ── Open / close backdrop ────────────────────────────────────────────────
+  // ── Stable JS callbacks for scheduleOnRN ────────────────────────────────
+  const hideModal = useCallback(() => {
+    setInternalVisible(false);
+  }, []);
+
+  const unlockAnimating = useCallback(() => {
+    isAnimating.current = false;
+  }, []);
+
+  // ── Open / close ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (visible) {
       setInternalVisible(true);
       setCurrentStep(0);
+      contentTranslateX.value = 0;
+      contentOpacity.value = 1;
       cardEnterScale.value = 0.88;
       cardEnterOpacity.value = 0;
       setTimeout(() => {
         backdropOpacity.value = withTiming(1, { duration: 350 });
-        cardEnterScale.value = withSpring(1, { damping: 14, stiffness: 120 });
+        cardEnterScale.value = withSpring(1);
         cardEnterOpacity.value = withTiming(1, { duration: 300 });
       }, 50);
     } else {
       backdropOpacity.value = withTiming(0, { duration: 250 });
       cardEnterScale.value = withTiming(0.88, { duration: 220 });
-      cardEnterOpacity.value = withTiming(0, { duration: 220 }, () => {
-        runOnJS(setInternalVisible)(false);
+      cardEnterOpacity.value = withTiming(0, { duration: 220 }, (finished) => {
+        "worklet";
+        if (finished) scheduleOnRN(hideModal);
       });
     }
   }, [visible]);
 
-  // ── Animate to next / prev step ──────────────────────────────────────────
+  // ── Step update — called via scheduleOnRN ────────────────────────────────
+  const applyStepChange = useCallback(
+    (direction, enterX) => {
+      setCurrentStep((prev) => {
+        const next = direction === "next" ? prev + 1 : prev - 1;
+        return Math.max(0, Math.min(steps.length - 1, next));
+      });
+
+      contentTranslateX.value = enterX;
+      contentOpacity.value = 0;
+
+      contentTranslateX.value = withSpring(0);
+      contentOpacity.value = withTiming(1, { duration: 220 }, (finished) => {
+        "worklet";
+        if (finished) scheduleOnRN(unlockAnimating);
+      });
+    },
+    [steps.length],
+  );
+
+  // ── Slide transition ──────────────────────────────────────────────────────
   const animateToStep = useCallback(
     (direction) => {
       if (isAnimating.current) return;
@@ -98,56 +122,31 @@ const AppTutorial = ({ visible = false, onDone, steps = [] }) => {
       const exitX = direction === "next" ? -SCREEN_W * 0.3 : SCREEN_W * 0.3;
       const enterX = direction === "next" ? SCREEN_W * 0.3 : -SCREEN_W * 0.3;
 
-      // Slide out
-      cardTranslateX.value = withTiming(exitX, {
+      contentTranslateX.value = withTiming(exitX, {
         duration: 200,
         easing: Easing.in(Easing.quad),
       });
-      cardOpacity.value = withTiming(0, { duration: 180 }, () => {
-        runOnJS(stepCallback)(direction, enterX);
+      contentOpacity.value = withTiming(0, { duration: 180 }, (finished) => {
+        "worklet";
+        if (finished) scheduleOnRN(applyStepChange, direction, enterX);
       });
     },
-    [currentStep, steps.length],
+    [applyStepChange],
   );
 
-  const stepCallback = useCallback(
-    (direction, enterX) => {
-      setCurrentStep((prev) => {
-        const next = direction === "next" ? prev + 1 : prev - 1;
-        return Math.max(0, Math.min(steps.length - 1, next));
-      });
-
-      // Reset to enter-from-right/left, then slide to center
-      cardTranslateX.value = enterX;
-      cardOpacity.value = 0;
-
-      cardTranslateX.value = withSpring(0, { damping: 16, stiffness: 140 });
-      cardOpacity.value = withTiming(1, { duration: 220 }, () => {
-        runOnJS(() => {
-          isAnimating.current = false;
-        })();
-      });
-    },
-    [steps.length],
-  );
-
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentStep < steps.length - 1) {
       animateToStep("next");
     } else {
-      handleDone();
+      onDone?.();
     }
-  };
+  }, [currentStep, steps.length, animateToStep, onDone]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (currentStep > 0) animateToStep("prev");
-  };
+  }, [currentStep, animateToStep]);
 
-  const handleDone = () => {
-    onDone?.();
-  };
-
-  // ── Animated styles ──────────────────────────────────────────────────────
+  // ── Animated styles ───────────────────────────────────────────────────────
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
   }));
@@ -157,9 +156,10 @@ const AppTutorial = ({ visible = false, onDone, steps = [] }) => {
     transform: [{ scale: cardEnterScale.value }],
   }));
 
-  const cardContentStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ translateX: cardTranslateX.value }],
+  // Only the text block slides — Lottie stays fixed above
+  const contentSlideStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [{ translateX: contentTranslateX.value }],
   }));
 
   if (!internalVisible) return null;
@@ -174,78 +174,72 @@ const AppTutorial = ({ visible = false, onDone, steps = [] }) => {
       visible={internalVisible}
       statusBarTranslucent
       animationType="none"
-      onRequestClose={handleDone}
+      onRequestClose={onDone}
     >
       {/* Backdrop */}
       <Animated.View
         style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleDone} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onDone} disabled />
       </Animated.View>
 
       {/* Card wrapper — entrance scale/fade */}
       <View style={styles.centerer} pointerEvents="box-none">
-        <Animated.View style={[styles.card, cardWrapStyle]}>
-          {/* Skip button */}
-          <Pressable style={styles.skipBtn} onPress={handleDone} hitSlop={12}>
+        <Animated.View
+          layout={LinearTransition.springify()}
+          style={[styles.card, cardWrapStyle]}
+        >
+          {/* Skip */}
+          <Pressable style={styles.skipBtn} onPress={onDone} hitSlop={12}>
             <AppText style={styles.skipText} fontWeight="semiBold">
               Skip
             </AppText>
           </Pressable>
 
-          {/* Per-step content slides */}
-          <Animated.View style={[styles.contentSlide, cardContentStyle]}>
-            {/* Lottie */}
-            <View style={styles.lottieWrap}>
-              <LottieAnimator name="student_jumping" size={160} loop autoPlay />
-            </View>
+          {/* ── Fixed Lottie — never slides ── */}
+          <View style={styles.lottieWrap}>
+            <LottieAnimator name="student_jumping" size={160} loop autoPlay />
+          </View>
 
-            {/* Step badge */}
+          {/* ── Sliding text block ── */}
+          <Animated.View style={[styles.contentSlide, contentSlideStyle]}>
             <View style={styles.stepBadge}>
               <AppText style={styles.stepBadgeText} fontWeight="bold">
                 Step {currentStep + 1} of {steps.length}
               </AppText>
             </View>
 
-            {/* Title */}
             <AppText style={styles.title} fontWeight="bold" numberOfLines={2}>
               {step.title}
             </AppText>
 
-            {/* Body */}
             <AppText style={styles.body}>{step.text}</AppText>
           </Animated.View>
 
-          {/* Step dots */}
+          {/* Dots */}
           <View style={styles.dotsRow}>
             {steps.map((_, i) => (
-              <StepDot
-                key={i}
-                active={i === currentStep}
-                index={i}
-                total={steps.length}
-              />
+              <StepDot key={i} active={i === currentStep} />
             ))}
           </View>
 
-          {/* Action buttons */}
+          {/* Buttons */}
           <View style={styles.btnRow}>
             {!isFirst && (
-              <Pressable style={styles.backBtn} onPress={handleBack}>
-                <AppText style={styles.backBtnText} fontWeight="semiBold">
-                  Back
-                </AppText>
-              </Pressable>
+              <AppButton
+                title="Back"
+                type="white"
+                onPress={handleBack}
+                contStyle={styles.btnFlex1}
+                style={styles.btnInner}
+              />
             )}
-
-            <Pressable
-              style={[styles.nextBtn, isFirst && styles.nextBtnFull]}
+            <AppButton
+              title={isLast ? "Let's Go!" : "Next"}
               onPress={handleNext}
-            >
-              <AppText style={styles.nextBtnText} fontWeight="bold">
-                {isLast ? "Let's Go! 🚀" : "Next"}
-              </AppText>
-            </Pressable>
+              contStyle={isFirst ? styles.btnFlex1 : styles.btnFlex2}
+              style={styles.btnInner}
+            />
           </View>
         </Animated.View>
       </View>
@@ -255,10 +249,10 @@ const AppTutorial = ({ visible = false, onDone, steps = [] }) => {
 
 export default AppTutorial;
 
-// ─── Default steps (override via props) ──────────────────────────────────────
+// ─── Default steps ────────────────────────────────────────────────────────────
 AppTutorial.defaultSteps = [
   {
-    title: `Welcome to Guru! 🎓`,
+    title: "Welcome to Guru! 🎓",
     text: "Your all-in-one quiz and learning companion. Let's get you set up in just a few steps.",
   },
   {
@@ -298,15 +292,10 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 24,
     paddingHorizontal: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.22,
-    shadowRadius: 32,
-    elevation: 20,
+    boxShadow: `2px 8px 18px ${colors.primary}25`,
+
     overflow: "hidden",
   },
-
-  // ── Decorative top accent stripe ──
   skipBtn: {
     alignSelf: "flex-end",
     paddingVertical: 4,
@@ -318,19 +307,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primary ?? "#5B6CF8",
   },
-
-  contentSlide: {
-    alignItems: "center",
-    marginTop: 8,
-  },
   lottieWrap: {
     width: 170,
     height: 170,
+    alignSelf: "center",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 4,
+    marginTop: 8,
+    marginBottom: 12,
   },
-
+  contentSlide: {
+    alignItems: "center",
+  },
   stepBadge: {
     backgroundColor: colors.primaryLight ?? "#EEF2FF",
     borderRadius: 20,
@@ -343,7 +331,6 @@ const styles = StyleSheet.create({
     color: colors.primary ?? "#5B6CF8",
     letterSpacing: 0.4,
   },
-
   title: {
     fontSize: 22,
     color: "#111827",
@@ -358,51 +345,33 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 4,
   },
-
   dotsRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
     marginTop: 24,
-    marginBottom: 20,
+    marginBottom: 8,
   },
   dot: {
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.primary ?? "#5B6CF8",
   },
-
   btnRow: {
     flexDirection: "row",
     gap: 10,
+    marginTop: 4,
   },
-  backBtn: {
+  btnFlex1: {
     flex: 1,
-    height: 50,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: colors.primary ?? "#5B6CF8",
+    marginBottom: 0,
   },
-  backBtnText: {
-    color: colors.primary ?? "#5B6CF8",
-    fontSize: 15,
-  },
-  nextBtn: {
+  btnFlex2: {
     flex: 2,
-    height: 50,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.primary ?? "#5B6CF8",
+    marginBottom: 0,
   },
-  nextBtnFull: {
-    flex: 1,
-  },
-  nextBtnText: {
-    color: "#fff",
-    fontSize: 15,
+  btnInner: {
+    paddingVertical: 10,
   },
 });

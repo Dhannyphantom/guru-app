@@ -148,10 +148,10 @@ const ReadinessCard = ({ score = 0, label, examTarget }) => {
     score >= 75
       ? "#22c55e"
       : score >= 55
-      ? colors.primary
-      : score >= 35
-      ? "#f59e0b"
-      : "#ef4444";
+        ? colors.primary
+        : score >= 35
+          ? "#f59e0b"
+          : "#ef4444";
   return (
     <Card>
       <SectionHead icon="school" title="Exam Readiness" accent={accent} />
@@ -190,14 +190,14 @@ const SubjectRow = ({ name, accuracy, trend }) => {
     trend === "improving"
       ? "trending-up"
       : trend === "declining"
-      ? "trending-down"
-      : "remove";
+        ? "trending-down"
+        : "remove";
   const trendColor =
     trend === "improving"
       ? "#22c55e"
       : trend === "declining"
-      ? "#ef4444"
-      : colors.warning;
+        ? "#ef4444"
+        : colors.warning;
   const barColor =
     accuracy >= 70 ? "#22c55e" : accuracy >= 50 ? colors.primary : "#f59e0b";
   return (
@@ -763,7 +763,7 @@ export default ProfileScreen;
 // STYLES
 // ─────────────────────────────────────────────────────────────────────────────
 const CARD_SHADOW = {
-  boxShadow: "0px 4px 12px rgba(0,0,0,0.1)",
+  boxShadow: `0px 4px 12px ${colors.primary}20`,
 };
 
 const s = StyleSheet.create({
