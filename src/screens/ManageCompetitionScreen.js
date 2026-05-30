@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Pressable,
@@ -94,6 +94,58 @@ const blankCustomSubject = () => ({
   timePerQuestion: 40,
   questions: [blankQuestion()],
 });
+
+// ─── Date/time helpers ────────────────────────────────────────────────────────
+
+/**
+ * Returns the first Saturday of the given month/year as a Date at 00:00 local time.
+ * Mirrors the backend getFirstSaturday logic exactly.
+ */
+const firstSaturdayOf = (year, month) => {
+  const firstDay = new Date(year, month - 1, 1);
+  const dayOfWeek = firstDay.getDay(); // 0=Sun … 6=Sat
+  const dayOfMonth = dayOfWeek === 6 ? 1 : 1 + ((6 - dayOfWeek + 7) % 7);
+  const sat = new Date(year, month - 1, dayOfMonth);
+  sat.setHours(0, 0, 0, 0);
+  return sat;
+};
+
+/**
+ * Compute the default startTime / endTime strings for a given month/year.
+ * Returns objects with { startTime, endTime } as "YYYY-MM-DD HH:MM" strings.
+ */
+const buildDefaultTimes = (year, month) => {
+  const start = firstSaturdayOf(year, month);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return {
+    startTime: toDateTimeLocal(start),
+    endTime: toDateTimeLocal(end),
+  };
+};
+
+/** Format a Date as "YYYY-MM-DD HH:MM" for display in a TextInput. */
+const toDateTimeLocal = (date) => {
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    ` ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+};
+
+/**
+ * Parse "YYYY-MM-DD HH:MM" back to a Date.
+ * Returns null if the string is malformed or produces an invalid date.
+ */
+const parseDateTimeLocal = (str) => {
+  if (!str || str.trim().length < 16) return null;
+  const [datePart, timePart] = str.trim().split(" ");
+  if (!datePart || !timePart) return null;
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const [h, mi] = timePart.split(":").map(Number);
+  if ([y, mo, d, h, mi].some(isNaN)) return null;
+  const dt = new Date(y, mo - 1, d, h, mi);
+  return isNaN(dt.getTime()) ? null : dt;
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -578,34 +630,60 @@ const ManageCompetitionScreen = () => {
   const [popper, setPopper] = useState({ vis: false });
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
 
+  // Tracks whether the manager has manually edited the time fields so we
+  // don't clobber their changes when they switch month/year chips.
+  const timesManuallyEdited = useRef(false);
+
   const now = new Date();
-  const [form, setForm] = useState({
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-    title: "Monthly Guru Quiz Tournament",
-    rules:
-      "Competition runs for 24 hours on the first Saturday of the month. One attempt per student. Highest score wins; ties broken by fastest completion time.",
-    subjects: [],
-    customSubjects: [],
-    prizes: defaultPrizes(),
+
+  const [form, setForm] = useState(() => {
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    return {
+      month: m,
+      year: y,
+      title: "Monthly Guru Quiz Tournament",
+      rules:
+        "Competition runs for 24 hours on the first Saturday of the month. One attempt per student. Highest score wins; ties broken by fastest completion time.",
+      ...buildDefaultTimes(y, m),
+      subjects: [],
+      customSubjects: [],
+      prizes: defaultPrizes(),
+    };
   });
 
   useEffect(() => {
     if (!isManager) router.back();
   }, [isManager]);
 
+  // Recompute default times whenever month or year changes,
+  // but only if the manager hasn't manually edited them.
+  useEffect(() => {
+    if (timesManuallyEdited.current) return;
+    const defaults = buildDefaultTimes(form.year, form.month);
+    setForm((prev) => ({ ...prev, ...defaults }));
+  }, [form.month, form.year]);
+
   const competitions = listData?.data || [];
 
   const loadCompetition = (comp) => {
+    // Mark as manually edited so the month/year effect doesn't overwrite
+    // the stored times after load.
+    timesManuallyEdited.current = true;
     setSelectedId(comp._id);
     setForm({
       month: comp.month,
       year: comp.year,
       title: comp.title,
       rules: comp.rules || "",
+      startTime: comp.startTime
+        ? toDateTimeLocal(new Date(comp.startTime))
+        : buildDefaultTimes(comp.year, comp.month).startTime,
+      endTime: comp.endTime
+        ? toDateTimeLocal(new Date(comp.endTime))
+        : buildDefaultTimes(comp.year, comp.month).endTime,
       subjects: comp.subjects.map((s) => ({
         subject: s.subject?._id || s.subject,
-        // Normalise topics to plain ID strings for the chip selection state
         topics: (s.topics || []).map((t) =>
           typeof t === "object" ? t._id : t,
         ),
@@ -614,7 +692,6 @@ const ManageCompetitionScreen = () => {
       })),
       customSubjects: (comp.customSubjects || []).map((cs) => ({
         ...cs,
-        // Ensure each question has a stable local key
         questions: (cs.questions || []).map((q) => ({
           ...q,
           _id:
@@ -629,6 +706,12 @@ const ManageCompetitionScreen = () => {
           }
         : defaultPrizes(),
     });
+  };
+
+  const resetToFirstSaturday = () => {
+    timesManuallyEdited.current = false;
+    const defaults = buildDefaultTimes(form.year, form.month);
+    setForm((prev) => ({ ...prev, ...defaults }));
   };
 
   const addDbSubject = (subjectId) => {
@@ -682,18 +765,46 @@ const ManageCompetitionScreen = () => {
   };
 
   const handleSave = async () => {
+    // Validate datetime strings
+    const startDate = parseDateTimeLocal(form.startTime);
+    const endDate = parseDateTimeLocal(form.endTime);
+
+    if (!startDate || !endDate) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: "Invalid start or end time — use the format YYYY-MM-DD HH:MM",
+      });
+      return;
+    }
+
+    if (endDate <= startDate) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: "End time must be after start time",
+      });
+      return;
+    }
+
     const err = validate();
     if (err) {
       setPopper({ vis: true, type: "failed", msg: err });
       return;
     }
 
+    const payload = {
+      ...form,
+      startTime: startDate.toISOString(),
+      endTime: endDate.toISOString(),
+    };
+
     try {
       if (selectedId) {
-        await updateCompetition({ id: selectedId, ...form }).unwrap();
+        await updateCompetition({ id: selectedId, ...payload }).unwrap();
         setPopper({ vis: true, type: "success", msg: "Competition updated" });
       } else {
-        const res = await createCompetition(form).unwrap();
+        const res = await createCompetition(payload).unwrap();
         setSelectedId(res.data?._id);
         setPopper({ vis: true, type: "success", msg: "Draft created" });
       }
@@ -837,12 +948,16 @@ const ManageCompetitionScreen = () => {
               <Pressable
                 style={styles.newBtn}
                 onPress={() => {
+                  timesManuallyEdited.current = false;
                   setSelectedId(null);
+                  const y = now.getFullYear();
+                  const m = now.getMonth() + 1;
                   setForm({
-                    month: now.getMonth() + 1,
-                    year: now.getFullYear(),
+                    month: m,
+                    year: y,
                     title: "Monthly Guru Quiz Tournament",
                     rules: form.rules,
+                    ...buildDefaultTimes(y, m),
                     subjects: [],
                     customSubjects: [],
                     prizes: defaultPrizes(),
@@ -867,6 +982,7 @@ const ManageCompetitionScreen = () => {
             {selectedId ? "Edit Competition" : "Create Competition"}
           </AppText>
 
+          {/* Title */}
           <AppText size="xsmall" style={styles.fieldLabel}>
             Title
           </AppText>
@@ -876,6 +992,7 @@ const ManageCompetitionScreen = () => {
             onChangeText={(v) => setForm({ ...form, title: v })}
           />
 
+          {/* Month chips */}
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <AppText size="xsmall" style={styles.fieldLabel}>
@@ -906,6 +1023,7 @@ const ManageCompetitionScreen = () => {
             </View>
           </View>
 
+          {/* Year */}
           <AppText size="xsmall" style={styles.fieldLabel}>
             Year
           </AppText>
@@ -913,9 +1031,76 @@ const ManageCompetitionScreen = () => {
             style={[styles.input, { width: 100 }]}
             keyboardType="number-pad"
             value={String(form.year)}
-            onChangeText={(v) => setForm({ ...form, year: parseInt(v, 10) })}
+            onChangeText={(v) =>
+              setForm({ ...form, year: parseInt(v, 10) || now.getFullYear() })
+            }
           />
 
+          {/* ── Competition Window ── */}
+          <View style={[styles.sectionHeaderRow, styles.windowSectionHeader]}>
+            <View style={styles.windowSectionTitleRow}>
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color={colors.primary}
+                style={{ marginRight: 6 }}
+              />
+              <AppText fontWeight="bold" style={styles.sectionHeader}>
+                Competition Window
+              </AppText>
+            </View>
+            <AppText
+              size="xsmall"
+              style={{ color: colors.medium, marginTop: 2 }}
+            >
+              Auto-set to the first Saturday of the selected month
+            </AppText>
+          </View>
+
+          <AppText size="xsmall" style={styles.fieldLabel}>
+            Start (YYYY-MM-DD HH:MM)
+          </AppText>
+          <TextInput
+            style={styles.input}
+            placeholder="2025-06-07 00:00"
+            placeholderTextColor={colors.medium}
+            value={form.startTime}
+            onChangeText={(v) => {
+              timesManuallyEdited.current = true;
+              setForm({ ...form, startTime: v });
+            }}
+          />
+
+          <AppText size="xsmall" style={styles.fieldLabel}>
+            End (YYYY-MM-DD HH:MM)
+          </AppText>
+          <TextInput
+            style={styles.input}
+            placeholder="2025-06-08 00:00"
+            placeholderTextColor={colors.medium}
+            value={form.endTime}
+            onChangeText={(v) => {
+              timesManuallyEdited.current = true;
+              setForm({ ...form, endTime: v });
+            }}
+          />
+
+          <Pressable
+            onPress={resetToFirstSaturday}
+            style={styles.resetTimesBtn}
+          >
+            <Ionicons
+              name="refresh-outline"
+              size={14}
+              color={colors.primary}
+              style={{ marginRight: 4 }}
+            />
+            <AppText size="xsmall" style={{ color: colors.primary }}>
+              Reset to first Saturday
+            </AppText>
+          </Pressable>
+
+          {/* Rules */}
           <AppText size="xsmall" style={styles.fieldLabel}>
             Rules
           </AppText>
@@ -972,8 +1157,21 @@ const ManageCompetitionScreen = () => {
                     style={styles.pickerItem}
                     onPress={() => addDbSubject(s._id)}
                   >
-                    <AppText>{s.name}</AppText>
-                    <AppText size="xsmall" style={{ color: colors.medium }}>
+                    <AppText
+                      fontWeight="medium"
+                      style={{
+                        textTransform: "capitalize",
+                        color: colors.medium,
+                      }}
+                    >
+                      {s.name}
+                    </AppText>
+                    <AppText
+                      size="xsmall"
+                      style={{
+                        color: colors.medium,
+                      }}
+                    >
                       {s.topics?.length || 0} topics
                     </AppText>
                   </Pressable>
@@ -1086,7 +1284,7 @@ const ManageCompetitionScreen = () => {
                 title="Go Live"
                 type="accent"
                 onPress={handlePublish}
-                contStyle={{ flex: 1, marginLeft: 10 }}
+                contStyle={{ marginLeft: 10 }}
               />
             )}
           </View>
@@ -1220,6 +1418,28 @@ const styles = StyleSheet.create({
 
   sectionHeaderRow: { marginTop: 16, marginBottom: 4 },
   sectionHeader: { color: colors.medium, marginBottom: 4 },
+
+  // Competition window section
+  windowSectionHeader: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  windowSectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  resetTimesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginTop: 6,
+    marginBottom: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
 
   // DB subject card
   subjectCard: {
