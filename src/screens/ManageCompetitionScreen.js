@@ -28,6 +28,8 @@ import {
   useUpdateCompetitionMutation,
 } from "../context/competitionSlice";
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const MONTHS = [
   { label: "January", value: 1 },
   { label: "February", value: 2 },
@@ -69,8 +71,39 @@ const defaultPrizes = () => ({
   },
 });
 
-// ─── Subject config row ───────────────────────────────────────────────────────
+/** A blank custom question with 4 empty answer slots (one marked correct by default). */
+const blankQuestion = () => ({
+  _id: String(Date.now()) + Math.random().toString(36).slice(2),
+  question: "",
+  answers: [
+    { name: "", correct: true },
+    { name: "", correct: false },
+    { name: "", correct: false },
+    { name: "", correct: false },
+  ],
+  explanation: "",
+  point: 5,
+  timer: 40,
+});
 
+/** A blank custom subject. */
+const blankCustomSubject = () => ({
+  _id: String(Date.now()) + Math.random().toString(36).slice(2),
+  name: "",
+  questionsCount: 10,
+  timePerQuestion: 40,
+  questions: [blankQuestion()],
+});
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/**
+ * SubjectConfigRow
+ * DB-backed subject config with:
+ *  - topic multi-select (chips)
+ *  - questionsCount field
+ *  - timePerQuestion field
+ */
 const SubjectConfigRow = ({ config, subjectsData, onChange, onRemove }) => {
   const subjectData = subjectsData?.find(
     (s) => s._id === config.subject || s._id === config.subject?._id,
@@ -88,6 +121,8 @@ const SubjectConfigRow = ({ config, subjectsData, onChange, onRemove }) => {
     });
   };
 
+  const isTopicSelected = (topicId) => (config.topics || []).includes(topicId);
+
   return (
     <View style={styles.subjectCard}>
       <View style={styles.subjectCardHeader}>
@@ -97,8 +132,57 @@ const SubjectConfigRow = ({ config, subjectsData, onChange, onRemove }) => {
         </Pressable>
       </View>
 
+      {/* Topic multi-select */}
+      {availableTopics.length > 0 ? (
+        <>
+          <AppText size="xsmall" style={styles.fieldLabel}>
+            Topics{" "}
+            <AppText size="xsmall" style={{ color: colors.medium }}>
+              (leave all unselected = any topic)
+            </AppText>
+          </AppText>
+          <View style={styles.topicChips}>
+            {availableTopics.map((t) => {
+              const selected = isTopicSelected(t._id);
+              return (
+                <Pressable
+                  key={t._id}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                  onPress={() => toggleTopic(t._id)}
+                >
+                  <AppText
+                    size="xxsmall"
+                    fontWeight="bold"
+                    style={{ color: selected ? colors.white : colors.medium }}
+                  >
+                    {t.name}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+          {(config.topics || []).length > 0 && (
+            <Pressable
+              onPress={() => onChange({ ...config, topics: [] })}
+              style={{ alignSelf: "flex-start", marginBottom: 6 }}
+            >
+              <AppText size="xxsmall" style={{ color: colors.heart }}>
+                Clear topic filter
+              </AppText>
+            </Pressable>
+          )}
+        </>
+      ) : (
+        <AppText
+          size="xsmall"
+          style={[styles.fieldLabel, { color: colors.medium }]}
+        >
+          No topics found for this subject — all questions will be included
+        </AppText>
+      )}
+
       <AppText size="xsmall" style={styles.fieldLabel}>
-        Questions for this subject
+        Questions to serve
       </AppText>
       <TextInput
         style={styles.input}
@@ -120,46 +204,16 @@ const SubjectConfigRow = ({ config, subjectsData, onChange, onRemove }) => {
           onChange({ ...config, timePerQuestion: parseInt(v, 10) || 40 })
         }
       />
-
-      {availableTopics.length > 0 && (
-        <>
-          <AppText size="xsmall" style={[styles.fieldLabel, { marginTop: 8 }]}>
-            Topics (leave empty = all topics)
-          </AppText>
-          <View style={styles.topicChips}>
-            {availableTopics.map((t) => {
-              const selected = (config.topics || []).includes(t._id);
-              return (
-                <Pressable
-                  key={t._id}
-                  style={[styles.chip, selected && styles.chipSelected]}
-                  onPress={() => toggleTopic(t._id)}
-                >
-                  <AppText
-                    size="xxsmall"
-                    fontWeight="bold"
-                    style={{ color: selected ? colors.white : colors.medium }}
-                  >
-                    {t.name}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-        </>
-      )}
     </View>
   );
 };
 
-// ─── Prize row editor ─────────────────────────────────────────────────────────
+// ─── Prize editor ─────────────────────────────────────────────────────────────
 
 const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
   const isCash = prize?.type === "cash";
-
   return (
     <View style={styles.prizeEditorCard}>
-      {/* Header */}
       <View style={styles.prizeEditorHeader}>
         <View
           style={[styles.prizeOrdinalBadge, isCash && styles.prizeOrdinalCash]}
@@ -177,7 +231,6 @@ const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
         </AppText>
       </View>
 
-      {/* Title */}
       <AppText size="xsmall" style={styles.fieldLabel}>
         Prize Title
       </AppText>
@@ -188,7 +241,6 @@ const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
         onChangeText={(v) => onChange({ ...prize, title: v })}
       />
 
-      {/* Type toggle */}
       <AppText size="xsmall" style={styles.fieldLabel}>
         Prize Type
       </AppText>
@@ -221,7 +273,6 @@ const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
         ))}
       </View>
 
-      {/* Amount */}
       <AppText size="xsmall" style={styles.fieldLabel}>
         {isCash ? "Cash Amount" : "GT Points"}
       </AppText>
@@ -249,7 +300,6 @@ const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
         />
       </View>
 
-      {/* Description (optional, only shown for cash) */}
       {isCash && (
         <>
           <AppText size="xsmall" style={styles.fieldLabel}>
@@ -263,6 +313,240 @@ const PrizeEditor = ({ place, ordinal, prize, onChange }) => {
           />
         </>
       )}
+    </View>
+  );
+};
+
+// ─── Custom question editor ───────────────────────────────────────────────────
+
+const CustomQuestionEditor = ({ question, index, onChange, onRemove }) => {
+  const setCorrect = (answerIdx) => {
+    onChange({
+      ...question,
+      answers: question.answers.map((a, i) => ({
+        ...a,
+        correct: i === answerIdx,
+      })),
+    });
+  };
+
+  const setAnswerText = (answerIdx, text) => {
+    onChange({
+      ...question,
+      answers: question.answers.map((a, i) =>
+        i === answerIdx ? { ...a, name: text } : a,
+      ),
+    });
+  };
+
+  return (
+    <View style={styles.customQCard}>
+      {/* Header */}
+      <View style={styles.customQHeader}>
+        <View style={styles.customQBadge}>
+          <AppText
+            fontWeight="black"
+            size="xsmall"
+            style={{ color: colors.white }}
+          >
+            Q{index + 1}
+          </AppText>
+        </View>
+        <Pressable onPress={onRemove} style={{ marginLeft: "auto" }}>
+          <Ionicons name="close-circle" size={20} color={colors.heart} />
+        </Pressable>
+      </View>
+
+      {/* Question text */}
+      <AppText size="xsmall" style={styles.fieldLabel}>
+        Question
+      </AppText>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        multiline
+        numberOfLines={3}
+        placeholder="Type the question here..."
+        placeholderTextColor={colors.medium}
+        value={question.question}
+        onChangeText={(v) => onChange({ ...question, question: v })}
+      />
+
+      {/* Answer options */}
+      <AppText size="xsmall" style={[styles.fieldLabel, { marginTop: 8 }]}>
+        Answer Options{" "}
+        <AppText size="xsmall" style={{ color: colors.medium }}>
+          (tap radio to mark correct)
+        </AppText>
+      </AppText>
+      {question.answers.map((ans, aIdx) => (
+        <View key={aIdx} style={styles.answerRow}>
+          <Pressable
+            style={[styles.radioOuter, ans.correct && styles.radioOuterActive]}
+            onPress={() => setCorrect(aIdx)}
+          >
+            {ans.correct && <View style={styles.radioInner} />}
+          </Pressable>
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 8 }]}
+            placeholder={`Option ${String.fromCharCode(65 + aIdx)}`}
+            placeholderTextColor={colors.medium}
+            value={ans.name}
+            onChangeText={(v) => setAnswerText(aIdx, v)}
+          />
+        </View>
+      ))}
+
+      {/* Explanation */}
+      <AppText size="xsmall" style={[styles.fieldLabel, { marginTop: 8 }]}>
+        Explanation (optional)
+      </AppText>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        multiline
+        numberOfLines={2}
+        placeholder="Why is that the correct answer?"
+        placeholderTextColor={colors.medium}
+        value={question.explanation}
+        onChangeText={(v) => onChange({ ...question, explanation: v })}
+      />
+
+      {/* Timer override */}
+      <AppText size="xsmall" style={styles.fieldLabel}>
+        Seconds for this question
+      </AppText>
+      <TextInput
+        style={[styles.input, { width: 80 }]}
+        keyboardType="number-pad"
+        value={String(question.timer || 40)}
+        onChangeText={(v) =>
+          onChange({ ...question, timer: parseInt(v, 10) || 40 })
+        }
+      />
+    </View>
+  );
+};
+
+// ─── Custom subject editor ────────────────────────────────────────────────────
+
+const CustomSubjectEditor = ({ subject, subjectIndex, onChange, onRemove }) => {
+  const updateQuestion = (qIdx, updated) => {
+    const next = [...subject.questions];
+    next[qIdx] = updated;
+    onChange({ ...subject, questions: next });
+  };
+
+  const removeQuestion = (qIdx) => {
+    onChange({
+      ...subject,
+      questions: subject.questions.filter((_, i) => i !== qIdx),
+    });
+  };
+
+  const addQuestion = () => {
+    onChange({
+      ...subject,
+      questions: [...subject.questions, blankQuestion()],
+    });
+  };
+
+  const questionCountWarning =
+    subject.questions.length < subject.questionsCount
+      ? `⚠️ ${subject.questionsCount - subject.questions.length} more question(s) needed`
+      : null;
+
+  return (
+    <View style={styles.customSubjectCard}>
+      {/* Subject header */}
+      <View style={styles.subjectCardHeader}>
+        <View style={styles.customSubjectTag}>
+          <AppText
+            size="xxsmall"
+            fontWeight="bold"
+            style={{ color: colors.white }}
+          >
+            CUSTOM
+          </AppText>
+        </View>
+        <TextInput
+          style={[styles.input, { flex: 1, marginHorizontal: 8 }]}
+          placeholder="Subject name (e.g. General Studies)"
+          placeholderTextColor={colors.medium}
+          value={subject.name}
+          onChangeText={(v) => onChange({ ...subject, name: v })}
+        />
+        <Pressable onPress={onRemove}>
+          <Ionicons name="trash-outline" size={20} color={colors.heart} />
+        </Pressable>
+      </View>
+
+      {/* Config */}
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <AppText size="xsmall" style={styles.fieldLabel}>
+            Questions to serve
+          </AppText>
+          <TextInput
+            style={styles.input}
+            keyboardType="number-pad"
+            value={String(subject.questionsCount || 10)}
+            onChangeText={(v) =>
+              onChange({ ...subject, questionsCount: parseInt(v, 10) || 1 })
+            }
+          />
+        </View>
+        <View style={{ flex: 1, marginLeft: 8 }}>
+          <AppText size="xsmall" style={styles.fieldLabel}>
+            Secs per question
+          </AppText>
+          <TextInput
+            style={styles.input}
+            keyboardType="number-pad"
+            value={String(subject.timePerQuestion || 40)}
+            onChangeText={(v) =>
+              onChange({ ...subject, timePerQuestion: parseInt(v, 10) || 40 })
+            }
+          />
+        </View>
+      </View>
+
+      {questionCountWarning && (
+        <AppText
+          size="xsmall"
+          style={{ color: colors.warning, marginBottom: 6 }}
+        >
+          {questionCountWarning}
+        </AppText>
+      )}
+
+      {/* Question list */}
+      <AppText
+        fontWeight="bold"
+        size="small"
+        style={[styles.sectionHeader, { marginTop: 8 }]}
+      >
+        Questions ({subject.questions.length})
+      </AppText>
+
+      {subject.questions.map((q, qIdx) => (
+        <CustomQuestionEditor
+          key={q._id || qIdx}
+          question={q}
+          index={qIdx}
+          onChange={(updated) => updateQuestion(qIdx, updated)}
+          onRemove={() => removeQuestion(qIdx)}
+        />
+      ))}
+
+      <Pressable style={styles.addQuestionBtn} onPress={addQuestion}>
+        <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+        <AppText
+          fontWeight="bold"
+          size="small"
+          style={{ color: colors.primary, marginLeft: 6 }}
+        >
+          Add Question
+        </AppText>
+      </Pressable>
     </View>
   );
 };
@@ -291,7 +575,6 @@ const ManageCompetitionScreen = () => {
     usePublishResultsMutation();
 
   const [selectedId, setSelectedId] = useState(null);
-  const [selectedComp, setSelectedComp] = useState(null);
   const [popper, setPopper] = useState({ vis: false });
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
 
@@ -303,6 +586,7 @@ const ManageCompetitionScreen = () => {
     rules:
       "Competition runs for 24 hours on the first Saturday of the month. One attempt per student. Highest score wins; ties broken by fastest completion time.",
     subjects: [],
+    customSubjects: [],
     prizes: defaultPrizes(),
   });
 
@@ -314,7 +598,6 @@ const ManageCompetitionScreen = () => {
 
   const loadCompetition = (comp) => {
     setSelectedId(comp._id);
-    setSelectedComp(comp);
     setForm({
       month: comp.month,
       year: comp.year,
@@ -322,9 +605,21 @@ const ManageCompetitionScreen = () => {
       rules: comp.rules || "",
       subjects: comp.subjects.map((s) => ({
         subject: s.subject?._id || s.subject,
-        topics: (s.topics || []).map((t) => t?._id || t),
+        // Normalise topics to plain ID strings for the chip selection state
+        topics: (s.topics || []).map((t) =>
+          typeof t === "object" ? t._id : t,
+        ),
         questionsCount: s.questionsCount,
         timePerQuestion: s.timePerQuestion || 40,
+      })),
+      customSubjects: (comp.customSubjects || []).map((cs) => ({
+        ...cs,
+        // Ensure each question has a stable local key
+        questions: (cs.questions || []).map((q) => ({
+          ...q,
+          _id:
+            q._id || String(Date.now()) + Math.random().toString(36).slice(2),
+        })),
       })),
       prizes: comp.prizes
         ? {
@@ -336,7 +631,7 @@ const ManageCompetitionScreen = () => {
     });
   };
 
-  const addSubject = (subjectId) => {
+  const addDbSubject = (subjectId) => {
     if (
       form.subjects.some((s) => (s.subject?._id || s.subject) === subjectId)
     ) {
@@ -358,7 +653,41 @@ const ManageCompetitionScreen = () => {
     setShowSubjectPicker(false);
   };
 
+  const addCustomSubject = () => {
+    setForm({
+      ...form,
+      customSubjects: [...form.customSubjects, blankCustomSubject()],
+    });
+  };
+
+  /** Validate before save — returns an error string or null. */
+  const validate = () => {
+    for (const cs of form.customSubjects) {
+      if (!cs.name.trim()) return "Each custom subject must have a name";
+      if (cs.questions.length === 0)
+        return `Custom subject "${cs.name}" has no questions`;
+      for (let qIdx = 0; qIdx < cs.questions.length; qIdx++) {
+        const q = cs.questions[qIdx];
+        if (!q.question.trim())
+          return `Custom subject "${cs.name}" — Q${qIdx + 1} has no question text`;
+        const filled = q.answers.filter((a) => a.name.trim());
+        if (filled.length < 2)
+          return `Custom subject "${cs.name}" — Q${qIdx + 1} needs at least 2 answer options`;
+        const hasCorrect = q.answers.some((a) => a.correct && a.name.trim());
+        if (!hasCorrect)
+          return `Custom subject "${cs.name}" — Q${qIdx + 1} must have a correct answer`;
+      }
+    }
+    return null;
+  };
+
   const handleSave = async () => {
+    const err = validate();
+    if (err) {
+      setPopper({ vis: true, type: "failed", msg: err });
+      return;
+    }
+
     try {
       if (selectedId) {
         await updateCompetition({ id: selectedId, ...form }).unwrap();
@@ -366,15 +695,14 @@ const ManageCompetitionScreen = () => {
       } else {
         const res = await createCompetition(form).unwrap();
         setSelectedId(res.data?._id);
-        setSelectedComp(res.data);
         setPopper({ vis: true, type: "success", msg: "Draft created" });
       }
       refetchList();
-    } catch (err) {
+    } catch (e) {
       setPopper({
         vis: true,
         type: "failed",
-        msg: err?.data?.message || "Save failed",
+        msg: e?.data?.message || "Save failed",
       });
     }
   };
@@ -396,11 +724,11 @@ const ManageCompetitionScreen = () => {
         msg: "Competition is now live!",
       });
       refetchList();
-    } catch (err) {
+    } catch (e) {
       setPopper({
         vis: true,
         type: "failed",
-        msg: err?.data?.message || "Publish failed",
+        msg: e?.data?.message || "Publish failed",
       });
     }
   };
@@ -415,11 +743,11 @@ const ManageCompetitionScreen = () => {
         msg: "Results published — participants can now view their scores!",
       });
       refetchList();
-    } catch (err) {
+    } catch (e) {
       setPopper({
         vis: true,
         type: "failed",
-        msg: err?.data?.message || "Failed to publish results",
+        msg: e?.data?.message || "Failed to publish results",
       });
     }
   };
@@ -429,7 +757,6 @@ const ManageCompetitionScreen = () => {
     (s) => !usedSubjectIds.includes(s._id),
   );
 
-  // Derive button visibility from selectedComp (fresh from list)
   const compFromList = competitions.find((c) => c._id === selectedId);
   const canPublish = selectedId && compFromList?.status === "draft";
   const canPublishResults =
@@ -442,7 +769,6 @@ const ManageCompetitionScreen = () => {
   return (
     <View style={styles.container}>
       <AppHeader title="Monthly Quiz Competition" />
-
       <View style={styles.body}>
         {/* ── Left panel: competition list ── */}
         <View style={styles.listPanel}>
@@ -480,8 +806,8 @@ const ManageCompetitionScreen = () => {
                         item.status === "active"
                           ? colors.primaryLight
                           : item.status === "finished"
-                          ? colors.lighter
-                          : colors.warningLight,
+                            ? colors.lighter
+                            : colors.warningLight,
                     },
                   ]}
                 >
@@ -489,7 +815,6 @@ const ManageCompetitionScreen = () => {
                     {item.status}
                   </AppText>
                 </View>
-                {/* Results published indicator */}
                 {item.resultsPublished && (
                   <View
                     style={[
@@ -513,13 +838,13 @@ const ManageCompetitionScreen = () => {
                 style={styles.newBtn}
                 onPress={() => {
                   setSelectedId(null);
-                  setSelectedComp(null);
                   setForm({
                     month: now.getMonth() + 1,
                     year: now.getFullYear(),
                     title: "Monthly Guru Quiz Tournament",
                     rules: form.rules,
                     subjects: [],
+                    customSubjects: [],
                     prizes: defaultPrizes(),
                   });
                 }}
@@ -602,10 +927,15 @@ const ManageCompetitionScreen = () => {
             onChangeText={(v) => setForm({ ...form, rules: v })}
           />
 
-          {/* Subjects */}
-          <AppText fontWeight="bold" style={styles.sectionHeader}>
-            Subjects & Questions
-          </AppText>
+          {/* ── DB Subjects ── */}
+          <View style={styles.sectionHeaderRow}>
+            <AppText fontWeight="bold" style={styles.sectionHeader}>
+              DB Subjects & Questions
+            </AppText>
+            <AppText size="xsmall" style={{ color: colors.medium }}>
+              Questions fetched from database
+            </AppText>
+          </View>
 
           {form.subjects.map((cfg, idx) => (
             <SubjectConfigRow
@@ -617,54 +947,123 @@ const ManageCompetitionScreen = () => {
                 next[idx] = updated;
                 setForm({ ...form, subjects: next });
               }}
-              onRemove={() => {
+              onRemove={() =>
                 setForm({
                   ...form,
                   subjects: form.subjects.filter((_, i) => i !== idx),
-                });
-              }}
+                })
+              }
             />
           ))}
 
           {showSubjectPicker ? (
             <View style={styles.pickerBox}>
-              {availableSubjects.map((s) => (
-                <Pressable
-                  key={s._id}
-                  style={styles.pickerItem}
-                  onPress={() => addSubject(s._id)}
+              {availableSubjects.length === 0 ? (
+                <AppText
+                  size="small"
+                  style={{ color: colors.medium, padding: 8 }}
                 >
-                  <AppText>{s.name}</AppText>
-                </Pressable>
-              ))}
-              <Pressable onPress={() => setShowSubjectPicker(false)}>
+                  All subjects already added
+                </AppText>
+              ) : (
+                availableSubjects.map((s) => (
+                  <Pressable
+                    key={s._id}
+                    style={styles.pickerItem}
+                    onPress={() => addDbSubject(s._id)}
+                  >
+                    <AppText>{s.name}</AppText>
+                    <AppText size="xsmall" style={{ color: colors.medium }}>
+                      {s.topics?.length || 0} topics
+                    </AppText>
+                  </Pressable>
+                ))
+              )}
+              <Pressable
+                onPress={() => setShowSubjectPicker(false)}
+                style={{ marginTop: 8 }}
+              >
                 <AppText style={{ color: colors.heart }}>Cancel</AppText>
               </Pressable>
             </View>
           ) : (
             <AppButton
-              title="Add Subject"
+              title="Add DB Subject"
               type="white"
               onPress={() => setShowSubjectPicker(true)}
               contStyle={{ marginBottom: 16 }}
             />
           )}
 
-          {/* Prizes */}
+          {/* ── Custom Subjects ── */}
+          <View style={styles.sectionHeaderRow}>
+            <AppText fontWeight="bold" style={styles.sectionHeader}>
+              Custom Subjects & Questions
+            </AppText>
+            <AppText size="xsmall" style={{ color: colors.medium }}>
+              Not saved to the question bank
+            </AppText>
+          </View>
+
+          {form.customSubjects.length === 0 && (
+            <View style={styles.emptyCustomBox}>
+              <Ionicons name="flask-outline" size={24} color={colors.medium} />
+              <AppText
+                size="small"
+                style={{
+                  color: colors.medium,
+                  marginTop: 6,
+                  textAlign: "center",
+                }}
+              >
+                No custom subjects yet.{"\n"}Add one to include
+                competition-exclusive questions.
+              </AppText>
+            </View>
+          )}
+
+          {form.customSubjects.map((cs, idx) => (
+            <CustomSubjectEditor
+              key={cs._id || idx}
+              subject={cs}
+              subjectIndex={idx}
+              onChange={(updated) => {
+                const next = [...form.customSubjects];
+                next[idx] = updated;
+                setForm({ ...form, customSubjects: next });
+              }}
+              onRemove={() =>
+                setForm({
+                  ...form,
+                  customSubjects: form.customSubjects.filter(
+                    (_, i) => i !== idx,
+                  ),
+                })
+              }
+            />
+          ))}
+
+          <AppButton
+            title="Add Custom Subject"
+            type="white"
+            onPress={addCustomSubject}
+            contStyle={{ marginBottom: 16 }}
+          />
+
+          {/* ── Prizes ── */}
           <AppText fontWeight="bold" style={styles.sectionHeader}>
             Prizes
           </AppText>
 
           {[
-            { place: "first", ordinal: "1st", medal: "#FFD700" },
-            { place: "second", ordinal: "2nd", medal: "#C0C0C0" },
-            { place: "third", ordinal: "3rd", medal: "#CD7F32" },
-          ].map(({ place, ordinal, medal }) => (
+            { place: "first", ordinal: "1st" },
+            { place: "second", ordinal: "2nd" },
+            { place: "third", ordinal: "3rd" },
+          ].map(({ place, ordinal }) => (
             <PrizeEditor
               key={place}
               place={place}
               ordinal={ordinal}
-              medal={medal}
               prize={form.prizes[place]}
               onChange={(updated) =>
                 setForm({
@@ -675,7 +1074,7 @@ const ManageCompetitionScreen = () => {
             />
           ))}
 
-          {/* Action buttons */}
+          {/* ── Actions ── */}
           <View style={styles.actions}>
             <AppButton
               title={selectedId ? "Save Changes" : "Create Draft"}
@@ -692,7 +1091,6 @@ const ManageCompetitionScreen = () => {
             )}
           </View>
 
-          {/* Publish Results — separate from Go Live */}
           {canPublishResults && (
             <View style={styles.publishResultsBox}>
               <Ionicons name="ribbon" size={20} color={colors.primary} />
@@ -714,7 +1112,6 @@ const ManageCompetitionScreen = () => {
             </View>
           )}
 
-          {/* Already published notice */}
           {compFromList?.resultsPublished && (
             <View style={[styles.publishResultsBox, styles.publishedBox]}>
               <Ionicons
@@ -746,9 +1143,13 @@ const ManageCompetitionScreen = () => {
 
 export default ManageCompetitionScreen;
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.unchange },
   body: { flex: 1, flexDirection: "row" },
+
+  // List panel
   listPanel: {
     width: 140,
     borderRightWidth: 1,
@@ -773,18 +1174,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 4,
   },
-  newBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    padding: 14,
-  },
+  newBtn: { flexDirection: "row", alignItems: "center", gap: 6, padding: 14 },
+
+  // Form panel
   formPanel: { flex: 1, padding: 16 },
-  fieldLabel: {
-    color: colors.medium,
-    marginBottom: 4,
-    marginTop: 8,
-  },
+  fieldLabel: { color: colors.medium, marginBottom: 4, marginTop: 8 },
   input: {
     borderWidth: 1,
     borderColor: colors.lighter,
@@ -794,7 +1188,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "sf-medium",
   },
-  textArea: { minHeight: 80, textAlignVertical: "top" },
+  textArea: { minHeight: 72, textAlignVertical: "top" },
   row: { flexDirection: "row", gap: 12 },
   pickerRow: {
     flexDirection: "row",
@@ -823,11 +1217,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  sectionHeader: {
-    marginTop: 16,
-    marginBottom: 8,
-    color: colors.medium,
-  },
+
+  sectionHeaderRow: { marginTop: 16, marginBottom: 4 },
+  sectionHeader: { color: colors.medium, marginBottom: 4 },
+
+  // DB subject card
   subjectCard: {
     backgroundColor: colors.light,
     borderRadius: 14,
@@ -838,22 +1232,108 @@ const styles = StyleSheet.create({
   },
   subjectCardHeader: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  topicChips: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
+  topicChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 4,
+    marginBottom: 4,
+  },
+
+  // Subject picker dropdown
   pickerBox: {
     backgroundColor: colors.light,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.lighter,
   },
   pickerItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.lighter,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  actions: { flexDirection: "row", marginTop: 20 },
+
+  // Custom subject
+  customSubjectCard: {
+    backgroundColor: colors.light,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primary + "55",
+  },
+  customSubjectTag: {
+    backgroundColor: colors.primary,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  emptyCustomBox: {
+    alignItems: "center",
+    padding: 24,
+    backgroundColor: colors.light,
+    borderRadius: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.lighter,
+    borderStyle: "dashed",
+  },
+
+  // Custom question card
+  customQCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.lighter,
+  },
+  customQHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  customQBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+
+  // Answer row
+  answerRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.lighter,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOuterActive: { borderColor: colors.primary },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+
+  addQuestionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
 
   // Prize editor
   prizeEditorCard: {
@@ -879,11 +1359,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   prizeOrdinalCash: { backgroundColor: "#4ADE80" },
-  typeToggleRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 4,
-  },
+  typeToggleRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
   typeToggleBtn: {
     flex: 1,
     paddingVertical: 8,
@@ -897,16 +1373,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  amountRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  currencyInput: {
-    width: 60,
-    textAlign: "center",
-  },
+  amountRow: { flexDirection: "row", gap: 8 },
+  currencyInput: { width: 60, textAlign: "center" },
 
-  // Publish results banner
+  // Bottom actions
+  actions: { flexDirection: "row", marginTop: 20 },
   publishResultsBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -914,10 +1385,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginTop: 16,
-    gap: 0,
     flexWrap: "wrap",
   },
-  publishedBox: {
-    backgroundColor: "rgba(74,222,128,0.12)",
-  },
+  publishedBox: { backgroundColor: "rgba(74,222,128,0.12)" },
 });
