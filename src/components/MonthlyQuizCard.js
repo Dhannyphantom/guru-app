@@ -1,18 +1,18 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import Animated2, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useSelector } from "react-redux";
 
 import AppText from "./AppText";
@@ -201,17 +201,6 @@ const PrizeRow = ({ place, prize, medal }) => {
           <AppText fontWeight="bold" size="small" style={{ color: "#fff" }}>
             {prize?.title || "—"}
           </AppText>
-          {isCash && (
-            <View style={styles.cashBadge}>
-              <AppText
-                size="xxsmall"
-                fontWeight="bold"
-                style={{ color: "#4ADE80" }}
-              >
-                💵 CASH
-              </AppText>
-            </View>
-          )}
         </View>
         <AppText size="xsmall" style={{ color: "rgba(255,255,255,0.7)" }}>
           {formatPrizeReward(prize)}
@@ -224,29 +213,25 @@ const PrizeRow = ({ place, prize, medal }) => {
 
 // ─── Animated participant count ───────────────────────────────────────────────
 const AnimatedParticipantCount = ({ count }) => {
-  const pulse = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1.06,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.06, { duration: 900 }),
+        withTiming(1, { duration: 900 }),
+      ),
+      -1, // infinite
+      false,
+    );
   }, []);
 
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <Animated.View
-      style={[styles.participantCountBox, { transform: [{ scale: pulse }] }]}
-    >
+    <Animated.View style={[styles.participantCountBox, animatedStyle]}>
       <Ionicons name="people" size={22} color={ACCENT} />
       <AppText
         fontWeight="black"
@@ -263,22 +248,37 @@ const AnimatedParticipantCount = ({ count }) => {
 };
 
 // ─── Results pending state (shown in modal when ended but not published) ──────
-const ResultsPendingPanel = ({ participantsCount }) => (
+const ResultsPendingPanel = ({ participantsCount, hasParticipated }) => (
   <View style={styles.pendingPanel}>
     <LottieAnimator
-      name="student_jumping"
+      name={hasParticipated ? "student_jumping" : "waiting"}
       visible
       absolute={false}
       style={styles.pendingLottie}
     />
 
-    <AppText fontWeight="black" size="large" style={styles.pendingTitle}>
-      Results Coming Soon!
-    </AppText>
-    <AppText size="small" style={styles.pendingSubtitle}>
-      You crushed it! Sit back, relax, and wait while our admins crunch the
-      numbers. We'll release the final scores shortly.
-    </AppText>
+    {hasParticipated ? (
+      <>
+        <AppText fontWeight="black" size="large" style={styles.pendingTitle}>
+          Results Coming Soon!
+        </AppText>
+        <AppText size="small" style={styles.pendingSubtitle}>
+          You crushed it! Sit back, relax, and wait while our admins crunch the
+          numbers. We'll release the final scores shortly.
+        </AppText>
+      </>
+    ) : (
+      <>
+        <AppText fontWeight="black" size="large" style={styles.pendingTitle}>
+          Still Time to Compete!
+        </AppText>
+        <AppText size="small" style={styles.pendingSubtitle}>
+          Results haven't dropped yet — which means you can still jump in and
+          secure your spot on the leaderboard. Don't let your competition get
+          ahead while you wait.
+        </AppText>
+      </>
+    )}
 
     <View style={styles.pendingDivider} />
 
@@ -288,26 +288,53 @@ const ResultsPendingPanel = ({ participantsCount }) => (
     <AnimatedParticipantCount count={participantsCount} />
 
     <View style={styles.pendingChipsRow}>
-      <View style={styles.pendingChip}>
-        <Ionicons name="hourglass" size={14} color={ACCENT} />
-        <AppText
-          size="xxsmall"
-          fontWeight="bold"
-          style={{ color: ACCENT, marginLeft: 5 }}
-        >
-          Scores being verified
-        </AppText>
-      </View>
-      <View style={styles.pendingChip}>
-        <Ionicons name="trophy" size={14} color={ACCENT} />
-        <AppText
-          size="xxsmall"
-          fontWeight="bold"
-          style={{ color: ACCENT, marginLeft: 5 }}
-        >
-          Winners announced soon
-        </AppText>
-      </View>
+      {hasParticipated ? (
+        <>
+          <View style={styles.pendingChip}>
+            <Ionicons name="hourglass" size={14} color={ACCENT} />
+            <AppText
+              size="xxsmall"
+              fontWeight="bold"
+              style={{ color: ACCENT, marginLeft: 5 }}
+            >
+              Scores being verified
+            </AppText>
+          </View>
+          <View style={styles.pendingChip}>
+            <Ionicons name="trophy" size={14} color={ACCENT} />
+            <AppText
+              size="xxsmall"
+              fontWeight="bold"
+              style={{ color: ACCENT, marginLeft: 5 }}
+            >
+              Winners announced soon
+            </AppText>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.pendingChip}>
+            <Ionicons name="flash" size={14} color={ACCENT} />
+            <AppText
+              size="xxsmall"
+              fontWeight="bold"
+              style={{ color: ACCENT, marginLeft: 5 }}
+            >
+              Window still open
+            </AppText>
+          </View>
+          <View style={styles.pendingChip}>
+            <Ionicons name="medal" size={14} color={ACCENT} />
+            <AppText
+              size="xxsmall"
+              fontWeight="bold"
+              style={{ color: ACCENT, marginLeft: 5 }}
+            >
+              Prizes up for grabs
+            </AppText>
+          </View>
+        </>
+      )}
     </View>
   </View>
 );
@@ -340,10 +367,10 @@ const CompetitionDetailsModal = ({
   const statusLabel = comp?.isLive
     ? "LIVE NOW"
     : comp?.isUpcoming
-    ? "UPCOMING"
-    : comp?.resultsPublished
-    ? "RESULTS OUT"
-    : "ENDED";
+      ? "UPCOMING"
+      : comp?.resultsPublished
+        ? "RESULTS OUT"
+        : "ENDED";
 
   // Ended but results not yet published — show pending panel (for participants)
   const showResultsPending = !isManager && !comp?.resultsPublished;
@@ -362,7 +389,6 @@ const CompetitionDetailsModal = ({
       });
     }
 
-    // Publish
     try {
       await publishResults(competitionId).unwrap();
       setPopper({
@@ -598,6 +624,7 @@ const CompetitionDetailsModal = ({
                       participantsCount={
                         comp?.participantsCount ?? comp?.totalParticipants ?? 0
                       }
+                      hasParticipated={comp?.hasParticipated}
                     />
                   ) : (
                     <>
@@ -691,8 +718,7 @@ const CompetitionDetailsModal = ({
                         </View>
                       )}
 
-                      {/* Participated but results not published yet — shouldn't show
-                          (covered by ResultsPendingPanel above) — safety fallback */}
+                      {/* Participated but results not published yet — safety fallback */}
                       {comp?.hasParticipated &&
                         !comp?.resultsPublished &&
                         !comp?.isLive && (
@@ -788,16 +814,16 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
   const statusColor = comp.isLive
     ? colors.green
     : comp.isUpcoming
-    ? colors.warning
-    : colors.lighter;
+      ? colors.warning
+      : colors.lighter;
 
   const statusText = comp.isLive
     ? "LIVE"
     : comp.isUpcoming
-    ? "UPCOMING"
-    : comp.resultsPublished
-    ? "RESULTS OUT"
-    : "ENDED";
+      ? "UPCOMING"
+      : comp.resultsPublished
+        ? "RESULTS OUT"
+        : "ENDED";
 
   const renderMiddleLeft = () => {
     if (comp.isLive) {
@@ -825,7 +851,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 
   return (
     <>
-      <Animated2.View
+      <Animated.View
         entering={FadeInDown.delay(200).springify()}
         style={styles.wrapper}
       >
@@ -923,7 +949,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
             </View>
           </LinearGradient>
         </Pressable>
-      </Animated2.View>
+      </Animated.View>
 
       <CompetitionDetailsModal
         visible={detailsOpen}
