@@ -568,7 +568,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
   // ── Tour lifecycle ──────────────────────────────────────────────────────
   useEffect(() => {
     const checkTour = async () => {
-      await AsyncStorage.removeItem(TOUR_KEY); // ← for testing purposes, remove in production
+      // await AsyncStorage.removeItem(TOUR_KEY); // ← for testing purposes, remove in production
       const seen = await AsyncStorage.getItem(TOUR_KEY);
       if (!seen) {
         setTimeout(() => setShowTutorial(true), 800);

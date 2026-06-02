@@ -1,9 +1,17 @@
-import { Dimensions, FlatList, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  View,
+  Animated,
+  Easing,
+} from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppText from "../components/AppText";
-import { useEffect, useState } from "react";
 import colors from "../helpers/colors";
-import QuizStat from "./QuizStat";
 import LottieAnimator from "./LottieAnimator";
 import AppButton from "./AppButton";
 import QuizCorrections from "./QuizCorrections";
@@ -17,21 +25,267 @@ import {
   LeaderboardItem,
   LeaderboardWinners,
 } from "../screens/LeaderboardScreen";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
-import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const { width, height } = Dimensions.get("screen");
 
-const calculateQuestionCount = (session) => {
-  let count = 0;
-  session.forEach((sess) => {
-    count += sess?.questions?.length;
+// View phases for the single-player flow
+const PHASE = {
+  RESULT: "result", // congrats / bad-luck screen
+  STATS: "stats", // detailed stats + corrections
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const getTotalQuestions = (questions = []) =>
+  questions.reduce((acc, q) => acc + (q?.questions?.length ?? 0), 0);
+
+const computeLocalStats = (session) => {
+  let answeredCorrectly = 0,
+    statPoints = 0,
+    totalPoints = 0;
+
+  session?.questions?.forEach((quest) => {
+    quest?.questions?.forEach((question) => {
+      totalPoints += question.point;
+      if (question?.answered?.correct) {
+        answeredCorrectly += 1;
+        statPoints += question.point;
+      } else {
+        statPoints -= 2;
+      }
+    });
   });
 
-  return count;
+  return { answeredCorrectly, point: statPoints, total: totalPoints };
 };
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+/**
+ * Resolves the "real" stats, preferring server results over local computation.
+ * Returns a normalised { pointsEarned, correctAnswers, totalQuestions, accuracy } object.
+ */
+const useResolvedStats = ({
+  results,
+  freemiumResults,
+  competitionResults,
+  localStat,
+  session,
+}) => {
+  const serverData =
+    results?.data ?? freemiumResults?.data ?? competitionResults?.data ?? null;
+
+  return {
+    pointsEarned: Number(
+      serverData?.pointsEarned ?? localStat?.point ?? 0,
+    ).toFixed(1),
+    correctAnswers:
+      serverData?.correctAnswers ?? localStat?.answeredCorrectly ?? 0,
+    totalQuestions:
+      serverData?.totalQuestions ?? getTotalQuestions(session?.questions) ?? 0,
+    accuracy:
+      serverData?.accuracy ?? localStat?.accuracy ?? localStat?.total ?? 0,
+  };
+};
+
+/** Animated fade-in wrapper */
+const FadeIn = ({ delay = 0, children, style }) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(16)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        delay,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 400,
+        delay,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
+      {children}
+    </Animated.View>
+  );
+};
+
+/** Result phase — congrats / bad-luck with tokens earned */
+const ResultPhase = ({
+  resolvedStats,
+  lowPercent,
+  msg,
+  onShowStats,
+  onRetry,
+  onClose,
+  canRetry,
+}) => (
+  <View style={styles.phaseContainer}>
+    <FadeIn style={{ alignItems: "center" }}>
+      <LottieAnimator
+        name={lowPercent ? "sad" : "congrats"}
+        loop={false}
+        style={styles.lottie}
+      />
+    </FadeIn>
+
+    <FadeIn delay={120} style={styles.resultTextBlock}>
+      <AppText style={styles.resultHeading} fontWeight="black" size={28}>
+        {lowPercent ? "Too Bad" : "Congratulations!"}
+      </AppText>
+      <AppText fontWeight="semibold" style={styles.resultMsg}>
+        {msg}
+      </AppText>
+    </FadeIn>
+
+    <FadeIn delay={240} style={styles.tokenCard}>
+      <AppText fontWeight="semibold" size="small" style={styles.tokenLabel}>
+        TOKENS EARNED
+      </AppText>
+      <AppText fontWeight="black" size={36} style={styles.tokenValue}>
+        {resolvedStats.pointsEarned}
+        <AppText fontWeight="bold" size={16} style={{ color: colors.medium }}>
+          {" "}
+          GT
+        </AppText>
+      </AppText>
+    </FadeIn>
+
+    <FadeIn delay={320} style={styles.resultBtns}>
+      <AppButton title="Close" type="white" onPress={onClose} />
+      <AppButton title="View Stats" type="accent" onPress={onShowStats} />
+      {canRetry && <AppButton title="Retry" onPress={onRetry} />}
+    </FadeIn>
+  </View>
+);
+
+/**
+ * Compact header rendered above QuizCorrections inside StatsPhase.
+ * Replaces the previous stacked layout with a tight scorecard strip,
+ * saving ~120px of vertical space.
+ */
+const StatsHeader = ({ resolvedStats }) => (
+  <View style={styles.statsHeader}>
+    {/* Top row: title + points pill side by side */}
+    <View style={styles.statsHeaderTop}>
+      <AppText fontWeight="black" size={20} style={styles.statsTitle}>
+        Quiz Stats
+      </AppText>
+      <View style={styles.pointsPill}>
+        <AppText fontWeight="black" size={18} style={styles.pointsPillValue}>
+          {resolvedStats.pointsEarned}
+          <AppText fontWeight="bold" size={12} style={styles.pointsPillUnit}>
+            {" "}
+            GT
+          </AppText>
+        </AppText>
+        <AppText
+          fontWeight="medium"
+          size="xsmall"
+          style={styles.pointsPillLabel}
+        >
+          points earned
+        </AppText>
+      </View>
+    </View>
+
+    {/* Scorecard strip: correct answers + accuracy side by side */}
+    <View style={styles.scorecardStrip}>
+      <View style={styles.scorecardItem}>
+        <AppText fontWeight="black" size={22} style={styles.scorecardValue}>
+          {resolvedStats.correctAnswers}
+          <AppText fontWeight="semibold" size={13} style={styles.scorecardSub}>
+            /{resolvedStats.totalQuestions}
+          </AppText>
+        </AppText>
+        <AppText
+          fontWeight="medium"
+          size="xsmall"
+          style={styles.scorecardLabel}
+        >
+          Correct
+        </AppText>
+      </View>
+
+      <View style={styles.scorecardDivider} />
+
+      <View style={styles.scorecardItem}>
+        <AppText fontWeight="black" size={22} style={styles.scorecardValue}>
+          {resolvedStats.accuracy}
+          <AppText fontWeight="semibold" size={13} style={styles.scorecardSub}>
+            %
+          </AppText>
+        </AppText>
+        <AppText
+          fontWeight="medium"
+          size="xsmall"
+          style={styles.scorecardLabel}
+        >
+          Score
+        </AppText>
+      </View>
+    </View>
+
+    {/* Section divider */}
+    <View style={styles.reviewDivider}>
+      <View style={styles.reviewDividerLine} />
+      <AppText fontWeight="heavy" size="small" style={styles.reviewDividerText}>
+        QUESTIONS REVIEW
+      </AppText>
+      <View style={styles.reviewDividerLine} />
+    </View>
+  </View>
+);
+
+/** Stats phase — delegates all correction rendering to QuizCorrections */
+const StatsPhase = ({
+  resolvedStats,
+  session,
+  onBack,
+  onRetry,
+  onClose,
+  canRetry,
+}) => (
+  <View style={styles.statsPhaseContainer}>
+    <QuizCorrections
+      data={session?.questions}
+      ListHeaderComponent={<StatsHeader resolvedStats={resolvedStats} />}
+      contentContainerStyle={styles.correctionsList}
+    />
+
+    {/* Actions pinned at bottom */}
+    <View style={styles.statsBtns}>
+      <AppButton title="Close" type="white" onPress={onClose} />
+      <AppButton title="Back" type="accent" onPress={onBack} />
+      {canRetry && <AppButton title="Retry" onPress={onRetry} />}
+    </View>
+  </View>
+);
+
+/** Multiplayer waiting indicator */
+const WaitingBanner = () => (
+  <View style={styles.waitingBanner}>
+    <LottieAnimator name="loading" loop style={{ width: 48, height: 48 }} />
+    <AppText fontWeight="semibold" style={{ marginLeft: 10 }}>
+      Waiting for the remaining players…
+    </AppText>
+  </View>
+);
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const FinishedQuiz = ({
   hideModal,
@@ -40,338 +294,203 @@ const FinishedQuiz = ({
   retry,
   sessionId,
   session,
-  duration, // quiz duration in milliseconds
+  duration,
 }) => {
-  const [stat, setStat] = useState({
-    vis: false,
+  const [phase, setPhase] = useState(PHASE.RESULT);
+  const [localStat, setLocalStat] = useState({
     answeredCorrectly: 0,
     point: 0,
-    isFinal: false,
     total: 0,
+    isFinal: false,
   });
-
-  const [submitQuiz, { isLoading, isError, error }] = useSubmitQuizMutation();
-  const [
-    submitFreemiumQuiz,
-    { isLoading: freemiumLoading, data: freemiumResults },
-  ] = useSubmitFreemiumQuizMutation();
   const [leaderboard, setLeaderboard] = useState(session?.leaderboard ?? []);
-  const [submitPremiumQuiz, { isLoading: premLoading, data: results }] =
-    useSubmitPremiumQuizMutation();
-  const [
-    submitCompetitionQuiz,
-    { isLoading: compLoading, data: competitionResults },
-  ] = useSubmitCompetitionQuizMutation();
 
-  const percentage = Math.round((stat?.point / stat?.total) * 100);
-  const lowPercent = percentage < 50;
-  const isMultiplayer = Boolean(sessionId);
+  const [submitQuiz] = useSubmitQuizMutation();
+  const [submitFreemiumQuiz, { data: freemiumResults }] =
+    useSubmitFreemiumQuizMutation();
+  const [submitPremiumQuiz, { data: results }] = useSubmitPremiumQuizMutation();
+  const [submitCompetitionQuiz, { data: competitionResults }] =
+    useSubmitCompetitionQuizMutation();
+
   const insets = useSafeAreaInsets();
   const user = useSelector(selectUser);
 
-  const retryQuiz = async () => {
-    retry && retry();
-  };
+  const isMultiplayer = Boolean(sessionId);
+  const resolvedStats = useResolvedStats({
+    results,
+    freemiumResults,
+    competitionResults,
+    localStat,
+    session,
+  });
 
-  const getStats = () => {
-    let answeredCorrectly = 0,
-      statPoints = 0,
-      totalPoints = 0;
-
-    session?.questions.forEach((quest) => {
-      quest.questions.forEach((question) => {
-        if (question?.answered?.correct) {
-          answeredCorrectly += 1;
-          statPoints += question.point;
-          totalPoints += question.point;
-        } else {
-          totalPoints += question.point;
-          statPoints -= 2;
-        }
-      });
-    });
-    setStat({
-      ...stat,
-      answeredCorrectly,
-      total: totalPoints,
-      point: statPoints,
-    });
-    return {
-      answeredCorrectly,
-      statPoints,
-      totalPoints,
-    };
-  };
-
-  const uploadQuizSession = async () => {
-    if (isMultiplayer) return;
-    // Include duration (ms) in every submission payload
-    const durationPayload = duration != null ? { duration } : {};
-    if (data?.type === "school") {
-      try {
-        await submitQuiz({
-          ...data,
-          ...session,
-          ...durationPayload,
-          retried,
-        }).unwrap();
-      } catch (_error) {}
-    } else if (data?.type === "freemium") {
-      try {
-        await submitFreemiumQuiz({
-          ...data,
-          ...session,
-          ...durationPayload,
-          retried,
-        }).unwrap();
-      } catch (error) {
-        console.log("Freemium error", error);
-      }
-    } else if (data?.type === "competition") {
-      try {
-        await submitCompetitionQuiz({
-          competitionId: data.competitionId,
-          questions: session?.questions,
-          ...durationPayload,
-        }).unwrap();
-      } catch (error) {
-        console.log("Competition error", error);
-      }
-    } else {
-      try {
-        await submitPremiumQuiz({
-          ...data,
-          ...session,
-          ...durationPayload,
-          retried,
-        }).unwrap();
-      } catch (error) {
-        console.log("Premium error", error);
-      }
-    }
-  };
-
+  const percentage = Math.round(
+    (localStat.point / (localStat.total || 1)) * 100,
+  );
+  const lowPercent = percentage < 50;
   const competitionRank = competitionResults?.data?.rank;
+  const canRetry = !isMultiplayer && data?.type !== "competition";
+
   const msg =
     data?.type === "competition" && competitionRank
       ? `You finished #${competitionRank} in the Monthly Tournament!`
       : lowPercent
-      ? `Hard luck!. Study more and come back for more practice!`
-      : `You've done well, retake quiz or move to next topic or subject category`;
+        ? "Hard luck! Study more and come back for more practice!"
+        : "You've done well — retake the quiz or move to the next topic.";
+
+  // ── Side effects ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    socket.emit("quiz_end", {
-      sessionId,
-      user: getUserProfile(user),
-    });
-    getStats();
+    socket.emit("quiz_end", { sessionId, user: getUserProfile(user) });
+
+    const stats = computeLocalStats(session);
+    setLocalStat((prev) => ({ ...prev, ...stats }));
+
     uploadQuizSession();
   }, [session]);
 
   useEffect(() => {
-    socket.on("leaderboard_update", ({ leaderboard, isFinal, stats }) => {
-      setLeaderboard(leaderboard);
-      if (isFinal === true) {
-        console.log({ stats });
-        setStat({ ...stats[user?._id], isFinal });
+    socket.on("leaderboard_update", ({ leaderboard: lb, isFinal, stats }) => {
+      setLeaderboard(lb);
+      if (isFinal) {
+        setLocalStat((prev) => ({ ...stats[user?._id], isFinal: true }));
       }
     });
-
     return () => socket.off("leaderboard_update");
   }, []);
 
+  // ── Submission ────────────────────────────────────────────────────────────
+
+  const uploadQuizSession = async () => {
+    if (isMultiplayer) return;
+
+    const payload = {
+      ...data,
+      ...session,
+      retried,
+      ...(duration != null ? { duration } : {}),
+    };
+
+    const handlers = {
+      school: () => submitQuiz(payload).unwrap(),
+      freemium: () => submitFreemiumQuiz(payload).unwrap(),
+      competition: () =>
+        submitCompetitionQuiz({
+          competitionId: data.competitionId,
+          questions: session?.questions,
+          ...(duration != null ? { duration } : {}),
+        }).unwrap(),
+      premium: () => submitPremiumQuiz(payload).unwrap(),
+    };
+
+    try {
+      await (handlers[data?.type] ?? handlers.premium)();
+    } catch (error) {
+      console.log(`[FinishedQuiz] Submit error (${data?.type}):`, error);
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  // MULTIPLAYER: show leaderboard until finals are in, then stats
+  if (isMultiplayer) {
+    return (
+      <View style={styles.container}>
+        {!localStat.isFinal ? (
+          <View
+            style={[styles.leaderboardContainer, { paddingTop: insets.top }]}
+          >
+            <AppText
+              size="xlarge"
+              fontWeight="heavy"
+              style={styles.leaderboardTitle}
+            >
+              Quiz Leaderboard
+            </AppText>
+            <FlatList
+              data={leaderboard}
+              keyExtractor={(item, index) =>
+                item?._id?.toString() ?? `lb-${index}`
+              }
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={() => (
+                <LeaderboardWinners
+                  isPro={false}
+                  data={leaderboard?.slice(0, 3)}
+                />
+              )}
+              ListHeaderComponentStyle={{ backgroundColor: colors.accent }}
+              ListFooterComponent={
+                <View
+                  style={
+                    leaderboard?.length < 4
+                      ? styles.leaderboardFooterSmall
+                      : styles.leaderboardFooter
+                  }
+                >
+                  <LottieAnimator
+                    name="congrats"
+                    loop={false}
+                    style={{ width: width * 0.8, height: width * 0.8 }}
+                  />
+                </View>
+              }
+              renderItem={({ item, index }) => (
+                <LeaderboardItem item={item} isPro={false} index={index} />
+              )}
+            />
+            <WaitingBanner />
+          </View>
+        ) : (
+          // Finals are in — show stats
+          <View style={[styles.statsPhaseContainer, { marginTop: insets.top }]}>
+            <StatsPhase
+              resolvedStats={resolvedStats}
+              session={session}
+              onBack={() => {}}
+              onClose={hideModal}
+              canRetry={false}
+            />
+            <View style={styles.resultBtns}>
+              <AppButton title="Close" type="white" onPress={hideModal} />
+              <AppButton
+                title={`${phase === PHASE.STATS ? "Hide" : "View"} Corrections`}
+                type="accent"
+                onPress={() =>
+                  setPhase((p) =>
+                    p === PHASE.STATS ? PHASE.RESULT : PHASE.STATS,
+                  )
+                }
+              />
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // SINGLE PLAYER
   return (
     <View style={styles.container}>
-      {isMultiplayer && !stat?.vis ? (
-        <View
-          style={{
-            backgroundColor: colors.accent,
-            paddingTop: insets.top,
-            flex: 1,
-          }}
-        >
-          <AppText
-            size="xlarge"
-            fontWeight="heavy"
-            style={[styles.title, { textAlign: "flex-start", marginLeft: 15 }]}
-          >
-            Quiz Leaderboard
-          </AppText>
-          <FlatList
-            data={leaderboard}
-            keyExtractor={(item) => item._id}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponentStyle={{ backgroundColor: colors.accent }}
-            ListHeaderComponent={() => (
-              <LeaderboardWinners
-                isPro={false}
-                data={leaderboard?.slice(0, 3)}
-              />
-            )}
-            ListFooterComponent={
-              <View
-                style={
-                  leaderboard?.length < 4 ? styles.footerMain : styles.footer
-                }
-              >
-                <LottieAnimator
-                  name="congrats"
-                  loop={false}
-                  style={{ width: width * 0.8, height: width * 0.8 }}
-                />
-              </View>
-            }
-            renderItem={({ item, index }) => (
-              <LeaderboardItem item={item} isPro={false} index={index} />
-            )}
-          />
-        </View>
-      ) : stat.vis ? (
-        <View style={[styles.main, { marginTop: insets.top }]}>
-          <AppText style={styles.headerText} fontWeight="black" size={30}>
-            Quiz Stats
-          </AppText>
-          <AppText
-            style={{ textAlign: "center" }}
-            fontWeight="bold"
-            size={"xlarge"}
-          >
-            You earned{" "}
-            <AppText size={"xxlarge"} fontWeight="black">
-              {Number(
-                results?.data?.pointsEarned ??
-                  freemiumResults?.data?.pointsEarned ??
-                  competitionResults?.data?.pointsEarned ??
-                  stat?.pointsEarned ??
-                  stat?.point,
-              ).toFixed(1)}
-            </AppText>{" "}
-            quiz points
-          </AppText>
-          <View style={{ flex: 1 }}>
-            <View style={styles.stats}>
-              <QuizStat
-                value={
-                  results?.data?.correctAnswers ??
-                  freemiumResults?.data?.correctAnswers ??
-                  competitionResults?.data?.correctAnswers ??
-                  stat?.correctAnswers ??
-                  stat?.answeredCorrectly
-                }
-                subValue={`of ${
-                  results?.data?.totalQuestions ??
-                  freemiumResults?.data?.totalQuestions ??
-                  competitionResults?.data?.totalQuestions ??
-                  calculateQuestionCount(session?.questions) ??
-                  "..."
-                }`}
-                msg={"Correct answers"}
-              />
-              <QuizStat
-                value={
-                  results?.data?.accuracy ??
-                  freemiumResults?.data?.accuracy ??
-                  competitionResults?.data?.accuracy ??
-                  stat?.accuracy ??
-                  stat?.total
-                }
-                subValue={`%`}
-                msg={"Quiz score"}
-              />
-            </View>
-            <View style={styles.correctionView}>
-              <View style={styles.sideBar} />
-              <AppText
-                style={{ marginLeft: 14, marginBottom: 5 }}
-                fontWeight="heavy"
-                size={"xxlarge"}
-              >
-                Questions Review:
-              </AppText>
-              <QuizCorrections data={session?.questions} />
-            </View>
-          </View>
-        </View>
+      {phase === PHASE.RESULT ? (
+        <ResultPhase
+          resolvedStats={resolvedStats}
+          lowPercent={lowPercent}
+          msg={msg}
+          onShowStats={() => setPhase(PHASE.STATS)}
+          onRetry={retry}
+          onClose={hideModal}
+          canRetry={canRetry}
+        />
       ) : (
-        <>
-          <View>
-            <LottieAnimator
-              name="congrats"
-              loop={false}
-              style={{ width: width * 0.8, height: width * 0.8 }}
-            />
-          </View>
-          <View>
-            <AppText style={styles.percentage} fontWeight="black" size={30}>
-              {lowPercent ? "Too Bad" : "Congratulations"}
-            </AppText>
-            <AppText
-              fontWeight="semibold"
-              style={{ textAlign: "center", maxWidth: "70%" }}
-            >
-              {msg}
-            </AppText>
-          </View>
-          <View style={styles.statMain}>
-            <QuizStat
-              value={Number(
-                results?.data?.pointsEarned ??
-                  freemiumResults?.data?.pointsEarned ??
-                  competitionResults?.data?.pointsEarned ??
-                  stat?.point,
-              ).toFixed(1)}
-              bgColor={colors.warning}
-              border={colors.warningLight}
-              subValue={"GT"}
-              msg={"tokens earned"}
-            />
-            {isError && (
-              <AppText
-                fontWeight="semibold"
-                style={{
-                  textAlign: "center",
-                  maxWidth: "70%",
-                  color: colors.medium,
-                }}
-              >
-                {error?.data?.message}
-              </AppText>
-            )}
-          </View>
-        </>
-      )}
-      {isMultiplayer && stat?.isFinal && (
-        <View style={styles.btns}>
-          <AppButton title={"Close"} type="white" onPress={hideModal} />
-          <AppButton
-            title={`${stat.vis ? "Hide" : ""} Corrections`}
-            type="accent"
-            style={{ alignSelf: "center" }}
-            onPress={() => setStat({ ...stat, vis: !stat.vis })}
-          />
-          {!isMultiplayer && <AppButton title={"Retry"} onPress={retryQuiz} />}
-        </View>
-      )}
-
-      {isMultiplayer && !stat?.isFinal && (
-        <View>
-          <AppText>Waiting for the remaining players</AppText>
-        </View>
-      )}
-
-      {!isMultiplayer && (
-        <View style={styles.btns}>
-          <AppButton title={"Close"} type="white" onPress={hideModal} />
-          <AppButton
-            title={`${stat.vis ? "Hide" : ""} Corrections`}
-            type="accent"
-            style={{ alignSelf: "center" }}
-            onPress={() => setStat({ ...stat, vis: !stat.vis })}
-          />
-          {!isMultiplayer && data?.type !== "competition" && (
-            <AppButton title={"Retry"} onPress={retryQuiz} />
-          )}
-        </View>
+        <StatsPhase
+          resolvedStats={resolvedStats}
+          session={session}
+          onBack={() => setPhase(PHASE.RESULT)}
+          onRetry={retry}
+          onClose={hideModal}
+          canRetry={canRetry}
+        />
       )}
     </View>
   );
@@ -379,83 +498,207 @@ const FinishedQuiz = ({
 
 export default FinishedQuiz;
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  btnContainer: {
+  // Layout
+  container: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "flex-end",
+    backgroundColor: colors.unchange,
   },
-  btns: {
-    paddingTop: 10,
+  phaseContainer: {
+    flex: 1,
     width,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  statsPhaseContainer: {
+    flex: 1,
+    width,
+    backgroundColor: colors.unchange,
+    borderRadius: 20,
+    marginVertical: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 2, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 18,
+    elevation: 6,
+    paddingTop: 16,
+  },
+
+  // Result phase
+  lottie: {
+    width: width * 0.72,
+    height: width * 0.72,
+  },
+  resultTextBlock: {
+    alignItems: "center",
+    marginBottom: 18,
+    paddingHorizontal: 24,
+  },
+  resultHeading: {
+    textAlign: "center",
+    color: colors.medium,
+    marginBottom: 8,
+  },
+  resultMsg: {
+    textAlign: "center",
+    color: colors.medium,
+    maxWidth: "80%",
+  },
+  tokenCard: {
+    alignItems: "center",
+    backgroundColor: colors.warningLight + "45",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 36,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  tokenLabel: {
+    letterSpacing: 1.2,
+    color: colors.medium,
+    marginBottom: 4,
+  },
+  tokenValue: {
+    color: colors.warning,
+  },
+  resultBtns: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-around",
+    paddingTop: 8,
+  },
+
+  // Stats phase
+  statsHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  statsHeaderTop: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  correctionView: {
+  statsTitle: {
+    color: colors.medium,
+  },
+  pointsPill: {
+    backgroundColor: colors.warningLight + "45",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  pointsPillValue: {
+    color: colors.warning,
+    lineHeight: 22,
+  },
+  pointsPillUnit: {
+    color: colors.medium,
+  },
+  pointsPillLabel: {
+    color: colors.medium,
+  },
+  scorecardStrip: {
+    flexDirection: "row",
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  scorecardItem: {
     flex: 1,
-    marginTop: 15,
-    maxHeight: height * 0.5,
+    alignItems: "center",
   },
-  footer: {
+  scorecardValue: {
+    color: colors.medium,
+  },
+  scorecardSub: {
+    color: colors.lightly,
+  },
+  scorecardLabel: {
+    color: colors.medium,
+    marginTop: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  scorecardDivider: {
+    width: 1,
+    backgroundColor: colors.lightly,
+    marginVertical: 4,
+  },
+  reviewDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  reviewDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.lightly,
+  },
+  reviewDividerText: {
+    color: colors.medium,
+    letterSpacing: 1,
+  },
+  correctionsList: {
+    paddingBottom: 12,
+  },
+  statsBtns: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.lightly,
+  },
+
+  // Multiplayer / leaderboard
+  leaderboardContainer: {
+    flex: 1,
+    backgroundColor: colors.accent,
+    width,
+  },
+  leaderboardTitle: {
+    textAlign: "left",
+    marginLeft: 15,
+    marginTop: 8,
+    marginBottom: 15,
+    color: "#fff",
+  },
+  leaderboardFooter: {
     marginTop: 40,
     height: height * 0.5,
     backgroundColor: colors.unchange,
     alignItems: "center",
   },
-  footerMain: {
+  leaderboardFooterSmall: {
     height: height * 0.5,
     borderTopRightRadius: 18,
     borderTopLeftRadius: 18,
     backgroundColor: colors.unchange,
     alignItems: "center",
   },
-  headerText: {
-    textAlign: "center",
-    marginBottom: 6,
-    color: colors.medium,
-  },
-  main: {
-    flex: 1,
-    width,
-    backgroundColor: colors.unchange,
-    borderRadius: 20,
-    marginBottom: 15,
-    marginTop: 20,
-    boxShadow: `2px 8px 18px ${colors.primary}25`,
-    overflow: "scroll",
-  },
-  percentage: {
-    textAlign: "center",
-    maxWidth: "80%",
-    marginBottom: 10,
-    color: colors.medium,
-  },
-  sideBar: {
-    width: 3,
-    height: "95%",
-    position: "absolute",
-    backgroundColor: colors.lightly,
-    marginVertical: 25,
-    left: 12 / 2 + 6 + 26 / 2,
-    borderRadius: 10,
-  },
-  stats: {
+  waitingBanner: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 15,
-  },
-  statMain: {
-    flex: 1,
-    marginTop: 20,
-    paddingHorizontal: 8,
-    justifyContent: "space-around",
     alignItems: "center",
-  },
-  title: {
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 15,
-    color: "#fff",
+    justifyContent: "center",
+    paddingVertical: 12,
+    backgroundColor: colors.unchange,
   },
 });

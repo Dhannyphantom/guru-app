@@ -109,7 +109,7 @@ const DropComponent = ({
         placeholder: dropData.name,
       });
       setSearch({ data });
-      let setData = getId ? dropData : dropData?.value ?? dropData?.name;
+      let setData = getId ? dropData : (dropData?.value ?? dropData?.name);
       if (name === "bank")
         setData = { code: dropData.code, name: dropData.name };
       setFieldValue(name, setData);
@@ -346,7 +346,7 @@ const AppSideUpModal = ({ visible, setter, title = "", ContentComponent }) => {
       <BlurView
         style={styles.slideModal}
         intensity={20}
-        experimentalBlurMethod="dimezisBlurView"
+        blurMethod="dimezisBlurView"
       >
         <Animated.View
           entering={SlideInDown.springify()}
@@ -400,8 +400,8 @@ const DayMonthYearSelector = ({
     range && Boolean(range[0])
       ? range
       : futureYear
-      ? fututeYearsList
-      : yearsList;
+        ? fututeYearsList
+        : yearsList;
 
   const handleSelectDate = () => {
     if (!selected.year || !selected.month || !selected.day) return;

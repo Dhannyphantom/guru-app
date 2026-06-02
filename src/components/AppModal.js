@@ -40,7 +40,7 @@ const AppModal = ({
             <BlurView
               style={styles.blur}
               intensity={20}
-              experimentalBlurMethod="dimezisBlurView"
+              blurMethod="dimezisBlurView"
             >
               <Animated.View
                 style={fitContent ? styles.mainFit : styles.main}

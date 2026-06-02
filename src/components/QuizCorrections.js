@@ -82,7 +82,6 @@ const LatexOptionText = ({ value, isExp, isLatex }) => {
         expression={value?.replace(/\$/g, "")}
         style={{
           width: "100%",
-          // height: 10,
           backgroundColor: "transparent",
         }}
         inlineStyle={isExp ? inlineExpStyle : inlineStyle}
@@ -90,9 +89,7 @@ const LatexOptionText = ({ value, isExp, isLatex }) => {
         throwOnError={false}
         errorColor={colors.primary}
         macros={{}}
-        // renderError
         colorIsTextColor={false}
-        // onLoad={() => setLoaded(true)}
         onError={() => console.error("Error")}
       />
     </View>
@@ -102,12 +99,6 @@ const LatexOptionText = ({ value, isExp, isLatex }) => {
 const ShowExplanation = ({ data, closeModal }) => {
   return (
     <View style={styles.box}>
-      {/* <AppText fontWeight="black" size="large" style={styles.boxQuestion}>
-        Question:{" "}
-        <AppText fontWeight="bold" size="large">
-          {data?.isLatex ? data?.questionLatex : data?.question}
-        </AppText>
-      </AppText> */}
       <View style={{ width: "100%", height: 50 }}>
         <LatexOptionText
           value={
@@ -122,10 +113,6 @@ const ShowExplanation = ({ data, closeModal }) => {
         contentContainerStyle={{ paddingBottom: 10 }}
       >
         <View style={styles.boxMain}>
-          {/* <AppText
-            style={styles.boxText}
-            fontWeight="medium"
-          >{`${data?.explanation}`}</AppText> */}
           <LatexOptionText
             value={
               data?.isLatex
@@ -189,7 +176,6 @@ export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
     [correctAnswer?._id, question?.answered?._id],
   );
 
-  // Move animation updates to useEffect
   useEffect(() => {
     heightAnim.value = withTiming(isExpanded ? 1 : 0, { duration: 300 });
     rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 300 });
@@ -209,7 +195,6 @@ export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
     overflow: "hidden",
   }));
 
-  // Render answers based on expansion state
   const renderAnswers = useMemo(() => {
     return (
       <>
@@ -307,7 +292,10 @@ const QuestionViewToggle = memo(({ item, isSingle }) => {
     <>
       {questions.map((question, idx) => (
         <RenderQuestion
-          key={question._id || `q-${idx}`}
+          // BUG FIX: question._id may be a Mongoose ObjectId (object), not a plain
+          // string. Calling .toString() ensures React gets a primitive key and
+          // never falls back to "[object Object]".
+          key={question._id?.toString() || `q-${idx}`}
           question={question}
           isSingle={isSingle}
           itemNum={idx + 1}
@@ -317,7 +305,12 @@ const QuestionViewToggle = memo(({ item, isSingle }) => {
   );
 });
 
-const QuizCorrections = ({ data, contentContainerStyle, isSingle = false }) => {
+const QuizCorrections = ({
+  data,
+  contentContainerStyle,
+  ListHeaderComponent,
+  isSingle = false,
+}) => {
   const renderCorrections = useCallback(
     ({ item }) => {
       if (isSingle) {
@@ -349,7 +342,19 @@ const QuizCorrections = ({ data, contentContainerStyle, isSingle = false }) => {
     [isSingle],
   );
 
-  const keyExtractor = useCallback((item) => item._id ?? item.subject, []);
+  // BUG FIX: item.subject is a populated object { _id, name, ... }, not a string.
+  // Using item.subject as a key stringifies it to "[object Object]" and causes
+  // duplicate-key warnings when multiple items share the same falsy _id.
+  // Now we extract item.subject._id (the actual unique ID of the subject doc)
+  // with a guaranteed string conversion, and fall back to index only as a last resort.
+  const keyExtractor = useCallback(
+    (item, index) =>
+      item._id?.toString() ??
+      item.subject?._id?.toString() ??
+      item.subject?.name ??
+      `group-${index}`,
+    [],
+  );
 
   return (
     <View style={styles.container}>
@@ -357,6 +362,7 @@ const QuizCorrections = ({ data, contentContainerStyle, isSingle = false }) => {
         data={data}
         keyExtractor={keyExtractor}
         ListEmptyComponent={EmptyList}
+        ListHeaderComponent={ListHeaderComponent}
         contentContainerStyle={[styles.listContent, contentContainerStyle]}
         renderItem={renderCorrections}
         removeClippedSubviews={true}

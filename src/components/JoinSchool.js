@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import {
   Dimensions,
   FlatList,
@@ -414,6 +415,18 @@ const JoinSchool = ({ schoolData, fetchSchoolData }) => {
             />
 
             <View style={styles.row}>
+              <Ionicons
+                name="information-circle"
+                size={20}
+                color={colors.primary}
+              />
+              <AppText style={styles.text} fontWeight="medium">
+                Complete your profile details first, you'll be added to Guru
+                EduTech school, You can always join your school later when it's
+                registered
+              </AppText>
+            </View>
+            <View style={[styles.row, { marginTop: 30 }]}>
               <Ionicons
                 name="information-circle"
                 size={20}

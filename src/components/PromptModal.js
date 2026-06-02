@@ -37,7 +37,7 @@ const PromptModal = ({ prompt, setPrompt, onPress }) => {
           <BlurView
             style={styles.blur}
             intensity={20}
-            experimentalBlurMethod="dimezisBlurView"
+            // experimentalBlurMethod="dimezisBlurView"
           >
             <View style={styles.container}>
               <AppText fontWeight="heavy" size={"xxlarge"} style={styles.title}>

@@ -176,13 +176,13 @@ const PrizePill = ({ emoji, prize }) => (
     <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
       {formatPrizeReward(prize)}
     </AppText>
-    {prize?.type === "cash" && (
+    {/* {prize?.type === "cash" && (
       <View style={styles.cashDot}>
         <AppText size="xxsmall" style={{ color: "#4ADE80", fontSize: 7 }}>
           CASH
         </AppText>
       </View>
-    )}
+    )} */}
   </View>
 );
 
