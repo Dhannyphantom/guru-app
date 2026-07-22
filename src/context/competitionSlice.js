@@ -33,7 +33,11 @@ export const competitionApiSlice = apiSlice.injectEndpoints({
     }),
     publishResults: builder.mutation({
       query: (competitionId) => ({
-        url: ` /competition/manage/${competitionId}/publish-results`,
+        // NOTE: this previously had a leading space before the path
+        // ("` /competition/manage/...`"), which silently broke the request
+        // in some RN/fetch setups since the URL no longer matched
+        // apiSlice's baseUrl join logic. Fixed below.
+        url: `/competition/manage/${competitionId}/publish-results`,
         method: "POST",
       }),
       invalidatesTags: ["COMPETITION", "COMPETITION_LEADERBOARD", "USER_STAT"],
@@ -44,6 +48,7 @@ export const competitionApiSlice = apiSlice.injectEndpoints({
     }),
     fetchCompetitionSubjectsTopics: builder.query({
       query: () => "/competition/manage/subjects-topics",
+      providesTags: ["COMPETITION_SUBJECTS"],
     }),
     createCompetition: builder.mutation({
       query: (body) => ({
@@ -68,6 +73,13 @@ export const competitionApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["COMPETITION_MANAGE", "COMPETITION"],
     }),
+    deleteCompetition: builder.mutation({
+      query: (id) => ({
+        url: `/competition/manage/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["COMPETITION_MANAGE", "COMPETITION"],
+    }),
   }),
 });
 
@@ -83,4 +95,5 @@ export const {
   useCreateCompetitionMutation,
   useUpdateCompetitionMutation,
   usePublishCompetitionMutation,
+  useDeleteCompetitionMutation,
 } = competitionApiSlice;

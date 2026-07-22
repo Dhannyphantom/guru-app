@@ -46,6 +46,8 @@ export const apiSlice = createApi({
     "COMPETITION",
     "COMPETITION_LEADERBOARD",
     "COMPETITION_MANAGE",
+
+    "COMPETITION_SUBJECTS",
   ],
   endpoints: (builder) => ({}),
 });

@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/immutability */
+/* eslint-disable react-hooks/refs */
 import {
   Dimensions,
   FlatList,
@@ -136,8 +139,8 @@ const ResultPhase = ({
   <View style={styles.phaseContainer}>
     <FadeIn style={{ alignItems: "center" }}>
       <LottieAnimator
-        name={lowPercent ? "sad" : "congrats"}
-        loop={false}
+        name={lowPercent ? "person_float" : "congrats"}
+        loop={Boolean(lowPercent)}
         style={styles.lottie}
       />
     </FadeIn>

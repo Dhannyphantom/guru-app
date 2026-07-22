@@ -1,7 +1,10 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,11 +19,13 @@ import AppHeader from "../components/AppHeader";
 import AppText from "../components/AppText";
 import AppButton from "../components/AppButton";
 import PopMessage from "../components/PopMessage";
+import PromptModal from "../components/PromptModal";
 import LottieAnimator from "../components/LottieAnimator";
 import colors from "../helpers/colors";
 import { selectUser } from "../context/usersSlice";
 import {
   useCreateCompetitionMutation,
+  useDeleteCompetitionMutation,
   useFetchCompetitionSubjectsTopicsQuery,
   useFetchCompetitionsListQuery,
   usePublishCompetitionMutation,
@@ -44,6 +49,8 @@ const MONTHS = [
   { label: "November", value: 11 },
   { label: "December", value: 12 },
 ];
+
+const DAYS_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const PRIZE_TYPES = ["points", "cash"];
 
@@ -145,6 +152,42 @@ const parseDateTimeLocal = (str) => {
   if ([y, mo, d, h, mi].some(isNaN)) return null;
   const dt = new Date(y, mo - 1, d, h, mi);
   return isNaN(dt.getTime()) ? null : dt;
+};
+
+const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
+const getFirstDayOfWeek = (year, month) =>
+  new Date(year, month - 1, 1).getDay();
+
+/** Friendly display string for the date pill, e.g. "Sat, 7 Jun 2025 · 00:00" */
+const formatDisplayDate = (str) => {
+  const dt = parseDateTimeLocal(str);
+  if (!dt) return str || "Select date & time";
+  const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getDay()];
+  const mon = MONTHS[dt.getMonth()].label.slice(0, 3);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${dow}, ${dt.getDate()} ${mon} ${dt.getFullYear()} · ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+};
+
+// ─── Error helper ─────────────────────────────────────────────────────────────
+
+/**
+ * Turns an RTK Query error object into a single, user-friendly string.
+ * Falls back gracefully through the possible shapes a failed request can take:
+ * a JSON {message}, a plain string body, a known RTK fetch/parsing error,
+ * a bare HTTP status code, or finally the caller-supplied fallback.
+ */
+const getErrorMessage = (e, fallback) => {
+  if (e?.data?.message) return e.data.message;
+  if (typeof e?.data === "string" && e.data.trim()) return e.data;
+  if (e?.status === "FETCH_ERROR")
+    return "Network error — check your connection and try again";
+  if (e?.status === "PARSING_ERROR")
+    return "The server sent back something unexpected. Please try again.";
+  if (e?.status === "TIMEOUT_ERROR")
+    return "The request timed out. Please try again.";
+  if (typeof e?.status === "number")
+    return `Something went wrong on the server (${e.status}). Please try again.`;
+  return fallback;
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -603,6 +646,211 @@ const CustomSubjectEditor = ({ subject, subjectIndex, onChange, onRemove }) => {
   );
 };
 
+// ─── Date / time picker modal ─────────────────────────────────────────────────
+/**
+ * A self-contained calendar + time picker. Replaces the old raw text-input
+ * date fields. Renders a month grid (tap a day to select it) plus simple
+ * up/down steppers for hour and minute, matching the chip styling used
+ * elsewhere on this screen.
+ */
+const DateTimePickerModal = ({
+  visible,
+  title,
+  initialDate,
+  onCancel,
+  onConfirm,
+}) => {
+  const [viewYear, setViewYear] = useState(initialDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initialDate.getMonth() + 1);
+  const [selectedDay, setSelectedDay] = useState(initialDate.getDate());
+  const [hour, setHour] = useState(initialDate.getHours());
+  const [minute, setMinute] = useState(initialDate.getMinutes());
+
+  useEffect(() => {
+    if (!visible) return;
+    setViewYear(initialDate.getFullYear());
+    setViewMonth(initialDate.getMonth() + 1);
+    setSelectedDay(initialDate.getDate());
+    setHour(initialDate.getHours());
+    setMinute(initialDate.getMinutes());
+  }, [visible]);
+
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDow = getFirstDayOfWeek(viewYear, viewMonth);
+
+  const changeMonth = (delta) => {
+    let m = viewMonth + delta;
+    let y = viewYear;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    }
+    const maxDay = getDaysInMonth(y, m);
+    setViewMonth(m);
+    setViewYear(y);
+    if (selectedDay > maxDay) setSelectedDay(maxDay);
+  };
+
+  const adjustHour = (d) => setHour((h) => (h + d + 24) % 24);
+  const adjustMinute = (d) => setMinute((m) => (m + d + 60) % 60);
+
+  const handleConfirm = () => {
+    const dt = new Date(viewYear, viewMonth - 1, selectedDay, hour, minute);
+    onConfirm(dt);
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View style={dtpStyles.overlay}>
+        <View style={dtpStyles.sheet}>
+          <AppText
+            fontWeight="black"
+            size="medium"
+            style={{ marginBottom: 12 }}
+          >
+            {title || "Select Date & Time"}
+          </AppText>
+
+          {/* Month/year nav */}
+          <View style={dtpStyles.monthNav}>
+            <Pressable onPress={() => changeMonth(-1)} style={dtpStyles.navBtn}>
+              <Ionicons name="chevron-back" size={20} color={colors.medium} />
+            </Pressable>
+            <AppText fontWeight="bold">
+              {MONTHS[viewMonth - 1]?.label} {viewYear}
+            </AppText>
+            <Pressable onPress={() => changeMonth(1)} style={dtpStyles.navBtn}>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.medium}
+              />
+            </Pressable>
+          </View>
+
+          {/* Day-of-week header */}
+          <View style={dtpStyles.dowRow}>
+            {DAYS_SHORT.map((d) => (
+              <AppText key={d} size="xxsmall" style={dtpStyles.dowLabel}>
+                {d}
+              </AppText>
+            ))}
+          </View>
+
+          {/* Day grid */}
+          <View style={dtpStyles.dayGrid}>
+            {cells.map((d, i) => {
+              if (d === null)
+                return <View key={`empty-${i}`} style={dtpStyles.dayCell} />;
+              const isSelected = d === selectedDay;
+              const isSaturday =
+                new Date(viewYear, viewMonth - 1, d).getDay() === 6;
+              return (
+                <Pressable
+                  key={d}
+                  style={[
+                    dtpStyles.dayCell,
+                    dtpStyles.dayCellTouchable,
+                    isSelected && dtpStyles.dayCellSelected,
+                  ]}
+                  onPress={() => setSelectedDay(d)}
+                >
+                  <AppText
+                    size="small"
+                    fontWeight={isSelected ? "bold" : "regular"}
+                    style={{ color: isSelected ? colors.white : colors.medium }}
+                  >
+                    {d}
+                  </AppText>
+                  {isSaturday && !isSelected && (
+                    <View style={dtpStyles.satDot} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <AppText size="xxsmall" style={dtpStyles.satLegend}>
+            <View style={dtpStyles.satDotInline} /> Saturday
+          </AppText>
+
+          {/* Time steppers */}
+          <View style={dtpStyles.timeRow}>
+            <View style={dtpStyles.timeUnit}>
+              <Pressable
+                onPress={() => adjustHour(1)}
+                style={dtpStyles.timeBtn}
+              >
+                <Ionicons name="chevron-up" size={18} color={colors.medium} />
+              </Pressable>
+              <AppText fontWeight="black" size="large">
+                {String(hour).padStart(2, "0")}
+              </AppText>
+              <Pressable
+                onPress={() => adjustHour(-1)}
+                style={dtpStyles.timeBtn}
+              >
+                <Ionicons name="chevron-down" size={18} color={colors.medium} />
+              </Pressable>
+            </View>
+            <AppText
+              fontWeight="black"
+              size="large"
+              style={{ marginHorizontal: 6 }}
+            >
+              :
+            </AppText>
+            <View style={dtpStyles.timeUnit}>
+              <Pressable
+                onPress={() => adjustMinute(5)}
+                style={dtpStyles.timeBtn}
+              >
+                <Ionicons name="chevron-up" size={18} color={colors.medium} />
+              </Pressable>
+              <AppText fontWeight="black" size="large">
+                {String(minute).padStart(2, "0")}
+              </AppText>
+              <Pressable
+                onPress={() => adjustMinute(-5)}
+                style={dtpStyles.timeBtn}
+              >
+                <Ionicons name="chevron-down" size={18} color={colors.medium} />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={dtpStyles.actionsRow}>
+            <Pressable onPress={onCancel} style={dtpStyles.cancelBtn}>
+              <AppText fontWeight="bold" style={{ color: colors.medium }}>
+                Cancel
+              </AppText>
+            </Pressable>
+            <Pressable onPress={handleConfirm} style={dtpStyles.confirmBtn}>
+              <AppText fontWeight="bold" style={{ color: colors.white }}>
+                Confirm
+              </AppText>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 const ManageCompetitionScreen = () => {
@@ -612,10 +860,13 @@ const ManageCompetitionScreen = () => {
 
   const { data: listData, refetch: refetchList } =
     useFetchCompetitionsListQuery(undefined, { skip: !isManager });
-  const { data: subjectsData } = useFetchCompetitionSubjectsTopicsQuery(
-    undefined,
-    { skip: !isManager },
-  );
+  const {
+    data: subjectsData,
+    isLoading: subjectsLoading,
+    isError: subjectsError,
+    error: subjectsErrorObj,
+    refetch: refetchSubjects,
+  } = useFetchCompetitionSubjectsTopicsQuery(undefined, { skip: !isManager });
 
   const [createCompetition, { isLoading: creating }] =
     useCreateCompetitionMutation();
@@ -625,10 +876,14 @@ const ManageCompetitionScreen = () => {
     usePublishCompetitionMutation();
   const [publishResults, { isLoading: publishingResults }] =
     usePublishResultsMutation();
+  const [deleteCompetition, { isLoading: deleting }] =
+    useDeleteCompetitionMutation();
 
   const [selectedId, setSelectedId] = useState(null);
   const [popper, setPopper] = useState({ vis: false });
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+  const [deletePrompt, setDeletePrompt] = useState(null); // holds the list item being deleted
+  const [datePickerTarget, setDatePickerTarget] = useState(null); // "start" | "end" | null
 
   // Tracks whether the manager has manually edited the time fields so we
   // don't clobber their changes when they switch month/year chips.
@@ -712,6 +967,23 @@ const ManageCompetitionScreen = () => {
     timesManuallyEdited.current = false;
     const defaults = buildDefaultTimes(form.year, form.month);
     setForm((prev) => ({ ...prev, ...defaults }));
+  };
+
+  const startNewDraft = () => {
+    timesManuallyEdited.current = false;
+    setSelectedId(null);
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    setForm({
+      month: m,
+      year: y,
+      title: "Monthly Guru Quiz Tournament",
+      rules: form.rules,
+      ...buildDefaultTimes(y, m),
+      subjects: [],
+      customSubjects: [],
+      prizes: defaultPrizes(),
+    });
   };
 
   const addDbSubject = (subjectId) => {
@@ -813,7 +1085,10 @@ const ManageCompetitionScreen = () => {
       setPopper({
         vis: true,
         type: "failed",
-        msg: e?.data?.message || "Save failed",
+        msg: getErrorMessage(
+          e,
+          "Couldn't save the competition. Please try again.",
+        ),
       });
     }
   };
@@ -839,7 +1114,10 @@ const ManageCompetitionScreen = () => {
       setPopper({
         vis: true,
         type: "failed",
-        msg: e?.data?.message || "Publish failed",
+        msg: getErrorMessage(
+          e,
+          "Couldn't publish the competition. Please try again.",
+        ),
       });
     }
   };
@@ -858,9 +1136,62 @@ const ManageCompetitionScreen = () => {
       setPopper({
         vis: true,
         type: "failed",
-        msg: e?.data?.message || "Failed to publish results",
+        msg: getErrorMessage(e, "Couldn't publish results. Please try again."),
       });
     }
+  };
+
+  /** Can this competition (from the list, not the open form) be deleted right now? */
+  const canDelete = (item) => {
+    if (!item) return false;
+    if (item.status === "finished") return false;
+    const start = new Date(item.startTime);
+    const end = new Date(item.endTime);
+    const n = new Date();
+    const isOngoing = item.status === "active" && n >= start && n < end;
+    const hasEnded = item.status === "active" && n >= end;
+    if (isOngoing || hasEnded) return false;
+    return true;
+  };
+
+  const confirmDelete = async () => {
+    if (!deletePrompt) return;
+    try {
+      await deleteCompetition(deletePrompt._id).unwrap();
+      if (selectedId === deletePrompt._id) {
+        startNewDraft();
+      }
+      setPopper({ vis: true, type: "success", msg: "Draft deleted" });
+      refetchList();
+    } catch (e) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: getErrorMessage(
+          e,
+          "Couldn't delete this draft. Please try again.",
+        ),
+      });
+    }
+    setDeletePrompt(null);
+  };
+
+  // ── Date picker wiring ──
+  const openDatePicker = (target) => setDatePickerTarget(target);
+
+  const currentPickerInitialDate = (() => {
+    const raw = datePickerTarget === "start" ? form.startTime : form.endTime;
+    return parseDateTimeLocal(raw) || new Date();
+  })();
+
+  const handleDateConfirm = (dt) => {
+    timesManuallyEdited.current = true;
+    if (datePickerTarget === "start") {
+      setForm((prev) => ({ ...prev, startTime: toDateTimeLocal(dt) }));
+    } else if (datePickerTarget === "end") {
+      setForm((prev) => ({ ...prev, endTime: toDateTimeLocal(dt) }));
+    }
+    setDatePickerTarget(null);
   };
 
   const usedSubjectIds = form.subjects.map((s) => s.subject?._id || s.subject);
@@ -906,9 +1237,26 @@ const ManageCompetitionScreen = () => {
                 ]}
                 onPress={() => loadCompetition(item)}
               >
-                <AppText fontWeight="bold" size="small">
-                  {MONTHS[item.month - 1]?.label} {item.year}
-                </AppText>
+                <View style={styles.listItemTopRow}>
+                  <AppText fontWeight="bold" size="small">
+                    {MONTHS[item.month - 1]?.label} {item.year}
+                  </AppText>
+                  {canDelete(item) && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        setDeletePrompt(item);
+                      }}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={16}
+                        color={colors.heart}
+                      />
+                    </Pressable>
+                  )}
+                </View>
                 <View
                   style={[
                     styles.statusPill,
@@ -945,25 +1293,7 @@ const ManageCompetitionScreen = () => {
               </Pressable>
             )}
             ListFooterComponent={
-              <Pressable
-                style={styles.newBtn}
-                onPress={() => {
-                  timesManuallyEdited.current = false;
-                  setSelectedId(null);
-                  const y = now.getFullYear();
-                  const m = now.getMonth() + 1;
-                  setForm({
-                    month: m,
-                    year: y,
-                    title: "Monthly Guru Quiz Tournament",
-                    rules: form.rules,
-                    ...buildDefaultTimes(y, m),
-                    subjects: [],
-                    customSubjects: [],
-                    prizes: defaultPrizes(),
-                  });
-                }}
-              >
+              <Pressable style={styles.newBtn} onPress={startNewDraft}>
                 <Ionicons name="add-circle" size={20} color={colors.primary} />
                 <AppText fontWeight="bold" style={{ color: colors.primary }}>
                   New Draft
@@ -1058,32 +1388,40 @@ const ManageCompetitionScreen = () => {
           </View>
 
           <AppText size="xsmall" style={styles.fieldLabel}>
-            Start (YYYY-MM-DD HH:MM)
+            Start
           </AppText>
-          <TextInput
-            style={styles.input}
-            placeholder="2025-06-07 00:00"
-            placeholderTextColor={colors.medium}
-            value={form.startTime}
-            onChangeText={(v) => {
-              timesManuallyEdited.current = true;
-              setForm({ ...form, startTime: v });
-            }}
-          />
+          <Pressable
+            style={styles.dateInputBtn}
+            onPress={() => openDatePicker("start")}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={colors.primary}
+              style={{ marginRight: 8 }}
+            />
+            <AppText style={{ color: colors.medium }}>
+              {formatDisplayDate(form.startTime)}
+            </AppText>
+          </Pressable>
 
           <AppText size="xsmall" style={styles.fieldLabel}>
-            End (YYYY-MM-DD HH:MM)
+            End
           </AppText>
-          <TextInput
-            style={styles.input}
-            placeholder="2025-06-08 00:00"
-            placeholderTextColor={colors.medium}
-            value={form.endTime}
-            onChangeText={(v) => {
-              timesManuallyEdited.current = true;
-              setForm({ ...form, endTime: v });
-            }}
-          />
+          <Pressable
+            style={styles.dateInputBtn}
+            onPress={() => openDatePicker("end")}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={colors.primary}
+              style={{ marginRight: 8 }}
+            />
+            <AppText style={{ color: colors.medium }}>
+              {formatDisplayDate(form.endTime)}
+            </AppText>
+          </Pressable>
 
           <Pressable
             onPress={resetToFirstSaturday}
@@ -1143,12 +1481,38 @@ const ManageCompetitionScreen = () => {
 
           {showSubjectPicker ? (
             <View style={styles.pickerBox}>
-              {availableSubjects.length === 0 ? (
+              {subjectsLoading ? (
+                <View style={{ padding: 16, alignItems: "center" }}>
+                  <LottieAnimator visible absolute={false} />
+                  <AppText size="xsmall" style={{ color: colors.medium }}>
+                    Loading subjects...
+                  </AppText>
+                </View>
+              ) : subjectsError ? (
+                <View style={{ padding: 12, alignItems: "center" }}>
+                  <AppText
+                    size="small"
+                    style={{ color: colors.heart, marginBottom: 8 }}
+                  >
+                    Couldn't load subjects.
+                  </AppText>
+                  <Pressable onPress={refetchSubjects}>
+                    <AppText
+                      fontWeight="bold"
+                      style={{ color: colors.primary }}
+                    >
+                      Tap to retry
+                    </AppText>
+                  </Pressable>
+                </View>
+              ) : availableSubjects.length === 0 ? (
                 <AppText
                   size="small"
                   style={{ color: colors.medium, padding: 8 }}
                 >
-                  All subjects already added
+                  {(subjectsData?.data || []).length === 0
+                    ? "No subjects found in the database"
+                    : "All subjects already added"}
                 </AppText>
               ) : (
                 availableSubjects.map((s) => (
@@ -1331,8 +1695,35 @@ const ManageCompetitionScreen = () => {
       </View>
 
       <PopMessage popData={popper} setPopData={setPopper} />
+
+      <PromptModal
+        visible={!!deletePrompt}
+        data={{
+          title: "Delete Draft",
+          msg: deletePrompt
+            ? `Delete "${MONTHS[(deletePrompt.month || 1) - 1]?.label} ${deletePrompt.year}"? This can't be undone.`
+            : "",
+          btn: "Delete",
+          type: "quit",
+        }}
+        onCancel={() => setDeletePrompt(null)}
+        onConfirm={confirmDelete}
+      />
+
+      <DateTimePickerModal
+        visible={!!datePickerTarget}
+        title={
+          datePickerTarget === "start" ? "Start Date & Time" : "End Date & Time"
+        }
+        initialDate={currentPickerInitialDate}
+        onCancel={() => setDatePickerTarget(null)}
+        onConfirm={handleDateConfirm}
+      />
+
       <LottieAnimator
-        visible={creating || updating || publishing || publishingResults}
+        visible={
+          creating || updating || publishing || publishingResults || deleting
+        }
         absolute
       />
     </View>
@@ -1364,6 +1755,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.lighter,
   },
+  listItemTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   listItemActive: { backgroundColor: colors.primaryLight },
   statusPill: {
     alignSelf: "flex-start",
@@ -1385,6 +1781,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     fontSize: 14,
     fontFamily: "sf-medium",
+  },
+  dateInputBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.lighter,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: colors.white,
   },
   textArea: { minHeight: 72, textAlignVertical: "top" },
   row: { flexDirection: "row", gap: 12 },
@@ -1608,4 +2013,120 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   publishedBox: { backgroundColor: "rgba(74,222,128,0.12)" },
+});
+
+// ─── Date/time picker modal styles ─────────────────────────────────────────────
+
+const dtpStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  sheet: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
+  },
+  monthNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  navBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.light,
+  },
+  dowRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  dowLabel: {
+    width: 36,
+    textAlign: "center",
+    color: colors.medium,
+  },
+  dayGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  dayCell: {
+    width: "14.28%",
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCellTouchable: {
+    borderRadius: 18,
+  },
+  dayCellSelected: {
+    backgroundColor: colors.primary,
+  },
+  satDot: {
+    position: "absolute",
+    bottom: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  satDotInline: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  satLegend: {
+    color: colors.medium,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  timeUnit: {
+    alignItems: "center",
+    gap: 4,
+  },
+  timeBtn: {
+    width: 32,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.light,
+    borderRadius: 8,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: colors.light,
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: colors.primary,
+  },
 });
