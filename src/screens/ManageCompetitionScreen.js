@@ -18,6 +18,7 @@ import { useSelector } from "react-redux";
 import AppHeader from "../components/AppHeader";
 import AppText from "../components/AppText";
 import AppButton from "../components/AppButton";
+import Avatar from "../components/Avatar";
 import PopMessage from "../components/PopMessage";
 import PromptModal from "../components/PromptModal";
 import LottieAnimator from "../components/LottieAnimator";
@@ -26,6 +27,7 @@ import { selectUser } from "../context/usersSlice";
 import {
   useCreateCompetitionMutation,
   useDeleteCompetitionMutation,
+  useFetchCompetitionLeaderboardQuery,
   useFetchCompetitionSubjectsTopicsQuery,
   useFetchCompetitionsListQuery,
   usePublishCompetitionMutation,
@@ -851,6 +853,83 @@ const DateTimePickerModal = ({
   );
 };
 
+// ─── Participant rankings panel (admin, completed months) ─────────────────────
+const RankingsPanel = ({ leaderboardData, isLoading }) => {
+  const rows = leaderboardData?.data || [];
+
+  return (
+    <View style={styles.rankingsSection}>
+      <View style={styles.sectionHeaderRow}>
+        <AppText fontWeight="bold" style={styles.sectionHeader}>
+          Participant Rankings
+        </AppText>
+        <AppText size="xsmall" style={{ color: colors.medium }}>
+          {leaderboardData?.totalParticipants ?? 0} participant(s) completed
+        </AppText>
+      </View>
+
+      {isLoading ? (
+        <View style={{ padding: 16, alignItems: "center" }}>
+          <LottieAnimator visible absolute={false} />
+        </View>
+      ) : rows.length === 0 ? (
+        <AppText
+          size="small"
+          style={{ color: colors.medium, padding: 8, marginBottom: 12 }}
+        >
+          No participants completed this competition
+        </AppText>
+      ) : (
+        <View style={styles.rankingsList}>
+          {rows.map((p, idx) => {
+            const isWinner = p.rank <= 3;
+            return (
+              <View
+                key={p._id || idx}
+                style={[
+                  styles.rankingRow,
+                  isWinner && styles.rankingRowWinner,
+                  idx === rows.length - 1 && { borderBottomWidth: 0 },
+                ]}
+              >
+                <View
+                  style={[styles.rankBadge, isWinner && styles.rankBadgeWinner]}
+                >
+                  <AppText
+                    fontWeight="black"
+                    size="xsmall"
+                    style={{ color: isWinner ? "#1a1a2e" : colors.medium }}
+                  >
+                    {p.rank}
+                  </AppText>
+                </View>
+                <Avatar size={30} source={p.avatar?.image} />
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <AppText fontWeight="bold" size="small">
+                    {p.firstName
+                      ? `${p.firstName} ${p.lastName || ""}`.trim()
+                      : `@${p.username}`}
+                  </AppText>
+                  <AppText size="xxsmall" style={{ color: colors.medium }}>
+                    @{p.username}
+                  </AppText>
+                </View>
+                <AppText
+                  fontWeight="bold"
+                  size="small"
+                  style={{ color: colors.primary }}
+                >
+                  {p.points}
+                </AppText>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+};
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 const ManageCompetitionScreen = () => {
@@ -1207,6 +1286,13 @@ const ManageCompetitionScreen = () => {
       (compFromList?.status === "active" &&
         new Date() >= new Date(compFromList?.endTime))) &&
     !compFromList?.resultsPublished;
+
+  // Fetch participant rankings once a completed competition is selected.
+  const isCompletedComp = compFromList?.status === "finished";
+  const { data: leaderboardData, isLoading: leaderboardLoading } =
+    useFetchCompetitionLeaderboardQuery(selectedId, {
+      skip: !selectedId || !isCompletedComp,
+    });
 
   return (
     <View style={styles.container}>
@@ -1663,7 +1749,8 @@ const ManageCompetitionScreen = () => {
                   style={{ color: colors.medium, marginTop: 2 }}
                 >
                   Participants will see their scores, rank, and the leaderboard.
-                  This cannot be undone.
+                  Points prizes for the top 3 will be credited automatically —
+                  cash prizes must still be paid out manually.
                 </AppText>
               </View>
               <AppButton
@@ -1688,6 +1775,14 @@ const ManageCompetitionScreen = () => {
                 Results are live — participants can see their scores
               </AppText>
             </View>
+          )}
+
+          {/* ── Participant Rankings (completed months only) ── */}
+          {isCompletedComp && (
+            <RankingsPanel
+              leaderboardData={leaderboardData}
+              isLoading={leaderboardLoading}
+            />
           )}
 
           <View style={{ height: 40 }} />
@@ -2013,6 +2108,41 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   publishedBox: { backgroundColor: "rgba(74,222,128,0.12)" },
+
+  // Participant rankings (admin, completed months)
+  rankingsSection: { marginTop: 8 },
+  rankingsList: {
+    backgroundColor: colors.light,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.lighter,
+    overflow: "hidden",
+  },
+  rankingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lighter,
+  },
+  rankingRowWinner: {
+    backgroundColor: colors.primaryLight,
+  },
+  rankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.lighter,
+    marginRight: 10,
+  },
+  rankBadgeWinner: {
+    backgroundColor: "#FFD700",
+    borderColor: "#FFD700",
+  },
 });
 
 // ─── Date/time picker modal styles ─────────────────────────────────────────────

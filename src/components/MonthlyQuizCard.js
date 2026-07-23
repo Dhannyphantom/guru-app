@@ -176,13 +176,6 @@ const PrizePill = ({ emoji, prize }) => (
     <AppText fontWeight="bold" size="xxsmall" style={{ color: ACCENT }}>
       {formatPrizeReward(prize)}
     </AppText>
-    {/* {prize?.type === "cash" && (
-      <View style={styles.cashDot}>
-        <AppText size="xxsmall" style={{ color: "#4ADE80", fontSize: 7 }}>
-          CASH
-        </AppText>
-      </View>
-    )} */}
   </View>
 );
 
@@ -208,6 +201,123 @@ const PrizeRow = ({ place, prize, medal }) => {
         </AppText>
       </View>
     </View>
+  );
+};
+
+// ─── My result card (rendered once results are published) ────────────────────
+// Winners (rank 1-3) get a celebratory highlighted card that also surfaces
+// whether their prize was auto-credited (points) or needs manual payout (cash).
+// Everyone else gets a clean "your position" card.
+const WINNER_STYLES = {
+  1: {
+    gradient: ["#FFE066", "#FFA500"],
+    icon: "trophy",
+    label: "🏆 You're the Champion!",
+    textColor: "#3D2B00",
+  },
+  2: {
+    gradient: ["#E8E8E8", "#B8B8B8"],
+    icon: "medal",
+    label: "🥈 Runner-up!",
+    textColor: "#2B2B2B",
+  },
+  3: {
+    gradient: ["#E3A15D", "#A05A2C"],
+    icon: "ribbon",
+    label: "🥉 Third Place!",
+    textColor: "#fff",
+  },
+};
+
+const MyResultCard = ({ myRank, myScore, totalParticipants, prizes }) => {
+  if (!myRank) return null;
+
+  const isWinner = myRank <= 3;
+
+  if (isWinner) {
+    const winnerStyle = WINNER_STYLES[myRank];
+    const placeKey = myRank === 1 ? "first" : myRank === 2 ? "second" : "third";
+    const prize = prizes?.[placeKey];
+
+    return (
+      <Animated.View
+        entering={FadeInDown.springify()}
+        style={styles.myResultWrapper}
+      >
+        <LinearGradient
+          colors={winnerStyle.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.winnerCard}
+        >
+          <View style={styles.winnerIconCircle}>
+            <Ionicons
+              name={winnerStyle.icon}
+              size={26}
+              color={winnerStyle.textColor}
+            />
+          </View>
+          <AppText
+            fontWeight="black"
+            size="medium"
+            style={{ color: winnerStyle.textColor, textAlign: "center" }}
+          >
+            {winnerStyle.label}
+          </AppText>
+          <AppText
+            size="small"
+            style={{
+              color: winnerStyle.textColor,
+              opacity: 0.85,
+              marginTop: 2,
+              textAlign: "center",
+            }}
+          >
+            Finished #{myRank} with {formatPoints(myScore)}
+          </AppText>
+          {prize && (
+            <View style={styles.winnerPrizeBadge}>
+              <AppText
+                fontWeight="bold"
+                size="xsmall"
+                style={{ color: winnerStyle.textColor, textAlign: "center" }}
+              >
+                {prize.type === "cash"
+                  ? `${formatPrizeReward(prize)} prize — payout arranged separately`
+                  : `+${formatPrizeReward(prize)} credited to your account`}
+              </AppText>
+            </View>
+          )}
+        </LinearGradient>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View
+      entering={FadeInDown.springify()}
+      style={styles.myResultWrapper}
+    >
+      <View style={styles.rankCard}>
+        <View style={styles.rankBadgeCircle}>
+          <AppText fontWeight="black" size="medium" style={{ color: ACCENT }}>
+            #{myRank}
+          </AppText>
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <AppText fontWeight="bold" style={{ color: "#fff" }}>
+            Your Position
+          </AppText>
+          <AppText size="xsmall" style={{ color: "rgba(255,255,255,0.6)" }}>
+            {formatPoints(myScore)}
+            {totalParticipants
+              ? ` · out of ${totalParticipants} participants`
+              : ""}
+          </AppText>
+        </View>
+        <Ionicons name="stats-chart" size={20} color={ACCENT} />
+      </View>
+    </Animated.View>
   );
 };
 
@@ -700,22 +810,16 @@ const CompetitionDetailsModal = ({
                         </>
                       )}
 
-                      {/* My result banner (only shown after results published) */}
+                      {/* My result card (only shown after results published) */}
                       {comp?.hasParticipated && comp?.resultsPublished && (
-                        <View style={styles.participatedBanner}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={22}
-                            color="#4ADE80"
-                          />
-                          <AppText
-                            style={{ color: "#4ADE80", marginLeft: 8 }}
-                            fontWeight="bold"
-                          >
-                            You completed this
-                            {comp.myRank ? ` · Position #${comp.myRank}` : ""}
-                          </AppText>
-                        </View>
+                        <MyResultCard
+                          myRank={comp.myRank}
+                          myScore={comp.myScore}
+                          totalParticipants={
+                            comp.participantsCount ?? comp.totalParticipants
+                          }
+                          prizes={comp.prizes}
+                        />
                       )}
 
                       {/* Participated but results not published yet — safety fallback */}
@@ -1178,6 +1282,45 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderWidth: 1,
     borderColor: "rgba(74,222,128,0.3)",
+  },
+
+  // My result card (winner / rank)
+  myResultWrapper: { marginTop: 16 },
+  winnerCard: {
+    borderRadius: 18,
+    padding: 18,
+    alignItems: "center",
+  },
+  winnerIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255,255,255,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  winnerPrizeBadge: {
+    marginTop: 10,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  rankCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 16,
+    padding: 14,
+  },
+  rankBadgeCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,195,113,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // Results pending panel
