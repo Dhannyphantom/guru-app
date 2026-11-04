@@ -1,7 +1,14 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,9 +28,9 @@ import Avatar from "./Avatar";
 import colors from "../helpers/colors";
 import { selectUser } from "../context/usersSlice";
 import {
-  useFetchActiveCompetitionQuery,
   useFetchCompetitionDetailsQuery,
   usePublishResultsMutation,
+  useAwardPrizesMutation,
 } from "../context/competitionSlice";
 import { LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { formatPoints } from "../helpers/helperFunctions";
@@ -43,6 +50,8 @@ const GRADIENTS = {
 const ACCENT = "#FFC371";
 const ACCENT_DIM = "rgba(255,195,113,0.55)";
 const GLOW_COLOR = "rgba(255,195,113,0.10)";
+const SUCCESS = "#4ADE80";
+const MEDAL_COLORS = { 1: "#ffe869", 2: "#C0C0C0", 3: "#CD7F32" };
 
 // ─────────────────────────────────────────────
 
@@ -70,6 +79,33 @@ const formatDuration = (seconds) => {
   return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
 };
 
+/** Time a participant actually took (seconds → "3m 12s") */
+const formatTimeTaken = (seconds) => {
+  if (!seconds) return null;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+};
+
+const formatEndDate = (date) => {
+  if (!date) return "";
+  try {
+    return new Date(date).toLocaleString(undefined, {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+};
+
+const currencySymbol = (code) => {
+  const map = { NGN: "₦", USD: "$", GBP: "£", EUR: "€", GHS: "₵", KES: "KSh " };
+  return map[code] || (code ? `${code} ` : "");
+};
+
 /**
  * Format a prize's reward for display.
  * points → "500 GT"  |  cash → "₦5,000" (or "5,000 NGN" fallback)
@@ -81,11 +117,6 @@ const formatPrizeReward = (prize) => {
     return `${symbol}${Number(prize.reward || 0).toLocaleString()}`;
   }
   return formatPoints(prize.reward);
-};
-
-const currencySymbol = (code) => {
-  const map = { NGN: "₦", USD: "$", GBP: "£", EUR: "€", GHS: "₵", KES: "KSh " };
-  return map[code] || (code ? `${code} ` : "");
 };
 
 const useCountdown = (targetDate, active) => {
@@ -145,11 +176,11 @@ const InlineCountdown = ({ countdown }) => {
 const LiveStatusChip = ({ hasParticipated }) =>
   hasParticipated ? (
     <View style={styles.liveChipDone}>
-      <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
+      <Ionicons name="checkmark-circle" size={14} color={SUCCESS} />
       <AppText
         fontWeight="bold"
         size="xxsmall"
-        style={{ color: "#4ADE80", marginLeft: 4 }}
+        style={{ color: SUCCESS, marginLeft: 4 }}
       >
         Completed
       </AppText>
@@ -200,6 +231,252 @@ const PrizeRow = ({ place, prize, medal }) => {
           {isCash && prize?.description ? ` · ${prize.description}` : ""}
         </AppText>
       </View>
+    </View>
+  );
+};
+
+// ─── Participant row (rankings list) ──────────────────────────────────────────
+const ParticipantRow = ({ item, index, isMe }) => {
+  const rank = item.rank ?? index + 1;
+  const medal = MEDAL_COLORS[rank];
+  const timeTaken = formatTimeTaken(item.duration);
+
+  return (
+    <View style={[styles.lbRow, isMe && styles.lbRowMe]}>
+      <View
+        style={[styles.rankPill, medal ? { backgroundColor: medal } : null]}
+      >
+        <AppText
+          fontWeight="black"
+          size="xsmall"
+          style={{ color: medal ? "#1a1a2e" : ACCENT }}
+        >
+          {rank}
+        </AppText>
+      </View>
+      <Avatar size={32} source={item.user?.avatar?.image} />
+      <View style={{ flex: 1, marginLeft: 10 }}>
+        <AppText
+          style={{ color: "#fff" }}
+          fontWeight="semibold"
+          numberOfLines={1}
+        >
+          @{item.user?.username || "unknown"}
+          {isMe ? " (you)" : ""}
+        </AppText>
+        {timeTaken ? (
+          <AppText size="xxsmall" style={{ color: "rgba(255,255,255,0.5)" }}>
+            {timeTaken}
+          </AppText>
+        ) : null}
+      </View>
+      <AppText fontWeight="bold" style={{ color: ACCENT }}>
+        {formatPoints(item.score)}
+      </AppText>
+    </View>
+  );
+};
+
+// ─── Manager: publish status banner (modal body) ──────────────────────────────
+const ManagerStatusBanner = ({ comp }) => {
+  if (!comp) return null;
+
+  if (comp.resultsPublished) {
+    return (
+      <View
+        style={[
+          styles.managerBanner,
+          {
+            backgroundColor: "rgba(74,222,128,0.12)",
+            borderColor: "rgba(74,222,128,0.3)",
+          },
+        ]}
+      >
+        <Ionicons name="checkmark-circle" size={20} color={SUCCESS} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <AppText fontWeight="bold" size="small" style={{ color: SUCCESS }}>
+            Results published
+          </AppText>
+          <AppText size="xsmall" style={styles.bannerSub}>
+            Participants can now see their scores and ranks. Points prizes are
+            credited automatically and winners are notified; cash prizes need
+            manual payout.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  if (comp.canPublishResults) {
+    return (
+      <View style={styles.managerBanner}>
+        <Ionicons name="megaphone" size={20} color={ACCENT} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <AppText fontWeight="bold" size="small" style={{ color: ACCENT }}>
+            Ready to publish
+          </AppText>
+          <AppText size="xsmall" style={styles.bannerSub}>
+            The tournament has ended. Publishing ranks everyone, credits points
+            prizes to the top 3 and can't be undone.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.managerBanner}>
+      <Ionicons name="lock-closed" size={20} color={ACCENT_DIM} />
+      <View style={{ flex: 1, marginLeft: 10 }}>
+        <AppText fontWeight="bold" size="small" style={{ color: ACCENT }}>
+          {comp.isUpcoming
+            ? "Not started yet"
+            : comp.isLive
+              ? "Tournament is live"
+              : "Not publishable yet"}
+        </AppText>
+        <AppText size="xsmall" style={styles.bannerSub}>
+          {comp.isLive
+            ? `Results can be published once it ends (${formatEndDate(comp.endTime)}).`
+            : comp.isUpcoming
+              ? "Results can be published after the tournament has run."
+              : "This competition hasn't been published yet."}
+        </AppText>
+      </View>
+    </View>
+  );
+};
+
+// ─── Manager: prize settlement panel (after results are published) ────────────
+// Shows what each winner got, whether it was credited / notified, and a retry
+// button when something is outstanding. Cash prizes are always paid manually.
+const PLACE_KEYS = ["first", "second", "third"];
+
+const SettlementRow = ({ winner, prize }) => {
+  const type = winner.prizeType;
+  const isCash = type === "cash";
+  const isPoints = type === "points";
+
+  let statusText = "No prize configured";
+  let statusColor = "rgba(255,255,255,0.5)";
+  let icon = "remove-circle";
+
+  if (isPoints && winner.prizeAwarded) {
+    statusText = `+${formatPrizeReward(prize)} credited`;
+    statusColor = SUCCESS;
+    icon = "checkmark-circle";
+  } else if (isPoints) {
+    statusText = "Credit failed — tap retry";
+    statusColor = "#FF8A80";
+    icon = "alert-circle";
+  } else if (isCash) {
+    statusText = `${formatPrizeReward(prize)} · pay manually`;
+    statusColor = ACCENT;
+    icon = "cash";
+  }
+
+  return (
+    <View style={styles.settleRow}>
+      <View
+        style={[
+          styles.rankPill,
+          MEDAL_COLORS[winner.rank]
+            ? { backgroundColor: MEDAL_COLORS[winner.rank] }
+            : null,
+        ]}
+      >
+        <AppText fontWeight="black" size="xsmall" style={{ color: "#1a1a2e" }}>
+          {winner.rank}
+        </AppText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText
+          fontWeight="semibold"
+          size="small"
+          style={{ color: "#fff" }}
+          numberOfLines={1}
+        >
+          @{winner.user?.username || "unknown"}
+        </AppText>
+        <View
+          style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
+        >
+          <Ionicons name={icon} size={13} color={statusColor} />
+          <AppText size="xxsmall" style={{ color: statusColor, marginLeft: 4 }}>
+            {statusText}
+          </AppText>
+        </View>
+      </View>
+      <View style={{ alignItems: "flex-end" }}>
+        <Ionicons
+          name={winner.notified ? "notifications" : "notifications-off"}
+          size={16}
+          color={winner.notified ? SUCCESS : "rgba(255,255,255,0.4)"}
+        />
+        <AppText
+          size="xxsmall"
+          style={{
+            color: winner.notified ? SUCCESS : "rgba(255,255,255,0.4)",
+            marginTop: 1,
+          }}
+        >
+          {winner.notified ? "Push sent" : "Push not sent"}
+        </AppText>
+      </View>
+    </View>
+  );
+};
+
+const PrizeSettlementPanel = ({ comp, onRetry, retrying }) => {
+  const winners = comp?.finalRankings || [];
+  if (!comp?.resultsPublished || winners.length === 0) return null;
+  const summary = comp.awardSummary || {};
+
+  return (
+    <View style={styles.settleBox}>
+      <AppText
+        fontWeight="bold"
+        size="small"
+        style={{ color: ACCENT, marginBottom: 6 }}
+      >
+        Prize settlement
+      </AppText>
+      <AppText
+        size="xxsmall"
+        style={{ color: "rgba(255,255,255,0.6)", marginBottom: 8 }}
+      >
+        Points prizes are credited automatically. Cash prizes are never
+        auto-paid — settle those manually.
+      </AppText>
+
+      {winners.map((w) => (
+        <SettlementRow
+          key={w.rank}
+          winner={w}
+          prize={comp.prizes?.[PLACE_KEYS[w.rank - 1]]}
+        />
+      ))}
+
+      {summary.needsRetry ? (
+        <View style={{ marginTop: 12 }}>
+          <AppButton
+            title={retrying ? "Processing…" : "Retry awards & push"}
+            type="accent"
+            onPress={onRetry}
+          />
+        </View>
+      ) : (
+        <View style={styles.settleDone}>
+          <Ionicons name="checkmark-done" size={16} color={SUCCESS} />
+          <AppText
+            size="xxsmall"
+            fontWeight="bold"
+            style={{ color: SUCCESS, marginLeft: 6 }}
+          >
+            All points prizes credited · all winners sent a push
+          </AppText>
+        </View>
+      )}
     </View>
   );
 };
@@ -459,6 +736,7 @@ const CompetitionDetailsModal = ({
 }) => {
   const user = useSelector(selectUser);
   const isManager = user?.accountType === "manager";
+  const myId = user?._id || user?.id;
 
   const [popper, setPopper] = useState({ vis: false });
 
@@ -468,9 +746,13 @@ const CompetitionDetailsModal = ({
     refetch: refetchList,
   } = useFetchCompetitionDetailsQuery(competitionId, {
     skip: !visible || !competitionId,
+    // Always pull fresh data when the modal opens so the publish state is
+    // never stale (e.g. results published from another device).
+    refetchOnMountOrArgChange: true,
   });
   const [publishResults, { isLoading: publishingResults }] =
     usePublishResultsMutation();
+  const [awardPrizes, { isLoading: awardingPrizes }] = useAwardPrizesMutation();
   const comp = data?.data;
   const insets = useSafeAreaInsets();
 
@@ -479,32 +761,47 @@ const CompetitionDetailsModal = ({
     : comp?.isUpcoming
       ? "UPCOMING"
       : comp?.resultsPublished
-        ? "RESULTS OUT"
-        : "ENDED";
+        ? "RESULTS PUBLISHED"
+        : isManager
+          ? "ENDED · AWAITING RESULTS"
+          : "ENDED";
 
-  // Ended but results not yet published — show pending panel (for participants)
+  // Participants see the "pending" panel until results are published.
+  // Managers always see the rankings.
   const showResultsPending = !isManager && !comp?.resultsPublished;
 
-  const canPublishResults =
-    (comp?.status === "finished" ||
-      (comp?.status === "active" && new Date() >= new Date(comp?.endTime))) &&
-    !comp?.resultsPublished;
+  // Decided by the SERVER (server clock + status) so a wrong phone clock can
+  // never block or wrongly allow publishing.
+  const canPublishResults = Boolean(comp?.canPublishResults);
 
-  const onPublishResults = async () => {
-    if (!canPublishResults) {
-      return setPopper({
-        vis: true,
-        type: "failed",
-        msg: "Cannot publish results yet, Tournament is still Live!",
-      });
-    }
-
+  const onRetryAwards = async () => {
+    if (awardingPrizes) return;
     try {
-      await publishResults(competitionId).unwrap();
+      const res = await awardPrizes(competitionId).unwrap();
       setPopper({
         vis: true,
-        type: "success",
-        msg: "Results published — participants can now view their scores!",
+        type: res?.data?.needsRetry ? "failed" : "success",
+        msg: res?.message || "Awards processed",
+      });
+      refetchList();
+    } catch (err) {
+      setPopper({
+        vis: true,
+        type: "failed",
+        msg: err?.data?.message || "Failed to process awards",
+      });
+    }
+  };
+
+  const runPublish = async () => {
+    try {
+      const res = await publishResults(competitionId).unwrap();
+      setPopper({
+        vis: true,
+        type: res?.data?.awardSummary?.needsRetry ? "failed" : "success",
+        msg:
+          res?.message ||
+          "Results published — participants can now view their scores!",
       });
       refetchList();
     } catch (err) {
@@ -516,18 +813,73 @@ const CompetitionDetailsModal = ({
     }
   };
 
+  const onPublishResults = () => {
+    if (publishingResults) return;
+
+    if (comp?.resultsPublished) {
+      return setPopper({
+        vis: true,
+        type: "failed",
+        msg: "Results have already been published.",
+      });
+    }
+
+    if (!canPublishResults) {
+      const msg = comp?.isUpcoming
+        ? "This tournament hasn't started yet."
+        : comp?.isLive
+          ? "Tournament is still live — you can publish once it ends."
+          : "This competition hasn't been published yet.";
+      return setPopper({ vis: true, type: "failed", msg });
+    }
+
+    Alert.alert(
+      "Publish results?",
+      "This ranks all participants, credits points prizes to the top 3 and notifies them (cash prizes are paid manually), and makes scores visible to everyone. It can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Publish", style: "default", onPress: runPublish },
+      ],
+    );
+  };
+
   const renderFooter = () => {
     if (isManager) {
+      if (comp?.resultsPublished) {
+        return (
+          <View style={styles.publishedPill}>
+            <Ionicons name="checkmark-circle" size={20} color={SUCCESS} />
+            <AppText
+              fontWeight="bold"
+              style={{ color: SUCCESS, marginLeft: 8 }}
+            >
+              Results Published
+            </AppText>
+          </View>
+        );
+      }
+      if (!canPublishResults) {
+        return (
+          <View style={styles.lockedPill}>
+            <Ionicons name="lock-closed" size={18} color={ACCENT_DIM} />
+            <AppText
+              fontWeight="bold"
+              size="small"
+              style={{ color: ACCENT_DIM, marginLeft: 8 }}
+            >
+              {comp?.isLive
+                ? "Publish unlocks when the tournament ends"
+                : "Publishing not available yet"}
+            </AppText>
+          </View>
+        );
+      }
       return (
-        <>
-          <AppButton
-            title="Publish Results"
-            type="accent"
-            onPress={() => {
-              onPublishResults?.();
-            }}
-          />
-        </>
+        <AppButton
+          title={publishingResults ? "Publishing…" : "Publish Results"}
+          type="accent"
+          onPress={onPublishResults}
+        />
       );
     }
     if (!isSubscribed) {
@@ -572,6 +924,12 @@ const CompetitionDetailsModal = ({
     return <AppButton title="Close" type="white" onPress={onClose} />;
   };
 
+  const participantsTotal =
+    comp?.participantsCount ?? comp?.totalParticipants ?? 0;
+  const showRankings =
+    comp?.leaderboard?.length > 0 &&
+    (isManager || comp?.isLive || comp?.resultsPublished);
+
   return (
     <Modal
       visible={visible}
@@ -596,11 +954,18 @@ const CompetitionDetailsModal = ({
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.modalBadge}>
+              <View
+                style={[
+                  styles.modalBadge,
+                  comp?.resultsPublished && {
+                    backgroundColor: "rgba(74,222,128,0.18)",
+                  },
+                ]}
+              >
                 <AppText
                   fontWeight="bold"
                   size="xxsmall"
-                  style={{ color: ACCENT }}
+                  style={{ color: comp?.resultsPublished ? SUCCESS : ACCENT }}
                 >
                   {statusLabel}
                 </AppText>
@@ -632,14 +997,24 @@ const CompetitionDetailsModal = ({
                 </View>
               ) : (
                 <>
+                  {/* Manager publish status */}
+                  {isManager && <ManagerStatusBanner comp={comp} />}
+
+                  {/* Manager: who won what, credited / notified, retry */}
+                  {isManager && (
+                    <PrizeSettlementPanel
+                      comp={comp}
+                      onRetry={onRetryAwards}
+                      retrying={awardingPrizes}
+                    />
+                  )}
+
                   {/* Stats row */}
                   <View style={styles.modalStatsRow}>
                     <View style={styles.modalStat}>
                       <Ionicons name="people" size={20} color={ACCENT} />
                       <AppText fontWeight="bold" style={{ color: "#fff" }}>
-                        {comp?.participantsCount ??
-                          comp?.totalParticipants ??
-                          0}
+                        {participantsTotal}
                       </AppText>
                       <AppText
                         size="xxsmall"
@@ -714,116 +1089,117 @@ const CompetitionDetailsModal = ({
                     <PrizeRow
                       place="1st"
                       prize={comp?.prizes?.first}
-                      medal="#ffe869"
+                      medal={MEDAL_COLORS[1]}
                     />
                     <PrizeRow
                       place="2nd"
                       prize={comp?.prizes?.second}
-                      medal="#C0C0C0"
+                      medal={MEDAL_COLORS[2]}
                     />
                     <PrizeRow
                       place="3rd"
                       prize={comp?.prizes?.third}
-                      medal="#CD7F32"
+                      medal={MEDAL_COLORS[3]}
                     />
                   </View>
 
                   {/* Results pending panel — replaces all score/ranking UI */}
                   {showResultsPending ? (
                     <ResultsPendingPanel
-                      participantsCount={
-                        comp?.participantsCount ?? comp?.totalParticipants ?? 0
-                      }
+                      participantsCount={participantsTotal}
                       hasParticipated={comp?.hasParticipated}
                     />
                   ) : (
                     <>
-                      {/* Last winners */}
-                      {(comp?.lastWinners?.length > 0 ||
-                        comp?.finalRankings?.length > 0) && (
-                        <>
-                          <AppText
-                            fontWeight="bold"
-                            size="medium"
-                            style={{ ...styles.sectionTitle, marginTop: 16 }}
-                          >
-                            {comp?.isEnded && comp?.resultsPublished
-                              ? "Winners"
-                              : "Last Winners"}
-                          </AppText>
-                          <LeaderboardWinners
-                            isPro={false}
-                            data={(comp.lastWinners || comp.finalRankings || [])
-                              .slice(0, 3)
-                              .map((w) => ({
+                      {/* Winners (only once results are published) */}
+                      {comp?.resultsPublished &&
+                        comp?.finalRankings?.length > 0 && (
+                          <>
+                            <AppText
+                              fontWeight="bold"
+                              size="medium"
+                              style={{ ...styles.sectionTitle, marginTop: 16 }}
+                            >
+                              Winners
+                            </AppText>
+                            <LeaderboardWinners
+                              isPro={false}
+                              data={comp.finalRankings.slice(0, 3).map((w) => ({
                                 _id: w.user?._id || w.user,
                                 username: w.user?.username,
                                 firstName: w.user?.firstName,
                                 points: w.score,
                                 avatar: w.user?.avatar,
                               }))}
-                          />
-                        </>
-                      )}
+                            />
+                          </>
+                        )}
 
-                      {/* Live leaderboard */}
-                      {comp?.leaderboard?.length > 0 && comp?.isLive && (
+                      {/* Participants & rankings
+                          - Manager: every participant who submitted, ranked
+                          - Everyone else: top 10 (live or after publish) */}
+                      {showRankings && (
                         <>
                           <AppText
                             fontWeight="bold"
                             size="medium"
                             style={{ ...styles.sectionTitle, marginTop: 16 }}
                           >
-                            Live Leaderboard
+                            {isManager
+                              ? `Participants & Rankings (${comp.leaderboard.length})`
+                              : comp.isLive
+                                ? "Live Leaderboard"
+                                : "Leaderboard"}
                           </AppText>
-                          {comp.leaderboard.slice(0, 5).map((p, i) => (
-                            <View key={p.user?._id || i} style={styles.lbRow}>
-                              <AppText
-                                fontWeight="bold"
-                                style={{ color: ACCENT, width: 28 }}
-                                size="xlarge"
-                              >
-                                {p.rank}
-                              </AppText>
-                              <Avatar
-                                size={32}
-                                source={p.user?.avatar?.image}
-                              />
-                              <AppText
-                                style={{
-                                  flex: 1,
-                                  color: "#fff",
-                                  marginLeft: 10,
-                                }}
-                                fontWeight="semibold"
-                              >
-                                @{p.user?.username}
-                              </AppText>
-                              <AppText
-                                fontWeight="bold"
-                                style={{ color: ACCENT }}
-                              >
-                                {formatPoints(p.score)}
-                              </AppText>
-                            </View>
+                          {comp.leaderboard.map((p, i) => (
+                            <ParticipantRow
+                              key={p.user?._id || i}
+                              item={p}
+                              index={i}
+                              isMe={
+                                !!myId &&
+                                (p.user?._id || p.user)?.toString() ===
+                                  myId.toString()
+                              }
+                            />
                           ))}
                         </>
                       )}
+
+                      {isManager &&
+                        !isLoading &&
+                        !(comp?.leaderboard?.length > 0) && (
+                          <View style={styles.emptyRankings}>
+                            <Ionicons
+                              name="people-outline"
+                              size={22}
+                              color={ACCENT_DIM}
+                            />
+                            <AppText
+                              size="small"
+                              style={{
+                                color: "rgba(255,255,255,0.6)",
+                                marginTop: 6,
+                              }}
+                            >
+                              No participants have submitted yet
+                            </AppText>
+                          </View>
+                        )}
 
                       {/* My result card (only shown after results published) */}
                       {comp?.hasParticipated && comp?.resultsPublished && (
                         <MyResultCard
                           myRank={comp.myRank}
                           myScore={comp.myScore}
-                          totalParticipants={
-                            comp.participantsCount ?? comp.totalParticipants
-                          }
+                          totalParticipants={participantsTotal}
                           prizes={comp.prizes}
                         />
                       )}
 
                       {/* Participated but results not published yet — safety fallback */}
-                      {comp?.hasParticipated &&
+                      {!isManager &&
+                        comp?.hasParticipated &&
                         !comp?.resultsPublished &&
                         !comp?.isLive && (
                           <View
@@ -872,6 +1248,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 
   const comp = data?.data;
   const isSubscribed = user?.subscription?.isActive;
+  const isManager = user?.accountType === "manager";
 
   const countdownTarget = useMemo(() => {
     if (!comp) return null;
@@ -915,11 +1292,18 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
 
   if (isLoading || !comp) return null;
 
+  const awaitingResults =
+    !comp.isLive && !comp.isUpcoming && !comp.resultsPublished;
+
   const statusColor = comp.isLive
     ? colors.green
     : comp.isUpcoming
       ? colors.warning
-      : colors.lighter;
+      : comp.resultsPublished
+        ? SUCCESS
+        : isManager
+          ? ACCENT
+          : colors.lighter;
 
   const statusText = comp.isLive
     ? "LIVE"
@@ -927,7 +1311,9 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
       ? "UPCOMING"
       : comp.resultsPublished
         ? "RESULTS OUT"
-        : "ENDED";
+        : isManager
+          ? "AWAITING RESULTS"
+          : "ENDED";
 
   const renderMiddleLeft = () => {
     if (comp.isLive) {
@@ -935,6 +1321,34 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
     }
     if (countdown && !countdown.done) {
       return <InlineCountdown countdown={countdown} />;
+    }
+    if (isManager && awaitingResults && comp.canPublishResults) {
+      return (
+        <View style={styles.liveChipPlay}>
+          <Ionicons name="megaphone" size={13} color="#fff" />
+          <AppText
+            fontWeight="bold"
+            size="xxsmall"
+            style={{ color: "#fff", marginLeft: 4 }}
+          >
+            Publish results · {comp.totalParticipants || 0} joined
+          </AppText>
+        </View>
+      );
+    }
+    if (isManager && comp.resultsPublished) {
+      return (
+        <View style={styles.liveChipDone}>
+          <Ionicons name="checkmark-circle" size={14} color={SUCCESS} />
+          <AppText
+            fontWeight="bold"
+            size="xxsmall"
+            style={{ color: SUCCESS, marginLeft: 4 }}
+          >
+            Published · {comp.totalParticipants || 0} joined
+          </AppText>
+        </View>
+      );
     }
     return (
       <View style={styles.participantsChip}>
@@ -1059,7 +1473,7 @@ const MonthlyQuizCard = ({ data, isLoading, refetch }) => {
         visible={detailsOpen}
         onClose={() => {
           setDetailsOpen(false);
-          refetch();
+          refetch?.();
         }}
         competitionId={comp._id}
         isSubscribed={isSubscribed}
@@ -1236,13 +1650,96 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: { color: ACCENT, marginBottom: 10 },
+
+  // Rankings list
   lbRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  lbRowMe: {
+    backgroundColor: "rgba(255,195,113,0.10)",
+    borderRadius: 10,
+  },
+  rankPill: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    marginRight: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,195,113,0.15)",
+  },
+  emptyRankings: {
+    alignItems: "center",
+    paddingVertical: 24,
+    marginTop: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 14,
+  },
+
+  // Prize settlement panel
+  settleBox: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  settleRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.06)",
   },
+  settleDone: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  // Manager banner / footer states
+  managerBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "rgba(255,195,113,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(255,195,113,0.25)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  bannerSub: {
+    color: "rgba(255,255,255,0.7)",
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  publishedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(74,222,128,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.3)",
+  },
+  lockedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+  },
+
   participatedBanner: {
     flexDirection: "row",
     alignItems: "center",

@@ -33,11 +33,15 @@ export const competitionApiSlice = apiSlice.injectEndpoints({
     }),
     publishResults: builder.mutation({
       query: (competitionId) => ({
-        // NOTE: this previously had a leading space before the path
-        // ("` /competition/manage/...`"), which silently broke the request
-        // in some RN/fetch setups since the URL no longer matched
-        // apiSlice's baseUrl join logic. Fixed below.
         url: `/competition/manage/${competitionId}/publish-results`,
+        method: "POST",
+      }),
+      invalidatesTags: ["COMPETITION", "COMPETITION_LEADERBOARD", "USER_STAT"],
+    }),
+    // Retry crediting points prizes + notifying winners (cash is never auto-paid)
+    awardPrizes: builder.mutation({
+      query: (competitionId) => ({
+        url: `/competition/manage/${competitionId}/award-prizes`,
         method: "POST",
       }),
       invalidatesTags: ["COMPETITION", "COMPETITION_LEADERBOARD", "USER_STAT"],
@@ -90,6 +94,7 @@ export const {
   useFetchCompetitionQuestionsMutation,
   useSubmitCompetitionQuizMutation,
   usePublishResultsMutation,
+  useAwardPrizesMutation,
   useFetchCompetitionsListQuery,
   useFetchCompetitionSubjectsTopicsQuery,
   useCreateCompetitionMutation,
