@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/exhaustive-deps */
 import {
   FlatList,
@@ -65,6 +66,7 @@ import MonthlyQuizCard from "../components/MonthlyQuizCard";
 import { apiSlice } from "../context/apiSlice";
 import { useFetchActiveCompetitionQuery } from "../context/competitionSlice";
 import AppTutorial from "../components/AppTutorial"; // ← new
+import JambBoard from "../components/jamb/JambBoard";
 
 const { width } = Dimensions.get("screen");
 
@@ -377,6 +379,19 @@ const HomeScreen = () => {
               }}
             >
               <DailyTask stats={stats?.data ?? cache?.stat} />
+
+              <JambBoard
+                isPremium={Boolean(user?.subscription?.isActive)}
+                onStart={() => router.push("/main/jamb")}
+                onLocked={() =>
+                  setPopper({
+                    vis: true,
+                    type: "failed",
+                    timer: 3500,
+                    msg: "The JAMB Score Predictor is for premium users. Subscribe to unlock it.",
+                  })
+                }
+              />
 
               <MonthlyQuizCard
                 data={competitionData}
