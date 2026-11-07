@@ -108,6 +108,7 @@ const JambSubjectStep = ({
   subjects = [],
   loading = false,
   initialIds = [],
+  roundProgress = 0,
   onBack,
   onContinue,
 }) => {
@@ -217,6 +218,15 @@ const JambSubjectStep = ({
             </Animated.View>
           </View>
 
+          {roundProgress > 0 && (
+            <Animated.View entering={FadeIn} style={styles.warn}>
+              <Ionicons name="information-circle" size={16} color={J.amber} />
+              <AppText fontWeight="medium" size={11.5} style={{ color: "#6B5A1E", marginLeft: 6, flex: 1, lineHeight: 16 }}>
+                A round is in progress. Changing your subjects will restart it.
+              </AppText>
+            </Animated.View>
+          )}
+
           <View style={styles.grid}>
             {loading
               ? Array.from({ length: 8 }).map((_, i) => (
@@ -311,6 +321,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  warn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: J.amberBg,
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 10,
   },
   note: { backgroundColor: "#EEF8E6", borderWidth: 1, borderColor: J.mintStrong },
   noteRow: { flexDirection: "row", alignItems: "flex-start" },

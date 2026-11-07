@@ -20,6 +20,7 @@ import { useFloat } from "./JambUI";
 const JambIllustration = ({
   variant = "score",
   value = "280+",
+  outOf,
   caption = "Score",
   source,
   size = 132,
@@ -54,7 +55,7 @@ const JambIllustration = ({
       <Animated.View
         style={[
           styles.card,
-          { width: W * 0.62, left: 2, top: H * 0.1 },
+          { width: W * 0.66, left: 0, top: H * 0.1 },
           floatCard,
         ]}
       >
@@ -79,9 +80,24 @@ const JambIllustration = ({
             <AppText fontWeight="bold" size={9} style={{ color: J.muted, letterSpacing: 0.4 }}>
               {caption}
             </AppText>
-            <AppText fontWeight="black" size={isResult ? 19 : 22} style={{ color: J.deep }}>
-              {value}
-            </AppText>
+            {/* number + "/400" sit on one baseline and shrink instead of overflowing */}
+            <View style={styles.valueRow}>
+              <AppText
+                fontWeight="black"
+                size={22}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+                style={{ color: J.deep, flexShrink: 1 }}
+              >
+                {value}
+              </AppText>
+              {Boolean(outOf) && (
+                <AppText fontWeight="bold" size={10.5} numberOfLines={1} style={{ color: J.muted, marginLeft: 1 }}>
+                  /{outOf}
+                </AppText>
+              )}
+            </View>
           </View>
         )}
 
@@ -139,8 +155,10 @@ const styles = StyleSheet.create({
     backgroundColor: J.mint,
     borderRadius: 8,
     paddingVertical: 5,
+    paddingHorizontal: 4,
     alignItems: "center",
   },
+  valueRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", alignSelf: "stretch" },
   checkRow: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
   checkLine: { flex: 1, height: 4, borderRadius: 2, backgroundColor: J.mintStrong, marginLeft: 5 },
   checkBadge: {

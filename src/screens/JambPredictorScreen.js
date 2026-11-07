@@ -11,7 +11,6 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import Screen from "../components/Screen";
 import AppLogo from "../components/AppLogo";
 import AppText from "../components/jamb/JambText";
-import { slideIn, slideOut } from "../components/jamb/JambMotion";
 import SubStatus from "../components/SubStatus";
 import JambIntroStep from "../components/jamb/JambIntroStep";
 import JambSubjectStep from "../components/jamb/JambSubjectStep";
@@ -19,7 +18,9 @@ import JambOverviewStep from "../components/jamb/JambOverviewStep";
 import JambQuizStep from "../components/jamb/JambQuizStep";
 import JambResultStep from "../components/jamb/JambResultStep";
 import { JambButton, JambPressable } from "../components/jamb/JambUI";
-import { buildJambResult, J } from "../helpers/jambConfig";
+import { slideIn, slideOut } from "../components/jamb/JambMotion";
+import { useJambSummary } from "../components/jamb/useJambSummary";
+import { J, buildSubjectResults } from "../helpers/jambConfig";
 import jambService from "../services/jambService";
 import { selectUser } from "../context/usersSlice";
 import { useFetchSubjectsQuery } from "../context/instanceSlice";
@@ -27,8 +28,10 @@ import { useFetchSubjectsQuery } from "../context/instanceSlice";
 const STEPS = ["intro", "subjects", "overview", "quiz", "result"];
 
 /**
- * Orchestrates the flow:
- *   intro (1.jpeg) -> subjects (2.jpeg) -> overview (3.jpeg) -> quiz -> result (4.jpeg)
+ * Flow:
+ *   intro -> subjects (pick 4) -> overview (pick what to practise now) -> quiz
+ *        -> back to overview  (round not finished: finished subjects are locked)
+ *        -> result            (ONLY when all four subjects of the round are done)
  * Premium only.
  */
 const JambPredictorScreen = () => {
@@ -38,13 +41,14 @@ const JambPredictorScreen = () => {
 
   const { data: subjectsData, isLoading: loadingSubjects } = useFetchSubjectsQuery();
   const subjects = subjectsData?.data ?? [];
+  const { summary, refresh } = useJambSummary();
 
   const [nav, setNav] = useState({ step: "intro", dir: 1 });
   const [selected, setSelected] = useState([]); // the 4 JAMB subjects
-  const [practice, setPractice] = useState([]); // subset picked on step 3
+  const [practice, setPractice] = useState([]); // subset being practised now
   const [initialIds, setInitialIds] = useState([]);
-  const [result, setResult] = useState(null);
-  const [lifetime, setLifetime] = useState(0);
+  const [result, setResult] = useState(null); // completed ROUND result
+  const [notice, setNotice] = useState(null);
 
   const stepRef = useRef("intro");
   stepRef.current = nav.step;
@@ -52,6 +56,15 @@ const JambPredictorScreen = () => {
   useEffect(() => {
     jambService.getSavedSelection().then(setInitialIds);
   }, []);
+
+  // Restore the saved 4-subject combination so users can jump straight in
+  useEffect(() => {
+    if (!subjects.length || selected.length || !initialIds.length) return;
+    const restored = initialIds
+      .map((id) => subjects.find((s) => s._id === id))
+      .filter(Boolean);
+    if (restored.length === initialIds.length) setSelected(restored);
+  }, [subjects, initialIds]);
 
   /**
    * Two-phase navigation: update the direction first so the OUTGOING view's
@@ -77,26 +90,53 @@ const JambPredictorScreen = () => {
         case "quiz":
           return true; // use the Quit button inside the quiz
         default:
-          return false; // intro / result -> normal back
+          return false;
       }
     });
     return () => sub.remove();
   }, [go]);
 
+  const roundProgress = Object.keys(summary?.round?.completed ?? {}).length;
+
   const handleSubjects = async (picked) => {
     setSelected(picked);
-    await jambService.saveSelection(picked.map((s) => s._id));
+    await jambService.saveSelection(picked.map((s) => s._id)); // new combo => new round
+    await refresh();
     go("overview");
   };
 
   const handleFinish = async (session) => {
-    const res = buildJambResult(session, practice);
-    setResult(res);
-    try {
-      const { lifetimeCorrect } = await jambService.submitResult(res);
-      setLifetime(lifetimeCorrect);
-    } catch {}
-    go("result");
+    const subjectResults = buildSubjectResults(session, practice);
+    const out = await jambService.submitQuizResult(subjectResults);
+    await refresh();
+
+    if (out.blocked) {
+      setNotice({
+        key: Date.now(),
+        text: "Your next round isn't unlocked yet. This attempt wasn't counted.",
+      });
+      go("overview");
+      return;
+    }
+
+    if (out.complete) {
+      // Round finished -> NOW the prediction screen is allowed to show
+      setResult(out.roundResult);
+      go("result");
+      return;
+    }
+
+    const names = subjectResults.map((s) => s.name).join(", ");
+    const avg = Math.round(
+      subjectResults.reduce((n, s) => n + s.percent, 0) / (subjectResults.length || 1),
+    );
+    setNotice({
+      key: Date.now(),
+      text: `${names} completed (${avg}%). ${out.remaining} subject${
+        out.remaining === 1 ? "" : "s"
+      } left to unlock your score prediction.`,
+    });
+    go("overview");
   };
 
   const { step, dir } = nav;
@@ -109,13 +149,14 @@ const JambPredictorScreen = () => {
   const renderStep = () => {
     switch (step) {
       case "intro":
-        return <JambIntroStep onContinue={() => go("subjects")} />;
+        return <JambIntroStep summary={summary} onContinue={() => go("subjects")} />;
       case "subjects":
         return (
           <JambSubjectStep
             subjects={subjects}
             loading={loadingSubjects}
-            initialIds={initialIds}
+            initialIds={selected.length ? selected.map((s) => s._id) : initialIds}
+            roundProgress={roundProgress}
             onBack={() => go("intro")}
             onContinue={handleSubjects}
           />
@@ -125,6 +166,9 @@ const JambPredictorScreen = () => {
           <JambOverviewStep
             selected={selected}
             user={user}
+            summary={summary}
+            notice={notice}
+            onExpire={refresh}
             onContinue={(subset) => {
               setPractice(subset);
               go("quiz");
@@ -143,8 +187,10 @@ const JambPredictorScreen = () => {
         return result ? (
           <JambResultStep
             result={result}
-            lifetimeCorrect={lifetime}
-            onRetake={() => go("subjects")}
+            lifetimeCorrect={summary?.lifetimeCorrect ?? 0}
+            summary={summary}
+            onExpire={refresh}
+            onRetake={() => go("overview")} // opens history while resting, otherwise a new round
             onDone={exit}
           />
         ) : null;
@@ -198,12 +244,7 @@ const JambPredictorScreen = () => {
               <JambButton title="Go Back" icon="arrow-back" onPress={exit} style={{ marginTop: 24 }} />
             </Animated.View>
           ) : (
-            <Animated.View
-              key={step}
-              entering={entering}
-              exiting={exiting}
-              style={{ flex: 1 }}
-            >
+            <Animated.View key={step} entering={entering} exiting={exiting} style={{ flex: 1 }}>
               {renderStep()}
             </Animated.View>
           )}

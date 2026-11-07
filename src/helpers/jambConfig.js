@@ -4,6 +4,25 @@ import colors from "./colors";
 // Global type scale for the whole predictor (see JambText). Lower = smaller text.
 export const FONT_SCALE = 0.84;
 
+// Rest period between rounds (set to e.g. 0.01 while testing)
+export const COOLDOWN_HOURS = 24;
+export const JAMB_COOLDOWN_MS = COOLDOWN_HOURS * 60 * 60 * 1000;
+
+export const formatHMS = (ms) => {
+  const t = Math.max(Math.ceil(ms / 1000), 0);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = t % 60;
+  return [h, m, sec].map((n) => String(n).padStart(2, "0")).join(":");
+};
+
+export const formatShort = (ms) => {
+  const mins = Math.max(Math.ceil(ms / 60000), 1);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
 export const JAMB_TOTAL = 400; // 4 subjects x 100
 export const JAMB_PER_SUBJECT = 100;
 export const JAMB_MAX_SUBJECTS = 4;
@@ -143,14 +162,14 @@ export const buildInsights = (subjects = []) => {
 };
 
 /**
- * session  = what QuestionDisplay hands back: { questions: [{ subject, questions: [...] }] }
- * selected = the 4 subject objects the user picked
- * Prediction = sum of each subject's percentage (each subject is worth 100) -> /400
+ * Turn what QuestionDisplay hands back into one result object per subject.
+ *   session  = { questions: [{ subject, questions: [...] }] }
+ *   selected = the subject objects that were practised
  */
-export const buildJambResult = (session, selected = []) => {
+export const buildSubjectResults = (session, selected = []) => {
   const entries = session?.questions ?? [];
 
-  const subjects = selected.map((subj, i) => {
+  return selected.map((subj, i) => {
     const entry =
       entries.find((e) => String(e?.subject?._id) === String(subj._id)) ??
       entries[i];
@@ -172,8 +191,13 @@ export const buildJambResult = (session, selected = []) => {
       score: percent, // out of 100
     };
   });
+};
 
-  // Projected from the subjects practised: average % x 4 subjects (= sum when all 4).
+/**
+ * Round summary. Each subject is worth 100, so with all four subjects the
+ * prediction is the SUM of the four percentages (out of 400).
+ */
+export const summarize = (subjects = []) => {
   const avg = subjects.length
     ? subjects.reduce((s, x) => s + x.percent, 0) / subjects.length
     : 0;
@@ -196,3 +220,6 @@ export const buildJambResult = (session, selected = []) => {
     insights: buildInsights(subjects),
   };
 };
+
+export const buildJambResult = (session, selected = []) =>
+  summarize(buildSubjectResults(session, selected));

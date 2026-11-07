@@ -17,7 +17,7 @@ const FEATURES = [
 ];
 
 /** Step 1 — mockup 1.jpeg (Start Assessment replaced with Continue). */
-const JambIntroStep = ({ onContinue }) => {
+const JambIntroStep = ({ onContinue, summary }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -25,7 +25,7 @@ const JambIntroStep = ({ onContinue }) => {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scroll}
     >
-      <JambHero variant="intro" buttonLabel="Continue" onPress={onContinue} />
+      <JambHero variant="intro" buttonLabel="Continue" onPress={onContinue} summary={summary} />
 
       <Card index={1} base={100} style={styles.features}>
         {FEATURES.map((f, i) => (

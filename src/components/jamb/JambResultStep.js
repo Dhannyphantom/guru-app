@@ -15,6 +15,8 @@ import {
   levelRangeLabel,
 } from "../../helpers/jambConfig";
 import JambHero from "./JambHero";
+import JambCooldownCard from "./JambCooldownCard";
+import { useCooldown } from "./useCooldown";
 import {
   AnimatedBar,
   Card,
@@ -103,7 +105,8 @@ const DetailRow = ({ item, index }) => {
 };
 
 /** Step 5 — mockup 4.jpeg */
-const JambResultStep = ({ result, lifetimeCorrect = 0, onRetake, onDone }) => {
+const JambResultStep = ({ result, lifetimeCorrect = 0, summary, onRetake, onDone, onExpire }) => {
+  const cooldown = useCooldown(summary?.cooldownUntil, onExpire);
   const { width } = useWindowDimensions();
   const [expanded, setExpanded] = useState(false);
 
@@ -162,6 +165,35 @@ const JambResultStep = ({ result, lifetimeCorrect = 0, onRetake, onDone }) => {
             </AppText>
           </View>
         </Card>
+
+        {cooldown.active && <JambCooldownCard cooldown={cooldown} index={2} base={150} />}
+
+        {/* Round / average / best */}
+        {Boolean(summary) && (
+          <Card index={2} base={150}>
+            <View style={styles.statRow}>
+              <View style={styles.stat}>
+                <AppText fontWeight="medium" size={10.5} style={{ color: J.muted }}>Round</AppText>
+                <AppText fontWeight="black" size={17} style={{ color: J.ink }}>#{result.number ?? summary.rounds}</AppText>
+              </View>
+              <View style={[styles.stat, styles.statMid]}>
+                <AppText fontWeight="medium" size={10.5} style={{ color: J.muted }}>Average</AppText>
+                <AppText fontWeight="black" size={17} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: J.deep }}>
+                  {summary.average}/{JAMB_TOTAL}
+                </AppText>
+              </View>
+              <View style={styles.stat}>
+                <AppText fontWeight="medium" size={10.5} style={{ color: J.muted }}>Best</AppText>
+                <AppText fontWeight="black" size={17} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: J.ink }}>
+                  {summary.best}/{JAMB_TOTAL}
+                </AppText>
+              </View>
+            </View>
+            <AppText fontWeight="medium" size={11} style={{ color: J.muted, textAlign: "center", marginTop: 8 }}>
+              Your average prediction across {summary.rounds} round{summary.rounds === 1 ? "" : "s"} is shown on the JAMB banner.
+            </AppText>
+          </Card>
+        )}
 
         {/* Subject performance */}
         <Card index={2} base={150}>
@@ -254,7 +286,13 @@ const JambResultStep = ({ result, lifetimeCorrect = 0, onRetake, onDone }) => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <JambButton title="Retake" variant="ghost" icon="refresh" onPress={onRetake} style={{ flex: 1 }} />
+        <JambButton
+          title={cooldown.active ? "History" : "New Round"}
+          variant="ghost"
+          icon={cooldown.active ? "time" : "refresh"}
+          onPress={onRetake}
+          style={{ flex: 1 }}
+        />
         <JambButton title="Done" icon="checkmark" onPress={onDone} style={{ flex: 1 }} />
       </View>
     </View>
@@ -284,6 +322,9 @@ const styles = StyleSheet.create({
   subMid: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: 10 },
   insight: { borderRadius: 16, padding: 10, minHeight: 108 },
   insightIcon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  statRow: { flexDirection: "row", alignItems: "center" },
+  stat: { flex: 1, alignItems: "center" },
+  statMid: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: J.line },
   rangeBox: {
     flexDirection: "row",
     alignItems: "center",

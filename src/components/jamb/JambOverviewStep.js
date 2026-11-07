@@ -1,15 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   FadeIn,
+  FadeOut,
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
@@ -17,7 +13,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { LAYOUT, SPRING, popIn, popOut } from "./JambMotion";
 
 import AppText from "./JambText";
 import Avatar from "../Avatar";
@@ -30,6 +25,10 @@ import {
   levelRangeLabel,
 } from "../../helpers/jambConfig";
 import jambService from "../../services/jambService";
+import { LAYOUT, SPRING, popIn, popOut } from "./JambMotion";
+import JambHistoryCard from "./JambHistoryCard";
+import JambCooldownCard from "./JambCooldownCard";
+import { useCooldown } from "./useCooldown";
 import {
   AnimatedBar,
   Card,
@@ -44,7 +43,8 @@ import {
 
 const fmt = (n) => Number(n ?? 0).toLocaleString();
 
-const SubjectPerfCard = ({ item, index, width, selected, onPress }) => {
+// ─── Subject card (selectable, lockable) ─────────────────────────────────────
+const SubjectPerfCard = ({ item, index, width, selected, locked, cooling, shortLeft, roundScore, onPress }) => {
   const tint = SUBJECT_TINTS[index % SUBJECT_TINTS.length];
   const sel = useSharedValue(selected ? 1 : 0);
   const scale = useSharedValue(1);
@@ -59,6 +59,7 @@ const SubjectPerfCard = ({ item, index, width, selected, onPress }) => {
   }));
 
   const press = () => {
+    if (locked) return;
     scale.value = withSequence(
       withTiming(0.96, { duration: 90 }),
       withSpring(1, SPRING.bounce),
@@ -67,39 +68,31 @@ const SubjectPerfCard = ({ item, index, width, selected, onPress }) => {
   };
 
   return (
-    <Animated.View
-      entering={enter(index, 220)}
-      layout={LAYOUT}
-      style={{ width }}
-    >
-      <Animated.View style={[styles.perf, { backgroundColor: tint.bg }, frame]}>
-        <JambPressable onPress={press} scaleTo={1}>
+    <Animated.View entering={enter(index, 220)} layout={LAYOUT} style={{ width }}>
+      <Animated.View
+        style={[
+          styles.perf,
+          { backgroundColor: locked ? "#EEF1EC" : tint.bg },
+          locked && { borderColor: "#DCE3D8", opacity: 0.85 },
+          !locked && frame,
+        ]}
+      >
+        <JambPressable onPress={press} disabled={locked} scaleTo={locked ? 1 : 0.98}>
           <View style={styles.perfTop}>
             <SubjectIcon subject={item} size={36} bg="#fff" />
-            <AppText
-              fontWeight="bold"
-              size={12.5}
-              numberOfLines={2}
-              style={styles.perfName}
-            >
+            <AppText fontWeight="bold" size={12.5} numberOfLines={2} style={styles.perfName}>
               {item.name}
             </AppText>
-            {selected ? (
-              <Animated.View
-                key="on"
-                entering={popIn}
-                exiting={popOut}
-                style={[styles.pick, { backgroundColor: J.deep }]}
-              >
+            {locked ? (
+              <View style={[styles.pick, { backgroundColor: "#CBD5C7" }]}>
+                <Ionicons name="lock-closed" size={11} color="#fff" />
+              </View>
+            ) : selected ? (
+              <Animated.View key="on" entering={popIn} exiting={popOut} style={[styles.pick, { backgroundColor: J.deep }]}>
                 <Ionicons name="checkmark" size={12} color="#fff" />
               </Animated.View>
             ) : (
-              <Animated.View
-                key="off"
-                entering={popIn}
-                exiting={popOut}
-                style={[styles.pick, { backgroundColor: "#fff" }]}
-              >
+              <Animated.View key="off" entering={popIn} exiting={popOut} style={[styles.pick, { backgroundColor: "#fff" }]}>
                 <Ionicons name="add" size={13} color="#9AA89E" />
               </Animated.View>
             )}
@@ -110,7 +103,7 @@ const SubjectPerfCard = ({ item, index, width, selected, onPress }) => {
               size={46}
               stroke={5}
               percent={item.percent}
-              color={tint.bar}
+              color={locked ? "#9DB59B" : tint.bar}
               track="#fff"
               delay={400 + index * 120}
             >
@@ -130,18 +123,31 @@ const SubjectPerfCard = ({ item, index, width, selected, onPress }) => {
 
           <AnimatedBar
             percent={item.percent}
-            color={tint.bar}
+            color={locked ? "#9DB59B" : tint.bar}
             delay={500 + index * 120}
             track="#fff"
           />
 
           <View style={styles.perfFoot}>
-            <AppText fontWeight="semibold" size={10} style={{ color: J.deep }}>
-              {fmt(item.correct)} correct
-            </AppText>
-            <AppText fontWeight="semibold" size={10} style={{ color: J.muted }}>
-              Exam: {fmt(item.examMax)}
-            </AppText>
+            {locked ? (
+              <>
+                <AppText fontWeight="bold" size={10} style={{ color: J.deep }}>
+                  {cooling ? "Resting" : `Done · ${roundScore}%`}
+                </AppText>
+                <AppText fontWeight="semibold" size={10} style={{ color: J.muted }}>
+                  {cooling ? shortLeft : "Next round"}
+                </AppText>
+              </>
+            ) : (
+              <>
+                <AppText fontWeight="semibold" size={10} style={{ color: J.deep }}>
+                  {fmt(item.correct)} correct
+                </AppText>
+                <AppText fontWeight="semibold" size={10} style={{ color: J.muted }}>
+                  Exam: {fmt(item.examMax)}
+                </AppText>
+              </>
+            )}
           </View>
         </JambPressable>
       </Animated.View>
@@ -149,28 +155,49 @@ const SubjectPerfCard = ({ item, index, width, selected, onPress }) => {
   );
 };
 
+// ─── Round progress (4 segments) ─────────────────────────────────────────────
+const Seg = ({ done }) => {
+  const v = useSharedValue(done ? 1 : 0);
+  useEffect(() => {
+    v.value = withTiming(done ? 1 : 0, { duration: 400 });
+  }, [done]);
+  const style = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(v.value, [0, 1], ["#DCE8D4", J.green]),
+  }));
+  return <Animated.View style={[styles.seg, style]} />;
+};
+
+const RoundProgress = ({ round, subjects }) => {
+  const done = subjects.filter((s) => round?.completed?.[s._id]).length;
+  return (
+    <View style={styles.round}>
+      <View style={styles.segs}>
+        {subjects.map((s) => (
+          <Seg key={s._id} done={Boolean(round?.completed?.[s._id])} />
+        ))}
+      </View>
+      <AppText fontWeight="bold" size={11.5} style={{ color: J.deep, marginTop: 6 }}>
+        Round {round?.number ?? 1} · {done}/{subjects.length} completed
+      </AppText>
+      <AppText fontWeight="medium" size={10.5} style={{ color: J.muted, marginTop: 2 }}>
+        Finish all {subjects.length} subjects to unlock your score prediction.
+        Completed subjects stay locked until the next round.
+      </AppText>
+    </View>
+  );
+};
+
 const LevelPill = ({ level, active, index }) => (
-  <Animated.View
-    entering={FadeIn.delay(500 + index * 90)}
-    style={styles.levelWrap}
-  >
+  <Animated.View entering={FadeIn.delay(500 + index * 90)} style={styles.levelWrap}>
     {index > 0 && <Ionicons name="chevron-forward" size={16} color={J.green} />}
     <View style={[styles.level, active && styles.levelActive]}>
       <View style={[styles.levelIcon, { backgroundColor: level.bg }]}>
         <Ionicons name={level.icon} size={22} color={level.color} />
       </View>
-      <AppText
-        fontWeight="bold"
-        size={13}
-        style={{ color: J.ink, marginTop: 6 }}
-      >
+      <AppText fontWeight="bold" size={13} style={{ color: J.ink, marginTop: 6 }}>
         {level.name}
       </AppText>
-      <AppText
-        fontWeight="semibold"
-        size={10.5}
-        style={{ color: J.ink, marginTop: 2 }}
-      >
+      <AppText fontWeight="semibold" size={10.5} style={{ color: J.ink, marginTop: 2 }}>
         {levelRangeLabel(level)}
       </AppText>
       <AppText fontWeight="medium" size={9.5} style={{ color: J.muted }}>
@@ -180,38 +207,50 @@ const LevelPill = ({ level, active, index }) => (
   </Animated.View>
 );
 
-/** Step 3 — mockup 3.jpeg */
-const JambOverviewStep = ({ selected = [], user, onContinue }) => {
+/**
+ * Step 3 — subject performance, round progress, history, levels.
+ * `summary` comes from useJambSummary (round state + history + lifetime).
+ * `notice` = { key, text } shown briefly after finishing part of a round.
+ */
+const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, onExpire }) => {
   const { width } = useWindowDimensions();
   const [perf, setPerf] = useState(null);
   const [picked, setPicked] = useState([]);
-  const [lifetime, setLifetime] = useState(null);
+  const [noticeOn, setNoticeOn] = useState(false);
   const levelScroll = useRef(null);
+
+  const round = summary?.round;
+  const completed = round?.completed ?? {};
+  const cooldown = useCooldown(summary?.cooldownUntil, onExpire);
+  const cooling = cooldown.active; // 24h rest between rounds
+  const isLocked = (id) => cooling || Boolean(completed[id]);
+  const available = selected.filter((s) => !isLocked(s._id));
+  const lifetime = summary?.lifetimeCorrect ?? null;
 
   useEffect(() => {
     let alive = true;
-    Promise.all([
-      jambService.getSubjectPerformance(selected),
-      jambService.getLifetimeCorrect(),
-    ]).then(([p, l]) => {
-      if (!alive) return;
-      setPerf(p);
-      setLifetime(l);
-    });
+    jambService.getSubjectPerformance(selected).then((p) => alive && setPerf(p));
     return () => {
       alive = false;
     };
   }, [selected]);
 
-  const allPicked = selected.length > 0 && picked.length === selected.length;
+  // Drop picks that became locked
+  useEffect(() => {
+    setPicked((p) => p.filter((id) => !cooling && !completed[id]));
+  }, [round, cooling]);
+
+  useEffect(() => {
+    if (!notice) return;
+    setNoticeOn(true);
+    const t = setTimeout(() => setNoticeOn(false), 5500);
+    return () => clearTimeout(t);
+  }, [notice?.key]);
+
+  const allPicked = available.length > 0 && picked.length === available.length;
   const togglePick = (item) =>
-    setPicked((p) =>
-      p.includes(item._id)
-        ? p.filter((id) => id !== item._id)
-        : [...p, item._id],
-    );
-  const toggleAll = () =>
-    setPicked(allPicked ? [] : selected.map((x) => x._id));
+    setPicked((p) => (p.includes(item._id) ? p.filter((id) => id !== item._id) : [...p, item._id]));
+  const toggleAll = () => setPicked(allPicked ? [] : available.map((x) => x._id));
 
   const info = getLevelInfo(lifetime ?? 0);
   const name =
@@ -219,7 +258,7 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
     capFirstLetter(user?.username ?? "Student");
   // Adjust these field names to match your user model
   const school = user?.school?.name ?? user?.schoolName ?? "Guru School";
-  const classLine = [user?.class?.level ?? user?.classLevel, user?.department]
+  const classLine = [user?.class ?? user?.classLevel, user?.department]
     .filter(Boolean)
     .join(" • ");
 
@@ -228,11 +267,7 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
   useEffect(() => {
     if (lifetime === null) return;
     const t = setTimeout(
-      () =>
-        levelScroll.current?.scrollTo({
-          x: Math.max(info.index * 118 - 30, 0),
-          animated: true,
-        }),
+      () => levelScroll.current?.scrollTo({ x: Math.max(info.index * 118 - 30, 0), animated: true }),
       900,
     );
     return () => clearTimeout(t);
@@ -240,10 +275,23 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {noticeOn && Boolean(notice) && (
+          <Animated.View
+            entering={enter(0)}
+            exiting={FadeOut.duration(200)}
+            layout={LAYOUT}
+            style={styles.notice}
+          >
+            <Ionicons name="checkmark-circle" size={22} color={J.deep} />
+            <AppText fontWeight="semibold" size={12.5} style={styles.noticeText}>
+              {notice.text}
+            </AppText>
+          </Animated.View>
+        )}
+
+        {cooling && <JambCooldownCard cooldown={cooldown} index={0} />}
+
         {/* Profile + next level — one row */}
         <Card index={0} style={styles.profile}>
           <View style={styles.topRow}>
@@ -255,41 +303,21 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
                   size={46}
                   border={{ width: 2, color: "#fff" }}
                 />
-                <AppText
-                  fontWeight="black"
-                  size={15}
-                  numberOfLines={2}
-                  style={styles.userName}
-                >
+                <AppText fontWeight="black" size={15} numberOfLines={2} style={styles.userName}>
                   {name}
                 </AppText>
               </View>
 
               <View style={styles.metaRow}>
                 <Ionicons name="business" size={12} color={J.muted} />
-                <AppText
-                  fontWeight="medium"
-                  size={11.5}
-                  numberOfLines={1}
-                  style={styles.meta}
-                >
+                <AppText fontWeight="medium" size={11.5} numberOfLines={1} style={styles.meta}>
                   {school}
                 </AppText>
               </View>
               {Boolean(classLine) && (
                 <View style={styles.metaRow}>
                   <Ionicons name="school" size={12} color={J.muted} />
-
-                  <AppText
-                    fontWeight="medium"
-                    size={11.5}
-                    numberOfLines={1}
-                    style={{
-                      ...styles.meta,
-                      flex: 1,
-                      textTransform: "uppercase",
-                    }}
-                  >
+                  <AppText fontWeight="medium" size={11.5} numberOfLines={1} style={styles.meta}>
                     {classLine}
                   </AppText>
                 </View>
@@ -311,44 +339,19 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
               ) : (
                 <>
                   <View style={styles.nextHead}>
-                    <AppText
-                      fontWeight="bold"
-                      size={12}
-                      numberOfLines={1}
-                      style={{ color: J.deep, flex: 1 }}
-                    >
+                    <AppText fontWeight="bold" size={12} numberOfLines={1} style={{ color: J.deep, flex: 1 }}>
                       {info.next ? `Next: ${info.next.name}` : "Top level"}
                     </AppText>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={14}
-                      color={J.muted}
-                    />
+                    <Ionicons name="chevron-forward" size={14} color={J.muted} />
                   </View>
-                  <AnimatedBar
-                    percent={info.progress * 100}
-                    color={J.green}
-                    height={8}
-                    track="#fff"
-                  />
-                  <AppText
-                    fontWeight="medium"
-                    size={10.5}
-                    style={{ color: J.muted, marginTop: 6 }}
-                  >
+                  <AnimatedBar percent={info.progress * 100} color={J.green} height={8} track="#fff" />
+                  <AppText fontWeight="medium" size={10.5} style={{ color: J.muted, marginTop: 6 }}>
                     {lifetime.toLocaleString()}
-                    {info.next
-                      ? ` / ${info.next.min.toLocaleString()}`
-                      : ""}{" "}
-                    correct
+                    {info.next ? ` / ${info.next.min.toLocaleString()}` : ""} correct
                   </AppText>
                   <View style={styles.keepGoing}>
                     <Ionicons name="trophy" size={13} color={J.amber} />
-                    <AppText
-                      fontWeight="semibold"
-                      size={10.5}
-                      style={{ color: J.ink, marginLeft: 5, flex: 1 }}
-                    >
+                    <AppText fontWeight="semibold" size={10.5} style={{ color: J.ink, marginLeft: 5, flex: 1 }}>
                       Keep going!
                     </AppText>
                   </View>
@@ -358,18 +361,14 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
           </View>
         </Card>
 
-        {/* Subject performance */}
+        {/* Subject performance + round progress */}
         <Card index={1}>
           <View style={styles.sectionHead}>
-            <View style={{ flex: 1 }}>
-              <AppText fontWeight="black" size={20} style={{ color: J.ink }}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <AppText fontWeight="black" size={19} style={{ color: J.ink }}>
                 Your Subject Performance
               </AppText>
-              <AppText
-                fontWeight="medium"
-                size={12.5}
-                style={{ color: J.muted, marginTop: 2 }}
-              >
+              <AppText fontWeight="medium" size={12} style={{ color: J.muted, marginTop: 2 }}>
                 Tap the subjects you want to practise now.
               </AppText>
             </View>
@@ -382,18 +381,22 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
                   bg={picked.length ? J.green : J.mintStrong}
                 />
               </Animated.View>
-              <JambPressable onPress={toggleAll} style={{ marginTop: 6 }}>
-                <AppText fontWeight="bold" size={11} style={{ color: J.deep }}>
-                  {allPicked ? "Clear" : "Select all"}
-                </AppText>
-              </JambPressable>
+              {available.length > 0 && (
+                <JambPressable onPress={toggleAll} style={{ marginTop: 6 }}>
+                  <AppText fontWeight="bold" size={11} style={{ color: J.deep }}>
+                    {allPicked ? "Clear" : "Select all"}
+                  </AppText>
+                </JambPressable>
+              )}
             </View>
           </View>
+
+          {Boolean(summary) && !cooling && <RoundProgress round={round} subjects={selected} />}
 
           <View style={styles.perfGrid}>
             {perf === null
               ? Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} style={{ width: cardW, height: 128 }} />
+                  <Skeleton key={i} style={{ width: cardW, height: 150 }} />
                 ))
               : perf.map((p, i) => (
                   <SubjectPerfCard
@@ -401,6 +404,10 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
                     item={p}
                     index={i}
                     width={cardW}
+                    locked={isLocked(p._id)}
+                    cooling={cooling}
+                    shortLeft={cooldown.short}
+                    roundScore={completed[p._id]?.percent}
                     selected={picked.includes(p._id)}
                     onPress={togglePick}
                   />
@@ -408,8 +415,11 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
           </View>
         </Card>
 
+        {/* History + average */}
+        <JambHistoryCard summary={summary} index={2} />
+
         {/* Achievement levels */}
-        <Card index={2} style={styles.levels}>
+        <Card index={3} style={styles.levels}>
           <View style={styles.levelsHead}>
             <View style={styles.medal}>
               <Ionicons name="medal" size={28} color={J.amber} />
@@ -418,13 +428,8 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
               <AppText fontWeight="black" size={17} style={{ color: J.ink }}>
                 Achievement Levels
               </AppText>
-              <AppText
-                fontWeight="medium"
-                size={12}
-                style={{ color: J.muted, marginTop: 2 }}
-              >
-                Complete more questions to unlock higher levels and earn greater
-                rewards!
+              <AppText fontWeight="medium" size={12} style={{ color: J.muted, marginTop: 2 }}>
+                Complete more questions to unlock higher levels and earn greater rewards!
               </AppText>
             </View>
           </View>
@@ -436,12 +441,7 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
             contentContainerStyle={{ paddingTop: 12, paddingRight: 8 }}
           >
             {LEVELS.map((l, i) => (
-              <LevelPill
-                key={l.key}
-                level={l}
-                index={i}
-                active={lifetime !== null && i === info.index}
-              />
+              <LevelPill key={l.key} level={l} index={i} active={lifetime !== null && i === info.index} />
             ))}
           </ScrollView>
         </Card>
@@ -449,11 +449,18 @@ const JambOverviewStep = ({ selected = [], user, onContinue }) => {
 
       <View style={styles.footer}>
         <JambButton
-          title={picked.length ? "Continue" : "Select a subject to practise"}
-          disabled={!picked.length}
-          onPress={() =>
-            onContinue(selected.filter((x) => picked.includes(x._id)))
+          icon={cooling ? "time" : "arrow-forward"}
+          title={
+            cooling
+              ? `Next round in ${cooldown.hms}`
+              : picked.length
+                ? "Continue"
+                : available.length
+                  ? "Select a subject to practise"
+                  : "Round complete"
           }
+          disabled={!picked.length}
+          onPress={() => onContinue(selected.filter((x) => picked.includes(x._id)))}
         />
       </View>
     </View>
@@ -464,22 +471,24 @@ export default JambOverviewStep;
 
 const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingBottom: 24, paddingTop: 4 },
+  notice: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DDF3E4",
+    borderWidth: 1,
+    borderColor: "#BFE5CB",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+  },
+  noticeText: { color: J.ink, marginLeft: 10, flex: 1, lineHeight: 17 },
   profile: { backgroundColor: "#EAF7DD" },
   topRow: { flexDirection: "row", alignItems: "stretch" },
   userCol: { flex: 1.15, paddingRight: 8 },
   userHead: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  userName: {
-    color: J.ink,
-    marginLeft: 8,
-    flex: 1,
-    textTransform: "capitalize",
-  },
+  userName: { color: J.ink, marginLeft: 8, flex: 1, textTransform: "capitalize" },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 3 },
-  meta: {
-    color: J.ink,
-    marginLeft: 5,
-    flexShrink: 1,
-  },
+  meta: { color: J.ink, marginLeft: 5, flexShrink: 1 },
   nextCol: {
     flex: 1,
     backgroundColor: "#F6FBF1",
@@ -489,26 +498,22 @@ const styles = StyleSheet.create({
   },
   nextHead: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   keepGoing: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  sectionHead: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+  sectionHead: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
+  headRight: { alignItems: "flex-end" },
+  round: {
+    backgroundColor: "#F4FAEE",
+    borderRadius: 14,
+    padding: 10,
     marginBottom: 12,
   },
+  segs: { flexDirection: "row", gap: 6 },
+  seg: { flex: 1, height: 6, borderRadius: 3 },
   perfGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   perf: { borderRadius: 18, borderWidth: 1.5, padding: 10 },
   perfTop: { flexDirection: "row", alignItems: "center" },
-  perfName: {
-    color: J.ink,
-    marginLeft: 8,
-    flex: 1,
-    textTransform: "capitalize",
-  },
+  perfName: { color: J.ink, marginLeft: 8, flex: 1, textTransform: "capitalize" },
   perfMid: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
-  perfFoot: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 7,
-  },
+  perfFoot: { flexDirection: "row", justifyContent: "space-between", marginTop: 7 },
   pick: {
     width: 20,
     height: 20,
@@ -517,12 +522,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: 4,
   },
-  headRight: { alignItems: "flex-end" },
-  levels: {
-    backgroundColor: "#EEF8E6",
-    borderWidth: 1,
-    borderColor: J.mintStrong,
-  },
+  levels: { backgroundColor: "#EEF8E6", borderWidth: 1, borderColor: J.mintStrong },
   levelsHead: { flexDirection: "row", alignItems: "center" },
   medal: {
     width: 52,
@@ -543,12 +543,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   levelActive: { backgroundColor: "#DCEFCB" },
-  levelIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  levelIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
   footer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 6 },
 });

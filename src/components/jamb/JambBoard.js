@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import JambHero from "./JambHero";
+import { useJambSummary } from "./useJambSummary";
 
 /**
  * The ONLY piece of the predictor that lives on HomeScreen:
@@ -11,6 +12,7 @@ import JambHero from "./JambHero";
  */
 const JambBoard = ({ isPremium = false, onStart, onLocked }) => {
   const { width } = useWindowDimensions();
+  const { summary } = useJambSummary(); // average prediction shown on the banner
 
   return (
     <View
@@ -23,6 +25,7 @@ const JambBoard = ({ isPremium = false, onStart, onLocked }) => {
         variant="intro"
         buttonLabel="Start Assessment"
         locked={!isPremium}
+        summary={summary}
         onPress={isPremium ? onStart : onLocked}
       />
     </View>

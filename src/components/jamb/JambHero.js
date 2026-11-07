@@ -7,6 +7,7 @@ import { J, JAMB_TOTAL } from "../../helpers/jambConfig";
 import { Chip, JambButton } from "./JambUI";
 import { LAYOUT, enter } from "./JambMotion";
 import JambIllustration from "./JambIllustration";
+import { useCooldown } from "./useCooldown";
 
 const ART = 124; // illustration height
 const ART_W = ART * 1.15;
@@ -50,9 +51,12 @@ const JambHero = ({
   onPress,
   locked = false,
   predicted = 0,
+  summary,
   style,
 }) => {
   const isResult = variant === "result";
+  const hasAvg = !isResult && (summary?.rounds ?? 0) > 0;
+  const cooldown = useCooldown(summary?.cooldownUntil, undefined, 30000); // minute-level display
 
   return (
     <BannerShell
@@ -60,8 +64,9 @@ const JambHero = ({
       art={
         <JambIllustration
           variant={isResult ? "result" : "score"}
-          value={isResult ? `${predicted}/${JAMB_TOTAL}` : "280+"}
-          caption={isResult ? "PREDICTED" : "Score"}
+          value={isResult ? String(predicted) : hasAvg ? String(summary.average) : "280+"}
+          outOf={isResult || hasAvg ? JAMB_TOTAL : undefined}
+          caption={isResult ? "PREDICTED" : hasAvg ? "AVERAGE" : "Score"}
           size={ART}
         />
       }
@@ -105,6 +110,24 @@ const JambHero = ({
             Know your score, discover your weaknesses and get a personalised study
             plan to improve.
           </AppText>
+          {hasAvg && (
+            <Chip
+              icon="trending-up"
+              label={`Avg ${summary.average}/${JAMB_TOTAL} · ${summary.rounds} round${summary.rounds === 1 ? "" : "s"}`}
+              color={J.deep}
+              bg="#fff"
+              style={{ marginTop: 9 }}
+            />
+          )}
+          {!isResult && cooldown.active && (
+            <Chip
+              icon="hourglass"
+              label={`Next round in ${cooldown.short}`}
+              color={J.amber}
+              bg={J.amberBg}
+              style={{ marginTop: 6 }}
+            />
+          )}
           {showButton && (
             <JambButton
               title={buttonLabel}
