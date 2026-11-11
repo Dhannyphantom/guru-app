@@ -589,6 +589,37 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: data, // { schoolId, targetUserId, reason? }
       }),
     }),
+    fetchSchoolStudents: builder.query({
+      query: ({ schoolId, q = "", offset = 0, limit = 20 }) => ({
+        url: "/school/students",
+        params: { schoolId, q, offset, limit },
+        timeout: 15000,
+      }),
+
+      // One cache entry per (school + search text). Pages are merged into it.
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}-${queryArgs?.schoolId}-${queryArgs?.q ?? ""}`,
+
+      merge: (currentCache, incoming, { arg }) => {
+        // first page / refresh → replace everything
+        if ((arg?.offset ?? 0) === 0) return incoming;
+
+        // next pages → append, de-duplicated by _id
+        const seen = new Set((currentCache?.data ?? []).map((s) => s._id));
+        const fresh = (incoming?.data ?? []).filter((s) => !seen.has(s._id));
+        return {
+          ...incoming,
+          data: [...(currentCache?.data ?? []), ...fresh],
+        };
+      },
+
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset ||
+        currentArg?.q !== previousArg?.q,
+
+      providesTags: ["SCHOOL"],
+      keepUnusedDataFor: 60,
+    }),
   }),
 });
 
@@ -658,6 +689,7 @@ export const {
   useJoinSchoolMutation,
   useLeaveSchoolMutation,
   useFlagStudentMutation,
+  useFetchSchoolStudentsQuery,
 } = extendedUserApiSlice;
 
 export default schoolSlice.reducer;
