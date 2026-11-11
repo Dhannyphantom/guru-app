@@ -19,7 +19,9 @@ import AppButton from "../AppButton";
 import PromptModal from "../PromptModal";
 import QuestionDisplay from "../QuestionDisplay";
 import { J, estimatedMinutes, totalAssessmentQuestions } from "../../helpers/jambConfig";
+import uuid from "react-native-uuid";
 import jambService from "../../services/jambService";
+import { isRetryable } from "../../services/jambApi";
 
 const QUIT_PROMPT = {
   title: "Exit Assessment",
@@ -77,14 +79,18 @@ const PreparingLoader = ({ selected, onCancel }) => {
 
 /**
  * Step 4 — runs the assessment with your existing <QuestionDisplay />.
- * Questions come from jambService (mock). When the last question is answered,
- * QuestionDisplay hands the full session back and we call onFinish(session).
+ * The paper is issued (or resumed) by the server. When the last question is
+ * answered we hand the session back with the attempt metadata:
+ *   onFinish(session, { attemptId, idempotencyKey, durationMs })
+ * Non-retryable load errors are reported through onError(e).
  */
-const JambQuizStep = ({ selected = [], onFinish, onQuit }) => {
+const JambQuizStep = ({ selected = [], onFinish, onQuit, onError }) => {
   const [bank, setBank] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0); // bump to retry
   const [prompt, setPrompt] = useState({ vis: false, data: null });
   const sessionRef = useRef(null);
+  const metaRef = useRef(null);
   const doneRef = useRef(false);
 
   useEffect(() => {
@@ -93,19 +99,42 @@ const JambQuizStep = ({ selected = [], onFinish, onQuit }) => {
     setFailed(false);
     jambService
       .getQuestions(selected)
-      .then((b) => alive && setBank(b))
-      .catch(() => alive && setFailed(true));
+      .then((r) => {
+        if (!alive) return;
+        metaRef.current = {
+          attemptId: r.attemptId,
+          expiresAt: r.expiresAt,
+          idempotencyKey: String(uuid.v4()),
+          startedAt: Date.now(),
+        };
+        setBank(r.bank);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        if (isRetryable(e)) setFailed(true);
+        else onError?.(e);
+      });
     return () => {
       alive = false;
     };
-  }, [selected]);
+  }, [selected, attempt]);
 
   const handleView = (view) => {
     // QuestionDisplay calls setQuizSession(...) then setQuizInfoView("finished")
     if (view === "finished" && !doneRef.current) {
       doneRef.current = true;
-      onFinish(sessionRef.current);
+      const m = metaRef.current ?? {};
+      onFinish(sessionRef.current, {
+        attemptId: m.attemptId,
+        idempotencyKey: m.idempotencyKey,
+        durationMs: Date.now() - (m.startedAt ?? Date.now()),
+      });
     }
+  };
+
+  const handleQuit = async () => {
+    await jambService.quitAttempt(metaRef.current?.attemptId);
+    onQuit();
   };
 
   if (failed) {
@@ -115,7 +144,11 @@ const JambQuizStep = ({ selected = [], onFinish, onQuit }) => {
         <AppText fontWeight="bold" size={18} style={{ marginTop: 16, color: J.ink }}>
           Couldn't load the assessment
         </AppText>
-        <AppButton title="Go Back" type="white" onPress={onQuit} contStyle={{ marginTop: 20 }} />
+        <AppText fontWeight="medium" size={13} style={{ color: J.muted, marginTop: 6, textAlign: "center" }}>
+          Check your connection and try again.
+        </AppText>
+        <AppButton title="Try Again" onPress={() => setAttempt((n) => n + 1)} contStyle={{ marginTop: 20 }} />
+        <AppButton title="Go Back" type="white" onPress={onQuit} contStyle={{ marginTop: 10 }} />
       </View>
     );
   }
@@ -132,12 +165,12 @@ const JambQuizStep = ({ selected = [], onFinish, onQuit }) => {
           sessionRef.current = s;
         }}
         setQuizInfoView={handleView}
-        hardReset={onQuit}
+        hardReset={handleQuit}
       />
       <PromptModal
         prompt={prompt}
         setPrompt={(d) => setPrompt(d)}
-        onPress={(type) => type === "quit" && onQuit()}
+        onPress={(type) => type === "quit" && handleQuit()}
       />
     </Animated.View>
   );

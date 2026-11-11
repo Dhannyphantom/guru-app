@@ -40,7 +40,6 @@ import {
   useLazyFetchSchoolQuizQuery,
 } from "../context/schoolSlice";
 import LottieAnimator from "../components/LottieAnimator";
-import AnimatedPressable from "../components/AnimatedPressable";
 import getRefresher from "../components/Refresher";
 import ListEmpty from "../components/ListEmpty";
 import { dateFormatter } from "../helpers/helperFunctions";
@@ -60,110 +59,79 @@ const { width, height } = Dimensions.get("screen");
 const TOUR_KEY_PROFILE_STUDENT = "guru_school_profile_student_tour_seen";
 const TOUR_KEY_PROFILE_TEACHER = "guru_school_profile_teacher_tour_seen";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ClassMates
-// ─────────────────────────────────────────────────────────────────────────────
-const ClassMates = ({ data = [], setLeaveModalVis, onFlagStudent }) => {
-  const user = useSelector(selectUser);
-  const isTeacher = user?.accountType === "teacher";
+// Only this many students are rendered on the profile screen.
+// Everything else lives on the paginated "all students" screen.
+export const PREVIEW_LIMIT = 21;
 
-  const renderClassmates = ({ item }) => {
-    const isOwnCard = item?.user?._id === user?._id;
+const keyExtractor = (item) => item._id;
 
-    return (
-      <View style={{ width: width * 0.33, marginBottom: 20 }}>
-        <Avatar
-          source={item?.user?.avatar?.image}
-          data={item}
-          userID={item?.user?._id}
-          border={{ width: 2, color: colors.lightly }}
-          name={`${item?.user?.firstName} ${item?.user?.lastName}`}
-          textStyle={{ textTransform: "capitalize" }}
-          textFontsize="medium"
-          maxWidth={width * 0.2}
-          contStyle={{ width: width * 0.26 }}
-        />
-        {!isOwnCard && (
-          <Pressable
-            onPress={() => onFlagStudent?.(item?.user)}
-            hitSlop={8}
-            style={styles.flagBtn}
-          >
-            <Ionicons name="flag-outline" size={14} color={colors.medium} />
-          </Pressable>
-        )}
-      </View>
-    );
-  };
+// Stable style/prop objects (no new objects per render)
+const AVATAR_BORDER = { width: 2, color: colors.lightly };
+const CAPITALIZE = { textTransform: "capitalize" };
+const AVATAR_CONT = { width: width * 0.26 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Student grid cell (memoized)
+// ─────────────────────────────────────────────────────────────────────────────
+const StudentItem = memo(({ item, ownId, onFlag }) => {
+  const u = item?.user;
+  const isOwnCard = u?._id === ownId;
 
   return (
-    <View style={{ marginTop: 30 }}>
-      <View style={styles.rowWide}>
-        <AppText style={{ marginLeft: 15 }} size={"xlarge"} fontWeight="bold">
-          Students
-        </AppText>
-        {isTeacher && (
-          <AnimatedPressable style={styles.filterBtn}>
-            <AppText
-              fontWeight="bold"
-              style={{ color: colors.primary, marginRight: 5 }}
-            >
-              All
-            </AppText>
-            <Ionicons
-              name="swap-vertical-outline"
-              size={16}
-              color={colors.medium}
-            />
-          </AnimatedPressable>
-        )}
-        {user?.accountType === "student" && (
-          <Pressable
-            onPress={() => setLeaveModalVis(true)}
-            style={styles.leaveBtn2}
-          >
-            <Ionicons name="exit-outline" size={18} color={colors.heart} />
-            <AppText
-              fontWeight="bold"
-              size="medium"
-              style={{ color: colors.heart, marginLeft: 8 }}
-            >
-              Leave School
-            </AppText>
-          </Pressable>
-        )}
-      </View>
-      <View style={styles.classmatesSection}>
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item._id}
-          renderItem={renderClassmates}
-          ListEmptyComponent={() => (
-            <ListEmpty message="Goto your Dashboard and Create Classes for your students now and prompt them to join your school" />
-          )}
-          numColumns={3}
-        />
-      </View>
+    <View style={styles.studentCell}>
+      <Avatar
+        source={u?.avatar?.image}
+        data={item}
+        userID={u?._id}
+        border={AVATAR_BORDER}
+        name={`${u?.firstName} ${u?.lastName}`}
+        textStyle={CAPITALIZE}
+        textFontsize="medium"
+        maxWidth={width * 0.2}
+        contStyle={AVATAR_CONT}
+      />
+      {!isOwnCard && (
+        <Pressable onPress={() => onFlag(u)} hitSlop={8} style={styles.flagBtn}>
+          <Ionicons name="flag-outline" size={14} color={colors.medium} />
+        </Pressable>
+      )}
     </View>
   );
-};
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "View all" call-to-action shown under the preview grid
+// ─────────────────────────────────────────────────────────────────────────────
+const ViewAllButton = memo(({ total, isTeacher, onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [styles.viewAll, pressed && { opacity: 0.85 }]}
+  >
+    <View style={styles.viewAllIcon}>
+      <Ionicons name="people" size={22} color={colors.primaryDeeper} />
+    </View>
+    <View style={{ flex: 1 }}>
+      <AppText fontWeight="heavy" size="large">
+        {isTeacher
+          ? `Browse all ${total} students`
+          : `Meet all ${total} classmates`}
+      </AppText>
+      <AppText size="small" style={{ color: colors.medium, marginTop: 2 }}>
+        Search by name and see everyone's stats
+      </AppText>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color={colors.medium} />
+  </Pressable>
+));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TeacherQuiz
 // ─────────────────────────────────────────────────────────────────────────────
-const TeacherQuiz = ({ item, closeModal, index }) => {
+const TeacherQuiz = memo(({ item, closeModal, index }) => {
   const router = useRouter();
-  let txtColor, txtBg;
-  switch (item?.status) {
-    case "active":
-      txtColor = colors.primaryDeeper;
-      txtBg = colors.primaryLighter;
-      break;
-    default:
-      txtColor = colors.medium;
-      txtBg = colors.extraLight;
-      break;
-  }
+  const isActive = item?.status === "active";
+  const txtColor = isActive ? colors.primaryDeeper : colors.medium;
+  const txtBg = isActive ? colors.primaryLighter : colors.extraLight;
 
   const handlePress = () => {
     closeModal && closeModal();
@@ -177,17 +145,17 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
     <Pressable onPress={handlePress} style={styles.teacherQuiz}>
       <Counter count={index + 1} />
       <View style={styles.tQuizMain}>
-        <AppText fontWeight="heavy" size={"xlarge"}>
+        <AppText fontWeight="heavy" size="xlarge">
           {item.title}
         </AppText>
-        <AppText size={"large"} fontWeight="heavy" style={styles.tQuizSubj}>
+        <AppText size="large" fontWeight="heavy" style={styles.tQuizSubj}>
           {item.subject?.name}
         </AppText>
         <View style={[styles.tQuizStat, { backgroundColor: txtBg }]}>
           <Ionicons name="disc" color={txtColor} size={12} />
           <AppText
             fontWeight="bold"
-            size={"small"}
+            size="small"
             style={{ marginLeft: 4, color: txtColor }}
           >
             {item.status}
@@ -196,12 +164,12 @@ const TeacherQuiz = ({ item, closeModal, index }) => {
       </View>
     </Pressable>
   );
-};
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolQuiz
 // ─────────────────────────────────────────────────────────────────────────────
-const SchoolQuiz = ({ item, onPress }) => {
+const SchoolQuiz = memo(({ item, onPress }) => {
   let statusText, btnText, badgeColor, badgeBg;
 
   switch (item?.status) {
@@ -230,17 +198,13 @@ const SchoolQuiz = ({ item, onPress }) => {
   };
 
   return (
-    <View style={styles.quizCard} onPress={handlePress}>
+    <View style={styles.quizCard}>
       <View style={styles.quizHeader}>
         <View style={styles.quizIconCont}>
           <Image source={item?.subject?.image} style={styles.quizIcon} />
         </View>
         <View style={{ flex: 1 }}>
-          <AppText
-            fontWeight="heavy"
-            style={{ textTransform: "capitalize" }}
-            size="large"
-          >
+          <AppText fontWeight="heavy" style={CAPITALIZE} size="large">
             {item?.subject?.name}
           </AppText>
           <View style={[styles.badge, { backgroundColor: badgeBg }]}>
@@ -268,11 +232,7 @@ const SchoolQuiz = ({ item, onPress }) => {
           border={{ width: 1, color: colors.primaryDeep }}
         />
         <View style={{ marginLeft: 10 }}>
-          <AppText
-            fontWeight="bold"
-            style={{ textTransform: "capitalize" }}
-            size="small"
-          >
+          <AppText fontWeight="bold" style={CAPITALIZE} size="small">
             {item?.teacher?.preffix} {item?.teacher?.firstName}{" "}
             {item?.teacher?.lastName}
           </AppText>
@@ -288,14 +248,14 @@ const SchoolQuiz = ({ item, onPress }) => {
           >
             Quiz Title
           </AppText>
-          <AppText fontWeight="bold" size="large" style={styles.quizTitle}>
+          <AppText fontWeight="bold" size="large">
             {item?.title}
           </AppText>
         </View>
       </View>
     </View>
   );
-};
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolModal
@@ -310,96 +270,102 @@ export const SchoolModal = () => {
   const [fetchSchoolQuiz, { data: quizzes, isLoading }] =
     useLazyFetchSchoolQuizQuery();
 
-  const navigateHistory = () => {
-    if (isTeacher) {
-      router.push("/main/new_quiz");
-    } else {
-      router.push("/school/quiz_history");
-    }
-  };
+  const navigateHistory = useCallback(() => {
+    router.push(isTeacher ? "/main/new_quiz" : "/school/quiz_history");
+  }, [isTeacher]);
 
-  const onQuizAction = (item) => {
-    router.push({
-      pathname: "/main/session",
-      params: {
-        view: "quiz",
-        type: "school",
-        schoolId: school?._id,
-        quizId: item?._id,
-      },
-    });
-  };
+  const onQuizAction = useCallback(
+    (item) => {
+      router.push({
+        pathname: "/main/session",
+        params: {
+          view: "quiz",
+          type: "school",
+          schoolId: school?._id,
+          quizId: item?._id,
+        },
+      });
+    },
+    [school?._id],
+  );
 
-  const getQuizData = async (refresh) => {
-    refresh && setRefreshing(true);
-    try {
-      await fetchSchoolQuiz({ schoolId: school?._id, type: "detail" });
-    } catch (err) {
-      console.log(err);
-    } finally {
-      refresh && setRefreshing(false);
-    }
-  };
+  const getQuizData = useCallback(
+    async (refresh) => {
+      refresh && setRefreshing(true);
+      try {
+        await fetchSchoolQuiz({ schoolId: school?._id, type: "detail" });
+      } catch (err) {
+        console.log(err);
+      } finally {
+        refresh && setRefreshing(false);
+      }
+    },
+    [school?._id],
+  );
 
   useEffect(() => {
     getQuizData();
   }, []);
 
+  const closeModal = useCallback(() => router.back(), []);
+
+  const HeaderRight = useCallback(
+    () => (
+      <View style={styles.close}>
+        <AppButton
+          title={isTeacher ? "New Quiz" : "History"}
+          type="white"
+          onPress={navigateHistory}
+          contStyle={{ marginRight: 10 }}
+        />
+      </View>
+    ),
+    [isTeacher, navigateHistory],
+  );
+
+  const refreshControl = useMemo(
+    () => getRefresher({ refreshing, onRefresh: getQuizData }),
+    [refreshing, getQuizData],
+  );
+
+  const emptyEl = useMemo(
+    () => (
+      <ListEmpty
+        vis={!isLoading}
+        message={
+          isTeacher
+            ? "You don't have any quiz yet.\nCreate one now for your students"
+            : "There are no quizzes for you yet.\nWait for your teachers to start one"
+        }
+      />
+    ),
+    [isLoading, isTeacher],
+  );
+
+  const renderTeacher = useCallback(
+    ({ item, index }) => (
+      <TeacherQuiz item={item} closeModal={closeModal} index={index} />
+    ),
+    [closeModal],
+  );
+  const renderStudent = useCallback(
+    ({ item }) => <SchoolQuiz item={item} onPress={onQuizAction} />,
+    [onQuizAction],
+  );
+
   return (
     <View style={styles.modalQuiz}>
-      <AppHeader
-        title="School Quiz"
-        Component={() => (
-          <View style={styles.close}>
-            <AppButton
-              title={isTeacher ? "New Quiz" : "History"}
-              type="white"
-              onPress={navigateHistory}
-              contStyle={{ marginRight: 10 }}
-            />
-          </View>
-        )}
+      <AppHeader title="School Quiz" Component={HeaderRight} />
+      <FlatList
+        data={quizzes?.data}
+        refreshControl={refreshControl}
+        keyExtractor={keyExtractor}
+        ListEmptyComponent={emptyEl}
+        contentContainerStyle={isTeacher ? { paddingVertical: 15 } : undefined}
+        renderItem={isTeacher ? renderTeacher : renderStudent}
+        initialNumToRender={6}
+        windowSize={7}
       />
-      {isTeacher ? (
-        <FlatList
-          data={quizzes?.data}
-          refreshControl={getRefresher({ refreshing, onRefresh: getQuizData })}
-          keyExtractor={(item) => item._id}
-          ListEmptyComponent={() => (
-            <ListEmpty
-              vis={!isLoading}
-              message={
-                "You don't have any quiz yet.\nCreate one now for your students"
-              }
-            />
-          )}
-          contentContainerStyle={{ paddingVertical: 15 }}
-          renderItem={({ item, index }) => (
-            <TeacherQuiz
-              item={item}
-              closeModal={() => router.back()}
-              index={index}
-            />
-          )}
-        />
-      ) : (
-        <FlatList
-          data={quizzes?.data}
-          refreshControl={getRefresher({ refreshing, onRefresh: getQuizData })}
-          keyExtractor={(item) => item._id}
-          ListEmptyComponent={() => (
-            <ListEmpty
-              vis={!isLoading}
-              message={
-                "There are no quizzes for you yet.\nWait for your teachers to start one"
-              }
-            />
-          )}
-          renderItem={({ item }) => (
-            <SchoolQuiz item={item} onPress={onQuizAction} />
-          )}
-        />
-      )}
       <LottieAnimator visible={Boolean(isLoading)} absolute wTransparent />
     </View>
   );
@@ -408,72 +374,90 @@ export const SchoolModal = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolActions
 // ─────────────────────────────────────────────────────────────────────────────
-const SchoolActions = ({ data, isTeacher }) => {
+const ActionItem = memo(({ item, count, onPress }) => (
+  <Pressable onPress={() => onPress(item)} style={styles.action}>
+    <View style={[styles.actionImgCont, { backgroundColor: item.bgColor }]}>
+      <Image source={item.image} style={styles.actionImg} />
+    </View>
+    <View style={styles.actionDetail}>
+      <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
+        {item.name}
+      </AppText>
+      {count != null && (
+        <AppText
+          style={{ ...styles.actionCount, backgroundColor: colors.light }}
+          fontWeight="black"
+        >
+          {count}
+        </AppText>
+      )}
+    </View>
+  </Pressable>
+));
+
+const MODAL_COMPONENTS = { Classes: ClassModal };
+
+const SchoolActions = memo(({ data }) => {
   const router = useRouter();
-  const user = useSelector(selectUser);
-  const [modal, setModal] = useState({ visible: false, data: null });
+  const accountType = useSelector(selectUser)?.accountType;
+  const [modal, setModal] = useState({ visible: false, name: null });
 
   const visibleActions = useMemo(
     () =>
       schoolActions.filter(
-        (item) =>
-          !(item.name === "Dashboard" && user?.accountType !== "teacher"),
+        (item) => !(item.name === "Dashboard" && accountType !== "teacher"),
       ),
-    [user?.accountType],
+    [accountType],
   );
 
-  const handleActionPress = (item) => {
-    if (Boolean(item.nav)) {
-      router.push({
-        pathname: item?.nav?.screen,
-        params: { data: JSON.stringify(item?.nav?.data) },
-      });
-    } else {
-      if (item?.name === "Classes" && user?.accountType === "teacher") {
+  const handleActionPress = useCallback(
+    (item) => {
+      if (item.nav) {
+        router.push({
+          pathname: item.nav.screen,
+          params: { data: JSON.stringify(item.nav.data) },
+        });
+        return;
+      }
+      if (item.name === "Classes" && accountType === "teacher") {
         router.push("/school/classrooms");
         return;
       }
-      setModal({ ...modal, visible: true, data: { name: item.name } });
-    }
-  };
+      setModal({ visible: true, name: item.name });
+    },
+    [accountType],
+  );
 
-  const renderItem = ({ item }) => {
-    const itemCount = data[item?.name?.toLowerCase()] ?? "X";
-    return (
-      <Pressable onPress={() => handleActionPress(item)} style={styles.action}>
-        <View style={[styles.actionImgCont, { backgroundColor: item.bgColor }]}>
-          <Image source={item.image} style={styles.actionImg} />
-        </View>
-        <View style={styles.actionDetail}>
-          <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
-            {" "}
-            {item.name}{" "}
-          </AppText>
-          {itemCount !== "X" && (
-            <AppText
-              style={{ ...styles.actionCount, backgroundColor: colors.light }}
-              fontWeight="black"
-            >
-              {itemCount}
-            </AppText>
-          )}
-        </View>
-      </Pressable>
-    );
-  };
+  const renderItem = useCallback(
+    ({ item }) => (
+      <ActionItem
+        item={item}
+        count={data[item?.name?.toLowerCase()]}
+        onPress={handleActionPress}
+      />
+    ),
+    [data, handleActionPress],
+  );
 
-  let ModalComponet;
-  switch (modal?.data?.name) {
-    case "Classes":
-      ModalComponet = ClassModal;
-      break;
-  }
+  const closeModal = useCallback(
+    () => setModal((m) => ({ ...m, visible: false })),
+    [],
+  );
+
+  const ModalComponent = MODAL_COMPONENTS[modal.name];
+  const ModalContent = useCallback(
+    () =>
+      ModalComponent ? (
+        <ModalComponent data={{ name: modal.name }} closeModal={closeModal} />
+      ) : null,
+    [ModalComponent, modal.name, closeModal],
+  );
 
   return (
     <View>
       <AppText
         style={{ marginBottom: 15, marginLeft: 15 }}
-        size={"xlarge"}
+        size="xlarge"
         fontWeight="bold"
       >
         My School
@@ -482,7 +466,7 @@ const SchoolActions = ({ data, isTeacher }) => {
       <FlatList
         data={visibleActions}
         horizontal
-        keyExtractor={(item) => item._id}
+        keyExtractor={keyExtractor}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 4 }}
         renderItem={renderItem}
@@ -490,23 +474,20 @@ const SchoolActions = ({ data, isTeacher }) => {
 
       <AppModal
         visible={modal.visible}
-        setVisible={(bool) => setModal({ ...modal, visible: bool })}
-        Component={() => (
-          <ModalComponet
-            data={modal.data}
-            closeModal={() => setModal({ ...modal, visible: false })}
-          />
-        )}
+        setVisible={(bool) => setModal((m) => ({ ...m, visible: bool }))}
+        Component={ModalContent}
       />
     </View>
   );
-};
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolProfile
 // ─────────────────────────────────────────────────────────────────────────────
 const SchoolProfile = ({ data, fetchSchoolData }) => {
   const user = useSelector(selectUser);
+  const school = useSelector(selectSchool);
+  const router = useRouter();
   const isTeacher = user?.accountType === "teacher";
 
   const translationY = useSharedValue(0);
@@ -516,76 +497,85 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
   const [leaveModalVis, setLeaveModalVis] = useState(false);
   const [flagTarget, setFlagTarget] = useState(null);
 
-  const school = useSelector(selectSchool);
-
   const TOUR_KEY = isTeacher
     ? TOUR_KEY_PROFILE_TEACHER
     : TOUR_KEY_PROFILE_STUDENT;
 
-  // ── Tutorial steps ──────────────────────────────────────────────────────
-  const profileTutorialSteps = isTeacher
-    ? [
-        {
-          title: `Welcome to your School! 🏫`,
-          text: `Hi ${user?.username}! This is your school's profile page — everything you need to manage your students and run a great academic experience is right here\n\nEnjoy your 3-month access to all premium features!`,
-        },
-        {
-          title: "Your School Tools",
-          text: `Swipe through the action tiles to access all features:\n\nDashboard — overview of all school activity\nQuiz — create & launch live quizzes\nAssignments — set tasks and track submissions\nAnnouncements — broadcast messages\nLeaderboard — top-performing students\nClasses — manage classrooms`,
-        },
-        {
-          title: "Your Teaching Team",
-          text: "Your fellow teachers are listed in the Teachers section.\nSee who else is part of your school's academic team and collaborate with them.",
-        },
-        {
-          title: "Managing Students",
-          text: "All verified students appear in the Students section.\nYou can filter by class and manage which students belong where.\n\nHead to Classes to assign and verify students.",
-        },
-      ]
-    : [
-        {
-          title: `Welcome to your School! 🏫`,
-          text: `Hi ${user?.username}! This is your school's profile page. Everything you need for a great academic year is right here — quizzes, assignments, leaderboards and more!`,
-        },
-        {
-          title: "Not Seeing Your School?",
-          text: `If you don't see your school or Guru school details here, it means you haven't completed your profile details.\n\nGo to your Profile tab, complete your details, and you'll be joined to Guru EduTech!`,
-        },
-        {
-          title: "Your School Features",
-          text: `Swipe through the action tiles to see everything available:\n\nQuiz — join live quizzes and check your results\nAssignments — submit tasks before the deadline\nAnnouncements — important updates from teachers\nLeaderboard — see where you rank`,
-        },
-        {
-          title: "Your Teachers",
-          text: "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄",
-        },
-        {
-          title: "Your Classmates",
-          text: "See who else has joined your school!\nThe more active everyone is, the more competitive the leaderboard gets.\n\nTap the 🏳 icon on a student to report them if they don't belong here.",
-        },
-      ];
+  // ── Tutorial steps (memoized) ───────────────────────────────────────────
+  const profileTutorialSteps = useMemo(
+    () =>
+      isTeacher
+        ? [
+            {
+              title: `Welcome to your School! 🏫`,
+              text: `Hi ${user?.username}! This is your school's profile page — everything you need to manage your students and run a great academic experience is right here\n\nEnjoy your 3-month access to all premium features!`,
+            },
+            {
+              title: "Your School Tools",
+              text: `Swipe through the action tiles to access all features:\n\nDashboard — overview of all school activity\nQuiz — create & launch live quizzes\nAssignments — set tasks and track submissions\nAnnouncements — broadcast messages\nLeaderboard — top-performing students\nClasses — manage classrooms`,
+            },
+            {
+              title: "Your Teaching Team",
+              text: "Your fellow teachers are listed in the Teachers section.\nSee who else is part of your school's academic team and collaborate with them.",
+            },
+            {
+              title: "Managing Students",
+              text: 'A preview of your students appears in the Students section.\nTap "Browse all students" to search the full list and see their stats.\n\nHead to Classes to assign and verify students.',
+            },
+          ]
+        : [
+            {
+              title: `Welcome to your School! 🏫`,
+              text: `Hi ${user?.username}! This is your school's profile page. Everything you need for a great academic year is right here — quizzes, assignments, leaderboards and more!`,
+            },
+            {
+              title: "Not Seeing Your School?",
+              text: `If you don't see your school or Guru school details here, it means you haven't completed your profile details.\n\nGo to your Profile tab, complete your details, and you'll be joined to Guru EduTech!`,
+            },
+            {
+              title: "Your School Features",
+              text: `Swipe through the action tiles to see everything available:\n\nQuiz — join live quizzes and check your results\nAssignments — submit tasks before the deadline\nAnnouncements — important updates from teachers\nLeaderboard — see where you rank`,
+            },
+            {
+              title: "Your Teachers",
+              text: "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄",
+            },
+            {
+              title: "Your Classmates",
+              text: 'See who else has joined your school!\nTap "Meet all classmates" to search everyone and view their stats.\n\nTap the 🏳 icon on a student to report them if they don\'t belong here.',
+            },
+          ],
+    [isTeacher, user?.username],
+  );
 
   // ── Tour lifecycle ──────────────────────────────────────────────────────
   useEffect(() => {
-    const checkTour = async () => {
-      // await AsyncStorage.removeItem(TOUR_KEY); // ← for testing purposes, remove in production
+    let t;
+    (async () => {
       const seen = await AsyncStorage.getItem(TOUR_KEY);
-      if (!seen) {
-        setTimeout(() => setShowTutorial(true), 800);
-      }
-    };
-    checkTour();
+      if (!seen) t = setTimeout(() => setShowTutorial(true), 800);
+    })();
+    return () => clearTimeout(t);
   }, []);
 
-  const handleTutorialDone = async () => {
+  const handleTutorialDone = useCallback(async () => {
     setShowTutorial(false);
     await AsyncStorage.setItem(TOUR_KEY, "true");
-  };
+  }, [TOUR_KEY]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────
-  const handleFlagStudent = useCallback((userObj) => {
-    setFlagTarget(userObj);
-  }, []);
+  // ── Handlers (all stable) ───────────────────────────────────────────────
+  const handleFlagStudent = useCallback((u) => setFlagTarget(u), []);
+  const openLeave = useCallback(() => setLeaveModalVis(true), []);
+  const closeLeave = useCallback(() => setLeaveModalVis(false), []);
+  const closeFlag = useCallback(() => setFlagTarget(null), []);
+  const openAllStudents = useCallback(
+    () => router.push("/school/students"),
+    [],
+  );
+  const onLeaveSuccess = useCallback(() => {
+    setLeaveModalVis(false);
+    fetchSchoolData();
+  }, [fetchSchoolData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -598,32 +588,35 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     }
   }, [fetchSchoolData]);
 
+  // ── Animated sticky header ──────────────────────────────────────────────
   const Rstyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      translationY.value,
-      [0, 200],
-      [-(insets.top + 60), 0],
-      Extrapolation.CLAMP,
-    );
-    const opaciter = interpolate(
-      translationY.value,
-      [0, 200],
-      [0, 1],
-      Extrapolation.CLAMP,
-    );
     return {
-      transform: [{ translateY: scale }],
-      opacity: opaciter,
+      transform: [
+        {
+          translateY: interpolate(
+            translationY.value,
+            [0, 200],
+            [-(insets.top + 60), 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+      opacity: interpolate(
+        translationY.value,
+        [0, 200],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
     };
-  });
+  }, [insets.top]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      "worklet";
       translationY.value = event.contentOffset.y;
     },
   });
 
+  // ── Memoized data ───────────────────────────────────────────────────────
   const actionData = useMemo(
     () => ({
       quiz: data?.quizCount,
@@ -633,9 +626,30 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
     [data?.quizCount, data?.assignmentCount, data?.classCount],
   );
 
+  const headerData = useMemo(
+    () => ({ name: data?.name, lga: data?.lga, state: data?.state }),
+    [data?.name, data?.lga, data?.state],
+  );
+
+  const refreshControl = useMemo(
+    () => getRefresher({ refreshing, onRefresh }),
+    [refreshing, onRefresh],
+  );
+
+  // Capped preview — at most PREVIEW_LIMIT cells are ever mounted here.
+  const students = data?.students;
+  const previewStudents = useMemo(
+    () => (students ?? []).slice(0, PREVIEW_LIMIT),
+    [students],
+  );
+  const totalStudents = data?.studentCount ?? students?.length ?? 0;
+  const hasMore = totalStudents > PREVIEW_LIMIT;
+  const ownId = user?._id;
+
   return (
     <>
       <Animated.View
+        pointerEvents="none"
         style={[styles.headerSticker, { paddingTop: insets.top + 10 }, Rstyle]}
       >
         <Ionicons name="school" color={colors.primary} size={30} />
@@ -644,66 +658,103 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
         </AppText>
       </Animated.View>
 
-      <Animated.FlatList
-        data={["School"]}
+      {/*
+        A plain ScrollView is used on purpose: with the student list capped at
+        21 there's nothing to virtualize, and skipping VirtualizedList removes
+        blank-cell flashes, re-measure jank and removeClippedSubviews glitches.
+      */}
+      <Animated.ScrollView
         onScroll={scrollHandler}
-        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
         scrollEventThrottle={16}
-        refreshControl={getRefresher({ refreshing, onRefresh })}
-        ListHeaderComponent={
-          <SchoolHeader
-            data={{ name: data.name, lga: data.lga, state: data.state }}
-            scrollY={translationY}
-          />
-        }
-        renderItem={() => (
-          <View>
-            <SchoolActions data={actionData} isTeacher={isTeacher} />
-            <Authors data={data?.teachers} />
-            <ClassMates
-              data={data?.students}
-              setLeaveModalVis={setLeaveModalVis}
-              onFlagStudent={handleFlagStudent}
-            />
+        refreshControl={refreshControl}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+      >
+        <SchoolHeader data={headerData} scrollY={translationY} />
+        <SchoolActions data={actionData} />
+        <Authors data={data?.teachers} />
 
-            <View style={styles.leaveSection}>
-              <Pressable
-                onPress={() => setLeaveModalVis(true)}
-                style={styles.leaveBtn}
-              >
-                <Ionicons name="exit-outline" size={18} color={colors.heart} />
+        {/* ── Students sheet ─────────────────────────────────────────── */}
+        <View style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <View style={styles.row}>
+              <AppText size="xlarge" fontWeight="bold">
+                {isTeacher ? "Students" : "Classmates"}
+              </AppText>
+              <View style={styles.countBadge}>
                 <AppText
-                  fontWeight="bold"
-                  size="medium"
-                  style={{ color: colors.heart, marginLeft: 8 }}
+                  size="small"
+                  fontWeight="black"
+                  style={{ color: colors.primaryDeeper }}
                 >
-                  Leave School
+                  {totalStudents}
+                </AppText>
+              </View>
+            </View>
+            {hasMore && (
+              <Pressable onPress={openAllStudents} hitSlop={10}>
+                <AppText fontWeight="bold" style={{ color: colors.primary }}>
+                  See all
                 </AppText>
               </Pressable>
-            </View>
+            )}
           </View>
-        )}
-      />
 
-      {/* Leave School modal */}
+          {previewStudents.length === 0 ? (
+            <ListEmpty
+              message={
+                isTeacher
+                  ? "Go to your Dashboard and create classes for your students, then invite them to join your school"
+                  : "No classmates yet. Invite your friends to join your school!"
+              }
+            />
+          ) : (
+            <View style={styles.grid}>
+              {previewStudents.map((item) => (
+                <StudentItem
+                  key={item._id}
+                  item={item}
+                  ownId={ownId}
+                  onFlag={handleFlagStudent}
+                />
+              ))}
+            </View>
+          )}
+
+          {hasMore && (
+            <ViewAllButton
+              total={totalStudents}
+              isTeacher={isTeacher}
+              onPress={openAllStudents}
+            />
+          )}
+
+          <View style={styles.leaveSection}>
+            <Pressable onPress={openLeave} style={styles.leaveBtn}>
+              <Ionicons name="exit-outline" size={18} color={colors.heart} />
+              <AppText
+                fontWeight="bold"
+                size="medium"
+                style={{ color: colors.heart, marginLeft: 8 }}
+              >
+                Leave School
+              </AppText>
+            </Pressable>
+          </View>
+        </View>
+      </Animated.ScrollView>
+
       <LeaveSchoolModal
         visible={leaveModalVis}
-        onClose={() => setLeaveModalVis(false)}
-        onSuccess={() => {
-          setLeaveModalVis(false);
-          fetchSchoolData();
-        }}
+        onClose={closeLeave}
+        onSuccess={onLeaveSuccess}
       />
-
-      {/* Flag Student modal */}
       <FlagStudentModal
         visible={Boolean(flagTarget)}
-        onClose={() => setFlagTarget(null)}
+        onClose={closeFlag}
         school={school}
         targetUser={flagTarget}
       />
-
-      {/* Tutorial modal */}
       <AppTutorial
         visible={showTutorial}
         steps={profileTutorialSteps}
@@ -733,11 +784,11 @@ const SchoolScreen = ({ route }) => {
   const isTeacher = user?.accountType === "teacher";
   const isPro = ["professional", "manager"].includes(user?.accountType);
 
-  const getSchoolData = async () => {
+  const getSchoolData = useCallback(async () => {
     try {
       await refetch().unwrap();
     } catch (_err) {}
-  };
+  }, [refetch]);
 
   useEffect(() => {
     getSchoolData();
@@ -770,16 +821,16 @@ const SchoolScreen = ({ route }) => {
           <AppText
             fontWeight="black"
             style={{ color: colors.medium }}
-            size={"large"}
+            size="large"
           >
             You do not have access to this screen
           </AppText>
           <AppText
             fontWeight="black"
             style={{ color: colors.medium, marginTop: 8 }}
-            size={"small"}
+            size="small"
           >
-            Goto to your Profile screen to access Pro Features
+            Go to your Profile screen to access Pro Features
           </AppText>
         </View>
       )}
@@ -825,26 +876,69 @@ const styles = StyleSheet.create({
     color: colors.primaryDeeper,
     marginTop: 8,
   },
-  container: {
-    flex: 1,
-    backgroundColor: colors.unchange,
-  },
-  classmatesSection: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: colors.unchange },
+
+  // Students sheet (white rounded panel)
+  sheet: {
+    marginTop: 30,
     backgroundColor: colors.white,
     borderTopStartRadius: 30,
     borderTopEndRadius: 30,
+    paddingTop: 22,
     paddingHorizontal: 15,
-    paddingTop: 20,
-    paddingBottom: height * 0.11,
-    marginBottom: 120,
+    paddingBottom: 30,
+    minHeight: height * 0.5,
   },
-  close: { marginTop: 5, marginRight: 15 },
-  filterBtn: {
-    paddingRight: 16,
+  sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+    paddingHorizontal: 2,
   },
+  row: { flexDirection: "row", alignItems: "center" },
+  countBadge: {
+    marginLeft: 10,
+    minWidth: 28,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 100,
+    alignItems: "center",
+    backgroundColor: colors.primaryLighter,
+  },
+  grid: { flexDirection: "row", flexWrap: "wrap" },
+  studentCell: {
+    width: "33.3333%",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  flagBtn: {
+    position: "absolute",
+    bottom: 22,
+    right: 8,
+    backgroundColor: colors.extraLight,
+    borderRadius: 20,
+    padding: 4,
+  },
+  viewAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 6,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: colors.extraLight,
+  },
+  viewAllIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primaryLighter,
+  },
+
+  close: { marginTop: 5, marginRight: 15 },
   headerTxt: { textTransform: "capitalize" },
   headerSticker: {
     backgroundColor: colors.white,
@@ -864,15 +958,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: height * 0.15,
   },
-  modalQuiz: {
-    width,
-    alignItems: "center",
-    minHeight: height * 0.5,
-  },
-  leaveSection: {
-    alignItems: "center",
-    paddingVertical: 20,
-  },
+  modalQuiz: { width, alignItems: "center", minHeight: height * 0.5 },
+  leaveSection: { alignItems: "center", paddingTop: 28 },
   leaveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -882,37 +969,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.heart + "50",
     backgroundColor: colors.heart + "0A",
-  },
-  leaveBtn2: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    marginRight: 10,
-    borderColor: colors.heart + "50",
-    backgroundColor: colors.heart + "0A",
-  },
-  flagBtn: {
-    position: "absolute",
-    bottom: 22,
-    right: 6,
-    backgroundColor: colors.extraLight,
-    borderRadius: 20,
-    padding: 4,
-  },
-  rowWide: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  separator: {
-    height: 3,
-    width: "100%",
-    backgroundColor: colors.extraLight,
-    marginVertical: 30,
   },
   quizCard: {
     backgroundColor: colors.white,
@@ -941,12 +997,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignSelf: "flex-start",
   },
-  quizTeacherRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 15,
-  },
-  quizTitle: {},
+  quizTeacherRow: { flexDirection: "row", alignItems: "center", marginTop: 15 },
   quizBtn: { marginTop: 15 },
   teacherQuiz: {
     backgroundColor: colors.light,
@@ -968,7 +1019,6 @@ const styles = StyleSheet.create({
   tQuizStat: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "red",
     borderRadius: 50,
     paddingVertical: 5,
     paddingHorizontal: 10,

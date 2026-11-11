@@ -100,7 +100,10 @@ export const JambPressable = ({
         disabled={disabled}
         onPress={onPress}
         onPressIn={() => {
-          scale.value = withTiming(scaleTo, { duration: 100, easing: Easing.out(Easing.quad) });
+          scale.value = withTiming(scaleTo, {
+            duration: 100,
+            easing: Easing.out(Easing.quad),
+          });
         }}
         onPressOut={() => {
           scale.value = withSpring(1, SPRING.press);
@@ -180,7 +183,12 @@ export const Card = ({
 export const Chip = ({ label, color = J.deep, bg = J.mint, icon, style }) => (
   <View style={[styles.chip, { backgroundColor: bg }, style]}>
     {Boolean(icon) && (
-      <Ionicons name={icon} size={13} color={color} style={{ marginRight: 5 }} />
+      <Ionicons
+        name={icon}
+        size={13}
+        color={color}
+        style={{ marginRight: 5 }}
+      />
     )}
     <AppText fontWeight="bold" size={12} style={{ color }}>
       {label}
@@ -320,17 +328,30 @@ export const getSubjectImage = (subject) => {
   return obj?.uri ? obj : subject?.image;
 };
 
-export const SubjectIcon = ({ subject, size = 52, bg = J.mint, radius }) => {
+/**
+ * Square icon box. The image fills the whole box (resizeMode "contain"
+ * keeps its aspect ratio and centers it), so it is as large as the box
+ * allows and sits dead-center. Use `imageScale` (0–1) to shrink it if
+ * you ever want breathing room inside the box.
+ */
+export const SubjectIcon = ({
+  subject,
+  size = 52,
+  bg = J.mint,
+  radius,
+  imageScale = 1,
+}) => {
   const src = getSubjectImage(subject);
   const icon = iconFor(subject?.name);
   const iconName = icon === "sprout" ? "leaf" : icon;
+  const imgSize = size * imageScale;
 
   return (
     <View
       style={{
         width: size,
         height: size,
-        borderRadius: radius ?? size * 0.3,
+        borderRadius: radius ?? (bg === "transparent" ? 0 : size * 0.3),
         backgroundColor: bg,
         alignItems: "center",
         justifyContent: "center",
@@ -340,10 +361,14 @@ export const SubjectIcon = ({ subject, size = 52, bg = J.mint, radius }) => {
         <Image
           source={src}
           resizeMode="contain"
-          style={{ width: "62%", height: "62%" }}
+          style={{
+            width: imgSize,
+            height: imgSize,
+            alignSelf: "center",
+          }}
         />
       ) : (
-        <Ionicons name={iconName} size={size * 0.46} color={J.deep} />
+        <Ionicons name={iconName} size={size * 0.6} color={J.deep} />
       )}
     </View>
   );

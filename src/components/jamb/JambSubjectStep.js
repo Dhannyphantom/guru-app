@@ -1,7 +1,13 @@
+/* eslint-disable react-hooks/immutability */
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   FadeIn,
@@ -18,11 +24,26 @@ import { BannerShell } from "./JambHero";
 
 import AppText from "./JambText";
 import { J, JAMB_MAX_SUBJECTS, isEnglish } from "../../helpers/jambConfig";
-import { Card, Chip, JambButton, JambPressable, Skeleton, SubjectIcon } from "./JambUI";
+import {
+  Card,
+  Chip,
+  JambButton,
+  JambPressable,
+  Skeleton,
+  SubjectIcon,
+} from "./JambUI";
 import JambIllustration from "./JambIllustration";
 
 const GAP = 8;
+const ROW_GAP = 10;
 const BANNER_ART_SM = 116;
+const BOX_PAD = 10; // space around the icon inside the box
+const NAME_H = 30; // room for up to 2 lines of name under the box
+const NAME_GAP = 6; // space between box and name
+
+// Box is only as tall as the icon + padding
+const getIconSize = (size) => Math.round(size * 0.58);
+const getBoxHeight = (size) => getIconSize(size) + BOX_PAD * 2;
 
 const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
   const sel = useSharedValue(selected ? 1 : 0);
@@ -32,7 +53,7 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
     sel.value = withTiming(selected ? 1 : 0, { duration: 240 });
   }, [selected]);
 
-  const style = useAnimatedStyle(() => ({
+  const boxStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(sel.value, [0, 1], ["#FFFFFF", J.mint]),
     borderColor: interpolateColor(sel.value, [0, 1], [J.line, J.green]),
     transform: [{ scale: scale.value }],
@@ -46,16 +67,21 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
     onPress(subject);
   };
 
+  const iconSize = getIconSize(size);
+  const boxHeight = getBoxHeight(size);
+
   return (
     <Animated.View
       entering={enter(index * 0.6, 100)}
       layout={LAYOUT}
-      style={{ width: size, marginBottom: GAP }}
+      style={{ width: size, marginBottom: ROW_GAP }}
     >
-      <Animated.View style={[styles.tile, { height: size * 1.3 }, style]}>
+      {/* Box: only wraps the icon */}
+      <Animated.View style={[styles.tile, { height: boxHeight }, boxStyle]}>
         <JambPressable
           onPress={press}
           scaleTo={1}
+          style={styles.pressFill}
           contentStyle={styles.tileInner}
         >
           <View style={styles.badgeSlot}>
@@ -68,7 +94,7 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
               >
                 <Ionicons
                   name={required ? "lock-closed" : "checkmark"}
-                  size={required ? 10 : 13}
+                  size={required ? 9 : 11}
                   color="#fff"
                 />
               </Animated.View>
@@ -79,26 +105,30 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
                 exiting={popOut}
                 style={[styles.badge, { backgroundColor: "#E6ECE2" }]}
               >
-                <Ionicons name="add" size={14} color="#9AA89E" />
+                <Ionicons name="add" size={12} color="#9AA89E" />
               </Animated.View>
             )}
           </View>
 
-          <SubjectIcon subject={subject} size={size * 0.5} bg="transparent" />
-          <View style={styles.nameBox}>
-            <AppText
-              fontWeight="bold"
-              size={11}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
-              style={styles.tileName}
-            >
-              {subject.name}
-            </AppText>
+          <View style={styles.iconWrap}>
+            <SubjectIcon subject={subject} size={iconSize} bg="transparent" />
           </View>
         </JambPressable>
       </Animated.View>
+
+      {/* Name: outside the box, centered */}
+      <View style={styles.nameBox}>
+        <AppText
+          fontWeight="bold"
+          size={11}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+          style={[styles.tileName, selected && { color: J.deep }]}
+        >
+          {subject.name}
+        </AppText>
+      </View>
     </Animated.View>
   );
 };
@@ -124,8 +154,12 @@ const JambSubjectStep = ({
     if (!subjects.length) return;
     setIds((prev) => {
       const valid = new Set(subjects.map((s) => s._id));
-      const base = (prev.length ? prev : initialIds).filter((id) => valid.has(id));
-      const merged = english ? [english._id, ...base.filter((id) => id !== english._id)] : base;
+      const base = (prev.length ? prev : initialIds).filter((id) =>
+        valid.has(id),
+      );
+      const merged = english
+        ? [english._id, ...base.filter((id) => id !== english._id)]
+        : base;
       return merged.slice(0, JAMB_MAX_SUBJECTS);
     });
   }, [subjects, initialIds]);
@@ -197,7 +231,10 @@ const JambSubjectStep = ({
               <AppText fontWeight="black" size={18} style={{ color: J.ink }}>
                 Select Your 4 JAMB Subjects
               </AppText>
-              <Animated.View key={hint ?? "default"} entering={FadeIn.duration(220)}>
+              <Animated.View
+                key={hint ?? "default"}
+                entering={FadeIn.duration(220)}
+              >
                 <AppText
                   fontWeight="medium"
                   size={12.5}
@@ -221,7 +258,16 @@ const JambSubjectStep = ({
           {roundProgress > 0 && (
             <Animated.View entering={FadeIn} style={styles.warn}>
               <Ionicons name="information-circle" size={16} color={J.amber} />
-              <AppText fontWeight="medium" size={11.5} style={{ color: "#6B5A1E", marginLeft: 6, flex: 1, lineHeight: 16 }}>
+              <AppText
+                fontWeight="medium"
+                size={11.5}
+                style={{
+                  color: "#6B5A1E",
+                  marginLeft: 6,
+                  flex: 1,
+                  lineHeight: 16,
+                }}
+              >
                 A round is in progress. Changing your subjects will restart it.
               </AppText>
             </Animated.View>
@@ -230,10 +276,24 @@ const JambSubjectStep = ({
           <View style={styles.grid}>
             {loading
               ? Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton
-                    key={i}
-                    style={{ width: tile, height: tile * 1.3, marginBottom: GAP }}
-                  />
+                  <View key={i} style={{ width: tile, marginBottom: ROW_GAP }}>
+                    <Skeleton
+                      style={{
+                        width: tile,
+                        height: getBoxHeight(tile),
+                        borderRadius: 18,
+                      }}
+                    />
+                    <Skeleton
+                      style={{
+                        width: tile * 0.7,
+                        height: 10,
+                        borderRadius: 5,
+                        alignSelf: "center",
+                        marginTop: NAME_GAP + 4,
+                      }}
+                    />
+                  </View>
                 ))
               : subjects.map((s, i) => (
                   <SubjectTile
@@ -277,10 +337,16 @@ const JambSubjectStep = ({
 
       <View style={styles.footer}>
         <JambButton
-          title={complete ? "Continue" : `Select ${JAMB_MAX_SUBJECTS - count} more`}
+          title={
+            complete ? "Continue" : `Select ${JAMB_MAX_SUBJECTS - count} more`
+          }
           disabled={!complete}
           onPress={() =>
-            onContinue(ids.map((id) => subjects.find((s) => s._id === id)).filter(Boolean))
+            onContinue(
+              ids
+                .map((id) => subjects.find((s) => s._id === id))
+                .filter(Boolean),
+            )
           }
         />
       </View>
@@ -303,22 +369,42 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: J.deepest, lineHeight: 27 },
   headerDesc: { color: J.ink, marginTop: 6, lineHeight: 18 },
-  selectHead: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14 },
+  selectHead: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 14,
+  },
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: GAP },
   tile: { borderRadius: 18, borderWidth: 1.5, overflow: "hidden" },
-  tileInner: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 3, paddingTop: 6 },
-  nameBox: { height: 30, alignSelf: "stretch", justifyContent: "center", marginTop: 4 },
+  pressFill: { flex: 1 },
+  tileInner: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nameBox: {
+    height: NAME_H,
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginTop: NAME_GAP,
+    paddingHorizontal: 1,
+  },
   tileName: {
     color: J.ink,
     textAlign: "center",
     textTransform: "capitalize",
     lineHeight: 14,
   },
-  badgeSlot: { position: "absolute", top: 6, right: 6, zIndex: 2 },
+  badgeSlot: { position: "absolute", top: 4, right: 4, zIndex: 2 },
   badge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -330,7 +416,11 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 10,
   },
-  note: { backgroundColor: "#EEF8E6", borderWidth: 1, borderColor: J.mintStrong },
+  note: {
+    backgroundColor: "#EEF8E6",
+    borderWidth: 1,
+    borderColor: J.mintStrong,
+  },
   noteRow: { flexDirection: "row", alignItems: "flex-start" },
   noteIcon: {
     width: 40,

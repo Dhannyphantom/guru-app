@@ -19,7 +19,11 @@ const ART_W = ART * 1.15;
  * still overlaps the card edge.
  */
 export const BannerShell = ({ children, art, style }) => (
-  <Animated.View entering={enter(0)} layout={LAYOUT} style={[styles.wrap, style]}>
+  <Animated.View
+    entering={enter(0)}
+    layout={LAYOUT}
+    style={[styles.wrap, style]}
+  >
     <View style={styles.clip}>
       <LinearGradient
         colors={["#EAF7DD", "#D2EBBF"]}
@@ -64,24 +68,19 @@ const JambHero = ({
       art={
         <JambIllustration
           variant={isResult ? "result" : "score"}
-          value={isResult ? String(predicted) : hasAvg ? String(summary.average) : "280+"}
+          value={
+            isResult
+              ? String(predicted)
+              : hasAvg
+                ? String(summary.average)
+                : "280+"
+          }
           outOf={isResult || hasAvg ? JAMB_TOTAL : undefined}
           caption={isResult ? "PREDICTED" : hasAvg ? "AVERAGE" : "Score"}
           size={ART}
         />
       }
     >
-      <Animated.View entering={FadeIn.delay(150)} style={styles.chipRow}>
-        <Chip
-          icon={isResult ? "checkmark-circle" : "locate"}
-          label={isResult ? "JAMB Result Predictor" : "JAMB Feature"}
-          bg="#CFEBC0"
-        />
-        {locked && (
-          <Chip icon="lock-closed" label="Premium" color={J.amber} bg={J.amberBg} style={{ marginLeft: 6 }} />
-        )}
-      </Animated.View>
-
       {isResult ? (
         <>
           <AppText
@@ -103,12 +102,12 @@ const JambHero = ({
         </>
       ) : (
         <>
-          <AppText fontWeight="black" size={25} style={styles.title}>
+          <AppText fontWeight="black" size={21} style={styles.title}>
             {"Guru JAMB\nScore Predictor"}
           </AppText>
-          <AppText fontWeight="medium" size={13} style={styles.desc}>
-            Know your score, discover your weaknesses and get a personalised study
-            plan to improve.
+          <AppText fontWeight="medium" style={styles.desc}>
+            Know your score, discover your weaknesses and get a personalised
+            study plan to improve.
           </AppText>
           {hasAvg && (
             <Chip
@@ -168,6 +167,6 @@ const styles = StyleSheet.create({
   },
   chipRow: { flexDirection: "row", marginBottom: 9 },
   title: { color: J.deepest, lineHeight: 31 },
-  desc: { color: J.ink, marginTop: 7, lineHeight: 19 },
+  desc: { color: J.ink, marginTop: 7, width: "80%", lineHeight: 19 },
   small: { color: J.muted, marginTop: 7, lineHeight: 17 },
 });

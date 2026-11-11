@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, StyleSheet, View } from "react-native";
+import { ActivityIndicator, BackHandler, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,8 +20,9 @@ import JambResultStep from "../components/jamb/JambResultStep";
 import { JambButton, JambPressable } from "../components/jamb/JambUI";
 import { slideIn, slideOut } from "../components/jamb/JambMotion";
 import { useJambSummary } from "../components/jamb/useJambSummary";
-import { J, buildSubjectResults } from "../helpers/jambConfig";
+import { J } from "../helpers/jambConfig";
 import jambService from "../services/jambService";
+import { JambError, isRetryable } from "../services/jambApi";
 import { selectUser } from "../context/usersSlice";
 import { useFetchSubjectsQuery } from "../context/instanceSlice";
 
@@ -37,11 +38,12 @@ const STEPS = ["intro", "subjects", "overview", "quiz", "result"];
 const JambPredictorScreen = () => {
   const router = useRouter();
   const user = useSelector(selectUser);
-  const isPremium = Boolean(user?.subscription?.isActive);
+  const [premiumDenied, setPremiumDenied] = useState(false); // server said 403
+  const isPremium = Boolean(user?.subscription?.isActive) && !premiumDenied;
 
   const { data: subjectsData, isLoading: loadingSubjects } = useFetchSubjectsQuery();
   const subjects = subjectsData?.data ?? [];
-  const { summary, refresh } = useJambSummary();
+  const { summary, refresh, error: summaryError } = useJambSummary();
 
   const [nav, setNav] = useState({ step: "intro", dir: 1 });
   const [selected, setSelected] = useState([]); // the 4 JAMB subjects
@@ -49,13 +51,25 @@ const JambPredictorScreen = () => {
   const [initialIds, setInitialIds] = useState([]);
   const [result, setResult] = useState(null); // completed ROUND result
   const [notice, setNotice] = useState(null);
+  const [banner, setBanner] = useState(null); // transient error/info text
+  const [busy, setBusy] = useState(null); // string label while a request runs
+  const [retry, setRetry] = useState(null); // pending submit payload awaiting retry
 
   const stepRef = useRef("intro");
   stepRef.current = nav.step;
 
   useEffect(() => {
-    jambService.getSavedSelection().then(setInitialIds);
+    jambService.clearLegacyStorage();
+    jambService.getSavedSelection().then(setInitialIds).catch(() => {});
+    // an unsent result from a previous run (offline / app killed at finish)
+    jambService.loadPendingSubmit().then((p) => p && setRetry(p));
   }, []);
+
+  useEffect(() => {
+    if (!banner) return;
+    const t = setTimeout(() => setBanner(null), 5000);
+    return () => clearTimeout(t);
+  }, [banner]);
 
   // Restore the saved 4-subject combination so users can jump straight in
   useEffect(() => {
@@ -98,44 +112,121 @@ const JambPredictorScreen = () => {
 
   const roundProgress = Object.keys(summary?.round?.completed ?? {}).length;
 
+  const say = (text) => setNotice({ key: Date.now(), text });
+
+  /** Maps a server error to the right UI reaction (never logs the user out). */
+  const handleApiError = useCallback(
+    async (e) => {
+      const code = e instanceof JambError ? e.code : "UNKNOWN";
+      switch (code) {
+        case "PREMIUM_REQUIRED":
+          setPremiumDenied(true);
+          return;
+        case "SELECTION_REQUIRED":
+          setBanner("Please choose your 4 JAMB subjects first.");
+          go("subjects");
+          return;
+        case "COOLDOWN_ACTIVE":
+        case "SUBJECT_ALREADY_COMPLETED":
+        case "ATTEMPT_EXPIRED":
+        case "ATTEMPT_ABANDONED":
+        case "NOT_FOUND":
+          await jambService.clearPendingSubmit();
+          setRetry(null);
+          say(e.message || "That attempt is no longer available.");
+          await refresh();
+          go("overview");
+          return;
+        case "INSUFFICIENT_QUESTIONS":
+        case "INVALID_SELECTION":
+          setBanner(e.message || "We couldn't prepare that assessment.");
+          go(stepRef.current === "quiz" ? "overview" : stepRef.current);
+          return;
+        case "RATE_LIMITED":
+          setBanner("Too many requests. Please wait a moment and try again.");
+          return;
+        default:
+          setBanner(e?.message || "Something went wrong. Please try again.");
+          if (stepRef.current === "quiz") go("overview");
+      }
+    },
+    [go, refresh],
+  );
+
+  useEffect(() => {
+    if (summaryError instanceof JambError && summaryError.code === "PREMIUM_REQUIRED") {
+      setPremiumDenied(true);
+    }
+  }, [summaryError]);
+
   const handleSubjects = async (picked) => {
-    setSelected(picked);
-    await jambService.saveSelection(picked.map((s) => s._id)); // new combo => new round
-    await refresh();
-    go("overview");
+    setBusy("Saving your subjects…");
+    try {
+      await jambService.saveSelection(picked.map((s) => s._id)); // new combo => new round
+      setSelected(picked);
+      await refresh();
+      setBusy(null);
+      go("overview");
+    } catch (e) {
+      setBusy(null);
+      await handleApiError(e);
+    }
   };
 
-  const handleFinish = async (session) => {
-    const subjectResults = buildSubjectResults(session, practice);
-    const out = await jambService.submitQuizResult(subjectResults);
-    await refresh();
+  /** Sends the persisted payload. Retryable failures keep it for Retry. */
+  const submitPending = async (payload) => {
+    setRetry(null);
+    setBusy("Submitting your answers…");
+    try {
+      const out = await jambService.submitQuizResult(payload);
+      await jambService.clearPendingSubmit();
+      await refresh();
+      setBusy(null);
 
-    if (out.blocked) {
-      setNotice({
-        key: Date.now(),
-        text: "Your next round isn't unlocked yet. This attempt wasn't counted.",
-      });
+      if (out.blocked) {
+        say("Your next round isn't unlocked yet. This attempt wasn't counted.");
+        go("overview");
+        return;
+      }
+
+      if (out.complete && out.roundResult) {
+        // Round finished -> NOW the prediction screen is allowed to show
+        setResult(out.roundResult);
+        go("result");
+        return;
+      }
+
+      const names = out.subjectResults.map((r) => r.name).join(", ");
+      const done = names ? `${names} completed. ` : "Subjects completed. ";
+      say(
+        `${done}${out.remaining} subject${out.remaining === 1 ? "" : "s"} left to unlock your score prediction.`,
+      );
       go("overview");
-      return;
+    } catch (e) {
+      setBusy(null);
+      if (isRetryable(e) || (e instanceof JambError && e.code === "SUBMIT_IN_PROGRESS")) {
+        setRetry(payload); // same Idempotency-Key on retry
+      } else {
+        await handleApiError(e);
+      }
     }
+  };
 
-    if (out.complete) {
-      // Round finished -> NOW the prediction screen is allowed to show
-      setResult(out.roundResult);
-      go("result");
-      return;
-    }
+  const handleFinish = async (session, meta) => {
+    const payload = {
+      attemptId: meta.attemptId,
+      idempotencyKey: meta.idempotencyKey,
+      durationMs: meta.durationMs,
+      answers: jambService.buildAnswers(session),
+    };
+    await jambService.savePendingSubmit(payload);
+    await submitPending(payload);
+  };
 
-    const names = subjectResults.map((s) => s.name).join(", ");
-    const avg = Math.round(
-      subjectResults.reduce((n, s) => n + s.percent, 0) / (subjectResults.length || 1),
-    );
-    setNotice({
-      key: Date.now(),
-      text: `${names} completed (${avg}%). ${out.remaining} subject${
-        out.remaining === 1 ? "" : "s"
-      } left to unlock your score prediction.`,
-    });
+  const discardPending = async () => {
+    await jambService.clearPendingSubmit();
+    jambService.quitAttempt(retry?.attemptId);
+    setRetry(null);
     go("overview");
   };
 
@@ -170,6 +261,7 @@ const JambPredictorScreen = () => {
             notice={notice}
             onExpire={refresh}
             onContinue={(subset) => {
+              setBanner(null);
               setPractice(subset);
               go("quiz");
             }}
@@ -181,6 +273,7 @@ const JambPredictorScreen = () => {
             selected={practice}
             onFinish={handleFinish}
             onQuit={() => go("overview")}
+            onError={handleApiError}
           />
         );
       case "result":
@@ -249,6 +342,53 @@ const JambPredictorScreen = () => {
             </Animated.View>
           )}
         </View>
+
+        {Boolean(banner) && (
+          <Animated.View entering={FadeIn} style={styles.banner}>
+            <Ionicons name="alert-circle" size={18} color="#fff" />
+            <AppText fontWeight="semibold" size={13} style={styles.bannerText}>
+              {banner}
+            </AppText>
+          </Animated.View>
+        )}
+
+        {(Boolean(busy) || Boolean(retry)) && (
+          <View style={styles.overlay}>
+            {busy ? (
+              <View style={styles.card}>
+                <ActivityIndicator size="large" color={J.deep} />
+                <AppText fontWeight="bold" size={15} style={{ color: J.ink, marginTop: 14 }}>
+                  {busy}
+                </AppText>
+              </View>
+            ) : (
+              <View style={styles.card}>
+                <Ionicons name="cloud-offline" size={40} color={J.danger} />
+                <AppText fontWeight="black" size={18} style={{ color: J.ink, marginTop: 12 }}>
+                  Couldn't send your answers
+                </AppText>
+                <AppText
+                  fontWeight="medium"
+                  size={13}
+                  style={{ color: J.muted, textAlign: "center", marginTop: 6, lineHeight: 19 }}
+                >
+                  Your answers are saved on this device. Check your connection and retry.
+                </AppText>
+                <JambButton
+                  title="Retry"
+                  icon="refresh"
+                  onPress={() => submitPending(retry)}
+                  style={{ marginTop: 18 }}
+                />
+                <JambPressable onPress={discardPending} contentStyle={{ marginTop: 14 }}>
+                  <AppText fontWeight="semibold" size={13} style={{ color: J.muted }}>
+                    Discard this attempt
+                  </AppText>
+                </JambPressable>
+              </View>
+            )}
+          </View>
+        )}
       </Screen>
 
       <StatusBar style="dark" />
@@ -279,6 +419,35 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   body: { flex: 1, overflow: "hidden" },
+  banner: {
+    position: "absolute",
+    top: 70,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#C0392B",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    zIndex: 50,
+  },
+  bannerText: { color: "#fff", marginLeft: 8, flex: 1 },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(10,30,15,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    zIndex: 100,
+  },
+  card: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 24,
+    alignItems: "center",
+  },
   locked: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   lockIcon: {
     width: 80,

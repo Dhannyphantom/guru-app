@@ -1,10 +1,71 @@
+import { useEffect } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated from "react-native-reanimated";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 
 import AppText from "./JambText";
 import { J } from "../../helpers/jambConfig";
-import { useFloat } from "./JambUI";
+
+/**
+ * YoYo loop: progress goes 0 -> 1, then back 1 -> 0, forever.
+ * `withRepeat(..., -1, true)` is what makes it reverse (yoyo) instead of
+ * snapping back to the start. A sine in-out easing makes every turnaround
+ * smooth, so the piece "breathes" instead of bouncing mechanically.
+ *
+ * Options:
+ *   delay    - ms before the first loop (stagger pieces so they drift apart)
+ *   duration - ms for ONE direction (a full yoyo cycle is 2x this)
+ *   distance - vertical travel in px (keep tiny so pieces never collide)
+ *   rotate   - extra sway in degrees, +/- around `baseRotate`
+ *   scale    - extra scale at the peak (0.05 = 5% bigger)
+ *   baseRotate - resting rotation in degrees
+ */
+const useYoyo = ({
+  delay = 0,
+  duration = 2400,
+  distance = 3,
+  rotate = 0,
+  scale = 0,
+  baseRotate = 0,
+} = {}) => {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }),
+        -1, // loop forever
+        true, // reverse => yoyo
+      ),
+    );
+    return () => cancelAnimation(progress);
+  }, [delay, duration, progress]);
+
+  return useAnimatedStyle(() => {
+    const p = progress.value;
+    return {
+      transform: [
+        { translateY: interpolate(p, [0, 1], [distance, -distance]) },
+        {
+          rotate: `${
+            baseRotate + interpolate(p, [0, 1], [-rotate, rotate])
+          }deg`,
+        },
+        { scale: 1 + interpolate(p, [0, 1], [0, scale]) },
+      ],
+    };
+  });
+};
 
 /**
  * Vector illustration (swap in real artwork with `source`).
@@ -13,7 +74,8 @@ import { useFloat } from "./JambUI";
  *   - document card  : left / top
  *   - target         : top-right (clear of the card)
  *   - books + cap    : bottom-right, overlapping the card by ~6px only
- * Floating amplitudes are tiny (3–4px) so pieces never cross each other.
+ * Every piece yoyos on its own duration + delay, so the motion never syncs
+ * up and the amplitudes stay tiny (3-4px).
  *
  * variant: "score" | "result" | "books"
  */
@@ -28,13 +90,30 @@ const JambIllustration = ({
 }) => {
   const W = size * 1.15;
   const H = size;
-  const floatCard = useFloat(0, 3000, 3);
-  const floatBooks = useFloat(600, 3400, 3);
-  const floatTarget = useFloat(1100, 2600, 4);
+
+  // Card keeps its resting -4deg tilt and gently sways around it.
+  const yoyoCard = useYoyo({
+    delay: 0,
+    duration: 2600,
+    distance: 3,
+    rotate: 1.5,
+    baseRotate: -4,
+  });
+  const yoyoBooks = useYoyo({ delay: 600, duration: 2900, distance: 3 });
+  const yoyoTarget = useYoyo({
+    delay: 1100,
+    duration: 2200,
+    distance: 4,
+    scale: 0.08,
+  });
 
   if (source) {
     return (
-      <Image source={source} resizeMode="contain" style={[{ width: W, height: H }, style]} />
+      <Image
+        source={source}
+        resizeMode="contain"
+        style={[{ width: W, height: H }, style]}
+      />
     );
   }
 
@@ -56,7 +135,7 @@ const JambIllustration = ({
         style={[
           styles.card,
           { width: W * 0.66, left: 0, top: H * 0.1 },
-          floatCard,
+          yoyoCard,
         ]}
       >
         <View style={styles.cardHead}>
@@ -77,7 +156,11 @@ const JambIllustration = ({
           </View>
         ) : (
           <View style={styles.scoreBox}>
-            <AppText fontWeight="bold" size={9} style={{ color: J.muted, letterSpacing: 0.4 }}>
+            <AppText
+              fontWeight="bold"
+              size={9}
+              style={{ color: J.muted, letterSpacing: 0.4 }}
+            >
               {caption}
             </AppText>
             {/* number + "/400" sit on one baseline and shrink instead of overflowing */}
@@ -93,7 +176,12 @@ const JambIllustration = ({
                 {value}
               </AppText>
               {Boolean(outOf) && (
-                <AppText fontWeight="bold" size={10.5} numberOfLines={1} style={{ color: J.muted, marginLeft: 1 }}>
+                <AppText
+                  fontWeight="bold"
+                  size={10.5}
+                  numberOfLines={1}
+                  style={{ color: J.muted, marginLeft: 1 }}
+                >
                   /{outOf}
                 </AppText>
               )}
@@ -108,24 +196,48 @@ const JambIllustration = ({
         )}
       </Animated.View>
 
-      {/* Target — top right, clear of the card */}
+      {/* Target - top right, clear of the card */}
       {!isBooks && !isResult && (
-        <Animated.View style={[styles.target, floatTarget]}>
+        <Animated.View style={[styles.target, yoyoTarget]}>
           <Ionicons name="locate" size={22} color={J.green} />
         </Animated.View>
       )}
 
-      {/* Books + cap — bottom right, slight overlap with card corner */}
-      <Animated.View style={[styles.books, floatBooks]}>
+      {/* Books + cap - bottom right, slight overlap with card corner */}
+      <Animated.View style={[styles.books, yoyoBooks]}>
         <Ionicons
           name="school"
           size={H * 0.24}
           color={J.deepest}
-          style={{ marginBottom: -3, marginRight: W * 0.03, alignSelf: "center" }}
+          style={{
+            marginBottom: -3,
+            marginRight: W * 0.03,
+            alignSelf: "center",
+          }}
         />
-        <View style={[styles.book, { backgroundColor: "#2EB872", width: W * 0.38, height: bookH }]} />
-        <View style={[styles.book, { backgroundColor: "#F2B33D", width: W * 0.42, height: bookH, marginLeft: 5 }]} />
-        <View style={[styles.book, { backgroundColor: "#2F7DE1", width: W * 0.38, height: bookH }]} />
+        <View
+          style={[
+            styles.book,
+            { backgroundColor: "#2EB872", width: W * 0.38, height: bookH },
+          ]}
+        />
+        <View
+          style={[
+            styles.book,
+            {
+              backgroundColor: "#F2B33D",
+              width: W * 0.42,
+              height: bookH,
+              marginLeft: 5,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.book,
+            { backgroundColor: "#2F7DE1", width: W * 0.38, height: bookH },
+          ]}
+        />
       </Animated.View>
     </View>
   );
@@ -134,14 +246,21 @@ const JambIllustration = ({
 export default JambIllustration;
 
 const styles = StyleSheet.create({
-  blob: { position: "absolute", bottom: 0, backgroundColor: "#D3EDC0", opacity: 0.75, zIndex: 0 },
+  blob: {
+    position: "absolute",
+    bottom: 0,
+    backgroundColor: "#D3EDC0",
+    opacity: 0.75,
+    zIndex: 0,
+  },
+  // NOTE: no `transform` here - the card's -4deg tilt lives in useYoyo
+  // (baseRotate), because an animated transform would override a static one.
   card: {
     position: "absolute",
     zIndex: 2,
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 8,
-    transform: [{ rotate: "-4deg" }],
     shadowColor: "#1C5B33",
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.14,
@@ -149,7 +268,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cardHead: { flexDirection: "row", alignItems: "center" },
-  cardDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: J.green, marginRight: 5 },
+  cardDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: J.green,
+    marginRight: 5,
+  },
   scoreBox: {
     marginTop: 6,
     backgroundColor: J.mint,
@@ -158,9 +283,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: "center",
   },
-  valueRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", alignSelf: "stretch" },
+  valueRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    alignSelf: "stretch",
+  },
   checkRow: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
-  checkLine: { flex: 1, height: 4, borderRadius: 2, backgroundColor: J.mintStrong, marginLeft: 5 },
+  checkLine: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: J.mintStrong,
+    marginLeft: 5,
+  },
   checkBadge: {
     position: "absolute",
     left: -7,
@@ -178,7 +314,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 4,
     top: 0,
-    right: 2,
+    right: 40,
     width: 32,
     height: 32,
     borderRadius: 16,

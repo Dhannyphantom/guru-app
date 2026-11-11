@@ -2,22 +2,23 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from "react";
 
-import { JAMB_COOLDOWN_MS, formatHMS, formatShort } from "../../helpers/jambConfig";
+import { formatHMS, formatShort } from "../../helpers/jambConfig";
+import { getCooldownMs, serverNow } from "../../services/jambAdapters";
 
 /**
- * Live countdown to `until` (epoch ms). Date-based, so it stays correct after
- * backgrounding. Calls onExpire() once when the timer reaches zero.
- *   tickMs: 1000 for a HH:MM:SS display, larger for "5h 12m" displays.
+ * Live countdown to `until` (epoch ms, SERVER time). Uses the server-corrected
+ * clock so a wrong device clock can't skip or extend the rest period.
+ * Calls onExpire() once when the timer reaches zero (parent should refetch).
  */
 export const useCooldown = (until, onExpire, tickMs = 1000) => {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
 
   useEffect(() => {
-    setNow(Date.now());
-    if (!until || until <= Date.now()) return undefined;
+    setNow(serverNow());
+    if (!until || until <= serverNow()) return undefined;
 
     const id = setInterval(() => {
-      const n = Date.now();
+      const n = serverNow();
       setNow(n);
       if (n >= until) {
         clearInterval(id);
@@ -29,12 +30,13 @@ export const useCooldown = (until, onExpire, tickMs = 1000) => {
   }, [until]);
 
   const remaining = Math.max((until ?? 0) - now, 0);
+  const total = getCooldownMs();
   return {
     active: remaining > 0,
     remaining,
     hms: formatHMS(remaining),
     short: formatShort(remaining),
-    progress: remaining > 0 ? Math.min(Math.max(1 - remaining / JAMB_COOLDOWN_MS, 0), 1) : 1,
+    progress: remaining > 0 ? Math.min(Math.max(1 - remaining / total, 0), 1) : 1,
   };
 };
 
