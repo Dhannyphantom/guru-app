@@ -4,9 +4,16 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import AppText from "./JambText";
-import { J, JAMB_TOTAL } from "../../helpers/jambConfig";
+import { JAMB_TOTAL } from "../../helpers/jambConfig";
+import { T } from "./JambTheme";
 import { LAYOUT, enter } from "./JambMotion";
-import { Card, Chip, JambPressable, ProgressRing } from "./JambUI";
+import {
+  Card,
+  Chip,
+  JambPressable,
+  ProgressRing,
+  SectionTitle,
+} from "./JambUI";
 
 const VISIBLE = 4;
 
@@ -32,45 +39,66 @@ const Row = ({ item, older, index }) => {
       style={styles.row}
     >
       <View style={styles.badge}>
-        <AppText fontWeight="black" size={12} style={{ color: J.deep }}>
+        <AppText
+          fontWeight="black"
+          size={9}
+          style={{ color: T.sub, letterSpacing: 0.6 }}
+        >
+          RD
+        </AppText>
+        <AppText
+          fontWeight="black"
+          size={14}
+          style={{ color: T.ink, marginTop: -2 }}
+        >
           {item.number}
         </AppText>
       </View>
 
       <View style={{ flex: 1 }}>
-        <AppText fontWeight="bold" size={13} style={{ color: J.ink }}>
+        <AppText fontWeight="bold" size={13} style={{ color: T.ink }}>
           Round {item.number}
         </AppText>
-        <AppText fontWeight="medium" size={10.5} style={{ color: J.muted }}>
-          {fmtDate(item.date)} · {item.totalCorrect}/{item.totalQuestions} correct
+        <AppText fontWeight="medium" size={10.5} style={{ color: T.sub }}>
+          {fmtDate(item.date)} · {item.totalCorrect}/{item.totalQuestions}{" "}
+          correct
         </AppText>
       </View>
 
       <View style={{ alignItems: "flex-end" }}>
-        <AppText fontWeight="black" size={15} style={{ color: J.ink }}>
+        <AppText fontWeight="black" size={16} style={{ color: T.ink }}>
           {item.predicted}
-          <AppText fontWeight="semibold" size={10.5} style={{ color: J.muted }}>
+          <AppText fontWeight="semibold" size={10.5} style={{ color: T.sub }}>
             /{JAMB_TOTAL}
           </AppText>
         </AppText>
         {delta !== null && delta !== 0 ? (
-          <View style={styles.delta}>
+          <View
+            style={[
+              styles.delta,
+              { backgroundColor: up ? T.greenSoft : T.coralSoft },
+            ]}
+          >
             <Ionicons
-              name={up ? "trending-up" : "trending-down"}
-              size={12}
-              color={up ? J.green : J.danger}
+              name={up ? "arrow-up" : "arrow-down"}
+              size={10}
+              color={up ? T.greenDark : T.coralDark}
             />
             <AppText
-              fontWeight="bold"
+              fontWeight="black"
               size={10.5}
-              style={{ color: up ? J.green : J.danger, marginLeft: 3 }}
+              style={{ color: up ? T.greenDark : T.coralDark, marginLeft: 2 }}
             >
-              {up ? "+" : ""}
-              {delta}
+              {Math.abs(delta)}
             </AppText>
           </View>
         ) : (
-          <Chip label={item.rating?.label ?? ""} color={item.rating?.color} bg={item.rating?.bg} />
+          <Chip
+            label={item.rating?.label ?? ""}
+            color={item.rating?.color}
+            bg={item.rating?.bg}
+            style={{ marginTop: 3 }}
+          />
         )}
       </View>
     </Animated.View>
@@ -86,71 +114,116 @@ const JambHistoryCard = ({ summary, index = 2 }) => {
 
   return (
     <Card index={index}>
-      <View style={styles.head}>
-        <View style={styles.title}>
-          <Ionicons name="time" size={19} color={J.green} />
-          <AppText fontWeight="black" size={18} style={{ color: J.ink, marginLeft: 8 }}>
-            Round History
-          </AppText>
-        </View>
-        <Chip label={`${rounds} round${rounds === 1 ? "" : "s"}`} bg={J.mintStrong} />
-      </View>
+      <SectionTitle
+        icon="time"
+        color={T.blueDark}
+        bg={T.blueSoft}
+        title="Round History"
+        right={
+          <Chip
+            label={`${rounds} round${rounds === 1 ? "" : "s"}`}
+            bg={T.blueSoft}
+            color={T.blueDark}
+          />
+        }
+      />
 
       {rounds === 0 ? (
         <Animated.View entering={FadeIn.delay(200)} style={styles.empty}>
-          <Ionicons name="flag" size={26} color={J.green} />
+          <View style={styles.emptyIcon}>
+            <Ionicons name="flag" size={24} color={T.greenDark} />
+          </View>
           <AppText
             fontWeight="medium"
             size={12.5}
-            style={{ color: J.muted, textAlign: "center", marginTop: 8, lineHeight: 18 }}
+            style={{
+              color: T.sub,
+              textAlign: "center",
+              marginTop: 10,
+              lineHeight: 18,
+            }}
           >
-            Practise all four subjects to complete a round. Your score prediction
-            and average will show up here.
+            Practise all four subjects to complete a round. Your score
+            prediction and average will show up here.
           </AppText>
         </Animated.View>
       ) : (
         <>
           <View style={styles.avgBox}>
             <ProgressRing
-              size={62}
-              stroke={7}
+              size={64}
+              stroke={8}
+              color={T.yellowDark}
+              track="#fff"
               percent={Math.round((summary.average / JAMB_TOTAL) * 100)}
               delay={300}
             >
-              <AppText fontWeight="black" size={15} style={{ color: J.ink }}>
+              <AppText fontWeight="black" size={14} style={{ color: T.ink }}>
                 {summary.average}
               </AppText>
             </ProgressRing>
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <AppText fontWeight="semibold" size={12} style={{ color: J.muted }}>
+              <AppText
+                fontWeight="bold"
+                size={11.5}
+                style={{ color: T.yellowInk }}
+              >
                 Average prediction
               </AppText>
-              <AppText fontWeight="black" size={22} style={{ color: J.deep }}>
+              <AppText fontWeight="black" size={24} style={{ color: T.ink }}>
                 {summary.average}
-                <AppText fontWeight="semibold" size={13} style={{ color: J.muted }}>
+                <AppText
+                  fontWeight="semibold"
+                  size={13}
+                  style={{ color: T.sub }}
+                >
                   /{JAMB_TOTAL}
                 </AppText>
               </AppText>
             </View>
             <View style={styles.bestBox}>
-              <AppText fontWeight="medium" size={10} style={{ color: J.muted }}>
+              <Ionicons name="trophy" size={14} color={T.yellowDark} />
+              <AppText
+                fontWeight="medium"
+                size={9.5}
+                style={{ color: T.sub, marginTop: 2 }}
+              >
                 Best
               </AppText>
-              <AppText fontWeight="black" size={15} style={{ color: J.ink }}>
+              <AppText fontWeight="black" size={15} style={{ color: T.ink }}>
                 {summary.best}
               </AppText>
             </View>
           </View>
 
           {rows.map((r, i) => (
-            <Row key={r.id} item={r} older={history[history.indexOf(r) + 1]} index={i} />
+            <Row
+              key={r.id}
+              item={r}
+              older={history[history.indexOf(r) + 1]}
+              index={i}
+            />
           ))}
 
           {history.length > VISIBLE && (
-            <JambPressable onPress={() => setAll((a) => !a)} style={{ alignSelf: "center", marginTop: 6 }}>
-              <AppText fontWeight="bold" size={12} style={{ color: J.deep }}>
-                {all ? "Show less" : `Show all ${history.length}`}
+            <JambPressable
+              onPress={() => setAll((a) => !a)}
+              style={{ alignSelf: "center", marginTop: 10 }}
+              contentStyle={styles.more}
+            >
+              <AppText
+                fontWeight="black"
+                size={11.5}
+                style={{ color: T.greenDark, letterSpacing: 0.5 }}
+              >
+                {all ? "SHOW LESS" : `SHOW ALL ${history.length}`}
               </AppText>
+              <Ionicons
+                name={all ? "chevron-up" : "chevron-down"}
+                size={14}
+                color={T.greenDark}
+                style={{ marginLeft: 4 }}
+              />
             </JambPressable>
           )}
         </>
@@ -162,39 +235,67 @@ const JambHistoryCard = ({ summary, index = 2 }) => {
 export default JambHistoryCard;
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  title: { flexDirection: "row", alignItems: "center" },
-  empty: { alignItems: "center", paddingVertical: 14, paddingHorizontal: 8 },
+  empty: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 8 },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: T.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   avgBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: J.mint,
+    backgroundColor: T.yellowSoft,
+    borderWidth: 2,
+    borderColor: T.yellowLine,
     borderRadius: 18,
     padding: 12,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   bestBox: {
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: J.line,
+    paddingVertical: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: T.line,
+    borderStyle: "dashed",
   },
   badge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: J.mintStrong,
+    width: 38,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: T.paper,
+    borderWidth: 2,
+    borderColor: T.line,
+    borderTopWidth: 6,
+    borderTopColor: T.coral,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 12,
   },
-  delta: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  delta: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 3,
+  },
+  more: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: T.greenSoft,
+  },
 });

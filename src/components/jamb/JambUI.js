@@ -17,7 +17,7 @@ import Animated, {
 import Svg, { Circle } from "react-native-svg";
 
 import AppText from "./JambText";
-import { J } from "../../helpers/jambConfig";
+import { T } from "./JambTheme";
 import { LAYOUT, SPRING, enter } from "./JambMotion";
 
 export { enter };
@@ -117,6 +117,82 @@ export const JambPressable = ({
   );
 };
 
+/**
+ * Chunky "pushable" surface: a coloured face sitting on a darker lip.
+ * Pressing sinks the face onto the lip. The lip is absolutely positioned so
+ * the layout never shifts while pressing.
+ */
+export const Chunky = ({
+  children,
+  onPress,
+  disabled,
+  face = T.green,
+  lip = T.greenDark,
+  faceBorder,
+  radius = 16,
+  depth = 5,
+  style,
+  contentStyle,
+}) => {
+  const press = useSharedValue(0);
+  const faceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: press.value * depth }],
+  }));
+
+  return (
+    <View style={[{ paddingBottom: depth }, style]}>
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: depth,
+          bottom: 0,
+          borderRadius: radius,
+          backgroundColor: lip,
+        }}
+      />
+      <Pressable
+        disabled={disabled}
+        onPress={onPress}
+        onPressIn={() => {
+          press.value = withTiming(1, { duration: 70 });
+        }}
+        onPressOut={() => {
+          press.value = withSpring(0, SPRING.press);
+        }}
+      >
+        <Animated.View
+          style={[
+            {
+              backgroundColor: face,
+              borderRadius: radius,
+              borderWidth: faceBorder ? 2 : 0,
+              borderColor: faceBorder,
+            },
+            faceStyle,
+            contentStyle,
+          ]}
+        >
+          {children}
+        </Animated.View>
+      </Pressable>
+    </View>
+  );
+};
+
+const BUTTONS = {
+  primary: { face: T.green, lip: T.greenDark, text: "#FFFFFF" },
+  yellow: { face: T.yellow, lip: T.yellowDark, text: T.ink },
+  ghost: {
+    face: "#FFFFFF",
+    lip: T.lineDark,
+    text: T.greenDark,
+    border: T.lineDark,
+  },
+  off: { face: "#E7E3D4", lip: "#D2CCB6", text: "#A29D88" },
+};
+
 export const JambButton = ({
   title,
   onPress,
@@ -126,44 +202,45 @@ export const JambButton = ({
   small = false,
   style,
 }) => {
-  const opacity = useSharedValue(disabled ? 0.5 : 1);
-  useEffect(() => {
-    opacity.value = withTiming(disabled ? 0.5 : 1, { duration: 220 });
-  }, [disabled]);
-  const fade = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  const primary = variant === "primary";
+  const k = disabled ? BUTTONS.off : (BUTTONS[variant] ?? BUTTONS.primary);
 
   return (
-    <Animated.View style={[fade, style]} layout={LAYOUT}>
-      <JambPressable
+    <Animated.View style={style} layout={LAYOUT}>
+      <Chunky
         disabled={disabled}
         onPress={onPress}
-        contentStyle={[
-          styles.btn,
-          primary ? styles.btnPrimary : styles.btnGhost,
-          small && { paddingVertical: 11, paddingHorizontal: 18 },
-        ]}
+        face={k.face}
+        lip={k.lip}
+        faceBorder={disabled ? undefined : k.border}
+        radius={small ? 14 : 18}
+        depth={small ? 4 : 5}
+        contentStyle={[styles.btn, small && styles.btnSmall]}
       >
         <AppText
-          fontWeight="bold"
-          size={small ? 14 : 15.5}
-          style={{ color: primary ? "#fff" : J.deep }}
+          fontWeight="black"
+          size={small ? 13 : 15}
+          style={{
+            color: k.text,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+          }}
         >
           {title}
         </AppText>
         {Boolean(icon) && (
           <Ionicons
             name={icon}
-            size={small ? 16 : 18}
-            color={primary ? "#fff" : J.deep}
+            size={small ? 15 : 18}
+            color={k.text}
             style={{ marginLeft: 8 }}
           />
         )}
-      </JambPressable>
+      </Chunky>
     </Animated.View>
   );
 };
 
+/** White card with a thicker bottom edge (like a stacked card / notebook tab). */
 export const Card = ({
   children,
   style,
@@ -180,7 +257,83 @@ export const Card = ({
   </Animated.View>
 );
 
-export const Chip = ({ label, color = J.deep, bg = J.mint, icon, style }) => (
+/** Sticky note (teacher's remark) with a strip of tape on top. */
+export const Note = ({
+  icon = "bulb",
+  title,
+  children,
+  index = 0,
+  base = 0,
+  onPress,
+  right,
+  tone = "yellow",
+  style,
+}) => {
+  const c =
+    tone === "green"
+      ? {
+          bg: T.greenSoft,
+          line: T.greenLine,
+          ico: T.greenDark,
+          tape: "rgba(34,165,89,0.35)",
+          text: T.ink,
+        }
+      : {
+          bg: T.yellowSoft,
+          line: T.yellowLine,
+          ico: T.yellowInk,
+          tape: "rgba(255,199,54,0.65)",
+          text: "#4A4020",
+        };
+
+  const body = (
+    <View style={styles.noteRow}>
+      <View style={[styles.noteIcon, { borderColor: c.line }]}>
+        <Ionicons name={icon} size={20} color={c.ico} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText fontWeight="black" size={14.5} style={{ color: T.ink }}>
+          {title}
+        </AppText>
+        {children}
+      </View>
+      {right}
+    </View>
+  );
+
+  return (
+    <Card
+      index={index}
+      base={base}
+      style={[
+        {
+          backgroundColor: c.bg,
+          borderColor: c.line,
+          paddingTop: 18,
+          marginTop: 8,
+        },
+        style,
+      ]}
+    >
+      <View style={[styles.tape, { backgroundColor: c.tape }]} />
+      {onPress ? (
+        <JambPressable onPress={onPress} scaleTo={0.99}>
+          {body}
+        </JambPressable>
+      ) : (
+        body
+      )}
+    </Card>
+  );
+};
+
+export const Chip = ({
+  label,
+  color = T.greenDark,
+  bg = T.greenSoft,
+  icon,
+  style,
+}) => (
   <View style={[styles.chip, { backgroundColor: bg }, style]}>
     {Boolean(icon) && (
       <Ionicons
@@ -190,7 +343,7 @@ export const Chip = ({ label, color = J.deep, bg = J.mint, icon, style }) => (
         style={{ marginRight: 5 }}
       />
     )}
-    <AppText fontWeight="bold" size={12} style={{ color }}>
+    <AppText fontWeight="bold" size={11.5} style={{ color }}>
       {label}
     </AppText>
   </View>
@@ -205,14 +358,45 @@ export const Skeleton = ({ style }) => {
   return <Animated.View style={[styles.skeleton, a, style]} />;
 };
 
+/** Small section heading: coloured icon tile + title (+ optional right node). */
+export const SectionTitle = ({
+  icon,
+  color = T.green,
+  bg = T.greenSoft,
+  title,
+  sub,
+  right,
+}) => (
+  <View style={styles.sectionHead}>
+    <View style={[styles.sectionIcon, { backgroundColor: bg }]}>
+      <Ionicons name={icon} size={18} color={color} />
+    </View>
+    <View style={{ flex: 1, paddingRight: 8 }}>
+      <AppText fontWeight="black" size={17} style={{ color: T.ink }}>
+        {title}
+      </AppText>
+      {Boolean(sub) && (
+        <AppText
+          fontWeight="medium"
+          size={11.5}
+          style={{ color: T.sub, marginTop: 1 }}
+        >
+          {sub}
+        </AppText>
+      )}
+    </View>
+    {right}
+  </View>
+);
+
 // ─── Progress ────────────────────────────────────────────────────────────────
 
 export const ProgressRing = ({
   percent = 0,
   size = 84,
   stroke = 10,
-  color = J.deep,
-  track = J.mintStrong,
+  color = T.green,
+  track = T.track,
   delay = 200,
   children,
 }) => {
@@ -271,12 +455,13 @@ export const ProgressRing = ({
   );
 };
 
+/** Chunky progress bar with a glossy highlight stripe. */
 export const AnimatedBar = ({
   percent = 0,
-  color = J.green,
-  height = 8,
+  color = T.green,
+  height = 12,
   delay = 250,
-  track = "#E4EDE0",
+  track = T.track,
 }) => {
   const w = useSharedValue(0);
   useEffect(() => {
@@ -301,7 +486,19 @@ export const AnimatedBar = ({
     >
       <Animated.View
         style={[{ height, borderRadius: height, backgroundColor: color }, fill]}
-      />
+      >
+        <View
+          style={{
+            position: "absolute",
+            top: Math.max(height * 0.22, 2),
+            left: 6,
+            right: 6,
+            height: Math.max(height * 0.22, 2),
+            borderRadius: 4,
+            backgroundColor: "rgba(255,255,255,0.35)",
+          }}
+        />
+      </Animated.View>
     </View>
   );
 };
@@ -337,7 +534,7 @@ export const getSubjectImage = (subject) => {
 export const SubjectIcon = ({
   subject,
   size = 52,
-  bg = J.mint,
+  bg = T.paper,
   radius,
   imageScale = 1,
 }) => {
@@ -368,7 +565,7 @@ export const SubjectIcon = ({
           }}
         />
       ) : (
-        <Ionicons name={iconName} size={size * 0.6} color={J.deep} />
+        <Ionicons name={iconName} size={size * 0.6} color={T.greenDark} />
       )}
     </View>
   );
@@ -379,44 +576,58 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 15,
     paddingHorizontal: 22,
-    borderRadius: 100,
   },
-  btnPrimary: {
-    backgroundColor: J.deep,
-    shadowColor: J.deepest,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  btnGhost: {
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: J.green,
-  },
+  btnSmall: { paddingVertical: 11, paddingHorizontal: 18 },
   card: {
-    backgroundColor: J.card,
+    backgroundColor: T.card,
     borderRadius: 22,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: "#1C5B33",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 2,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
+    padding: 14,
+    marginBottom: 14,
+  },
+  noteRow: { flexDirection: "row", alignItems: "flex-start" },
+  noteIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  tape: {
+    position: "absolute",
+    top: -9,
+    left: 26,
+    width: 54,
+    height: 18,
+    borderRadius: 3,
+    transform: [{ rotate: "-4deg" }],
   },
   chip: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    paddingVertical: 5,
+    paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 100,
+    borderRadius: 10,
   },
   skeleton: {
-    backgroundColor: "#DCE8D4",
+    backgroundColor: "#EADFC0",
     borderRadius: 14,
+  },
+  sectionHead: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  sectionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
 });

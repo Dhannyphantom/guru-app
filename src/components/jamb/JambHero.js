@@ -1,9 +1,9 @@
 import { StyleSheet, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 
 import AppText from "./JambText";
-import { J, JAMB_TOTAL } from "../../helpers/jambConfig";
+import { JAMB_TOTAL } from "../../helpers/jambConfig";
+import { T } from "./JambTheme";
 import { Chip, JambButton } from "./JambUI";
 import { LAYOUT, enter } from "./JambMotion";
 import JambIllustration from "./JambIllustration";
@@ -13,10 +13,9 @@ const ART = 124; // illustration height
 const ART_W = ART * 1.15;
 
 /**
- * Shared banner chrome: gradient card (clipped) + illustration that sits ABOVE it
- * and straddles the right edge a few px. The text column reserves exactly the
- * illustration's width, so text and art are cleanly separated while the art
- * still overlaps the card edge.
+ * Shared banner chrome: a chalkboard with a dashed chalk frame and faint maths
+ * doodles. The illustration sits ABOVE it and straddles the right edge; the
+ * text column reserves exactly the illustration's width.
  */
 export const BannerShell = ({ children, art, style }) => (
   <Animated.View
@@ -25,14 +24,31 @@ export const BannerShell = ({ children, art, style }) => (
     style={[styles.wrap, style]}
   >
     <View style={styles.clip}>
-      <LinearGradient
-        colors={["#EAF7DD", "#D2EBBF"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.body, { paddingRight: ART_W - 6 }]}
-      >
+      <View style={[styles.body, { paddingRight: ART_W - 2 }]}>
+        <View pointerEvents="none" style={styles.frame} />
+        <AppText
+          fontWeight="black"
+          size={40}
+          style={[styles.doodle, { top: 6, right: ART_W + 6 }]}
+        >
+          π
+        </AppText>
+        <AppText
+          fontWeight="black"
+          size={34}
+          style={[styles.doodle, { bottom: 4, right: ART_W * 0.55 }]}
+        >
+          ÷
+        </AppText>
+        <AppText
+          fontWeight="black"
+          size={30}
+          style={[styles.doodle, { bottom: 2, left: "46%" }]}
+        >
+          √
+        </AppText>
         {children}
-      </LinearGradient>
+      </View>
     </View>
     <View pointerEvents="none" style={styles.art}>
       {art}
@@ -102,6 +118,11 @@ const JambHero = ({
         </>
       ) : (
         <>
+          <View style={styles.tag}>
+            <AppText fontWeight="black" size={9.5} style={styles.tagText}>
+              GURU · EXAM PREP
+            </AppText>
+          </View>
           <AppText fontWeight="black" size={21} style={styles.title}>
             {"Guru JAMB\nScore Predictor"}
           </AppText>
@@ -113,8 +134,8 @@ const JambHero = ({
             <Chip
               icon="trending-up"
               label={`Avg ${summary.average}/${JAMB_TOTAL} · ${summary.rounds} round${summary.rounds === 1 ? "" : "s"}`}
-              color={J.deep}
-              bg="#fff"
+              color={T.ink}
+              bg={T.chalk}
               style={{ marginTop: 9 }}
             />
           )}
@@ -122,14 +143,16 @@ const JambHero = ({
             <Chip
               icon="hourglass"
               label={`Next round in ${cooldown.short}`}
-              color={J.amber}
-              bg={J.amberBg}
+              color={T.yellowInk}
+              bg={T.yellowSoft}
               style={{ marginTop: 6 }}
             />
           )}
           {showButton && (
             <JambButton
               title={buttonLabel}
+              variant="yellow"
+              icon={locked ? "lock-closed" : "arrow-forward"}
               onPress={onPress}
               small
               style={{ alignSelf: "flex-start", marginTop: 12 }}
@@ -148,25 +171,46 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 14,
     borderRadius: 26,
-    backgroundColor: "#DDF0CB",
-    shadowColor: "#1C5B33",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 3,
+    backgroundColor: T.boardDark,
+    paddingBottom: 5,
   },
-  clip: { borderRadius: 26, overflow: "hidden" },
-  body: { paddingVertical: 16, paddingLeft: 16, minHeight: ART + 28 },
+  clip: { borderRadius: 26, overflow: "hidden", backgroundColor: T.board },
+  body: {
+    paddingVertical: 18,
+    paddingLeft: 18,
+    minHeight: ART + 30,
+    backgroundColor: T.board,
+  },
+  frame: {
+    position: "absolute",
+    top: 7,
+    left: 7,
+    right: 7,
+    bottom: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "rgba(255,248,231,0.22)",
+  },
+  doodle: { position: "absolute", color: "rgba(255,248,231,0.07)" },
   art: {
     position: "absolute",
     right: -2,
     top: 0,
-    bottom: 0,
+    bottom: 5,
     justifyContent: "center",
     alignItems: "flex-end",
   },
-  chipRow: { flexDirection: "row", marginBottom: 9 },
-  title: { color: J.deepest, lineHeight: 31 },
-  desc: { color: J.ink, marginTop: 7, width: "80%", lineHeight: 19 },
-  small: { color: J.muted, marginTop: 7, lineHeight: 17 },
+  tag: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,199,54,0.18)",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginBottom: 8,
+  },
+  tagText: { color: T.yellow, letterSpacing: 1 },
+  title: { color: T.chalk, lineHeight: 28 },
+  desc: { color: T.chalkSoft, marginTop: 7, width: "88%", lineHeight: 18 },
+  small: { color: T.chalkSoft, marginTop: 7, lineHeight: 17 },
 });
