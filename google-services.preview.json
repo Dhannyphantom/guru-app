@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "878638796688",
+    "project_id": "guru-app-6d6d0",
+    "storage_bucket": "guru-app-6d6d0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:878638796688:android:d45b745e7a5e4373c7ed15",
+        "android_client_info": {
+          "package_name": "com.phantom.guruedutech"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVx59eiVgXQ5sssdbbcsn-xeoWI4dr4J0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:878638796688:android:ad2725b02a6e8061c7ed15",
+        "android_client_info": {
+          "package_name": "com.phantom.guruedutech.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVx59eiVgXQ5sssdbbcsn-xeoWI4dr4J0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:878638796688:android:865f28bad9335baec7ed15",
+        "android_client_info": {
+          "package_name": "com.phantom.guruedutech.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVx59eiVgXQ5sssdbbcsn-xeoWI4dr4J0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
