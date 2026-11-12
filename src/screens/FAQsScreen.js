@@ -766,11 +766,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: Platform.OS === "ios" ? 12 : 8,
     borderRadius: 12,
-    // elevation: 2,
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: 1 },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 2,
   },
   searchIcon: {
     marginRight: 10,
@@ -866,11 +861,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
     overflow: "hidden",
-    // elevation: 2,
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.08,
-    // shadowRadius: 4,
   },
   accordionHeader: {
     flexDirection: "row",
@@ -903,12 +893,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     boxShadow: `5px 10px 24px ${colors.primary}45`,
-
-    // elevation: 8,
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: -2 },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 8,
   },
   supportContent: {
     flexDirection: "row",
@@ -926,7 +910,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 12,
-    // elevation: 2,
   },
 });
 

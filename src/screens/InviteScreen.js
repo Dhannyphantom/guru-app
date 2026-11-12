@@ -305,7 +305,6 @@ const styles = StyleSheet.create({
     // minHeight: height * 0.1,
     borderRadius: 10,
     marginBottom: 10,
-    // // elevation: 2,
     alignSelf: "center",
     // bottom: 70,
     // zIndex: 5,

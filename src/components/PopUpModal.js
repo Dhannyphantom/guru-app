@@ -53,7 +53,7 @@ const PopUpModal = ({
           translateY: interpolate(
             opaciter.value,
             [0, 1],
-            [useDefaultHeight ? height : height * 0.08, 0] // Start from bottom if useDefaultHeight
+            [useDefaultHeight ? height : height * 0.08, 0], // Start from bottom if useDefaultHeight
           ),
         },
       ],
@@ -65,7 +65,7 @@ const PopUpModal = ({
       opacity: interpolate(
         opaciter.value,
         [0, 0.7, 1],
-        [0, 0, 1] // Start from bottom if useDefaultHeight
+        [0, 0, 1], // Start from bottom if useDefaultHeight
       ),
     };
   });
@@ -154,7 +154,6 @@ const styles = StyleSheet.create({
   },
   main: {
     backgroundColor: colors.white,
-    // elevation: 25,
     borderTopStartRadius: 10,
     borderTopEndRadius: 10,
     height: height * 0.92, // Default height (full screen)

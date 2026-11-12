@@ -12,12 +12,11 @@ import React, { useCallback, useEffect, memo, useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 
-import colors from "../helpers/colors";
+import { T, TINTS } from "../components/jamb/JambTheme";
+import { Chip, JambButton, SectionTitle } from "../components/jamb/JambUI";
 import AppText from "../components/AppText";
-import { Authors } from "../components/AppDetails";
 import { PAD_BOTTOM, schoolActions } from "../helpers/dataStore";
 import Avatar from "../components/Avatar";
-import AppButton from "../components/AppButton";
 
 import Animated, {
   Extrapolation,
@@ -66,7 +65,7 @@ export const PREVIEW_LIMIT = 21;
 const keyExtractor = (item) => item._id;
 
 // Stable style/prop objects (no new objects per render)
-const AVATAR_BORDER = { width: 2, color: colors.lightly };
+const AVATAR_BORDER = { width: 3, color: T.line };
 const CAPITALIZE = { textTransform: "capitalize" };
 const AVATAR_CONT = { width: width * 0.26 };
 
@@ -92,7 +91,7 @@ const StudentItem = memo(({ item, ownId, onFlag }) => {
       />
       {!isOwnCard && (
         <Pressable onPress={() => onFlag(u)} hitSlop={8} style={styles.flagBtn}>
-          <Ionicons name="flag-outline" size={14} color={colors.medium} />
+          <Ionicons name="flag-outline" size={13} color={T.sub} />
         </Pressable>
       )}
     </View>
@@ -108,21 +107,23 @@ const ViewAllButton = memo(({ total, isTeacher, onPress }) => (
     style={({ pressed }) => [styles.viewAll, pressed && { opacity: 0.85 }]}
   >
     <View style={styles.viewAllIcon}>
-      <Ionicons name="people" size={22} color={colors.primaryDeeper} />
+      <Ionicons name="people" size={22} color={T.yellowInk} />
     </View>
     <View style={{ flex: 1 }}>
-      <AppText fontWeight="heavy" size="large">
+      <AppText fontWeight="black" size="medium" style={{ color: T.ink }}>
         {isTeacher
           ? `Browse all ${total} students`
           : `See all ${total} schoolmates`}
       </AppText>
-      <AppText size="small" style={{ color: colors.medium, marginTop: 2 }}>
+      <AppText size="small" style={{ color: T.sub, marginTop: 2 }}>
         {isTeacher
           ? "Filter by class, search and view stats"
           : "Your class first. Browse other classes too"}
       </AppText>
     </View>
-    <Ionicons name="chevron-forward" size={20} color={colors.medium} />
+    <View style={styles.viewAllArrow}>
+      <Ionicons name="arrow-forward" size={16} color={T.ink} />
+    </View>
   </Pressable>
 ));
 
@@ -132,8 +133,8 @@ const ViewAllButton = memo(({ total, isTeacher, onPress }) => (
 const TeacherQuiz = memo(({ item, closeModal, index }) => {
   const router = useRouter();
   const isActive = item?.status === "active";
-  const txtColor = isActive ? colors.primaryDeeper : colors.medium;
-  const txtBg = isActive ? colors.primaryLighter : colors.extraLight;
+  const txtColor = isActive ? T.greenDark : T.sub;
+  const txtBg = isActive ? T.greenSoft : T.track;
 
   const handlePress = () => {
     closeModal && closeModal();
@@ -147,18 +148,22 @@ const TeacherQuiz = memo(({ item, closeModal, index }) => {
     <Pressable onPress={handlePress} style={styles.teacherQuiz}>
       <Counter count={index + 1} />
       <View style={styles.tQuizMain}>
-        <AppText fontWeight="heavy" size="xlarge">
+        <AppText fontWeight="black" size="large" style={{ color: T.ink }}>
           {item.title}
         </AppText>
-        <AppText size="large" fontWeight="heavy" style={styles.tQuizSubj}>
+        <AppText size="medium" fontWeight="bold" style={styles.tQuizSubj}>
           {item.subject?.name}
         </AppText>
         <View style={[styles.tQuizStat, { backgroundColor: txtBg }]}>
           <Ionicons name="disc" color={txtColor} size={12} />
           <AppText
-            fontWeight="bold"
+            fontWeight="black"
             size="small"
-            style={{ marginLeft: 4, color: txtColor }}
+            style={{
+              marginLeft: 4,
+              color: txtColor,
+              textTransform: "capitalize",
+            }}
           >
             {item.status}
           </AppText>
@@ -178,20 +183,20 @@ const SchoolQuiz = memo(({ item, onPress }) => {
     case "active":
       statusText = "Pending";
       btnText = "Start Quiz";
-      badgeColor = colors.primaryDeeper;
-      badgeBg = colors.primaryLighter;
+      badgeColor = T.greenDark;
+      badgeBg = T.greenSoft;
       break;
     case "result":
       statusText = "Result";
       btnText = "See Result";
-      badgeColor = colors.success;
-      badgeBg = colors.successLight;
+      badgeColor = T.purpleDark;
+      badgeBg = T.purpleSoft;
       break;
     case "review":
     case "submitted":
       statusText = "Submitted";
-      badgeColor = colors.warning;
-      badgeBg = colors.warningLight + 30;
+      badgeColor = T.yellowInk;
+      badgeBg = T.yellowSoft;
       break;
   }
 
@@ -206,23 +211,26 @@ const SchoolQuiz = memo(({ item, onPress }) => {
           <Image source={item?.subject?.image} style={styles.quizIcon} />
         </View>
         <View style={{ flex: 1 }}>
-          <AppText fontWeight="heavy" style={CAPITALIZE} size="large">
+          <AppText
+            fontWeight="black"
+            style={[CAPITALIZE, { color: T.ink }]}
+            size="large"
+          >
             {item?.subject?.name}
           </AppText>
-          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-            <AppText
-              size="small"
-              fontWeight="bold"
-              style={{ color: badgeColor }}
-            >
-              {statusText}
-            </AppText>
-          </View>
+          <Chip
+            label={statusText ?? ""}
+            color={badgeColor}
+            bg={badgeBg}
+            style={{ marginTop: 6 }}
+          />
         </View>
         {Boolean(btnText) && (
-          <AppButton
+          <JambButton
             title={btnText}
-            contStyle={styles.quizBtn}
+            small
+            icon={item?.status === "active" ? "play" : "eye"}
+            variant={item?.status === "active" ? "primary" : "ghost"}
             onPress={handlePress}
           />
         )}
@@ -231,26 +239,26 @@ const SchoolQuiz = memo(({ item, onPress }) => {
         <Avatar
           size={40}
           source={item?.teacher?.avatar?.image}
-          border={{ width: 1, color: colors.primaryDeep }}
+          border={{ width: 2, color: T.line }}
         />
         <View style={{ marginLeft: 10 }}>
-          <AppText fontWeight="bold" style={CAPITALIZE} size="small">
+          <AppText
+            fontWeight="bold"
+            style={[CAPITALIZE, { color: T.ink }]}
+            size="small"
+          >
             {item?.teacher?.preffix} {item?.teacher?.firstName}{" "}
             {item?.teacher?.lastName}
           </AppText>
-          <AppText size="xsmall" style={{ color: colors.medium }}>
+          <AppText size="xsmall" style={{ color: T.sub }}>
             {dateFormatter(item.date, "feed")}
           </AppText>
         </View>
         <View style={{ flex: 1, alignItems: "flex-end" }}>
-          <AppText
-            fontWeight="medium"
-            size="small"
-            style={{ color: colors.medium }}
-          >
+          <AppText fontWeight="bold" size="xsmall" style={{ color: T.sub }}>
             Quiz Title
           </AppText>
-          <AppText fontWeight="bold" size="large">
+          <AppText fontWeight="black" size="medium" style={{ color: T.ink }}>
             {item?.title}
           </AppText>
         </View>
@@ -314,11 +322,13 @@ export const SchoolModal = () => {
   const HeaderRight = useCallback(
     () => (
       <View style={styles.close}>
-        <AppButton
+        <JambButton
           title={isTeacher ? "New Quiz" : "History"}
-          type="white"
+          variant="ghost"
+          small
+          icon={isTeacher ? "add" : "time"}
           onPress={navigateHistory}
-          contStyle={{ marginRight: 10 }}
+          style={{ marginRight: 10 }}
         />
       </View>
     ),
@@ -376,26 +386,43 @@ export const SchoolModal = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolActions
 // ─────────────────────────────────────────────────────────────────────────────
-const ActionItem = memo(({ item, count, onPress }) => (
-  <Pressable onPress={() => onPress(item)} style={styles.action}>
-    <View style={[styles.actionImgCont, { backgroundColor: item.bgColor }]}>
-      <Image source={item.image} style={styles.actionImg} />
-    </View>
-    <View style={styles.actionDetail}>
-      <AppText style={{ paddingHorizontal: 5 }} fontWeight="heavy">
-        {item.name}
-      </AppText>
-      {count != null && (
-        <AppText
-          style={{ ...styles.actionCount, backgroundColor: colors.light }}
-          fontWeight="black"
-        >
-          {count}
+const ActionItem = memo(({ item, count, onPress, index }) => {
+  const tint = TINTS[index % TINTS.length];
+  return (
+    <Pressable
+      onPress={() => onPress(item)}
+      style={({ pressed }) => [
+        styles.action,
+        pressed && { transform: [{ translateY: 2 }] },
+      ]}
+    >
+      <View
+        style={[
+          styles.actionImgCont,
+          { backgroundColor: tint.bg, borderColor: tint.border },
+        ]}
+      >
+        <Image source={item.image} style={styles.actionImg} />
+      </View>
+      <View style={styles.actionDetail}>
+        <AppText style={{ color: T.ink }} fontWeight="black" size="small">
+          {item.name}
         </AppText>
-      )}
-    </View>
-  </Pressable>
-));
+        {count != null && (
+          <View style={[styles.actionCount, { backgroundColor: tint.bg }]}>
+            <AppText
+              fontWeight="black"
+              size="small"
+              style={{ color: tint.ink }}
+            >
+              {count}
+            </AppText>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+});
 
 const MODAL_COMPONENTS = { Classes: ClassModal };
 
@@ -431,9 +458,10 @@ const SchoolActions = memo(({ data }) => {
   );
 
   const renderItem = useCallback(
-    ({ item }) => (
+    ({ item, index }) => (
       <ActionItem
         item={item}
+        index={index}
         count={data[item?.name?.toLowerCase()]}
         onPress={handleActionPress}
       />
@@ -457,20 +485,21 @@ const SchoolActions = memo(({ data }) => {
 
   return (
     <View>
-      <AppText
-        style={{ marginBottom: 15, marginLeft: 15 }}
-        size="xlarge"
-        fontWeight="bold"
-      >
-        My School
-      </AppText>
+      <View style={styles.sectionPad}>
+        <SectionTitle
+          icon="grid"
+          color={T.blueDark}
+          bg={T.blueSoft}
+          title="My School"
+        />
+      </View>
 
       <FlatList
         data={visibleActions}
         horizontal
         keyExtractor={keyExtractor}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 4 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 6 }}
         renderItem={renderItem}
       />
 
@@ -482,6 +511,55 @@ const SchoolActions = memo(({ data }) => {
     </View>
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Teachers (local so the shared AppDetails stays untouched)
+// ─────────────────────────────────────────────────────────────────────────────
+const TeacherCell = memo(({ item }) => {
+  const user = item?.user;
+  return (
+    <View style={{ marginHorizontal: 10 }}>
+      <Avatar
+        size={width * 0.26}
+        source={user?.avatar?.image}
+        userID={user?._id}
+        data={item}
+        border={{ width: 3, color: T.line }}
+        name={`${user?.preffix ?? ""} ${user?.firstName} ${user?.lastName}`}
+        textStyle={CAPITALIZE}
+      />
+    </View>
+  );
+});
+
+const renderTeacherCell = ({ item }) => <TeacherCell item={item} />;
+
+const Teachers = memo(({ data = [] }) => (
+  <View style={styles.teachersWrap}>
+    <SectionTitle
+      icon="ribbon"
+      color={T.purpleDark}
+      bg={T.purpleSoft}
+      title="Teachers"
+      right={
+        <Chip
+          label={`${data?.length ?? 0}`}
+          color={T.purpleDark}
+          bg={T.purpleSoft}
+        />
+      }
+    />
+    <View style={styles.teachersCard}>
+      <FlatList
+        data={data}
+        keyExtractor={keyExtractor}
+        renderItem={renderTeacherCell}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+      />
+    </View>
+  </View>
+));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SchoolProfile
@@ -654,8 +732,10 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
         pointerEvents="none"
         style={[styles.headerSticker, { paddingTop: insets.top + 10 }, Rstyle]}
       >
-        <Ionicons name="school" color={colors.primary} size={30} />
-        <AppText style={styles.headerTxt} fontWeight="heavy" size="large">
+        <View style={styles.headerIcon}>
+          <Ionicons name="school" color={T.ink} size={20} />
+        </View>
+        <AppText style={styles.headerTxt} fontWeight="black" size="large">
           {data?.name}
         </AppText>
       </Animated.View>
@@ -674,30 +754,46 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
       >
         <SchoolHeader data={headerData} scrollY={translationY} />
         <SchoolActions data={actionData} />
-        <Authors data={data?.teachers} />
+        <Teachers data={data?.teachers} />
 
         {/* ── Students sheet ─────────────────────────────────────────── */}
         <View style={styles.sheet}>
           <View style={styles.sheetHeader}>
             <View style={styles.row}>
-              <AppText size="xlarge" fontWeight="bold">
+              <View style={styles.sheetIcon}>
+                <Ionicons name="people" size={18} color={T.greenDark} />
+              </View>
+              <AppText size="large" fontWeight="black" style={{ color: T.ink }}>
                 {isTeacher ? "Students" : "Schoolmates"}
               </AppText>
               <View style={styles.countBadge}>
                 <AppText
                   size="small"
                   fontWeight="black"
-                  style={{ color: colors.primaryDeeper }}
+                  style={{ color: T.greenDark }}
                 >
                   {totalStudents}
                 </AppText>
               </View>
             </View>
             {hasMore && (
-              <Pressable onPress={openAllStudents} hitSlop={10}>
-                <AppText fontWeight="bold" style={{ color: colors.primary }}>
-                  See all
+              <Pressable
+                onPress={openAllStudents}
+                hitSlop={10}
+                style={styles.seeAll}
+              >
+                <AppText
+                  fontWeight="black"
+                  size="small"
+                  style={{ color: T.greenDark }}
+                >
+                  SEE ALL
                 </AppText>
+                <Ionicons
+                  name="chevron-forward"
+                  size={13}
+                  color={T.greenDark}
+                />
               </Pressable>
             )}
           </View>
@@ -740,11 +836,11 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
 
           <View style={styles.leaveSection}>
             <Pressable onPress={openLeave} style={styles.leaveBtn}>
-              <Ionicons name="exit-outline" size={18} color={colors.heart} />
+              <Ionicons name="exit-outline" size={18} color={T.coralDark} />
               <AppText
-                fontWeight="bold"
+                fontWeight="black"
                 size="medium"
-                style={{ color: colors.heart, marginLeft: 8 }}
+                style={{ color: T.coralDark, marginLeft: 8 }}
               >
                 Leave School
               </AppText>
@@ -827,16 +923,12 @@ const SchoolScreen = ({ route }) => {
       {isPro && (
         <View style={styles.main}>
           <LottieAnimator name="person_float" size={width * 0.8} />
-          <AppText
-            fontWeight="black"
-            style={{ color: colors.medium }}
-            size="large"
-          >
+          <AppText fontWeight="black" style={{ color: T.sub }} size="large">
             You do not have access to this screen
           </AppText>
           <AppText
             fontWeight="black"
-            style={{ color: colors.medium, marginTop: 8 }}
+            style={{ color: T.sub, marginTop: 8 }}
             size="small"
           >
             Go to your Profile screen to access Pro Features
@@ -853,47 +945,67 @@ const SchoolScreen = ({ route }) => {
 export default SchoolScreen;
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: T.paper },
+  sectionPad: { paddingHorizontal: 16 },
+
+  // action tiles
   action: {
     minWidth: width * 0.3,
-    backgroundColor: colors.white,
-    marginHorizontal: 10,
-    borderRadius: 35,
-    paddingTop: 10,
-    elevation: 2,
-    marginBottom: 20,
+    backgroundColor: "#fff",
+    marginHorizontal: 6,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
+    padding: 10,
+    marginBottom: 18,
   },
   actionImgCont: {
-    width: width * 0.25,
-    height: width * 0.25,
+    width: width * 0.24,
+    height: width * 0.24,
     justifyContent: "center",
     alignSelf: "center",
     alignItems: "center",
-    elevation: 1.5,
-    borderRadius: 30,
+    borderRadius: 18,
+    borderWidth: 2,
   },
-  actionImg: { width: "50%", height: "50%" },
+  actionImg: { width: "52%", height: "52%" },
   actionDetail: {
     justifyContent: "center",
     alignItems: "center",
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 4,
   },
   actionCount: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 100,
-    color: colors.primaryDeeper,
-    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 6,
   },
-  container: { flex: 1, backgroundColor: colors.unchange },
 
-  // Students sheet (white rounded panel)
+  // teachers
+  teachersWrap: { paddingHorizontal: 16, marginBottom: 6 },
+  teachersCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+
+  // students sheet
   sheet: {
-    marginTop: 30,
-    backgroundColor: colors.white,
-    borderTopStartRadius: 30,
-    borderTopEndRadius: 30,
-    paddingTop: 22,
+    marginTop: 18,
+    backgroundColor: "#fff",
+    borderTopStartRadius: 32,
+    borderTopEndRadius: 32,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: T.line,
+    paddingTop: 20,
     paddingHorizontal: 15,
     paddingBottom: 30,
     minHeight: height * 0.5,
@@ -902,13 +1014,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: 16,
     paddingHorizontal: 2,
   },
   row: { flexDirection: "row", alignItems: "center" },
+  sheetIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: T.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
   sheetCaption: {
-    color: colors.medium,
-    marginTop: -8,
+    color: T.sub,
+    marginTop: -6,
     marginBottom: 16,
     paddingHorizontal: 2,
   },
@@ -917,9 +1038,18 @@ const styles = StyleSheet.create({
     minWidth: 28,
     paddingHorizontal: 9,
     paddingVertical: 3,
-    borderRadius: 100,
+    borderRadius: 9,
     alignItems: "center",
-    backgroundColor: colors.primaryLighter,
+    backgroundColor: T.greenSoft,
+  },
+  seeAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: T.greenSoft,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 2,
   },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   studentCell: {
@@ -931,9 +1061,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 22,
     right: 8,
-    backgroundColor: colors.extraLight,
+    backgroundColor: T.paper,
+    borderWidth: 1.5,
+    borderColor: T.line,
     borderRadius: 20,
-    padding: 4,
+    padding: 5,
   },
   viewAll: {
     flexDirection: "row",
@@ -942,30 +1074,56 @@ const styles = StyleSheet.create({
     marginTop: 6,
     padding: 14,
     borderRadius: 20,
-    backgroundColor: colors.extraLight,
+    backgroundColor: T.yellowSoft,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.yellowLine,
   },
   viewAllIcon: {
     width: 46,
     height: 46,
-    borderRadius: 14,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryLighter,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: T.yellowLine,
+  },
+  viewAllArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: T.yellow,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  close: { marginTop: 5, marginRight: 15 },
-  headerTxt: { textTransform: "capitalize" },
+  close: { marginTop: 5, marginRight: 5 },
+  headerTxt: { textTransform: "capitalize", color: T.ink, flex: 1 },
+  headerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: T.yellow,
+    borderBottomWidth: 3,
+    borderBottomColor: T.yellowDark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerSticker: {
-    backgroundColor: colors.white,
+    backgroundColor: "#fff",
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 400,
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     flexDirection: "row",
-    padding: 15,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: T.line,
   },
   main: {
     flex: 1,
@@ -973,71 +1131,84 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: height * 0.15,
   },
-  modalQuiz: { width, alignItems: "center", minHeight: height * 0.5 },
+  modalQuiz: {
+    width,
+    alignItems: "center",
+    minHeight: height * 0.5,
+    backgroundColor: T.paper,
+  },
   leaveSection: { alignItems: "center", paddingTop: 28 },
   leaveBtn: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: colors.heart + "50",
-    backgroundColor: colors.heart + "0A",
+    borderRadius: 18,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.coralLine,
+    backgroundColor: T.coralSoft,
   },
+
+  // quiz cards
   quizCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
     padding: 16,
     marginHorizontal: 15,
     marginVertical: 8,
-    boxShadow: `2px 8px 18px ${colors.primary}25`,
     width: width * 0.9,
   },
   quizHeader: { flexDirection: "row", alignItems: "center" },
   quizIconCont: {
-    width: 55,
-    height: 55,
-    borderRadius: 12,
-    backgroundColor: colors.extraLight,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: T.blueSoft,
+    borderWidth: 2,
+    borderColor: T.blueLine,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
   quizIcon: { width: 30, height: 30 },
-  badge: {
-    marginTop: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 50,
-    alignSelf: "flex-start",
+  quizTeacherRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1.5,
+    borderTopColor: T.line,
+    borderStyle: "dashed",
   },
-  quizTeacherRow: { flexDirection: "row", alignItems: "center", marginTop: 15 },
-  quizBtn: { marginTop: 15 },
   teacherQuiz: {
-    backgroundColor: colors.light,
+    backgroundColor: "#fff",
     flexDirection: "row",
     width: width * 0.92,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-    marginHorizontal: width * 0.1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
+    padding: 12,
+    marginBottom: 12,
     alignSelf: "center",
-    boxShadow: `2px 8px 18px ${colors.primary}25`,
   },
   tQuizMain: { marginLeft: 10, flex: 1, marginRight: 15 },
   tQuizSubj: {
-    marginTop: 10,
-    color: colors.medium,
+    marginTop: 8,
+    color: T.sub,
     textTransform: "capitalize",
   },
   tQuizStat: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 50,
-    paddingVertical: 5,
+    borderRadius: 9,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     alignSelf: "flex-start",
-    marginTop: 5,
+    marginTop: 8,
   },
 });

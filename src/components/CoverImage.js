@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 3,
     borderColor: colors.primaryLight,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",

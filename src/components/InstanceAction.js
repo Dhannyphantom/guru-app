@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.unchange,
     marginRight: 15,
-    elevation: 3,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     justifyContent: "center",
     alignItems: "center",
     margin: 6,
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 50,
     backgroundColor: colors.primaryDeeper,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     marginRight: 15,
   },
   instanceAction: {

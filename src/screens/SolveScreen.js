@@ -386,7 +386,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 10,
     paddingTop: 3,
-    // elevation: 20,
   },
   question: {
     backgroundColor: colors.white,

@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.white,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.black}25`,
   },
   titleWrap: { marginLeft: 12, flex: 1 },
   searchBox: {
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     backgroundColor: colors.white,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.black}25`,
   },
   searchIcon: {
     width: 44,
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 20,
     backgroundColor: colors.white,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.black}25`,
   },
   classCardOn: { backgroundColor: colors.primary },
   classTop: {
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 22,
     backgroundColor: colors.white,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.black}25`,
   },
   cardOwn: {
     borderWidth: 1.5,

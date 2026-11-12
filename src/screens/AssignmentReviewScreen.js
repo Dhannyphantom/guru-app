@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     width: width * 0.95,
     backgroundColor: colors.white,
     padding: 16,
-    elevation: 5,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     borderRadius: 12,
   },
   gradeOverlay: {

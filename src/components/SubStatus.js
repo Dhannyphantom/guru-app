@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   text: {
-    elevation: 5,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     letterSpacing: 3,
   },
 });

@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     maxHeight: height * 0.87,
     minHeight: height * 0.45,
-    elevation: 16,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     overflow: "hidden",
   },
 
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 13,
     borderWidth: 1.5,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   levelChip: {
     borderRadius: 7,
@@ -514,11 +514,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 2.5,
     borderColor: colors.primaryLight,
-    elevation: 8,
-    shadowColor: colors.primaryDeep,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     backgroundColor: colors.primaryDeeper,
   },
   currentCard: {

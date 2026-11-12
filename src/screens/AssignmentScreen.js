@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     // backgroundColor: "#ECF3F8",
     margin: 10,
     marginBottom: 10,
-    elevation: 3,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     borderRadius: 15,
   },
   assStat: {

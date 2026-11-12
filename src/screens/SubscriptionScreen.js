@@ -114,8 +114,8 @@ export const WithdrawModal = ({
     type === "transfer"
       ? MIN_TRANSFER
       : type === "subscription"
-      ? MIN_RENEWAL
-      : MIN_AIRTIME_DATA;
+        ? MIN_RENEWAL
+        : MIN_AIRTIME_DATA;
   const editable = Number(balance.amount) >= minRequired;
   const profile = hasCompletedProfile(user);
   buyDataInitials.phoneNumber = user?.contact;
@@ -697,8 +697,8 @@ export const WithdrawModal = ({
                 {type === "transfer"
                   ? `Bank transfers require a minimum of `
                   : type === "subscription"
-                  ? `Subscription renewals require a minimum of `
-                  : `Airtime & data require a minimum of `}
+                    ? `Subscription renewals require a minimum of `
+                    : `Airtime & data require a minimum of `}
                 <AppText fontWeight="black" style={styles.minNoticeAmount}>
                   {getCurrencyAmount(minRequired)}
                 </AppText>
@@ -780,7 +780,7 @@ const SubHistory = ({ item }) => {
             alignSelf: "center",
             borderRadius: 50,
             padding: 5,
-            elevation: 1,
+            boxShadow: `2px 8px 12px ${colors.primary}25`,
           }}
         />
       </View>
@@ -1084,7 +1084,7 @@ const SubscriptionScreen = () => {
                         fontWeight="black"
                       >
                         {isSchool
-                          ? school?.students?.length ?? 0
+                          ? (school?.students?.length ?? 0)
                           : calculatePointsAmount(user.points).format}
                       </AppText>
                     </View>
@@ -1107,8 +1107,8 @@ const SubscriptionScreen = () => {
                             ? "Active"
                             : "Inactive"
                           : isActive
-                          ? "Premium"
-                          : "Freemium"}
+                            ? "Premium"
+                            : "Freemium"}
                       </AppText>
                     </View>
                   </View>
@@ -1242,11 +1242,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 10,
     borderRadius: 24,
-    elevation: 8,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     padding: 24,
     overflow: "hidden",
     position: "relative",
@@ -1459,7 +1455,7 @@ const styles = StyleSheet.create({
     width: width * 0.92,
     padding: 12,
     borderRadius: 10,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     alignSelf: "center",
     marginBottom: 10,
     backgroundColor: colors.lightly,

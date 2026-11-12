@@ -31,7 +31,7 @@ const AppSwitch = ({ style, isEnabled, setIsEnabled }) => {
       backgroundColor: interpolateColor(
         switchTranslateX.value,
         [0, 25],
-        [colors.medium, colors.primary]
+        [colors.medium, colors.primary],
         // Thumb color for OFF and ON
       ),
     };
@@ -46,7 +46,7 @@ const AppSwitch = ({ style, isEnabled, setIsEnabled }) => {
       backgroundColor: interpolateColor(
         switchTranslateX.value,
         [0, 25],
-        [colors.unchange, colors.primaryLight] // Track color for OFF and ON
+        [colors.unchange, colors.primaryLight], // Track color for OFF and ON
       ),
     };
   });
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 2,
     left: 2,
-    elevation: 5,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
 });
 

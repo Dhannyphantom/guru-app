@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     borderRadius: 1000,
     alignSelf: "flex-start",
-    elevation: 5,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   text: {
     color: colors.white,

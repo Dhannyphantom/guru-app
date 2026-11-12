@@ -30,6 +30,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     // backgroundColor: colors.unchange,
     borderRadius: 100,
-    // elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
 });

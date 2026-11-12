@@ -70,8 +70,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     alignSelf: "center",
     boxShadow: `2px 5px 8px ${colors.primary}25`,
-
-    // elevation: 2,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",

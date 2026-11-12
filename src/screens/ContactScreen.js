@@ -41,7 +41,7 @@ const ContactScreen = () => {
         });
 
         const contacts = data.filter((contItem) =>
-          Boolean(contItem.phoneNumbers)
+          Boolean(contItem.phoneNumbers),
         );
 
         if (contacts.length > 0) {
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 12,
     padding: 12,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   nav: {
     position: "absolute",

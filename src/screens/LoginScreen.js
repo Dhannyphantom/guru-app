@@ -752,11 +752,7 @@ const modalStyles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 28,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 20,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     marginBottom: Platform.OS === "web" ? 0 : 8,
   },
   header: {
@@ -874,7 +870,7 @@ const modalStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   primaryBtnText: {
     color: "#fff",

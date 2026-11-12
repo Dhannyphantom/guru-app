@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 14,
     borderWidth: 3,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   itemMsg: {
     flex: 1,

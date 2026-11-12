@@ -397,7 +397,7 @@ const InstanceListScreen = () => {
                 )}
                 <FormikButton
                   title={`Fetch ${capFirstLetter(screenData?.route)}`}
-                  contStyle={{ marginHorizontal: width * 0.15, elevation: 0 }}
+                  contStyle={{ marginHorizontal: width * 0.15 }}
                 />
               </View>
             )}

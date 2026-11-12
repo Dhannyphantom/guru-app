@@ -48,6 +48,6 @@ const styles = StyleSheet.create({
     borderWidth: 10,
     alignItems: "center",
     borderRadius: 20,
-    elevation: 5,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
 });

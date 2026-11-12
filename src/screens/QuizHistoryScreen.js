@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignSelf: "center",
     borderRadius: 10,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     flexDirection: "row",
     paddingVertical: 15,
   },

@@ -92,8 +92,8 @@ const PopMessage = ({ popData = { vis: false }, setPopData }) => {
         withTiming(-POP_HEIGHT, { duration: 700, easing: Easing.quad }, () => {
           runOnJS(handleCallback)();
           runOnJS(hidePop)();
-        })
-      )
+        }),
+      ),
     );
   }, [vis, timer, handleCallback, hidePop]);
 
@@ -173,7 +173,7 @@ const PopMessage = ({ popData = { vis: false }, setPopData }) => {
         ...i,
         rotate: `${Math.random() * 180}deg`,
       })),
-    []
+    [],
   );
 
   // ------------------------------------------
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   pointOverlay: {
     borderRadius: 100,
     paddingBottom: 4,
-    elevation: 8,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     marginTop: 8,
   },
   point: {

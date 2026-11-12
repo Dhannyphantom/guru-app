@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: colors.lightly,
     borderRadius: 25,
-    elevation: 30,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   title: {
     marginTop: 5,

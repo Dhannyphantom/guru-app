@@ -239,7 +239,7 @@ const RegisterScreen = () => {
       setErrMsg(
         typeof err?.status == "string" && err?.status?.includes("FETCH_ERROR")
           ? "Network request failed, Poor internet connection"
-          : err?.error ?? "Something went wrong",
+          : (err?.error ?? "Something went wrong"),
       );
     }
   };
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     boxShadow: "0 2px 18px rgba(0,0,0,0.1)",
     padding: 25,
-    elevation: 2,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     ...(isWeb
       ? {
           width: "100%",
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 1,
+      boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   socials: {
     flexDirection: "row",

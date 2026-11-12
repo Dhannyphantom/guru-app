@@ -46,7 +46,9 @@ const Points = ({
       <View
         style={[
           styles.pointIcon,
-          !Boolean(text) ? { elevation: 8 } : { marginLeft: 4, marginRight: 8 },
+          !Boolean(text)
+            ? { boxShadow: `2px 8px 12px ${colors.primary}25` }
+            : { marginLeft: 4, marginRight: 8 },
           { width: size, height: size },
         ]}
       >

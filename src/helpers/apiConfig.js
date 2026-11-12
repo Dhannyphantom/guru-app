@@ -1,7 +1,7 @@
 const PRODUCTION_API_URL = "https://guru-server-v1.onrender.com";
 
 const devApiUrl =
-  "http://10.202.35.9:3800" ??
+  "http://10.77.152.9:3800" ??
   process.env.EXPO_PUBLIC_API_URL ??
   "http://10.205.229.9:3800";
 // "http://192.168.79.9:3800";

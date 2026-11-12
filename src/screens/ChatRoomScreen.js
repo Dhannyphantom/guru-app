@@ -713,15 +713,16 @@ const ChatRoomScreen = () => {
     });
 
     try {
-      await (isPro
-        ? adminReplyTicket({
-            ticketId: params?.ticketId,
-            text: messageData.text,
-          })
-        : sendTicketMessage({
-            ticketId: params?.ticketId,
-            text: messageData.text,
-          })
+      await (
+        isPro
+          ? adminReplyTicket({
+              ticketId: params?.ticketId,
+              text: messageData.text,
+            })
+          : sendTicketMessage({
+              ticketId: params?.ticketId,
+              text: messageData.text,
+            })
       ).unwrap();
 
       setMessages((prev) =>
@@ -904,7 +905,7 @@ const ChatRoomScreen = () => {
   const displayName =
     isPro && ticketUser
       ? `${capCapitalize(getFullName(ticketUser, true))}`
-      : params?.categoryTitle ?? "Support Chat";
+      : (params?.categoryTitle ?? "Support Chat");
 
   return (
     <Screen style={styles.container}>
@@ -1008,8 +1009,8 @@ const ChatRoomScreen = () => {
                 isOpen && !isPro
                   ? "Wait for support response..."
                   : isResolved && !isPro
-                  ? "Issue Resolved"
-                  : "Type your message..."
+                    ? "Issue Resolved"
+                    : "Type your message..."
               }
               placeholderTextColor={colors.medium}
               value={inputText}
@@ -1127,7 +1128,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1173,7 +1174,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 16,
-    elevation: 1,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   typingDot: {
     width: 8,

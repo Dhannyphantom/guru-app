@@ -303,7 +303,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 35,
     alignSelf: "center",
-    // elevation: 8,
     marginBottom: 15,
     // paddingLeft: 8,
     paddingVertical: 4,
@@ -357,7 +356,6 @@ const styles = StyleSheet.create({
   main: {
     // borderTopStartRadius: 25,
     // borderTopEndRadius: 25,
-    // elevation: 15,
   },
   rowWide: {
     // width: Platform.OS == "web" ? "40%" : null,

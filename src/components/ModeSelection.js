@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     paddingLeft: 3,
     backgroundColor: colors.primaryDeep,
-    elevation: 6,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   modeEmpty: {
     width: width * 0.8,

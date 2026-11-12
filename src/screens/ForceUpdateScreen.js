@@ -300,18 +300,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 48,
     paddingBottom: 36,
-    // Subtle shadow
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.5,
-        shadowRadius: 40,
-      },
-      android: {
-        elevation: 20,
-      },
-    }),
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
 
   // Icon

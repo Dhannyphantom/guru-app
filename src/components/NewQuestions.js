@@ -110,7 +110,7 @@ const PickModal = ({ closeModal, name, currentValue, onSelect }) => {
       onSelect(val);
       closeModal?.();
     },
-    [onSelect, closeModal]
+    [onSelect, closeModal],
   );
 
   return (
@@ -157,11 +157,11 @@ export const NewQuestions = ({
   // Choose schema/initials based on header
   const baseInitials = useMemo(
     () => (noHeader ? createNewQuestInitials : createQuestInitials),
-    [noHeader]
+    [noHeader],
   );
   const baseSchema = useMemo(
     () => (noHeader ? createNewQuestSchema : createQuestSchema),
-    [noHeader]
+    [noHeader],
   );
 
   // Preserved fields across instances (like subject, categories)
@@ -225,7 +225,7 @@ export const NewQuestions = ({
         return newQuestions;
       });
     },
-    [activeIndex]
+    [activeIndex],
   );
 
   const addNewInstance = useCallback(() => {
@@ -290,7 +290,7 @@ export const NewQuestions = ({
     (value) => {
       updateCurrentQuestion({ [modal.type]: value });
     },
-    [modal.type, updateCurrentQuestion]
+    [modal.type, updateCurrentQuestion],
   );
 
   // Handler for isTheory checkbox
@@ -298,7 +298,7 @@ export const NewQuestions = ({
     (checked) => {
       updateCurrentQuestion({ isTheory: checked });
     },
-    [updateCurrentQuestion]
+    [updateCurrentQuestion],
   );
 
   // Form submission
@@ -312,13 +312,13 @@ export const NewQuestions = ({
         questions.forEach((q, index) => {
           if (!q.question.trim()) {
             validationErrors.push(
-              `Question ${index + 1}: Question text is required`
+              `Question ${index + 1}: Question text is required`,
             );
           }
           const hasCorrect = q.answers?.some((a) => a.correct);
           if (!hasCorrect) {
             validationErrors.push(
-              `Question ${index + 1}: Must have a correct answer`
+              `Question ${index + 1}: Must have a correct answer`,
             );
           }
         });
@@ -420,7 +420,7 @@ export const NewQuestions = ({
       createSchoolQuiz,
       createQuestion,
       router,
-    ]
+    ],
   );
 
   const handlePrompt = useCallback(async (actionType) => {
@@ -436,7 +436,7 @@ export const NewQuestions = ({
   // Memoized values
   const instanceArr = useMemo(
     () => questions.map((_, index) => index + 1),
-    [questions.length]
+    [questions.length],
   );
 
   const canDelete = questions.length > 1;
@@ -564,7 +564,7 @@ export const NewQuestions = ({
                             func: async () =>
                               Boolean(currentQuestion?.subject?._id) &&
                               (await fetchTopics(
-                                currentQuestion.subject._id
+                                currentQuestion.subject._id,
                               ).unwrap()),
                             state: currentQuestion?.subject,
                           }}
@@ -618,9 +618,9 @@ export const NewQuestions = ({
                           type === "edit"
                             ? `Update Question${type === "edit" ? "" : "s"}`
                             : noHeader
-                            ? secBtn?.primary ||
-                              `Create Question${type === "edit" ? "" : "s"}`
-                            : `Create Question${type === "edit" ? "" : "s"}`
+                              ? secBtn?.primary ||
+                                `Create Question${type === "edit" ? "" : "s"}`
+                              : `Create Question${type === "edit" ? "" : "s"}`
                         }`}
                         type={type === "edit" ? "accent" : "primary"}
                         onPress={() => uploadData()}
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     padding: 12,
     minHeight: height * 0.3,
-    elevation: 3,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
     paddingBottom: 25,
   },
   pickerTitle: {

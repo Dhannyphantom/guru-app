@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import AppText from "./AppText";
+import colors from "../helpers/colors";
 
 const { width } = Dimensions.get("screen");
 const ALERT_HEIGHT = 44;
@@ -69,8 +70,8 @@ const AlertItem = ({ item, index, onDone }) => {
           if (finished) {
             runOnJS(handleDone)();
           }
-        })
-      )
+        }),
+      ),
     );
 
     opacity.value = withTiming(0.85, { duration: 250 });
@@ -180,10 +181,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     justifyContent: "center",
     alignSelf: "flex-end",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
   },
   main: {
     gap: 8,
