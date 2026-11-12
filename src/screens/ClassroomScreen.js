@@ -1,980 +1,743 @@
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  View,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Modal,
-  TextInput,
-  Dimensions,
   KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from "react-native";
-import {
-  FontAwesome,
-  FontAwesome5,
-  Ionicons,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  FadeInDown,
-  FadeIn,
-  BounceInLeft,
-  FadeOut,
-  FadeInLeft,
-  LinearTransition,
-} from "react-native-reanimated";
-
-import AppText from "../components/AppText";
-// import Screen from "../components/Screen";
-import AppButton from "../components/AppButton";
-import colors from "../helpers/colors";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import AppText from "../components/jamb/JambText";
+import PopMessage from "../components/PopMessage";
+import { NavBack } from "../components/AppIcons";
+import JambLoadingOverlay from "../components/jamb/JambLoadingOverlay";
+import { T, TINTS } from "../components/jamb/JambTheme";
+import { LAYOUT, enter, popIn } from "../components/jamb/JambMotion";
+import {
+  AnimatedBar,
+  Card,
+  Chip,
+  JambButton,
+  JambPressable,
+  Loader,
+  Note,
+  useCountUp,
+} from "../components/jamb/JambUI";
+import { PAD_BOTTOM } from "../helpers/dataStore";
 import {
   selectSchool,
   useFetchSchoolClassesQuery,
-  useCreateClassMutation,
-  useUpdateClassMutation,
-  useDeleteClassMutation,
   useShiftClassesMutation,
+  useUpdateClassMutation,
 } from "../context/schoolSlice";
-import { useRouter } from "expo-router";
-import LottieAnimator from "../components/LottieAnimator";
-import PopMessage from "../components/PopMessage";
-import { getClassColor, PAD_BOTTOM, schoolClasses } from "../helpers/dataStore";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavBack } from "../components/AppIcons";
 
-const { width } = Dimensions.get("screen");
+const LEVEL_ORDER = ["jss 1", "jss 2", "jss 3", "sss 1", "sss 2", "sss 3"];
+const rank = (level) => {
+  const i = LEVEL_ORDER.indexOf(String(level || "").toLowerCase());
+  return i === -1 ? 99 : i;
+};
 
-// Class Card Component
-const ClassCard = ({ classItem, onPress, onEdit, onDelete, index }) => {
-  const scale = useSharedValue(1);
+// ─── Hero: chalkboard with the three school-wide counts ─────────────────────
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.97, { damping: 30 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 30 });
-  };
-
-  const classColor = getClassColor(classItem.level);
-  const studentCount = classItem.students?.length || 0;
-  const teacherCount = classItem.teachers?.length || 0;
-
+const StatTile = ({ icon, label, value, delay }) => {
+  const shown = useCountUp(value, 900, delay);
   return (
-    <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
-      <Animated.View style={animatedStyle}>
-        <Pressable
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={[styles.classCard, { borderLeftColor: classColor }]}
-        >
-          <View style={styles.classHeader}>
-            <View
-              style={[styles.classIcon, { backgroundColor: classColor + "20" }]}
-            >
-              <MaterialCommunityIcons
-                name="google-classroom"
-                size={32}
-                color={classColor}
-              />
-            </View>
-            <View style={styles.classContent}>
-              <AppText fontWeight="bold" size="large">
-                {classItem.alias || classItem.level.toUpperCase()}
-              </AppText>
-              <AppText
-                size="small"
-                style={{ color: colors.medium, marginTop: 2 }}
-              >
-                {classItem.level.toUpperCase()}
-              </AppText>
-
-              {/* Stats Row */}
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Ionicons name="people" size={16} color={colors.medium} />
-                  <AppText
-                    size="xsmall"
-                    style={{ color: colors.medium, marginLeft: 4 }}
-                  >
-                    {studentCount} Students
-                  </AppText>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="person" size={16} color={colors.medium} />
-                  <AppText
-                    size="xsmall"
-                    style={{ color: colors.medium, marginLeft: 4 }}
-                  >
-                    {teacherCount} Teachers
-                  </AppText>
-                </View>
-              </View>
-            </View>
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onEdit(classItem);
-                }}
-                style={styles.actionButton}
-              >
-                <Ionicons
-                  name="create-outline"
-                  size={20}
-                  color={colors.primary}
-                />
-              </Pressable>
-              {/* <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onDelete(classItem);
-                }}
-                style={[styles.actionButton, { marginLeft: 8 }]}
-              >
-                <Ionicons name="trash-outline" size={20} color={colors.heart} />
-              </Pressable> */}
-            </View>
-          </View>
-        </Pressable>
-      </Animated.View>
-    </Animated.View>
+    <View style={styles.statTile}>
+      <View style={styles.statIcon}>
+        <Ionicons name={icon} size={18} color={T.chalk} />
+      </View>
+      <AppText fontWeight="black" size={26} style={styles.statValue}>
+        {shown}
+      </AppText>
+      <AppText fontWeight="semibold" size={11} style={styles.statLabel}>
+        {label}
+      </AppText>
+    </View>
   );
 };
 
-// Stats Summary Card
-const StatsSummaryCard = ({ totalClasses, totalStudents, totalTeachers }) => {
+const ClassroomHero = ({ classes, students, teachers }) => (
+  <Animated.View entering={enter(0)} layout={LAYOUT} style={styles.heroWrap}>
+    <View style={styles.heroClip}>
+      <View pointerEvents="none" style={styles.heroFrame} />
+      <AppText fontWeight="black" size={20} style={styles.heroTitle}>
+        Your school at a glance
+      </AppText>
+      <View style={styles.statRow}>
+        <StatTile icon="school" label="Classes" value={classes} delay={150} />
+        <StatTile icon="people" label="Students" value={students} delay={250} />
+        <StatTile icon="person" label="Teachers" value={teachers} delay={350} />
+      </View>
+    </View>
+  </Animated.View>
+);
+
+// ─── One class ──────────────────────────────────────────────────────────────
+
+const ClassCard = ({ item, index, tint, totalStudents, onOpen, onEdit }) => {
+  const students = item.students?.length || 0;
+  const teachers = item.teachers?.length || 0;
+  const [stage, num] = String(item.level || "")
+    .toUpperCase()
+    .split(" ");
+  const share = totalStudents ? (students / totalStudents) * 100 : 0;
+
   return (
-    <Animated.View entering={FadeIn} style={styles.statsCard}>
-      <View style={styles.statBox}>
+    <Card index={index} base={120} style={styles.classCard}>
+      <JambPressable
+        onPress={() => onOpen(item)}
+        scaleTo={0.985}
+        contentStyle={styles.classRow}
+      >
         <View
           style={[
-            styles.statIconBox,
-            { backgroundColor: colors.primary + "20" },
+            styles.levelBadge,
+            { backgroundColor: tint.bg, borderColor: tint.border },
           ]}
         >
-          <MaterialCommunityIcons
-            name="google-classroom"
+          <AppText
+            fontWeight="black"
+            size={10}
+            style={{ color: tint.ink, letterSpacing: 1 }}
+          >
+            {stage}
+          </AppText>
+          <AppText
+            fontWeight="black"
             size={24}
-            color={colors.primary}
-          />
-        </View>
-        <View style={{ marginLeft: 12 }}>
-          <AppText size="xxsmall" style={{ color: colors.medium }}>
-            Classes
-          </AppText>
-          <AppText fontWeight="bold" size="xlarge">
-            {totalClasses}
+            style={{ color: tint.ink, marginTop: -3 }}
+          >
+            {num}
           </AppText>
         </View>
-      </View>
 
-      <View style={styles.statBox}>
-        <View
-          style={[styles.statIconBox, { backgroundColor: "#4CAF50" + "20" }]}
-        >
-          <Ionicons name="people" size={24} color="#4CAF50" />
-        </View>
-        <View style={{ marginLeft: 12 }}>
-          <AppText size="xxsmall" style={{ color: colors.medium }}>
-            Students
+        <View style={{ flex: 1 }}>
+          <AppText
+            fontWeight="black"
+            size={16}
+            numberOfLines={1}
+            style={{ color: T.ink }}
+          >
+            {item.alias || String(item.level).toUpperCase()}
           </AppText>
-          <AppText fontWeight="bold" size="xlarge">
-            {totalStudents}
+          <AppText
+            fontWeight="medium"
+            size={11.5}
+            numberOfLines={1}
+            style={{ color: T.sub, marginTop: 1 }}
+          >
+            {item.alias
+              ? String(item.level).toUpperCase()
+              : "Tap the pencil to add a class name"}
           </AppText>
-        </View>
-      </View>
 
-      <View style={styles.statBox}>
-        <View
-          style={[styles.statIconBox, { backgroundColor: "#FF9800" + "20" }]}
+          <View style={styles.chipRow}>
+            <Chip
+              icon="people"
+              label={`${students} student${students === 1 ? "" : "s"}`}
+              color={T.blueDark}
+              bg={T.blueSoft}
+            />
+            <Chip
+              icon="person"
+              label={`${teachers} teacher${teachers === 1 ? "" : "s"}`}
+              color={T.yellowInk}
+              bg={T.yellowSoft}
+              style={{ marginLeft: 6 }}
+            />
+          </View>
+
+          <View style={{ marginTop: 10 }}>
+            <AnimatedBar
+              percent={share}
+              color={tint.bar}
+              height={8}
+              delay={250 + index * 80}
+            />
+          </View>
+        </View>
+
+        <JambPressable
+          onPress={() => onEdit(item)}
+          scaleTo={0.9}
+          style={{ marginLeft: 10, alignSelf: "flex-start" }}
+          contentStyle={styles.editBtn}
+          hitSlop={8}
         >
-          <Ionicons name="person" size={24} color="#FF9800" />
-        </View>
-        <View style={{ marginLeft: 12 }}>
-          <AppText size="xxsmall" style={{ color: colors.medium }}>
-            Teachers
-          </AppText>
-          <AppText fontWeight="bold" size="xlarge">
-            {totalTeachers}
-          </AppText>
-        </View>
-      </View>
-    </Animated.View>
+          <Ionicons name="pencil" size={16} color={T.greenDark} />
+        </JambPressable>
+      </JambPressable>
+    </Card>
   );
 };
 
-// Edit/Create Class Modal
-const EditClassModal = ({
-  visible,
-  onClose,
-  classData,
-  onSave,
-  isCreating,
-}) => {
-  const [alias, setAlias] = useState(classData?.alias || "");
-  const [selectedLevel, setSelectedLevel] = useState(
-    classData?.level?.toUpperCase() || "",
-  );
+// ─── Modals ─────────────────────────────────────────────────────────────────
 
-  React.useEffect(() => {
-    if (classData) {
-      setAlias(classData.alias || "");
-      setSelectedLevel(classData.level?.toUpperCase() || "");
-    } else {
-      // Reset fields when creating new class
-      setAlias("");
-      setSelectedLevel("");
-    }
-  }, [classData, visible]);
-
-  const handleSave = () => {
-    if (!selectedLevel) {
-      return; // Prevent saving without a level selected
-    }
-
-    onSave({
-      classId: classData?._id,
-      alias: alias.trim(),
-      level: selectedLevel,
-    });
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
+const ModalShell = ({ children, onClose }) => (
+  <Modal visible transparent animationType="none" onRequestClose={onClose}>
+    <Animated.View
+      entering={FadeIn.duration(180)}
+      exiting={FadeOut.duration(140)}
+      style={styles.overlay}
     >
-      <Animated.View
-        entering={FadeIn}
-        exiting={FadeOut}
-        style={styles.modalOverlay}
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-          behavior="padding"
-        >
-          <Animated.View
-            layout={LinearTransition.springify()}
-            entering={FadeInLeft}
-            style={styles.editModalContent}
-          >
-            <View style={styles.modalHeader}>
-              <AppText fontWeight="bold" size="large">
-                {isCreating ? "Create Class" : "Edit Class"}
-              </AppText>
-              <Pressable onPress={onClose}>
-                <Ionicons name="close" size={24} color={colors.medium} />
-              </Pressable>
-            </View>
-
-            <View style={styles.modalBody}>
-              <AppText
-                fontWeight="semibold"
-                size="regular"
-                style={styles.inputLabel}
-              >
-                Class Alias (E.g JSS 2B, The Elites)
-              </AppText>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., The Overcomers, SS2 Gold"
-                placeholderTextColor={colors.medium}
-                value={alias}
-                onChangeText={setAlias}
-                maxLength={50}
-              />
-              <AppText size="xxsmall" style={styles.charCount}>
-                {alias.length}/50
-              </AppText>
-              <AppText
-                fontWeight="semibold"
-                size="regular"
-                style={styles.inputLabel}
-              >
-                Class Level
-              </AppText>
-              <View style={styles.levelOptions}>
-                {schoolClasses.map((level) => (
-                  <Pressable
-                    key={level._id}
-                    disabled={!isCreating}
-                    onPress={() => setSelectedLevel(level.name)}
-                    style={[
-                      styles.levelOption,
-                      selectedLevel === level.name && styles.levelOptionActive,
-                    ]}
-                  >
-                    <AppText
-                      size="small"
-                      fontWeight={
-                        selectedLevel === level.name ? "bold" : "regular"
-                      }
-                      style={{
-                        color:
-                          selectedLevel === level.name
-                            ? colors.primary
-                            : colors.medium,
-                      }}
-                    >
-                      {level.name}
-                    </AppText>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.modalActions}>
-              <AppButton
-                title="Cancel"
-                onPress={onClose}
-                contStyle={{ flex: 1, marginRight: 10 }}
-                // backgroundColor={colors.light}
-                // textColor={colors.medium}
-                type="white"
-              />
-              <AppButton
-                title={isCreating ? "Create Class" : "Save Changes"}
-                onPress={handleSave}
-                contStyle={{ flex: 1 }}
-                disabled={!selectedLevel}
-              />
-            </View>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </Modal>
-  );
-};
-
-// Delete Confirmation Modal
-const UpgradeConfirmModal = ({
-  visible,
-  onClose,
-  type,
-  classData,
-  onConfirm,
-}) => {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Animated.View
-        entering={FadeIn}
-        exiting={FadeOut}
-        style={styles.modalOverlay}
-      >
-        <Animated.View
-          entering={BounceInLeft.damping(20)}
-          style={styles.deleteModalContent}
-        >
-          <View style={styles.deleteIcon}>
-            <Ionicons name="warning" size={48} color={colors.heart} />
-          </View>
-          <AppText
-            fontWeight="bold"
-            size="xlarge"
-            style={{ textAlign: "center", marginTop: 16 }}
-          >
-            {type === "up" ? "Upgrade All Classes" : "Downgrade All Classes"}
-          </AppText>
-          <AppText
-            size="regular"
-            style={{
-              color: colors.medium,
-              textAlign: "center",
-              marginTop: 8,
-              lineHeight: 24,
-            }}
-          >
-            {type === "up" ? (
-              <>
-                Are you sure you want to upgrade{" "}
-                <AppText fontWeight="bold">
-                  {classData?.alias || classData?.level?.toUpperCase()}
-                </AppText>
-                ?{"\n\n"}
-                All students in their respective class will be moved to the next
-                level (e.g., JSS 1 → JSS 2 → JSS 3 → SS 1).{"\n\n"}
-                This action CANNOT be undone and should ONLY be done annually
-                after an academic session
-              </>
-            ) : (
-              <>
-                Are you sure you want to downgrade{" "}
-                <AppText fontWeight="bold">
-                  {classData?.alias || classData?.level?.toUpperCase()}
-                </AppText>
-                ?{"\n\n"}
-                All students in their respective class will be moved to the
-                previous level (e.g., SS 1 → JSS 3 → JSS 2 → JSS 1).{"\n\n"}
-                This should only be done to undo an accidental upgrade
-              </>
-            )}
-          </AppText>
-
-          <View style={styles.warningBox}>
-            <MaterialCommunityIcons
-              name="alert"
-              size={20}
-              color={colors.warning}
-            />
-            <AppText
-              size="small"
-              style={{ color: colors.medium, marginLeft: 8, flex: 1 }}
-            >
-              Important: Students currently in{" "}
-              {type === "up" ? "SSS 3" : "JSS 1"} will be automatically
-              graduated and will no longer have access to Guru but remain as a
-              school alumni.
-            </AppText>
-          </View>
-
-          <View style={styles.modalActions}>
-            <AppButton
-              title="Cancel"
-              onPress={onClose}
-              // contStyle={{ flex: 1, marginRight: 10 }}
-              backgroundColor={colors.light}
-              type="white"
-              textColor={colors.medium}
-            />
-            <AppButton
-              title={type === "up" ? "Upgrade Class" : "Downgrade Class"}
-              onPress={onConfirm}
-              type={type === "up" ? "primary" : "warn"}
-              // contStyle={{ flex: 1 }}
-              backgroundColor={colors.heart}
-            />
-          </View>
+        <Animated.View entering={popIn} style={styles.sheet}>
+          {children}
         </Animated.View>
-      </Animated.View>
-    </Modal>
+      </KeyboardAvoidingView>
+    </Animated.View>
+  </Modal>
+);
+
+const EditClassModal = ({ classData, onClose, onSave }) => {
+  const [alias, setAlias] = useState(classData?.alias || "");
+
+  return (
+    <ModalShell onClose={onClose}>
+      <View style={styles.sheetHead}>
+        <AppText fontWeight="black" size={18} style={{ color: T.ink }}>
+          Edit class
+        </AppText>
+        <JambPressable onPress={onClose} contentStyle={styles.closeBtn}>
+          <Ionicons name="close" size={18} color={T.sub} />
+        </JambPressable>
+      </View>
+
+      <AppText fontWeight="bold" size={12.5} style={styles.label}>
+        Class level
+      </AppText>
+      <Chip
+        icon="lock-closed"
+        label={String(classData?.level || "").toUpperCase()}
+        color={T.sub}
+        bg={T.lockedBg}
+      />
+
+      <AppText
+        fontWeight="bold"
+        size={12.5}
+        style={[styles.label, { marginTop: 16 }]}
+      >
+        Class name (e.g. The Elites, SS2 Gold)
+      </AppText>
+      <TextInput
+        style={styles.input}
+        placeholder="Give this class a name"
+        placeholderTextColor={T.faint}
+        value={alias}
+        onChangeText={setAlias}
+        maxLength={50}
+        autoFocus
+      />
+      <AppText fontWeight="medium" size={11} style={styles.count}>
+        {alias.length}/50
+      </AppText>
+
+      <View style={styles.actions}>
+        <JambButton
+          title="Cancel"
+          variant="ghost"
+          icon={null}
+          small
+          onPress={onClose}
+          style={{ flex: 1, marginRight: 10 }}
+        />
+        <JambButton
+          title="Save"
+          icon="checkmark"
+          small
+          onPress={() =>
+            onSave({
+              classId: classData?._id,
+              alias: alias.trim(),
+              level: String(classData?.level || "").toUpperCase(),
+            })
+          }
+          style={{ flex: 1 }}
+        />
+      </View>
+    </ModalShell>
   );
 };
 
-const sorter = {
-  "jss 1": 0,
-  "jss 2": 1,
-  "jss 3": 2,
-  "sss 1": 3,
-  "sss 2": 4,
-  "sss 3": 5,
-};
+const UpgradeModal = ({ onClose, onConfirm }) => (
+  <ModalShell onClose={onClose}>
+    <View style={styles.warnIcon}>
+      <Ionicons name="trending-up" size={34} color={T.yellowInk} />
+    </View>
+    <AppText fontWeight="black" size={20} style={styles.upTitle}>
+      Move every class up a level?
+    </AppText>
+    <AppText fontWeight="medium" size={13.5} style={styles.upBody}>
+      Students in each class move to the next level (JSS 1 → JSS 2 → JSS 3 → SSS
+      1 …). Do this once a year, after the academic session ends.
+    </AppText>
 
-// Main Classroom Screen
+    <View style={styles.warnBox}>
+      <Ionicons name="alert-circle" size={20} color={T.coralDark} />
+      <AppText fontWeight="semibold" size={12} style={styles.warnText}>
+        This cannot be undone. Students in SSS 3 graduate and lose access to
+        Guru, but stay on your school's alumni list.
+      </AppText>
+    </View>
+
+    <View style={styles.actions}>
+      <JambButton
+        title="Cancel"
+        variant="ghost"
+        icon={null}
+        small
+        onPress={onClose}
+        style={{ flex: 1, marginRight: 10 }}
+      />
+      <JambButton
+        title="Upgrade"
+        variant="yellow"
+        icon="trending-up"
+        small
+        onPress={onConfirm}
+        style={{ flex: 1 }}
+      />
+    </View>
+  </ModalShell>
+);
+
+// ─── Screen ─────────────────────────────────────────────────────────────────
+
 const ClassroomScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [upgradeModalVisible, setUpgradeModalVisible] = useState({
-    vis: false,
-    type: null,
-  });
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [popper, setPopper] = useState({ vis: false });
 
   const router = useRouter();
-  const school = useSelector(selectSchool);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const school = useSelector(selectSchool);
+  const schoolId = school?._id;
 
-  const { data, isLoading, refetch } = useFetchSchoolClassesQuery(school?._id);
-  const [createClass, { isLoading: creating }] = useCreateClassMutation();
+  const { data, isLoading, isError, error, refetch } =
+    useFetchSchoolClassesQuery(schoolId, { skip: !schoolId });
   const [updateClass, { isLoading: updating }] = useUpdateClassMutation();
   const [shiftClasses, { isLoading: shifting }] = useShiftClassesMutation();
 
-  const classesx = data?.data?.classes || [];
-  const classes = classesx
-    ?.slice()
-    ?.sort?.((a, b) => sorter[a?.level] - sorter[b?.level]);
+  const classes = useMemo(
+    () =>
+      [...(data?.data?.classes || [])].sort(
+        (a, b) => rank(a?.level) - rank(b?.level),
+      ),
+    [data],
+  );
 
-  // Calculate stats
-  const totalClasses = classes.length;
-  const totalStudents = classes.reduce(
-    (sum, cls) => sum + (cls.students?.length || 0),
-    0,
+  const totals = useMemo(
+    () => ({
+      students: classes.reduce((s, c) => s + (c.students?.length || 0), 0),
+      teachers: classes.reduce((s, c) => s + (c.teachers?.length || 0), 0),
+    }),
+    [classes],
   );
-  const totalTeachers = classes.reduce(
-    (sum, cls) => sum + (cls.teachers?.length || 0),
-    0,
-  );
+
+  const toast = (msg, type = "success") =>
+    setPopper({ vis: true, timer: 2000, msg, type });
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const handleClassPress = (classItem) => {
+  const openClass = (c) =>
     router.push({
       pathname: "/school/class_detail",
       params: {
-        classId: classItem?._id,
-        className: classItem.alias || classItem.level.toUpperCase(),
-        classLevel: classItem.level,
+        classId: c._id,
+        className: c.alias || String(c.level).toUpperCase(),
+        classLevel: c.level,
       },
     });
-  };
 
-  const handleEditClass = (classItem) => {
-    setSelectedClass(classItem);
-    setIsCreating(false);
-    setEditModalVisible(true);
-  };
-
-  const handleSaveEdit = async (editData) => {
+  const saveEdit = async (payload) => {
     try {
-      let res;
-
-      if (isCreating) {
-        // Create new class
-        res = await createClass({
-          schoolId: school?._id,
-          class: editData.level,
-          name: editData.alias,
-        }).unwrap();
-      } else {
-        // Update existing class
-        res = await updateClass({
-          schoolId: school?._id,
-          ...editData,
-        }).unwrap();
-      }
-
+      const res = await updateClass({ schoolId, ...payload }).unwrap();
       if (res.success) {
-        setPopper({
-          vis: true,
-          timer: 2000,
-          msg: isCreating
-            ? "Class created successfully"
-            : "Class updated successfully",
-          type: "success",
-        });
-        setEditModalVisible(false);
-        setSelectedClass(null);
-        setIsCreating(false);
+        setEditing(null);
+        toast("Class updated");
       }
-    } catch (error) {
-      setPopper({
-        vis: true,
-        timer: 2000,
-        msg:
-          error?.data?.message ||
-          (isCreating ? "Failed to create class" : "Failed to update class"),
-        type: "failed",
-      });
+    } catch (e) {
+      toast(e?.data?.message || "Could not update the class", "failed");
     }
   };
 
-  const handleConfirmUpgrade = async () => {
+  const confirmUpgrade = async () => {
     try {
-      const res = await shiftClasses({
-        schoolId: school?._id,
-        action: upgradeModalVisible.type === "up" ? "upgrade" : "downgrade",
-      }).unwrap();
-
+      const res = await shiftClasses({ schoolId, action: "upgrade" }).unwrap();
       if (res.success) {
-        setPopper({
-          vis: true,
-          timer: 2000,
-          msg: `Class ${upgradeModalVisible.type === "up" ? "upgraded" : "downgraded"} successfully`,
-          type: "success",
-        });
-        setUpgradeModalVisible({ vis: false, type: null });
-        setSelectedClass(null);
+        setUpgradeOpen(false);
+        toast("All classes moved up a level");
       }
-    } catch (error) {
-      setPopper({
-        vis: true,
-        timer: 2000,
-        msg: error?.data?.message || "Failed to upgrade or downgrade class",
-        type: "failed",
-      });
+    } catch (e) {
+      toast(e?.data?.message || "Could not upgrade the classes", "failed");
     }
   };
 
-  const handleUpgradeClass = (direction) => {
-    if (direction === "up") {
-      setSelectedClass(null);
-      setUpgradeModalVisible({ vis: true, type: "up" });
-    } else {
-      setSelectedClass(null);
-      setUpgradeModalVisible({ vis: true, type: "down" });
-    }
-  };
+  const errorMessage =
+    error?.status === 403
+      ? "Your account isn't linked to this school, so its classes can't be shown."
+      : error?.data?.message || "Check your connection and try again.";
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 5 }]}>
-        <View style={{ flexDirection: "row" }}>
-          <NavBack color="black" style={{ paddingRight: 10 }} />
-          <View>
-            <AppText fontWeight="bold" size="xxlarge">
-              Classrooms
-            </AppText>
-            <AppText
-              size="regular"
-              style={{ color: colors.medium, marginTop: 4 }}
-            >
-              Manage your school classes
-            </AppText>
-          </View>
-        </View>
-        <View style={{ flexDirection: "row" }}>
-          <Pressable
-            onPress={() => handleUpgradeClass("up")}
-            style={styles.addButton}
-          >
-            <FontAwesome5
-              name="angle-double-up"
-              size={20}
-              color={colors.accent}
-            />
-            <AppText size="xsmall" fontWeight="bold">
-              Sessional Upgrade
-            </AppText>
-          </Pressable>
-          {/* <Pressable
-            onPress={() => handleUpgradeClass("down")}
-            style={styles.addButton}
-          >
-            <FontAwesome5
-              name="angle-double-down"
-              size={20}
-              color={colors.heart}
-            />
-            <AppText size="small" fontWeight="bold">
-              Downgrade
-            </AppText> */}
-          {/* </Pressable> */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <NavBack color={T.ink} style={{ paddingRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <AppText fontWeight="black" size={24} style={{ color: T.ink }}>
+            Classrooms
+          </AppText>
+          <AppText fontWeight="medium" size={12.5} style={{ color: T.sub }}>
+            Manage your school's classes
+          </AppText>
         </View>
       </View>
 
-      {/* Stats Summary */}
-      {!isLoading && classes.length > 0 && (
-        <StatsSummaryCard
-          totalClasses={totalClasses}
-          totalStudents={totalStudents}
-          totalTeachers={totalTeachers}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scroll, { paddingBottom: PAD_BOTTOM }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={T.green}
+            colors={[T.green]}
+          />
+        }
+      >
+        <View
+          style={{
+            width: Math.min(width, 700),
+            alignSelf: "center",
+            paddingHorizontal: 16,
+          }}
+        >
+          {isLoading ? (
+            <Loader
+              size={90}
+              label="Loading classes…"
+              style={{ paddingVertical: 60 }}
+            />
+          ) : isError ? (
+            <Card style={styles.errorCard}>
+              <View style={styles.errorRow}>
+                <View style={styles.errorIcon}>
+                  <Ionicons
+                    name="cloud-offline"
+                    size={22}
+                    color={T.coralDark}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText
+                    fontWeight="black"
+                    size={15}
+                    style={{ color: T.ink }}
+                  >
+                    Couldn't load your classes
+                  </AppText>
+                  <AppText
+                    fontWeight="medium"
+                    size={12}
+                    style={{ color: T.sub, marginTop: 2 }}
+                  >
+                    {errorMessage}
+                  </AppText>
+                </View>
+              </View>
+              <JambButton
+                title="Try again"
+                icon="refresh"
+                small
+                onPress={refetch}
+                style={{ marginTop: 12, alignSelf: "flex-start" }}
+              />
+            </Card>
+          ) : (
+            <>
+              <ClassroomHero
+                classes={classes.length}
+                students={totals.students}
+                teachers={totals.teachers}
+              />
+
+              {classes.length > 0 && (
+                <Note
+                  icon="trending-up"
+                  title="End of session?"
+                  index={1}
+                  base={60}
+                  onPress={() => setUpgradeOpen(true)}
+                  right={
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={T.yellowInk}
+                      style={{ alignSelf: "center" }}
+                    />
+                  }
+                >
+                  <AppText
+                    fontWeight="medium"
+                    size={12}
+                    style={{ color: "#4A4020", marginTop: 2 }}
+                  >
+                    Move every class up a level for the new academic year.
+                  </AppText>
+                </Note>
+              )}
+
+              {classes.length > 0 ? (
+                <View style={{ marginTop: 10 }}>
+                  {classes.map((c, i) => (
+                    <ClassCard
+                      key={c._id}
+                      item={c}
+                      index={i}
+                      tint={TINTS[i % TINTS.length]}
+                      totalStudents={totals.students}
+                      onOpen={openClass}
+                      onEdit={setEditing}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <Card index={1} style={styles.emptyCard}>
+                  <Ionicons
+                    name="school-outline"
+                    size={44}
+                    color={T.lineDark}
+                  />
+                  <AppText
+                    fontWeight="black"
+                    size={16}
+                    style={{ color: T.ink, marginTop: 8 }}
+                  >
+                    No classes yet
+                  </AppText>
+                  <AppText
+                    fontWeight="medium"
+                    size={12}
+                    style={{ color: T.sub, marginTop: 2, textAlign: "center" }}
+                  >
+                    Pull down to refresh. Classes appear here once your school
+                    is set up.
+                  </AppText>
+                </Card>
+              )}
+            </>
+          )}
+        </View>
+      </ScrollView>
+
+      {editing && (
+        <EditClassModal
+          key={editing._id}
+          classData={editing}
+          onClose={() => setEditing(null)}
+          onSave={saveEdit}
+        />
+      )}
+      {upgradeOpen && (
+        <UpgradeModal
+          onClose={() => setUpgradeOpen(false)}
+          onConfirm={confirmUpgrade}
         />
       )}
 
-      {/* Classes List */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <LottieAnimator visible />
-            <AppText
-              size="small"
-              style={{ color: colors.medium, marginTop: 10 }}
-            >
-              Loading classes...
-            </AppText>
-          </View>
-        ) : classes.length > 0 ? (
-          <View style={styles.classesContainer}>
-            {classes.map((classItem, index) => (
-              <ClassCard
-                key={classItem?._id}
-                classItem={classItem}
-                index={index}
-                onPress={() => handleClassPress(classItem)}
-                onEdit={handleEditClass}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="school-outline" size={64} color={colors.light} />
-            <AppText
-              fontWeight="semibold"
-              size="large"
-              style={{ marginTop: 16, color: colors.medium }}
-            >
-              Fetching classses...
-            </AppText>
-          </View>
-        )}
-      </ScrollView>
+      {(updating || shifting) && (
+        <JambLoadingOverlay
+          label={shifting ? "Moving classes up…" : "Saving class…"}
+        />
+      )}
 
-      {/* Edit/Create Modal */}
-      <EditClassModal
-        visible={editModalVisible}
-        onClose={() => {
-          setEditModalVisible(false);
-          setSelectedClass(null);
-          setIsCreating(false);
-        }}
-        classData={selectedClass}
-        onSave={handleSaveEdit}
-        isCreating={isCreating}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <UpgradeConfirmModal
-        visible={upgradeModalVisible.vis}
-        onClose={() => {
-          setUpgradeModalVisible({ vis: false, type: null });
-          setSelectedClass(null);
-        }}
-        classData={selectedClass}
-        type={upgradeModalVisible.type}
-        onConfirm={handleConfirmUpgrade}
-      />
-
-      {/* Loading Overlay */}
-      <LottieAnimator
-        visible={updating || shifting || creating}
-        absolute
-        wTransparent
-      />
-
-      {/* Pop Message */}
       <PopMessage popData={popper} setPopData={setPopper} />
     </View>
   );
 };
 
+export default ClassroomScreen;
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
+  container: { flex: 1, backgroundColor: T.paper },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    backgroundColor: "#FFFFFF",
-  },
-  addButton: {
-    // width: 48,
-    // height: 48,
-    // borderRadius: 24,
-    // backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 5,
-    paddingHorizontal: 10,
-  },
-  statsCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    marginVertical: 15,
-    padding: 16,
-    borderRadius: 16,
-  },
-  statBox: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  searchSection: {
-    paddingHorizontal: 20,
-    marginBottom: 15,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    fontFamily: "sf-regular",
-    color: colors.black,
-  },
-  scrollContent: {
-    paddingBottom: PAD_BOTTOM,
-  },
-  classesContainer: {
-    paddingHorizontal: 20,
-  },
-  classCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-  },
-  classHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  classIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  classContent: {
-    flex: 1,
-  },
-  statsRow: {
-    flexDirection: "row",
-    marginTop: 8,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 80,
-    paddingHorizontal: 40,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  editModalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    width: width * 0.9,
-    maxHeight: "80%",
-  },
-  deleteModalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    width: width * 0.85,
-    padding: 24,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  modalBody: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  inputLabel: {
-    marginBottom: 10,
-  },
-  levelOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  levelOption: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 10,
+  },
+  scroll: { paddingTop: 4 },
+
+  // hero
+  heroWrap: {
+    marginTop: 6,
+    marginBottom: 14,
+    borderRadius: 26,
+    backgroundColor: T.boardDark,
+    paddingBottom: 5,
+  },
+  heroClip: {
+    borderRadius: 26,
+    backgroundColor: T.board,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    overflow: "hidden",
+  },
+  heroFrame: {
+    position: "absolute",
+    top: 7,
+    left: 7,
+    right: 7,
+    bottom: 7,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: "#E0E0E0",
-    borderBottomWidth: 4,
-    marginRight: 8,
-    marginBottom: 8,
+    borderStyle: "dashed",
+    borderColor: "rgba(255,248,231,0.22)",
   },
-  levelOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + "10",
-  },
-  input: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    fontFamily: "sf-regular",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    color: colors.black,
-  },
-  charCount: {
-    textAlign: "right",
-    color: colors.medium,
-    marginTop: 4,
-  },
-  modalActions: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-    justifyContent: "space-between",
-  },
-  deleteIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.heart + "20",
-    justifyContent: "center",
+  heroTitle: { color: T.chalk, marginBottom: 12 },
+  statRow: { flexDirection: "row" },
+  statTile: { flex: 1, alignItems: "flex-start" },
+  statIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: "rgba(255,248,231,0.12)",
     alignItems: "center",
+    justifyContent: "center",
+  },
+  statValue: { color: T.chalk, marginTop: 8 },
+  statLabel: { color: T.chalkSoft, marginTop: -2 },
+
+  // class card
+  classCard: { padding: 12 },
+  classRow: { flexDirection: "row", alignItems: "center" },
+  levelBadge: {
+    width: 58,
+    height: 64,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  chipRow: { flexDirection: "row", marginTop: 8 },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: T.greenSoft,
+    borderWidth: 2,
+    borderColor: T.greenLine,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // states
+  errorCard: {
+    backgroundColor: T.coralSoft,
+    borderColor: T.coralLine,
+    marginTop: 6,
+  },
+  errorRow: { flexDirection: "row", alignItems: "center" },
+  errorIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: T.coralLine,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  emptyCard: { alignItems: "center", paddingVertical: 30 },
+
+  // modals
+  overlay: { flex: 1, backgroundColor: "rgba(15,47,39,0.55)" },
+  kav: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16 },
+  sheet: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: T.card,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
+    padding: 18,
+  },
+  sheetHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: T.paper,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: { color: T.ink, marginBottom: 8 },
+  input: {
+    backgroundColor: T.paper,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: T.line,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: "sf-regular",
+    color: T.ink,
+  },
+  count: { textAlign: "right", color: T.faint, marginTop: 4 },
+  actions: { flexDirection: "row", marginTop: 18 },
+
+  warnIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    backgroundColor: T.yellowSoft,
+    borderWidth: 2,
+    borderColor: T.yellowLine,
+    alignItems: "center",
+    justifyContent: "center",
     alignSelf: "center",
   },
-  warningBox: {
+  upTitle: { color: T.ink, textAlign: "center", marginTop: 14 },
+  upBody: { color: T.sub, textAlign: "center", marginTop: 6, lineHeight: 20 },
+  warnBox: {
     flexDirection: "row",
-    backgroundColor: colors.warning + "15",
+    alignItems: "flex-start",
+    backgroundColor: T.coralSoft,
+    borderWidth: 2,
+    borderColor: T.coralLine,
+    borderRadius: 16,
     padding: 12,
-    borderRadius: 12,
-    marginTop: 16,
+    marginTop: 14,
   },
+  warnText: { flex: 1, color: T.coralDark, marginLeft: 8, lineHeight: 17 },
 });
-
-export default ClassroomScreen;

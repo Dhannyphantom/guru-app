@@ -26,8 +26,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
-import AppModal from "../components/AppModal";
-import ClassModal from "../components/ClassModal";
 import { selectUser } from "../context/usersSlice";
 import { useSelector } from "react-redux";
 import JoinSchool from "../components/JoinSchool";
@@ -425,12 +423,9 @@ const ActionItem = memo(({ item, count, onPress, index }) => {
   );
 });
 
-const MODAL_COMPONENTS = { Classes: ClassModal };
-
 const SchoolActions = memo(({ data }) => {
   const router = useRouter();
   const accountType = useSelector(selectUser)?.accountType;
-  const [modal, setModal] = useState({ visible: false, name: null });
 
   const visibleActions = useMemo(
     () =>
@@ -449,11 +444,13 @@ const SchoolActions = memo(({ data }) => {
         });
         return;
       }
-      if (item.name === "Classes" && accountType === "teacher") {
-        router.push("/school/classrooms");
-        return;
+      if (item.name === "Classes") {
+        // Teachers manage classrooms; students see their schoolmates
+        // (same screen as "See all schoolmates").
+        router.push(
+          accountType === "teacher" ? "/school/classrooms" : "/school/students",
+        );
       }
-      setModal({ visible: true, name: item.name });
     },
     [accountType],
   );
@@ -468,20 +465,6 @@ const SchoolActions = memo(({ data }) => {
       />
     ),
     [data, handleActionPress],
-  );
-
-  const closeModal = useCallback(
-    () => setModal((m) => ({ ...m, visible: false })),
-    [],
-  );
-
-  const ModalComponent = MODAL_COMPONENTS[modal.name];
-  const ModalContent = useCallback(
-    () =>
-      ModalComponent ? (
-        <ModalComponent data={{ name: modal.name }} closeModal={closeModal} />
-      ) : null,
-    [ModalComponent, modal.name, closeModal],
   );
 
   return (
@@ -502,12 +485,6 @@ const SchoolActions = memo(({ data }) => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 6 }}
         renderItem={renderItem}
-      />
-
-      <AppModal
-        visible={modal.visible}
-        setVisible={(bool) => setModal((m) => ({ ...m, visible: bool }))}
-        Component={ModalContent}
       />
     </View>
   );
