@@ -115,6 +115,54 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["SCHOOL"],
     }),
+
+    // ─────────────────────────────────────────────────────────────────
+    // SCHOOL STUDENTS  (paginated + searchable + class filter)
+    // Used by the "all students / schoolmates" screen.
+    // ─────────────────────────────────────────────────────────────────
+    fetchSchoolStudents: builder.query({
+      query: ({
+        schoolId,
+        q = "",
+        classLevel = "",
+        offset = 0,
+        limit = 20,
+      }) => ({
+        url: "/school/students",
+        params: { schoolId, q, classLevel, offset, limit },
+        timeout: 15000,
+      }),
+
+      // One cache entry per (school + class + search). Pages merge into it.
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}-${queryArgs?.schoolId}-${
+          queryArgs?.classLevel ?? ""
+        }-${queryArgs?.q ?? ""}`,
+
+      merge: (currentCache, incoming, { arg }) => {
+        // First page (or refresh / filter change) → replace everything
+        if ((arg?.offset ?? 0) === 0) return incoming;
+
+        // Later pages → append, de-duplicated by _id
+        const seen = new Set((currentCache?.data ?? []).map((s) => s._id));
+        const fresh = (incoming?.data ?? []).filter((s) => !seen.has(s._id));
+        return {
+          ...incoming,
+          // later pages don't carry `classes`, so keep the first page's
+          classes: incoming?.classes ?? currentCache?.classes,
+          data: [...(currentCache?.data ?? []), ...fresh],
+        };
+      },
+
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.offset !== previousArg?.offset ||
+        currentArg?.q !== previousArg?.q ||
+        currentArg?.classLevel !== previousArg?.classLevel,
+
+      providesTags: ["SCHOOL"],
+      keepUnusedDataFor: 60,
+    }),
+
     fetchSchoolInstance: builder.query({
       query: (data) => ({
         url: `/school/instances?type=${data?.type}&schoolId=${data?.schoolId}`,
@@ -256,10 +304,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
             url: `/leaderboard/school/${schoolId}?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
               classLevel ? `&classLevel=${classLevel}` : ""
             }`,
-
-            // url: `/leaderboard/school/${schoolId}?limit=${limit}&offset=${offset}&sortBy=${sortBy}${
-            //   classLevel ? `&classLevel=${classLevel}` : ""
-            // }`,
             timeout: 15000,
           }),
           cacheKey,
@@ -589,37 +633,6 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         body: data, // { schoolId, targetUserId, reason? }
       }),
     }),
-    fetchSchoolStudents: builder.query({
-      query: ({ schoolId, q = "", offset = 0, limit = 20 }) => ({
-        url: "/school/students",
-        params: { schoolId, q, offset, limit },
-        timeout: 15000,
-      }),
-
-      // One cache entry per (school + search text). Pages are merged into it.
-      serializeQueryArgs: ({ endpointName, queryArgs }) =>
-        `${endpointName}-${queryArgs?.schoolId}-${queryArgs?.q ?? ""}`,
-
-      merge: (currentCache, incoming, { arg }) => {
-        // first page / refresh → replace everything
-        if ((arg?.offset ?? 0) === 0) return incoming;
-
-        // next pages → append, de-duplicated by _id
-        const seen = new Set((currentCache?.data ?? []).map((s) => s._id));
-        const fresh = (incoming?.data ?? []).filter((s) => !seen.has(s._id));
-        return {
-          ...incoming,
-          data: [...(currentCache?.data ?? []), ...fresh],
-        };
-      },
-
-      forceRefetch: ({ currentArg, previousArg }) =>
-        currentArg?.offset !== previousArg?.offset ||
-        currentArg?.q !== previousArg?.q,
-
-      providesTags: ["SCHOOL"],
-      keepUnusedDataFor: 60,
-    }),
   }),
 });
 
@@ -646,6 +659,7 @@ export const {
   useCreateSchoolMutation,
   useLazyFetchSchoolQuery,
   useFetchSchoolQuery,
+  useFetchSchoolStudentsQuery,
   useFetchSchoolClassesQuery,
   useCreateClassMutation,
   useCreateClassxMutation,
@@ -689,7 +703,6 @@ export const {
   useJoinSchoolMutation,
   useLeaveSchoolMutation,
   useFlagStudentMutation,
-  useFetchSchoolStudentsQuery,
 } = extendedUserApiSlice;
 
 export default schoolSlice.reducer;
