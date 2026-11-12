@@ -41,8 +41,9 @@ const JambPredictorScreen = () => {
   const [premiumDenied, setPremiumDenied] = useState(false); // server said 403
   const isPremium = Boolean(user?.subscription?.isActive) && !premiumDenied;
 
+  // "jamb" -> server returns ONLY subjects flagged jambEligible: true
   const { data: subjectsData, isLoading: loadingSubjects } =
-    useFetchSubjectsQuery();
+    useFetchSubjectsQuery("jamb");
   const subjects = subjectsData?.data ?? [];
   const { summary, refresh, error: summaryError } = useJambSummary();
 

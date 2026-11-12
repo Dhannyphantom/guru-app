@@ -723,7 +723,7 @@ const ProfileScreen = () => {
           <View style={s.profileWrap}>
             {/* Avatar draws the name under the picture - white so it reads on blue */}
             <Avatar
-              size={Platform.OS === "web" ? 110 : width * 0.26}
+              size={width * 0.36}
               name={`${user?.firstName ?? "Your"} ${user?.lastName ?? "Name"}`}
               imageStyle={{ backgroundColor: "#fff" }}
               data={{ user }}
@@ -731,7 +731,11 @@ const ProfileScreen = () => {
               border={{ width: 4, color: T.ink }}
               onPress={() => router.push("/profile/edit")}
               textFontsize={20}
-              textStyle={{ color: "#fff", textAlign: "center" }}
+              textStyle={{
+                color: "#fff",
+                width: width * 0.5,
+                textAlign: "center",
+              }}
             />
 
             <View style={s.handlePill}>

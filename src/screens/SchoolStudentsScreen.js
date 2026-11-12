@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   Dimensions,
   FlatList,
   Keyboard,
@@ -31,7 +30,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import colors from "../helpers/colors";
+import { T } from "../components/jamb/JambTheme";
+import { JambButton } from "../components/jamb/JambUI";
+import LottieAnimator from "../components/LottieAnimator";
 import AppText from "../components/AppText";
 import Avatar from "../components/Avatar";
 import ListEmpty from "../components/ListEmpty";
@@ -53,7 +54,8 @@ const CARD_W = (width - H_PAD * 2 - GAP) / 2;
 const BACK_W = 44;
 const SEARCH_MAX_W = width - H_PAD * 2 - BACK_W - 8;
 
-const AVATAR_BORDER = { width: 2, color: colors.lightly };
+const AVATAR_BORDER = { width: 3, color: T.line };
+const AVATAR_BORDER_OWN = { width: 3, color: T.green };
 const CAPITALIZE = { textTransform: "capitalize" };
 
 const norm = (s) =>
@@ -71,8 +73,8 @@ const classKeyExtractor = (item) => item.key;
 // Class card (top carousel)
 // ─────────────────────────────────────────────────────────────────────────────
 const ClassCard = memo(({ item, selected, onPress }) => {
-  const fg = selected ? colors.white : colors.black;
-  const sub = selected ? colors.white : colors.medium;
+  const fg = selected ? "#fff" : T.ink;
+  const sub = selected ? "rgba(255,255,255,0.85)" : T.sub;
 
   return (
     <Pressable
@@ -80,33 +82,33 @@ const ClassCard = memo(({ item, selected, onPress }) => {
       style={({ pressed }) => [
         styles.classCard,
         selected && styles.classCardOn,
-        pressed && { opacity: 0.9 },
+        pressed && { transform: [{ translateY: 2 }] },
       ]}
     >
       <View style={styles.classTop}>
         <View
           style={[
             styles.classIcon,
-            selected && { backgroundColor: "rgba(255,255,255,0.22)" },
+            selected && { backgroundColor: "rgba(255,255,255,0.25)" },
           ]}
         >
           <Ionicons
             name={item.isAll ? "business" : "people"}
             size={16}
-            color={selected ? colors.white : colors.primaryDeeper}
+            color={selected ? "#fff" : T.greenDark}
           />
         </View>
         {item.isMine && (
           <View
             style={[
               styles.mineTag,
-              selected && { backgroundColor: "rgba(255,255,255,0.25)" },
+              selected && { backgroundColor: "rgba(255,255,255,0.28)" },
             ]}
           >
             <AppText
               size="xsmall"
               fontWeight="black"
-              style={{ color: selected ? colors.white : colors.primaryDeeper }}
+              style={{ color: selected ? "#fff" : T.yellowInk }}
             >
               Your class
             </AppText>
@@ -135,17 +137,21 @@ const ClassCard = memo(({ item, selected, onPress }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stat chip inside a student card
+// Stat tile inside a student card
 // ─────────────────────────────────────────────────────────────────────────────
-const Stat = memo(({ icon, color, value, label }) => (
-  <View style={styles.stat}>
+const Stat = memo(({ icon, color, bg, value, label }) => (
+  <View style={[styles.stat, { backgroundColor: bg }]}>
     <View style={styles.statTop}>
       <Ionicons name={icon} size={13} color={color} />
-      <AppText fontWeight="heavy" size="small" style={{ marginLeft: 3 }}>
+      <AppText
+        fontWeight="black"
+        size="small"
+        style={{ marginLeft: 4, color: T.ink }}
+      >
         {value}
       </AppText>
     </View>
-    <AppText size="xsmall" style={{ color: colors.medium }}>
+    <AppText size="xsmall" fontWeight="bold" style={{ color }}>
       {label}
     </AppText>
   </View>
@@ -163,12 +169,8 @@ const StudentCard = memo(({ item, isOwn, onFlag }) => {
     <View style={[styles.card, isOwn && styles.cardOwn]}>
       {isOwn ? (
         <View style={styles.youBadge}>
-          <AppText
-            size="xsmall"
-            fontWeight="black"
-            style={{ color: colors.primaryDeeper }}
-          >
-            You
+          <AppText size="xsmall" fontWeight="black" style={{ color: "#fff" }}>
+            YOU
           </AppText>
         </View>
       ) : (
@@ -177,7 +179,7 @@ const StudentCard = memo(({ item, isOwn, onFlag }) => {
           hitSlop={10}
           style={styles.flagBtn}
         >
-          <Ionicons name="flag-outline" size={14} color={colors.medium} />
+          <Ionicons name="flag-outline" size={13} color={T.sub} />
         </Pressable>
       )}
 
@@ -186,11 +188,11 @@ const StudentCard = memo(({ item, isOwn, onFlag }) => {
         source={item.avatar?.image}
         data={{ user: item }}
         userID={item._id}
-        border={AVATAR_BORDER}
+        border={isOwn ? AVATAR_BORDER_OWN : AVATAR_BORDER}
       />
 
       <AppText
-        fontWeight="heavy"
+        fontWeight="black"
         size="medium"
         numberOfLines={1}
         style={[CAPITALIZE, styles.name]}
@@ -201,7 +203,7 @@ const StudentCard = memo(({ item, isOwn, onFlag }) => {
         <AppText
           size="small"
           numberOfLines={1}
-          style={{ color: colors.medium, marginTop: 1 }}
+          style={{ color: T.sub, marginTop: 1 }}
         >
           @{item.username}
         </AppText>
@@ -211,8 +213,12 @@ const StudentCard = memo(({ item, isOwn, onFlag }) => {
         <View style={styles.levelBadge}>
           <AppText
             size="xsmall"
-            fontWeight="bold"
-            style={{ color: colors.primaryDeeper, textTransform: "uppercase" }}
+            fontWeight="black"
+            style={{
+              color: T.blueDark,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
           >
             {level}
           </AppText>
@@ -222,14 +228,15 @@ const StudentCard = memo(({ item, isOwn, onFlag }) => {
       <View style={styles.statsRow}>
         <Stat
           icon="trophy"
-          color={colors.primary}
+          color={T.yellowInk}
+          bg={T.yellowSoft}
           value={compact(item.totalPoints)}
           label="Points"
         />
-        <View style={styles.statDivider} />
         <Stat
           icon="flame"
-          color={colors.heart}
+          color={T.coralDark}
+          bg={T.coralSoft}
           value={compact(item.streak)}
           label="Streak"
         />
@@ -445,13 +452,14 @@ const SchoolStudentsScreen = () => {
       <View>
         {classCards.length > 1 && (
           <View style={styles.classSection}>
-            <AppText
-              fontWeight="heavy"
-              size="large"
-              style={styles.sectionTitle}
-            >
-              Browse by class
-            </AppText>
+            <View style={styles.sectionRow}>
+              <View style={styles.sectionIcon}>
+                <Ionicons name="school" size={16} color={T.blueDark} />
+              </View>
+              <AppText fontWeight="black" size="large" style={{ color: T.ink }}>
+                Browse by class
+              </AppText>
+            </View>
             <FlatList
               data={classCards}
               horizontal
@@ -466,9 +474,9 @@ const SchoolStudentsScreen = () => {
         <View style={styles.subHeader}>
           <AppText
             size="small"
-            fontWeight="medium"
+            fontWeight="bold"
             numberOfLines={1}
-            style={{ color: colors.medium }}
+            style={{ color: T.sub }}
           >
             {subtitle}
           </AppText>
@@ -482,16 +490,23 @@ const SchoolStudentsScreen = () => {
     if (isFetching && items?.length) {
       return (
         <View style={styles.footer}>
-          <ActivityIndicator color={colors.primary} />
+          <LottieAnimator visible size={48} />
         </View>
       );
     }
     if (!hasMore && items?.length > PAGE_SIZE) {
       return (
         <View style={styles.footer}>
-          <AppText size="small" style={{ color: colors.medium }}>
-            You've reached the end
-          </AppText>
+          <View style={styles.endPill}>
+            <Ionicons name="checkmark-done" size={14} color={T.greenDark} />
+            <AppText
+              size="small"
+              fontWeight="bold"
+              style={{ color: T.greenDark, marginLeft: 5 }}
+            >
+              You've reached the end
+            </AppText>
+          </View>
         </View>
       );
     }
@@ -502,25 +517,29 @@ const SchoolStudentsScreen = () => {
     if (isError && !items?.length) {
       return (
         <View style={styles.centerBox}>
-          <Ionicons name="cloud-offline" size={40} color={colors.medium} />
+          <View style={styles.errIcon}>
+            <Ionicons name="cloud-offline" size={36} color={T.coralDark} />
+          </View>
           <AppText
-            fontWeight="bold"
-            style={{ color: colors.medium, marginTop: 10, textAlign: "center" }}
+            fontWeight="black"
+            style={{ color: T.ink, marginTop: 14, textAlign: "center" }}
           >
             {error?.data?.message || error?.error || "Couldn't load students"}
           </AppText>
-          <Pressable onPress={retry} style={styles.retryBtn}>
-            <AppText fontWeight="bold" style={{ color: colors.primaryDeeper }}>
-              Try again
-            </AppText>
-          </Pressable>
+          <JambButton
+            title="Try again"
+            icon="refresh"
+            small
+            onPress={retry}
+            style={{ marginTop: 16 }}
+          />
         </View>
       );
     }
     if (isFetching || staleByFilter || !res) {
       return (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <LottieAnimator visible size={90} />
         </View>
       );
     }
@@ -540,14 +559,14 @@ const SchoolStudentsScreen = () => {
       {/* ── Header with animated search ─────────────────────────────── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} style={styles.iconBtn} hitSlop={6}>
-          <Ionicons name="arrow-back" size={22} color={colors.black} />
+          <Ionicons name="arrow-back" size={22} color={T.ink} />
         </Pressable>
 
         <Animated.View
           style={[styles.titleWrap, titleStyle]}
           pointerEvents="none"
         >
-          <AppText fontWeight="black" size="xlarge">
+          <AppText fontWeight="black" size="xlarge" style={{ color: T.ink }}>
             {isTeacher ? "All Students" : "Schoolmates"}
           </AppText>
         </Animated.View>
@@ -560,7 +579,7 @@ const SchoolStudentsScreen = () => {
             style={styles.searchIcon}
             hitSlop={6}
           >
-            <Ionicons name="search" size={20} color={colors.black} />
+            <Ionicons name="search" size={20} color={T.ink} />
           </Pressable>
 
           <Animated.View
@@ -572,7 +591,7 @@ const SchoolStudentsScreen = () => {
               value={text}
               onChangeText={setText}
               placeholder="Search by name or username"
-              placeholderTextColor={colors.medium}
+              placeholderTextColor={T.faint}
               style={styles.input}
               returnKeyType="search"
               autoCorrect={false}
@@ -583,7 +602,7 @@ const SchoolStudentsScreen = () => {
               style={styles.closeBtn}
               hitSlop={8}
             >
-              <Ionicons name="close-circle" size={20} color={colors.medium} />
+              <Ionicons name="close-circle" size={20} color={T.faint} />
             </Pressable>
           </Animated.View>
         </Animated.View>
@@ -627,65 +646,85 @@ const SchoolStudentsScreen = () => {
 export default SchoolStudentsScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.unchange },
+  container: { flex: 1, backgroundColor: T.paper },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: H_PAD,
-    paddingBottom: 10,
+    paddingBottom: 12,
     minHeight: 44 + 8,
-    backgroundColor: colors.unchange,
+    backgroundColor: T.paper,
   },
   iconBtn: {
     width: BACK_W,
     height: BACK_W,
-    borderRadius: BACK_W / 2,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.white,
-    boxShadow: `2px 8px 12px ${colors.black}25`,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.line,
   },
   titleWrap: { marginLeft: 12, flex: 1 },
   searchBox: {
     position: "absolute",
     right: H_PAD,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 15,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
-    backgroundColor: colors.white,
-    boxShadow: `2px 8px 12px ${colors.black}25`,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.line,
   },
   searchIcon: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
   inputWrap: { flex: 1, flexDirection: "row", alignItems: "center" },
   input: {
     flex: 1,
-    height: 44,
+    height: 40,
     fontSize: 15,
-    color: colors.black,
+    color: T.ink,
     paddingRight: 4,
   },
-  closeBtn: { paddingHorizontal: 12, height: 44, justifyContent: "center" },
+  closeBtn: { paddingHorizontal: 10, height: 40, justifyContent: "center" },
 
   // class cards
   classSection: { paddingTop: 4 },
-  sectionTitle: { paddingHorizontal: H_PAD, marginBottom: 10 },
-  classList: { paddingHorizontal: H_PAD, gap: 10 },
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: H_PAD,
+    marginBottom: 12,
+  },
+  sectionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: T.blueSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  classList: { paddingHorizontal: H_PAD, paddingBottom: 6, gap: 10 },
   classCard: {
     width: 150,
     padding: 12,
     borderRadius: 20,
-    backgroundColor: colors.white,
-    boxShadow: `2px 8px 12px ${colors.black}25`,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
   },
-  classCardOn: { backgroundColor: colors.primary },
+  classCardOn: { backgroundColor: T.green, borderColor: T.greenDark },
   classTop: {
     flexDirection: "row",
     alignItems: "center",
@@ -697,16 +736,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryLighter,
+    backgroundColor: T.greenSoft,
   },
   mineTag: {
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 100,
-    backgroundColor: colors.primaryLighter,
+    borderRadius: 7,
+    backgroundColor: T.yellowSoft,
   },
 
-  subHeader: { paddingHorizontal: H_PAD, paddingTop: 16, paddingBottom: 14 },
+  subHeader: { paddingHorizontal: H_PAD, paddingTop: 14, paddingBottom: 14 },
   columnWrap: { paddingHorizontal: H_PAD, gap: GAP, marginBottom: GAP },
 
   card: {
@@ -715,14 +754,15 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 12,
     paddingHorizontal: 10,
-    borderRadius: 22,
-    backgroundColor: colors.white,
-    boxShadow: `2px 8px 12px ${colors.black}25`,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
   },
   cardOwn: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLighter + "40",
+    borderColor: T.green,
+    backgroundColor: T.greenSoft,
   },
   youBadge: {
     position: "absolute",
@@ -730,8 +770,8 @@ const styles = StyleSheet.create({
     right: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 100,
-    backgroundColor: colors.primaryLighter,
+    borderRadius: 8,
+    backgroundColor: T.green,
   },
   flagBtn: {
     position: "absolute",
@@ -739,37 +779,45 @@ const styles = StyleSheet.create({
     right: 10,
     padding: 5,
     borderRadius: 20,
-    backgroundColor: colors.extraLight,
+    backgroundColor: T.paper,
+    borderWidth: 1.5,
+    borderColor: T.line,
   },
-  name: { marginTop: 10, maxWidth: "100%" },
+  name: { marginTop: 10, maxWidth: "100%", color: T.ink },
   levelBadge: {
     marginTop: 8,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: 100,
-    backgroundColor: colors.primaryLighter,
+    borderRadius: 8,
+    backgroundColor: T.blueSoft,
   },
   statsRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     alignSelf: "stretch",
+    gap: 6,
     marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.extraLight,
   },
-  stat: { flex: 1, alignItems: "center" },
+  stat: { flex: 1, alignItems: "center", borderRadius: 12, paddingVertical: 6 },
   statTop: { flexDirection: "row", alignItems: "center" },
-  statDivider: { width: 1, height: 24, backgroundColor: colors.extraLight },
 
   footer: { paddingVertical: 20, alignItems: "center" },
-  centerBox: { paddingTop: 60, paddingHorizontal: 30, alignItems: "center" },
-  retryBtn: {
-    marginTop: 14,
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderRadius: 100,
-    backgroundColor: colors.primaryLighter,
+  endPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: T.greenSoft,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  centerBox: { paddingTop: 50, paddingHorizontal: 30, alignItems: "center" },
+  errIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    backgroundColor: T.coralSoft,
+    borderWidth: 2,
+    borderColor: T.coralLine,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
