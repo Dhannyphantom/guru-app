@@ -7,11 +7,7 @@ import { T } from "./JambTheme";
 import { AnimatedBar, Card, Chip } from "./JambUI";
 
 /** Shown while the rest period between rounds is running ("recess"). */
-const JambCooldownCard = ({
-  cooldown,
-  index = 0,
-  title = "Next round unlocks in",
-}) => (
+const JambCooldownCard = ({ cooldown, index = 0, title = "Next round unlocks in" }) => (
   <Card index={index} style={styles.card}>
     <View style={styles.row}>
       <View style={styles.icon}>

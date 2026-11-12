@@ -3,22 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeOut,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import AppText from "./JambText";
 import AppButton from "../AppButton";
+import LottieAnimator from "../LottieAnimator";
 import PromptModal from "../PromptModal";
 import QuestionDisplay from "../QuestionDisplay";
-import { J, estimatedMinutes, totalAssessmentQuestions } from "../../helpers/jambConfig";
+import { estimatedMinutes, totalAssessmentQuestions } from "../../helpers/jambConfig";
+import { T } from "./JambTheme";
+import { Chip } from "./JambUI";
 import uuid from "react-native-uuid";
 import jambService from "../../services/jambService";
 import { isRetryable } from "../../services/jambApi";
@@ -30,47 +24,37 @@ const QUIT_PROMPT = {
   type: "quit",
 };
 
+const CHIP_TONES = [
+  { color: T.blueDark, bg: T.blueSoft },
+  { color: T.yellowInk, bg: T.yellowSoft },
+  { color: T.coralDark, bg: T.coralSoft },
+  { color: T.purpleDark, bg: T.purpleSoft },
+];
+
 const PreparingLoader = ({ selected, onCancel }) => {
-  const pulse = useSharedValue(0);
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 900, easing: Easing.inOut(Easing.quad) }),
-      ),
-      -1,
-      false,
-    );
-  }, []);
-
-  const ring = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + pulse.value * 0.35 }],
-    opacity: 0.55 - pulse.value * 0.45,
-  }));
-  const core = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + pulse.value * 0.06 }],
-  }));
-
   const total = totalAssessmentQuestions(selected);
 
   return (
     <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)} style={styles.loader}>
-      <View style={styles.pulseWrap}>
-        <Animated.View style={[styles.pulseRing, ring]} />
-        <Animated.View style={[styles.pulseCore, core]}>
-          <Ionicons name="rocket" size={38} color="#fff" />
-        </Animated.View>
-      </View>
+      <LottieAnimator size={110} />
 
-      <AppText fontWeight="black" size={22} style={{ color: J.deep, marginTop: 36 }}>
-        Preparing your assessment…
+      <AppText fontWeight="black" size={22} style={{ color: T.ink, marginTop: 20 }}>
+        Sharpening your pencils…
       </AppText>
       <AppText fontWeight="medium" size={14} style={styles.loaderSub}>
         {total} questions • about {Math.max(estimatedMinutes(total), 1)} min
       </AppText>
-      <AppText fontWeight="semibold" size={13} style={styles.loaderSubjects}>
-        {selected.map((s) => s.name).join("  •  ")}
-      </AppText>
+      <View style={styles.loaderSubjects}>
+        {selected.map((s, i) => (
+          <Chip
+            key={s._id ?? s.name}
+            label={s.name}
+            color={CHIP_TONES[i % CHIP_TONES.length].color}
+            bg={CHIP_TONES[i % CHIP_TONES.length].bg}
+            style={{ margin: 3 }}
+          />
+        ))}
+      </View>
 
       <AppButton title="Cancel" type="white" onPress={onCancel} contStyle={{ marginTop: 28 }} />
     </Animated.View>
@@ -140,11 +124,13 @@ const JambQuizStep = ({ selected = [], onFinish, onQuit, onError }) => {
   if (failed) {
     return (
       <View style={styles.loader}>
-        <Ionicons name="cloud-offline" size={48} color={J.danger} />
-        <AppText fontWeight="bold" size={18} style={{ marginTop: 16, color: J.ink }}>
+        <View style={styles.errIcon}>
+          <Ionicons name="cloud-offline" size={40} color={T.coralDark} />
+        </View>
+        <AppText fontWeight="black" size={19} style={{ marginTop: 18, color: T.ink }}>
           Couldn't load the assessment
         </AppText>
-        <AppText fontWeight="medium" size={13} style={{ color: J.muted, marginTop: 6, textAlign: "center" }}>
+        <AppText fontWeight="medium" size={13} style={{ color: T.sub, marginTop: 6, textAlign: "center" }}>
           Check your connection and try again.
         </AppText>
         <AppButton title="Try Again" onPress={() => setAttempt((n) => n + 1)} contStyle={{ marginTop: 20 }} />
@@ -179,23 +165,28 @@ const JambQuizStep = ({ selected = [], onFinish, onQuit, onError }) => {
 export default JambQuizStep;
 
 const styles = StyleSheet.create({
-  loader: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
-  pulseWrap: { width: 120, height: 120, alignItems: "center", justifyContent: "center" },
-  pulseRing: {
-    position: "absolute",
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: J.green,
+  loader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: T.paper,
   },
-  pulseCore: {
+  errIcon: {
     width: 84,
     height: 84,
-    borderRadius: 42,
-    backgroundColor: J.deep,
+    borderRadius: 26,
+    backgroundColor: T.coralSoft,
+    borderWidth: 2,
+    borderColor: T.coralLine,
     alignItems: "center",
     justifyContent: "center",
   },
-  loaderSub: { color: J.muted, marginTop: 8 },
-  loaderSubjects: { textTransform: "capitalize", color: J.deep, marginTop: 14, textAlign: "center", lineHeight: 20 },
+  loaderSub: { color: T.sub, marginTop: 8 },
+  loaderSubjects: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    marginTop: 14,
+  },
 });

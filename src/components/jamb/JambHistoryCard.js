@@ -7,13 +7,7 @@ import AppText from "./JambText";
 import { JAMB_TOTAL } from "../../helpers/jambConfig";
 import { T } from "./JambTheme";
 import { LAYOUT, enter } from "./JambMotion";
-import {
-  Card,
-  Chip,
-  JambPressable,
-  ProgressRing,
-  SectionTitle,
-} from "./JambUI";
+import { Card, Chip, JambPressable, ProgressRing, SectionTitle } from "./JambUI";
 
 const VISIBLE = 4;
 
@@ -39,18 +33,10 @@ const Row = ({ item, older, index }) => {
       style={styles.row}
     >
       <View style={styles.badge}>
-        <AppText
-          fontWeight="black"
-          size={9}
-          style={{ color: T.sub, letterSpacing: 0.6 }}
-        >
+        <AppText fontWeight="black" size={9} style={{ color: T.sub, letterSpacing: 0.6 }}>
           RD
         </AppText>
-        <AppText
-          fontWeight="black"
-          size={14}
-          style={{ color: T.ink, marginTop: -2 }}
-        >
+        <AppText fontWeight="black" size={14} style={{ color: T.ink, marginTop: -2 }}>
           {item.number}
         </AppText>
       </View>
@@ -60,8 +46,7 @@ const Row = ({ item, older, index }) => {
           Round {item.number}
         </AppText>
         <AppText fontWeight="medium" size={10.5} style={{ color: T.sub }}>
-          {fmtDate(item.date)} · {item.totalCorrect}/{item.totalQuestions}{" "}
-          correct
+          {fmtDate(item.date)} · {item.totalCorrect}/{item.totalQuestions} correct
         </AppText>
       </View>
 
@@ -136,15 +121,10 @@ const JambHistoryCard = ({ summary, index = 2 }) => {
           <AppText
             fontWeight="medium"
             size={12.5}
-            style={{
-              color: T.sub,
-              textAlign: "center",
-              marginTop: 10,
-              lineHeight: 18,
-            }}
+            style={{ color: T.sub, textAlign: "center", marginTop: 10, lineHeight: 18 }}
           >
-            Practise all four subjects to complete a round. Your score
-            prediction and average will show up here.
+            Practise all four subjects to complete a round. Your score prediction
+            and average will show up here.
           </AppText>
         </Animated.View>
       ) : (
@@ -163,31 +143,19 @@ const JambHistoryCard = ({ summary, index = 2 }) => {
               </AppText>
             </ProgressRing>
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <AppText
-                fontWeight="bold"
-                size={11.5}
-                style={{ color: T.yellowInk }}
-              >
+              <AppText fontWeight="bold" size={11.5} style={{ color: T.yellowInk }}>
                 Average prediction
               </AppText>
               <AppText fontWeight="black" size={24} style={{ color: T.ink }}>
                 {summary.average}
-                <AppText
-                  fontWeight="semibold"
-                  size={13}
-                  style={{ color: T.sub }}
-                >
+                <AppText fontWeight="semibold" size={13} style={{ color: T.sub }}>
                   /{JAMB_TOTAL}
                 </AppText>
               </AppText>
             </View>
             <View style={styles.bestBox}>
               <Ionicons name="trophy" size={14} color={T.yellowDark} />
-              <AppText
-                fontWeight="medium"
-                size={9.5}
-                style={{ color: T.sub, marginTop: 2 }}
-              >
+              <AppText fontWeight="medium" size={9.5} style={{ color: T.sub, marginTop: 2 }}>
                 Best
               </AppText>
               <AppText fontWeight="black" size={15} style={{ color: T.ink }}>
@@ -197,12 +165,7 @@ const JambHistoryCard = ({ summary, index = 2 }) => {
           </View>
 
           {rows.map((r, i) => (
-            <Row
-              key={r.id}
-              item={r}
-              older={history[history.indexOf(r) + 1]}
-              index={i}
-            />
+            <Row key={r.id} item={r} older={history[history.indexOf(r) + 1]} index={i} />
           ))}
 
           {history.length > VISIBLE && (
@@ -211,11 +174,7 @@ const JambHistoryCard = ({ summary, index = 2 }) => {
               style={{ alignSelf: "center", marginTop: 10 }}
               contentStyle={styles.more}
             >
-              <AppText
-                fontWeight="black"
-                size={11.5}
-                style={{ color: T.greenDark, letterSpacing: 0.5 }}
-              >
+              <AppText fontWeight="black" size={11.5} style={{ color: T.greenDark, letterSpacing: 0.5 }}>
                 {all ? "SHOW LESS" : `SHOW ALL ${history.length}`}
               </AppText>
               <Ionicons

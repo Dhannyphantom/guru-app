@@ -1,9 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, BackHandler, StyleSheet, View } from "react-native";
+import { BackHandler, Modal, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -17,10 +16,11 @@ import JambSubjectStep from "../components/jamb/JambSubjectStep";
 import JambOverviewStep from "../components/jamb/JambOverviewStep";
 import JambQuizStep from "../components/jamb/JambQuizStep";
 import JambResultStep from "../components/jamb/JambResultStep";
+import LottieAnimator from "../components/LottieAnimator";
+import { T } from "../components/jamb/JambTheme";
 import { JambButton, JambPressable } from "../components/jamb/JambUI";
 import { slideIn, slideOut } from "../components/jamb/JambMotion";
 import { useJambSummary } from "../components/jamb/useJambSummary";
-import { J } from "../helpers/jambConfig";
 import jambService from "../services/jambService";
 import { JambError, isRetryable } from "../services/jambApi";
 import { selectUser } from "../context/usersSlice";
@@ -41,7 +41,8 @@ const JambPredictorScreen = () => {
   const [premiumDenied, setPremiumDenied] = useState(false); // server said 403
   const isPremium = Boolean(user?.subscription?.isActive) && !premiumDenied;
 
-  const { data: subjectsData, isLoading: loadingSubjects } = useFetchSubjectsQuery();
+  const { data: subjectsData, isLoading: loadingSubjects } =
+    useFetchSubjectsQuery();
   const subjects = subjectsData?.data ?? [];
   const { summary, refresh, error: summaryError } = useJambSummary();
 
@@ -60,7 +61,10 @@ const JambPredictorScreen = () => {
 
   useEffect(() => {
     jambService.clearLegacyStorage();
-    jambService.getSavedSelection().then(setInitialIds).catch(() => {});
+    jambService
+      .getSavedSelection()
+      .then(setInitialIds)
+      .catch(() => {});
     // an unsent result from a previous run (offline / app killed at finish)
     jambService.loadPendingSubmit().then((p) => p && setRetry(p));
   }, []);
@@ -154,12 +158,29 @@ const JambPredictorScreen = () => {
   );
 
   useEffect(() => {
-    if (summaryError instanceof JambError && summaryError.code === "PREMIUM_REQUIRED") {
+    if (
+      summaryError instanceof JambError &&
+      summaryError.code === "PREMIUM_REQUIRED"
+    ) {
       setPremiumDenied(true);
     }
   }, [summaryError]);
 
   const handleSubjects = async (picked) => {
+    // Same 4 subjects as already saved (order doesn't matter) -> nothing to
+    // save, so skip the request + loader and go straight on.
+    const saved = selected.length ? selected.map((s) => s._id) : initialIds;
+    const pickedIds = picked.map((s) => s._id);
+    const same =
+      saved.length === pickedIds.length &&
+      pickedIds.every((id) => saved.includes(id));
+    if (same) {
+      if (!selected.length) setSelected(picked);
+      refresh(); // quiet background refresh, no blocking loader
+      go("overview");
+      return;
+    }
+
     setBusy("Saving your subjects…");
     try {
       await jambService.saveSelection(picked.map((s) => s._id)); // new combo => new round
@@ -204,7 +225,10 @@ const JambPredictorScreen = () => {
       go("overview");
     } catch (e) {
       setBusy(null);
-      if (isRetryable(e) || (e instanceof JambError && e.code === "SUBMIT_IN_PROGRESS")) {
+      if (
+        isRetryable(e) ||
+        (e instanceof JambError && e.code === "SUBMIT_IN_PROGRESS")
+      ) {
         setRetry(payload); // same Idempotency-Key on retry
       } else {
         await handleApiError(e);
@@ -240,13 +264,17 @@ const JambPredictorScreen = () => {
   const renderStep = () => {
     switch (step) {
       case "intro":
-        return <JambIntroStep summary={summary} onContinue={() => go("subjects")} />;
+        return (
+          <JambIntroStep summary={summary} onContinue={() => go("subjects")} />
+        );
       case "subjects":
         return (
           <JambSubjectStep
             subjects={subjects}
             loading={loadingSubjects}
-            initialIds={selected.length ? selected.map((s) => s._id) : initialIds}
+            initialIds={
+              selected.length ? selected.map((s) => s._id) : initialIds
+            }
             roundProgress={roundProgress}
             onBack={() => go("intro")}
             onContinue={handleSubjects}
@@ -294,21 +322,18 @@ const JambPredictorScreen = () => {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={["#CDE8B6", "#E3F3D4", "#F3F9EC"]}
-        style={StyleSheet.absoluteFill}
-      />
-
       <Screen style={{ backgroundColor: "transparent" }}>
         {showHeader && (
           <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
             <View style={styles.headerLeft}>
               {showBack && (
                 <JambPressable
-                  onPress={() => (step === "overview" ? go("subjects") : exit())}
+                  onPress={() =>
+                    step === "overview" ? go("subjects") : exit()
+                  }
                   contentStyle={styles.backBtn}
                 >
-                  <Ionicons name="arrow-back" size={20} color={J.deep} />
+                  <Ionicons name="arrow-back" size={20} color={T.ink} />
                 </JambPressable>
               )}
               <AppLogo />
@@ -321,23 +346,42 @@ const JambPredictorScreen = () => {
           {!isPremium ? (
             <Animated.View entering={FadeIn} style={styles.locked}>
               <View style={styles.lockIcon}>
-                <Ionicons name="lock-closed" size={34} color={J.amber} />
+                <Ionicons name="lock-closed" size={34} color={T.yellowInk} />
               </View>
-              <AppText fontWeight="black" size={22} style={{ color: J.ink, marginTop: 18 }}>
+              <AppText
+                fontWeight="black"
+                size={22}
+                style={{ color: T.ink, marginTop: 18 }}
+              >
                 Premium feature
               </AppText>
               <AppText
                 fontWeight="medium"
                 size={14}
-                style={{ color: J.muted, textAlign: "center", marginTop: 8, lineHeight: 20 }}
+                style={{
+                  color: T.sub,
+                  textAlign: "center",
+                  marginTop: 8,
+                  lineHeight: 20,
+                }}
               >
-                The Guru JAMB Score Predictor is available to premium users only.
-                Subscribe to unlock it.
+                The Guru JAMB Score Predictor is available to premium users
+                only. Subscribe to unlock it.
               </AppText>
-              <JambButton title="Go Back" icon="arrow-back" onPress={exit} style={{ marginTop: 24 }} />
+              <JambButton
+                title="Go Back"
+                icon="arrow-back"
+                onPress={exit}
+                style={{ marginTop: 24, alignSelf: "stretch" }}
+              />
             </Animated.View>
           ) : (
-            <Animated.View key={step} entering={entering} exiting={exiting} style={{ flex: 1 }}>
+            <Animated.View
+              key={step}
+              entering={entering}
+              exiting={exiting}
+              style={{ flex: 1 }}
+            >
               {renderStep()}
             </Animated.View>
           )}
@@ -351,45 +395,74 @@ const JambPredictorScreen = () => {
             </AppText>
           </Animated.View>
         )}
-
-        {(Boolean(busy) || Boolean(retry)) && (
-          <View style={styles.overlay}>
-            {busy ? (
-              <View style={styles.card}>
-                <ActivityIndicator size="large" color={J.deep} />
-                <AppText fontWeight="bold" size={15} style={{ color: J.ink, marginTop: 14 }}>
-                  {busy}
-                </AppText>
-              </View>
-            ) : (
-              <View style={styles.card}>
-                <Ionicons name="cloud-offline" size={40} color={J.danger} />
-                <AppText fontWeight="black" size={18} style={{ color: J.ink, marginTop: 12 }}>
-                  Couldn't send your answers
-                </AppText>
-                <AppText
-                  fontWeight="medium"
-                  size={13}
-                  style={{ color: J.muted, textAlign: "center", marginTop: 6, lineHeight: 19 }}
-                >
-                  Your answers are saved on this device. Check your connection and retry.
-                </AppText>
-                <JambButton
-                  title="Retry"
-                  icon="refresh"
-                  onPress={() => submitPending(retry)}
-                  style={{ marginTop: 18 }}
-                />
-                <JambPressable onPress={discardPending} contentStyle={{ marginTop: 14 }}>
-                  <AppText fontWeight="semibold" size={13} style={{ color: J.muted }}>
-                    Discard this attempt
-                  </AppText>
-                </JambPressable>
-              </View>
-            )}
-          </View>
-        )}
       </Screen>
+
+      {/* Native Modal = always the full display, centred on the real screen
+          (independent of Screen / safe-area / parent layout). */}
+      <Modal
+        visible={Boolean(busy)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View style={styles.busyWrap}>
+          <LottieAnimator size={110} />
+          <AppText fontWeight="black" size={18} style={styles.busyText}>
+            {busy}
+          </AppText>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!busy && Boolean(retry)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View style={styles.scrim}>
+          <View style={styles.card}>
+            <View style={styles.errIcon}>
+              <Ionicons name="cloud-offline" size={36} color={T.coralDark} />
+            </View>
+            <AppText
+              fontWeight="black"
+              size={18}
+              style={{ color: T.ink, marginTop: 14 }}
+            >
+              Couldn't send your answers
+            </AppText>
+            <AppText
+              fontWeight="medium"
+              size={13}
+              style={{
+                color: T.sub,
+                textAlign: "center",
+                marginTop: 6,
+                lineHeight: 19,
+              }}
+            >
+              Your answers are saved on this device. Check your connection and
+              retry.
+            </AppText>
+            <JambButton
+              title="Retry"
+              icon="refresh"
+              onPress={() => submitPending(retry)}
+              style={{ marginTop: 20, alignSelf: "stretch" }}
+            />
+            <JambPressable
+              onPress={discardPending}
+              contentStyle={styles.discard}
+            >
+              <AppText fontWeight="bold" size={12.5} style={{ color: T.sub }}>
+                Discard this attempt
+              </AppText>
+            </JambPressable>
+          </View>
+        </View>
+      </Modal>
 
       <StatusBar style="dark" />
     </View>
@@ -399,7 +472,7 @@ const JambPredictorScreen = () => {
 export default JambPredictorScreen;
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#DDEFCB" },
+  root: { flex: 1, backgroundColor: T.paper },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -410,10 +483,13 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: "row", alignItems: "center" },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
     backgroundColor: "#fff",
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.line,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -426,34 +502,65 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#C0392B",
-    borderRadius: 14,
+    backgroundColor: T.coral,
+    borderBottomWidth: 4,
+    borderBottomColor: T.coralDark,
+    borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,
     zIndex: 50,
   },
   bannerText: { color: "#fff", marginLeft: 8, flex: 1 },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(10,30,15,0.55)",
+  busyWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "rgba(255,248,231,0.97)",
+  },
+  busyText: { color: T.ink, marginTop: 14, textAlign: "center" },
+  scrim: {
+    flex: 1,
+    backgroundColor: "rgba(30,42,74,0.55)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 28,
-    zIndex: 100,
   },
   card: {
     width: "100%",
     backgroundColor: "#fff",
-    borderRadius: 22,
-    padding: 24,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderBottomWidth: 6,
+    borderColor: T.line,
+    padding: 22,
     alignItems: "center",
   },
-  locked: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+  errIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 22,
+    backgroundColor: T.coralSoft,
+    borderWidth: 2,
+    borderColor: T.coralLine,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  discard: { marginTop: 14, paddingVertical: 8, paddingHorizontal: 14 },
+  locked: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
   lockIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: J.amberBg,
+    width: 84,
+    height: 84,
+    borderRadius: 26,
+    backgroundColor: T.yellowSoft,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.yellowLine,
     alignItems: "center",
     justifyContent: "center",
   },

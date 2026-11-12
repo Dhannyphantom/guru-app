@@ -130,13 +130,7 @@ const JambIllustration = ({
       <View
         style={[
           styles.sun,
-          {
-            width: H * 0.82,
-            height: H * 0.82,
-            borderRadius: H,
-            left: W * 0.1,
-            top: H * 0.1,
-          },
+          { width: H * 0.82, height: H * 0.82, borderRadius: H, left: W * 0.1, top: H * 0.1 },
         ]}
       />
 
@@ -150,11 +144,7 @@ const JambIllustration = ({
       >
         <View style={styles.cardHead}>
           <View style={styles.cardDot} />
-          <AppText
-            fontWeight="black"
-            size={10}
-            style={{ color: T.ink, letterSpacing: 0.8 }}
-          >
+          <AppText fontWeight="black" size={10} style={{ color: T.ink, letterSpacing: 0.8 }}>
             JAMB
           </AppText>
         </View>
@@ -176,11 +166,7 @@ const JambIllustration = ({
             <AppText
               fontWeight="bold"
               size={9}
-              style={{
-                color: T.sub,
-                letterSpacing: 0.8,
-                textTransform: "uppercase",
-              }}
+              style={{ color: T.sub, letterSpacing: 0.8, textTransform: "uppercase" }}
             >
               {caption}
             </AppText>
@@ -242,35 +228,16 @@ const JambIllustration = ({
             name="school"
             size={H * 0.24}
             color={T.ink}
-            style={{
-              marginBottom: -3,
-              marginRight: W * 0.03,
-              alignSelf: "center",
-            }}
+            style={{ marginBottom: -3, marginRight: W * 0.03, alignSelf: "center" }}
           />
+          <View style={[styles.book, { backgroundColor: T.green, width: W * 0.38, height: bookH }]} />
           <View
             style={[
               styles.book,
-              { backgroundColor: T.green, width: W * 0.38, height: bookH },
+              { backgroundColor: T.yellow, width: W * 0.42, height: bookH, marginLeft: 5 },
             ]}
           />
-          <View
-            style={[
-              styles.book,
-              {
-                backgroundColor: T.yellow,
-                width: W * 0.42,
-                height: bookH,
-                marginLeft: 5,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.book,
-              { backgroundColor: T.blue, width: W * 0.38, height: bookH },
-            ]}
-          />
+          <View style={[styles.book, { backgroundColor: T.blue, width: W * 0.38, height: bookH }]} />
         </Animated.View>
       )}
     </View>
@@ -389,22 +356,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: T.ink,
   },
-  ferrule: {
-    width: 6,
-    height: 12,
-    backgroundColor: "#C7CEDB",
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: T.ink,
-  },
-  pencilBody: {
-    width: 38,
-    height: 12,
-    backgroundColor: T.yellow,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: T.ink,
-  },
+  ferrule: { width: 6, height: 12, backgroundColor: "#C7CEDB", borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: T.ink },
+  pencilBody: { width: 38, height: 12, backgroundColor: T.yellow, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: T.ink },
   wood: {
     width: 0,
     height: 0,

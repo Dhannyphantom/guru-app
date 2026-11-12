@@ -1,7 +1,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   FadeIn,
@@ -18,12 +23,11 @@ import AppText from "./JambText";
 import Avatar from "../Avatar";
 import { capFirstLetter } from "../../helpers/helperFunctions";
 import {
-  J,
   LEVELS,
-  SUBJECT_TINTS,
   getLevelInfo,
   levelRangeLabel,
 } from "../../helpers/jambConfig";
+import { T, TINTS } from "./JambTheme";
 import jambService from "../../services/jambService";
 import { LAYOUT, SPRING, popIn, popOut } from "./JambMotion";
 import JambHistoryCard from "./JambHistoryCard";
@@ -35,8 +39,9 @@ import {
   Chip,
   JambButton,
   JambPressable,
+  Loader,
   ProgressRing,
-  Skeleton,
+  SectionTitle,
   SubjectIcon,
   enter,
 } from "./JambUI";
@@ -44,8 +49,18 @@ import {
 const fmt = (n) => Number(n ?? 0).toLocaleString();
 
 // ─── Subject card (selectable, lockable) ─────────────────────────────────────
-const SubjectPerfCard = ({ item, index, width, selected, locked, cooling, shortLeft, roundScore, onPress }) => {
-  const tint = SUBJECT_TINTS[index % SUBJECT_TINTS.length];
+const SubjectPerfCard = ({
+  item,
+  index,
+  width,
+  selected,
+  locked,
+  cooling,
+  shortLeft,
+  roundScore,
+  onPress,
+}) => {
+  const tint = TINTS[index % TINTS.length];
   const sel = useSharedValue(selected ? 1 : 0);
   const scale = useSharedValue(1);
 
@@ -54,7 +69,12 @@ const SubjectPerfCard = ({ item, index, width, selected, locked, cooling, shortL
   }, [selected]);
 
   const frame = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(sel.value, [0, 1], [tint.border, J.deep]),
+    borderColor: interpolateColor(sel.value, [0, 1], [T.line, T.green]),
+    backgroundColor: interpolateColor(
+      sel.value,
+      [0, 1],
+      ["#FFFFFF", T.greenSoft],
+    ),
     transform: [{ scale: scale.value }],
   }));
 
@@ -67,33 +87,63 @@ const SubjectPerfCard = ({ item, index, width, selected, locked, cooling, shortL
     onPress(item);
   };
 
+  const accent = locked ? "#A9B3A6" : tint.bar;
+
   return (
-    <Animated.View entering={enter(index, 220)} layout={LAYOUT} style={{ width }}>
+    <Animated.View
+      entering={enter(index, 220)}
+      layout={LAYOUT}
+      style={{ width }}
+    >
       <Animated.View
         style={[
           styles.perf,
-          { backgroundColor: locked ? "#EEF1EC" : tint.bg },
-          locked && { borderColor: "#DCE3D8", opacity: 0.85 },
-          !locked && frame,
+          locked
+            ? { backgroundColor: T.lockedBg, borderColor: T.lockedLine }
+            : frame,
         ]}
       >
-        <JambPressable onPress={press} disabled={locked} scaleTo={locked ? 1 : 0.98}>
+        <JambPressable
+          onPress={press}
+          disabled={locked}
+          scaleTo={locked ? 1 : 0.98}
+        >
           <View style={styles.perfTop}>
-            <SubjectIcon subject={item} size={36} bg="#fff" />
-            <AppText fontWeight="bold" size={12.5} numberOfLines={2} style={styles.perfName}>
+            <SubjectIcon
+              subject={item}
+              size={36}
+              bg={locked ? "#E9E5D6" : tint.bg}
+              radius={12}
+            />
+            <AppText
+              fontWeight="bold"
+              size={12.5}
+              numberOfLines={2}
+              style={styles.perfName}
+            >
               {item.name}
             </AppText>
             {locked ? (
-              <View style={[styles.pick, { backgroundColor: "#CBD5C7" }]}>
+              <View style={[styles.pick, { backgroundColor: "#CFC9B3" }]}>
                 <Ionicons name="lock-closed" size={11} color="#fff" />
               </View>
             ) : selected ? (
-              <Animated.View key="on" entering={popIn} exiting={popOut} style={[styles.pick, { backgroundColor: J.deep }]}>
+              <Animated.View
+                key="on"
+                entering={popIn}
+                exiting={popOut}
+                style={[styles.pick, { backgroundColor: T.green }]}
+              >
                 <Ionicons name="checkmark" size={12} color="#fff" />
               </Animated.View>
             ) : (
-              <Animated.View key="off" entering={popIn} exiting={popOut} style={[styles.pick, { backgroundColor: "#fff" }]}>
-                <Ionicons name="add" size={13} color="#9AA89E" />
+              <Animated.View
+                key="off"
+                entering={popIn}
+                exiting={popOut}
+                style={[styles.pick, { backgroundColor: T.track }]}
+              >
+                <Ionicons name="add" size={13} color={T.faint} />
               </Animated.View>
             )}
           </View>
@@ -103,19 +153,19 @@ const SubjectPerfCard = ({ item, index, width, selected, locked, cooling, shortL
               size={46}
               stroke={5}
               percent={item.percent}
-              color={locked ? "#9DB59B" : tint.bar}
-              track="#fff"
+              color={accent}
+              track={locked ? "#E4DFCB" : T.track}
               delay={400 + index * 120}
             >
-              <AppText fontWeight="black" size={10.5} style={{ color: J.ink }}>
+              <AppText fontWeight="black" size={10.5} style={{ color: T.ink }}>
                 {item.percent}%
               </AppText>
             </ProgressRing>
             <View style={{ marginLeft: 8, flex: 1 }}>
-              <AppText fontWeight="black" size={17} style={{ color: J.ink }}>
+              <AppText fontWeight="black" size={17} style={{ color: T.ink }}>
                 {fmt(item.dbTotal)}
               </AppText>
-              <AppText fontWeight="medium" size={10} style={{ color: J.muted }}>
+              <AppText fontWeight="medium" size={10} style={{ color: T.sub }}>
                 questions in bank
               </AppText>
             </View>
@@ -123,27 +173,43 @@ const SubjectPerfCard = ({ item, index, width, selected, locked, cooling, shortL
 
           <AnimatedBar
             percent={item.percent}
-            color={locked ? "#9DB59B" : tint.bar}
+            color={accent}
+            height={9}
             delay={500 + index * 120}
-            track="#fff"
           />
 
           <View style={styles.perfFoot}>
             {locked ? (
               <>
-                <AppText fontWeight="bold" size={10} style={{ color: J.deep }}>
+                <AppText
+                  fontWeight="bold"
+                  size={10}
+                  style={{ color: T.greenDark }}
+                >
                   {cooling ? "Resting" : `Done · ${roundScore}%`}
                 </AppText>
-                <AppText fontWeight="semibold" size={10} style={{ color: J.muted }}>
+                <AppText
+                  fontWeight="semibold"
+                  size={10}
+                  style={{ color: T.sub }}
+                >
                   {cooling ? shortLeft : "Next round"}
                 </AppText>
               </>
             ) : (
               <>
-                <AppText fontWeight="semibold" size={10} style={{ color: J.deep }}>
+                <AppText
+                  fontWeight="bold"
+                  size={10}
+                  style={{ color: tint.ink }}
+                >
                   {fmt(item.correct)} correct
                 </AppText>
-                <AppText fontWeight="semibold" size={10} style={{ color: J.muted }}>
+                <AppText
+                  fontWeight="semibold"
+                  size={10}
+                  style={{ color: T.sub }}
+                >
                   Exam: {fmt(item.examMax)}
                 </AppText>
               </>
@@ -162,7 +228,7 @@ const Seg = ({ done }) => {
     v.value = withTiming(done ? 1 : 0, { duration: 400 });
   }, [done]);
   const style = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(v.value, [0, 1], ["#DCE8D4", J.green]),
+    backgroundColor: interpolateColor(v.value, [0, 1], [T.track, T.green]),
   }));
   return <Animated.View style={[styles.seg, style]} />;
 };
@@ -171,15 +237,24 @@ const RoundProgress = ({ round, subjects }) => {
   const done = subjects.filter((s) => round?.completed?.[s._id]).length;
   return (
     <View style={styles.round}>
+      <View style={styles.roundHead}>
+        <AppText fontWeight="black" size={12} style={{ color: T.greenDark }}>
+          Round {round?.number ?? 1}
+        </AppText>
+        <AppText fontWeight="bold" size={11.5} style={{ color: T.sub }}>
+          {done}/{subjects.length} completed
+        </AppText>
+      </View>
       <View style={styles.segs}>
         {subjects.map((s) => (
           <Seg key={s._id} done={Boolean(round?.completed?.[s._id])} />
         ))}
       </View>
-      <AppText fontWeight="bold" size={11.5} style={{ color: J.deep, marginTop: 6 }}>
-        Round {round?.number ?? 1} · {done}/{subjects.length} completed
-      </AppText>
-      <AppText fontWeight="medium" size={10.5} style={{ color: J.muted, marginTop: 2 }}>
+      <AppText
+        fontWeight="medium"
+        size={10.5}
+        style={{ color: T.sub, marginTop: 7, lineHeight: 15 }}
+      >
         Finish all {subjects.length} subjects to unlock your score prediction.
         Completed subjects stay locked until the next round.
       </AppText>
@@ -188,19 +263,32 @@ const RoundProgress = ({ round, subjects }) => {
 };
 
 const LevelPill = ({ level, active, index }) => (
-  <Animated.View entering={FadeIn.delay(500 + index * 90)} style={styles.levelWrap}>
-    {index > 0 && <Ionicons name="chevron-forward" size={16} color={J.green} />}
+  <Animated.View
+    entering={FadeIn.delay(500 + index * 90)}
+    style={styles.levelWrap}
+  >
+    {index > 0 && (
+      <Ionicons name="chevron-forward" size={16} color={T.lineDark} />
+    )}
     <View style={[styles.level, active && styles.levelActive]}>
       <View style={[styles.levelIcon, { backgroundColor: level.bg }]}>
         <Ionicons name={level.icon} size={22} color={level.color} />
       </View>
-      <AppText fontWeight="bold" size={13} style={{ color: J.ink, marginTop: 6 }}>
+      <AppText
+        fontWeight="black"
+        size={13}
+        style={{ color: T.ink, marginTop: 6 }}
+      >
         {level.name}
       </AppText>
-      <AppText fontWeight="semibold" size={10.5} style={{ color: J.ink, marginTop: 2 }}>
+      <AppText
+        fontWeight="bold"
+        size={10.5}
+        style={{ color: T.ink, marginTop: 2 }}
+      >
         {levelRangeLabel(level)}
       </AppText>
-      <AppText fontWeight="medium" size={9.5} style={{ color: J.muted }}>
+      <AppText fontWeight="medium" size={9.5} style={{ color: T.sub }}>
         correct questions
       </AppText>
     </View>
@@ -212,7 +300,14 @@ const LevelPill = ({ level, active, index }) => (
  * `summary` comes from useJambSummary (round state + history + lifetime).
  * `notice` = { key, text } shown briefly after finishing part of a round.
  */
-const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, onExpire }) => {
+const JambOverviewStep = ({
+  selected = [],
+  user,
+  summary,
+  notice,
+  onContinue,
+  onExpire,
+}) => {
   const { width } = useWindowDimensions();
   const [perf, setPerf] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -229,7 +324,9 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
 
   useEffect(() => {
     let alive = true;
-    jambService.getSubjectPerformance(selected).then((p) => alive && setPerf(p));
+    jambService
+      .getSubjectPerformance(selected)
+      .then((p) => alive && setPerf(p));
     return () => {
       alive = false;
     };
@@ -249,8 +346,13 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
 
   const allPicked = available.length > 0 && picked.length === available.length;
   const togglePick = (item) =>
-    setPicked((p) => (p.includes(item._id) ? p.filter((id) => id !== item._id) : [...p, item._id]));
-  const toggleAll = () => setPicked(allPicked ? [] : available.map((x) => x._id));
+    setPicked((p) =>
+      p.includes(item._id)
+        ? p.filter((id) => id !== item._id)
+        : [...p, item._id],
+    );
+  const toggleAll = () =>
+    setPicked(allPicked ? [] : available.map((x) => x._id));
 
   const info = getLevelInfo(lifetime ?? 0);
   const name =
@@ -258,24 +360,31 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
     capFirstLetter(user?.username ?? "Student");
   // Adjust these field names to match your user model
   const school = user?.school?.name ?? user?.schoolName ?? "Guru School";
-  const classLine = [user?.class ?? user?.classLevel, user?.department]
+  const classLine = [user?.class?.level ?? user?.classLevel, user?.department]
     .filter(Boolean)
     .join(" • ");
 
-  const cardW = Math.floor((width - 32 - 24 - 10) / 2);
+  const cardW = Math.floor((width - 32 - 28 - 4 - 10) / 2);
 
   useEffect(() => {
     if (lifetime === null) return;
     const t = setTimeout(
-      () => levelScroll.current?.scrollTo({ x: Math.max(info.index * 118 - 30, 0), animated: true }),
+      () =>
+        levelScroll.current?.scrollTo({
+          x: Math.max(info.index * 118 - 30, 0),
+          animated: true,
+        }),
       900,
     );
     return () => clearTimeout(t);
   }, [lifetime]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+    <View style={styles.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
         {noticeOn && Boolean(notice) && (
           <Animated.View
             entering={enter(0)}
@@ -283,8 +392,10 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
             layout={LAYOUT}
             style={styles.notice}
           >
-            <Ionicons name="checkmark-circle" size={22} color={J.deep} />
-            <AppText fontWeight="semibold" size={12.5} style={styles.noticeText}>
+            <View style={styles.noticeIcon}>
+              <Ionicons name="checkmark" size={16} color="#fff" />
+            </View>
+            <AppText fontWeight="bold" size={12.5} style={styles.noticeText}>
               {notice.text}
             </AppText>
           </Animated.View>
@@ -292,126 +403,178 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
 
         {cooling && <JambCooldownCard cooldown={cooldown} index={0} />}
 
-        {/* Profile + next level — one row */}
+        {/* Student ID card */}
         <Card index={0} style={styles.profile}>
+          <View style={styles.idStrip}>
+            <AppText fontWeight="black" size={9.5} style={styles.idStripText}>
+              STUDENT CARD
+            </AppText>
+            {lifetime !== null && (
+              <Chip
+                icon={info.level.icon}
+                label={info.level.name}
+                color={info.level.color}
+                bg={info.level.bg}
+              />
+            )}
+          </View>
+
           <View style={styles.topRow}>
             <View style={styles.userCol}>
               <View style={styles.userHead}>
                 <Avatar
                   source={user?.avatar?.image}
                   data={{ user }}
-                  size={46}
-                  border={{ width: 2, color: "#fff" }}
+                  size={48}
+                  border={{ width: 2, color: T.ink }}
                 />
-                <AppText fontWeight="black" size={15} numberOfLines={2} style={styles.userName}>
-                  {name}
-                </AppText>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <AppText
+                    fontWeight="black"
+                    size={15}
+                    numberOfLines={2}
+                    style={styles.userName}
+                  >
+                    {name}
+                  </AppText>
+                  <View style={styles.metaRow}>
+                    <Ionicons name="business" size={12} color={T.sub} />
+                    <AppText
+                      fontWeight="medium"
+                      size={11.5}
+                      numberOfLines={1}
+                      style={styles.meta}
+                    >
+                      {school}
+                    </AppText>
+                  </View>
+                  {Boolean(classLine) && (
+                    <View style={styles.metaRow}>
+                      <Ionicons name="school" size={12} color={T.sub} />
+                      <AppText
+                        fontWeight="medium"
+                        size={11.5}
+                        numberOfLines={1}
+                        style={{
+                          ...styles.meta,
+                          textTransform: "uppercase",
+                          flex: 1,
+                        }}
+                      >
+                        {classLine}
+                      </AppText>
+                    </View>
+                  )}
+                </View>
               </View>
+            </View>
+          </View>
 
-              <View style={styles.metaRow}>
-                <Ionicons name="business" size={12} color={J.muted} />
-                <AppText fontWeight="medium" size={11.5} numberOfLines={1} style={styles.meta}>
-                  {school}
-                </AppText>
-              </View>
-              {Boolean(classLine) && (
-                <View style={styles.metaRow}>
-                  <Ionicons name="school" size={12} color={J.muted} />
-                  <AppText fontWeight="medium" size={11.5} numberOfLines={1} style={styles.meta}>
-                    {classLine}
+          <View style={styles.nextCol}>
+            {lifetime === null ? (
+              <Loader size={44} style={{ paddingVertical: 4 }} />
+            ) : (
+              <>
+                <View style={styles.nextHead}>
+                  <Ionicons name="trophy" size={14} color={T.yellowDark} />
+                  <AppText
+                    fontWeight="black"
+                    size={12}
+                    numberOfLines={1}
+                    style={{ color: T.ink, flex: 1, marginLeft: 6 }}
+                  >
+                    {info.next ? `Next: ${info.next.name}` : "Top level"}
+                  </AppText>
+                  <AppText
+                    fontWeight="bold"
+                    size={10.5}
+                    style={{ color: T.sub }}
+                  >
+                    {lifetime.toLocaleString()}
+                    {info.next
+                      ? ` / ${info.next.min.toLocaleString()}`
+                      : ""}{" "}
+                    correct
                   </AppText>
                 </View>
-              )}
-              {lifetime !== null && (
-                <Chip
-                  icon={info.level.icon}
-                  label={info.level.name}
-                  color={info.level.color}
-                  bg={info.level.bg}
-                  style={{ marginTop: 8 }}
+                <AnimatedBar
+                  percent={info.progress * 100}
+                  color={T.yellow}
+                  height={12}
+                  track="#fff"
                 />
-              )}
-            </View>
-
-            <View style={styles.nextCol}>
-              {lifetime === null ? (
-                <Skeleton style={{ height: 92 }} />
-              ) : (
-                <>
-                  <View style={styles.nextHead}>
-                    <AppText fontWeight="bold" size={12} numberOfLines={1} style={{ color: J.deep, flex: 1 }}>
-                      {info.next ? `Next: ${info.next.name}` : "Top level"}
-                    </AppText>
-                    <Ionicons name="chevron-forward" size={14} color={J.muted} />
-                  </View>
-                  <AnimatedBar percent={info.progress * 100} color={J.green} height={8} track="#fff" />
-                  <AppText fontWeight="medium" size={10.5} style={{ color: J.muted, marginTop: 6 }}>
-                    {lifetime.toLocaleString()}
-                    {info.next ? ` / ${info.next.min.toLocaleString()}` : ""} correct
-                  </AppText>
-                  <View style={styles.keepGoing}>
-                    <Ionicons name="trophy" size={13} color={J.amber} />
-                    <AppText fontWeight="semibold" size={10.5} style={{ color: J.ink, marginLeft: 5, flex: 1 }}>
-                      Keep going!
-                    </AppText>
-                  </View>
-                </>
-              )}
-            </View>
+                <AppText
+                  fontWeight="semibold"
+                  size={10.5}
+                  style={{ color: T.yellowInk, marginTop: 6 }}
+                >
+                  Keep going!
+                </AppText>
+              </>
+            )}
           </View>
         </Card>
 
         {/* Subject performance + round progress */}
         <Card index={1}>
-          <View style={styles.sectionHead}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <AppText fontWeight="black" size={19} style={{ color: J.ink }}>
-                Your Subject Performance
-              </AppText>
-              <AppText fontWeight="medium" size={12} style={{ color: J.muted, marginTop: 2 }}>
-                Tap the subjects you want to practise now.
-              </AppText>
-            </View>
-            <View style={styles.headRight}>
-              <Animated.View key={picked.length} entering={popIn}>
-                <Chip
-                  icon="checkmark-circle"
-                  label={`${picked.length}/${selected.length} selected`}
-                  color={picked.length ? "#fff" : J.deep}
-                  bg={picked.length ? J.green : J.mintStrong}
-                />
-              </Animated.View>
-              {available.length > 0 && (
-                <JambPressable onPress={toggleAll} style={{ marginTop: 6 }}>
-                  <AppText fontWeight="bold" size={11} style={{ color: J.deep }}>
-                    {allPicked ? "Clear" : "Select all"}
-                  </AppText>
-                </JambPressable>
-              )}
-            </View>
-          </View>
+          <SectionTitle
+            icon="library"
+            color={T.blueDark}
+            bg={T.blueSoft}
+            title="Your Subjects"
+            sub="Tap the subjects you want to practise now."
+            right={
+              <View style={styles.headRight}>
+                <Animated.View key={picked.length} entering={popIn}>
+                  <Chip
+                    icon="checkmark-circle"
+                    label={`${picked.length}/${selected.length}`}
+                    color={picked.length ? "#fff" : T.greenDark}
+                    bg={picked.length ? T.green : T.greenSoft}
+                  />
+                </Animated.View>
+                {available.length > 0 && (
+                  <JambPressable onPress={toggleAll} style={{ marginTop: 6 }}>
+                    <AppText
+                      fontWeight="black"
+                      size={10.5}
+                      style={{ color: T.greenDark, letterSpacing: 0.5 }}
+                    >
+                      {allPicked ? "CLEAR" : "SELECT ALL"}
+                    </AppText>
+                  </JambPressable>
+                )}
+              </View>
+            }
+          />
 
-          {Boolean(summary) && !cooling && <RoundProgress round={round} subjects={selected} />}
+          {Boolean(summary) && !cooling && (
+            <RoundProgress round={round} subjects={selected} />
+          )}
 
           <View style={styles.perfGrid}>
-            {perf === null
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} style={{ width: cardW, height: 150 }} />
-                ))
-              : perf.map((p, i) => (
-                  <SubjectPerfCard
-                    key={p._id}
-                    item={p}
-                    index={i}
-                    width={cardW}
-                    locked={isLocked(p._id)}
-                    cooling={cooling}
-                    shortLeft={cooldown.short}
-                    roundScore={completed[p._id]?.percent}
-                    selected={picked.includes(p._id)}
-                    onPress={togglePick}
-                  />
-                ))}
+            {perf === null ? (
+              <Loader
+                size={72}
+                label="Loading your subjects…"
+                style={{ width: "100%", paddingVertical: 36 }}
+              />
+            ) : (
+              perf.map((p, i) => (
+                <SubjectPerfCard
+                  key={p._id}
+                  item={p}
+                  index={i}
+                  width={cardW}
+                  locked={isLocked(p._id)}
+                  cooling={cooling}
+                  shortLeft={cooldown.short}
+                  roundScore={completed[p._id]?.percent}
+                  selected={picked.includes(p._id)}
+                  onPress={togglePick}
+                />
+              ))
+            )}
           </View>
         </Card>
 
@@ -422,14 +585,19 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
         <Card index={3} style={styles.levels}>
           <View style={styles.levelsHead}>
             <View style={styles.medal}>
-              <Ionicons name="medal" size={28} color={J.amber} />
+              <Ionicons name="medal" size={26} color={T.yellowInk} />
             </View>
             <View style={{ flex: 1 }}>
-              <AppText fontWeight="black" size={17} style={{ color: J.ink }}>
+              <AppText fontWeight="black" size={17} style={{ color: T.ink }}>
                 Achievement Levels
               </AppText>
-              <AppText fontWeight="medium" size={12} style={{ color: J.muted, marginTop: 2 }}>
-                Complete more questions to unlock higher levels and earn greater rewards!
+              <AppText
+                fontWeight="medium"
+                size={11.5}
+                style={{ color: T.sub, marginTop: 2, lineHeight: 16 }}
+              >
+                Complete more questions to unlock higher levels and earn greater
+                rewards!
               </AppText>
             </View>
           </View>
@@ -441,7 +609,12 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
             contentContainerStyle={{ paddingTop: 12, paddingRight: 8 }}
           >
             {LEVELS.map((l, i) => (
-              <LevelPill key={l.key} level={l} index={i} active={lifetime !== null && i === info.index} />
+              <LevelPill
+                key={l.key}
+                level={l}
+                index={i}
+                active={lifetime !== null && i === info.index}
+              />
             ))}
           </ScrollView>
         </Card>
@@ -460,7 +633,9 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
                   : "Round complete"
           }
           disabled={!picked.length}
-          onPress={() => onContinue(selected.filter((x) => picked.includes(x._id)))}
+          onPress={() =>
+            onContinue(selected.filter((x) => picked.includes(x._id)))
+          }
         />
       </View>
     </View>
@@ -470,50 +645,87 @@ const JambOverviewStep = ({ selected = [], user, summary, notice, onContinue, on
 export default JambOverviewStep;
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.paper },
   scroll: { paddingHorizontal: 16, paddingBottom: 24, paddingTop: 4 },
   notice: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#DDF3E4",
-    borderWidth: 1,
-    borderColor: "#BFE5CB",
-    borderRadius: 16,
+    backgroundColor: T.greenSoft,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.greenLine,
+    borderRadius: 18,
     padding: 12,
+    marginBottom: 14,
+  },
+  noticeIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: T.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noticeText: { color: T.ink, marginLeft: 10, flex: 1, lineHeight: 17 },
+  profile: { paddingTop: 0, overflow: "hidden" },
+  idStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: T.blueSoft,
+    marginHorizontal: -14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     marginBottom: 12,
   },
-  noticeText: { color: J.ink, marginLeft: 10, flex: 1, lineHeight: 17 },
-  profile: { backgroundColor: "#EAF7DD" },
+  idStripText: { color: T.blueDark, letterSpacing: 1.4 },
   topRow: { flexDirection: "row", alignItems: "stretch" },
-  userCol: { flex: 1.15, paddingRight: 8 },
-  userHead: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  userName: { color: J.ink, marginLeft: 8, flex: 1, textTransform: "capitalize" },
+  userCol: { flex: 1 },
+  userHead: { flexDirection: "row", alignItems: "center" },
+  userName: { color: T.ink, textTransform: "capitalize" },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 3 },
-  meta: { color: J.ink, marginLeft: 5, flexShrink: 1 },
+  meta: { color: T.sub, marginLeft: 5, flexShrink: 1 },
   nextCol: {
-    flex: 1,
-    backgroundColor: "#F6FBF1",
+    backgroundColor: T.yellowSoft,
+    borderWidth: 2,
+    borderColor: T.yellowLine,
     borderRadius: 16,
     padding: 10,
+    marginTop: 12,
     justifyContent: "center",
   },
   nextHead: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  keepGoing: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  sectionHead: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
   headRight: { alignItems: "flex-end" },
   round: {
-    backgroundColor: "#F4FAEE",
-    borderRadius: 14,
+    backgroundColor: T.paper,
+    borderWidth: 2,
+    borderColor: T.line,
+    borderRadius: 16,
     padding: 10,
     marginBottom: 12,
   },
+  roundHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   segs: { flexDirection: "row", gap: 6 },
-  seg: { flex: 1, height: 6, borderRadius: 3 },
+  seg: { flex: 1, height: 8, borderRadius: 4 },
   perfGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  perf: { borderRadius: 18, borderWidth: 1.5, padding: 10 },
+  perf: { borderRadius: 18, borderWidth: 2, borderBottomWidth: 4, padding: 10 },
   perfTop: { flexDirection: "row", alignItems: "center" },
-  perfName: { color: J.ink, marginLeft: 8, flex: 1, textTransform: "capitalize" },
+  perfName: {
+    color: T.ink,
+    marginLeft: 8,
+    flex: 1,
+    textTransform: "capitalize",
+  },
   perfMid: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
-  perfFoot: { flexDirection: "row", justifyContent: "space-between", marginTop: 7 },
+  perfFoot: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
   pick: {
     width: 20,
     height: 20,
@@ -522,13 +734,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: 4,
   },
-  levels: { backgroundColor: "#EEF8E6", borderWidth: 1, borderColor: J.mintStrong },
+  levels: { backgroundColor: T.paper },
   levelsHead: { flexDirection: "row", alignItems: "center" },
   medal: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FFF1BF",
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: T.yellowSoft,
+    borderWidth: 2,
+    borderColor: T.yellowLine,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -539,10 +753,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 4,
-    borderRadius: 16,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "transparent",
     marginHorizontal: 2,
   },
-  levelActive: { backgroundColor: "#DCEFCB" },
-  levelIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  footer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 6 },
+  levelActive: {
+    backgroundColor: "#fff",
+    borderColor: T.green,
+    borderBottomWidth: 4,
+  },
+  levelIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    backgroundColor: T.paper,
+    borderTopWidth: 2,
+    borderTopColor: T.line,
+  },
 });

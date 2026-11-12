@@ -23,13 +23,15 @@ import { LAYOUT, SPRING, enter, popIn, popOut } from "./JambMotion";
 import { BannerShell } from "./JambHero";
 
 import AppText from "./JambText";
-import { J, JAMB_MAX_SUBJECTS, isEnglish } from "../../helpers/jambConfig";
+import { JAMB_MAX_SUBJECTS, isEnglish } from "../../helpers/jambConfig";
+import { T } from "./JambTheme";
 import {
   Card,
   Chip,
   JambButton,
   JambPressable,
-  Skeleton,
+  Loader,
+  Note,
   SubjectIcon,
 } from "./JambUI";
 import JambIllustration from "./JambIllustration";
@@ -37,13 +39,12 @@ import JambIllustration from "./JambIllustration";
 const GAP = 8;
 const ROW_GAP = 10;
 const BANNER_ART_SM = 116;
-const BOX_PAD = 10; // space around the icon inside the box
-const NAME_H = 30; // room for up to 2 lines of name under the box
-const NAME_GAP = 6; // space between box and name
+const BOX_PAD = 10; // space around the icon inside the tile
+const NAME_H = 30; // room for up to 2 lines of name
+const NAME_GAP = 6; // space between icon and name
 
-// Box is only as tall as the icon + padding
-const getIconSize = (size) => Math.round(size * 0.58);
-const getBoxHeight = (size) => getIconSize(size) + BOX_PAD * 2;
+const getIconSize = (size) => Math.round(size * 0.5);
+const getBoxHeight = (size) => getIconSize(size) + BOX_PAD * 2 + NAME_GAP + NAME_H;
 
 const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
   const sel = useSharedValue(selected ? 1 : 0);
@@ -54,8 +55,8 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
   }, [selected]);
 
   const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(sel.value, [0, 1], ["#FFFFFF", J.mint]),
-    borderColor: interpolateColor(sel.value, [0, 1], [J.line, J.green]),
+    backgroundColor: interpolateColor(sel.value, [0, 1], ["#FFFFFF", T.greenSoft]),
+    borderColor: interpolateColor(sel.value, [0, 1], [T.line, T.green]),
     transform: [{ scale: scale.value }],
   }));
 
@@ -76,7 +77,6 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
       layout={LAYOUT}
       style={{ width: size, marginBottom: ROW_GAP }}
     >
-      {/* Box: only wraps the icon */}
       <Animated.View style={[styles.tile, { height: boxHeight }, boxStyle]}>
         <JambPressable
           onPress={press}
@@ -90,7 +90,7 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
                 key="on"
                 entering={popIn}
                 exiting={popOut}
-                style={[styles.badge, { backgroundColor: J.deep }]}
+                style={[styles.badge, { backgroundColor: T.green }]}
               >
                 <Ionicons
                   name={required ? "lock-closed" : "checkmark"}
@@ -103,9 +103,9 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
                 key="off"
                 entering={popIn}
                 exiting={popOut}
-                style={[styles.badge, { backgroundColor: "#E6ECE2" }]}
+                style={[styles.badge, { backgroundColor: T.track }]}
               >
-                <Ionicons name="add" size={12} color="#9AA89E" />
+                <Ionicons name="add" size={12} color={T.faint} />
               </Animated.View>
             )}
           </View>
@@ -113,27 +113,26 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
           <View style={styles.iconWrap}>
             <SubjectIcon subject={subject} size={iconSize} bg="transparent" />
           </View>
+
+          <View style={styles.nameBox}>
+            <AppText
+              fontWeight="bold"
+              size={11}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              style={[styles.tileName, selected && { color: T.greenDark }]}
+            >
+              {subject.name}
+            </AppText>
+          </View>
         </JambPressable>
       </Animated.View>
-
-      {/* Name: outside the box, centered */}
-      <View style={styles.nameBox}>
-        <AppText
-          fontWeight="bold"
-          size={11}
-          numberOfLines={2}
-          adjustsFontSizeToFit
-          minimumFontScale={0.85}
-          style={[styles.tileName, selected && { color: J.deep }]}
-        >
-          {subject.name}
-        </AppText>
-      </View>
     </Animated.View>
   );
 };
 
-/** Step 2 — mockup 2.jpeg */
+/** Step 2 — subject combination selector */
 const JambSubjectStep = ({
   subjects = [],
   loading = false,
@@ -199,23 +198,23 @@ const JambSubjectStep = ({
   };
 
   const cols = width < 340 ? 3 : 4;
-  const gridWidth = width - 32 - 24; // screen padding + card padding
+  const gridWidth = width - 32 - 28 - 4; // screen padding + card padding + borders
   const tile = Math.floor((gridWidth - GAP * (cols - 1)) / cols);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* Header card */}
+        {/* Header board */}
         <BannerShell
           art={<JambIllustration variant="books" size={BANNER_ART_SM} />}
         >
           <JambPressable onPress={onBack} contentStyle={styles.backBtn}>
-            <Ionicons name="arrow-back" size={18} color={J.deep} />
+            <Ionicons name="arrow-back" size={18} color={T.ink} />
           </JambPressable>
-          <AppText fontWeight="black" size={22} style={styles.headerTitle}>
+          <AppText fontWeight="black" size={21} style={styles.headerTitle}>
             {"JAMB Subject\nCombination Selector"}
           </AppText>
           <AppText fontWeight="medium" size={12.5} style={styles.headerDesc}>
@@ -228,8 +227,8 @@ const JambSubjectStep = ({
         <Card index={1} base={80}>
           <View style={styles.selectHead}>
             <View style={{ flex: 1, paddingRight: 8 }}>
-              <AppText fontWeight="black" size={18} style={{ color: J.ink }}>
-                Select Your 4 JAMB Subjects
+              <AppText fontWeight="black" size={17} style={{ color: T.ink }}>
+                Pick Your 4 Subjects
               </AppText>
               <Animated.View
                 key={hint ?? "default"}
@@ -237,8 +236,8 @@ const JambSubjectStep = ({
               >
                 <AppText
                   fontWeight="medium"
-                  size={12.5}
-                  style={{ color: hint ? J.danger : J.muted, marginTop: 4 }}
+                  size={12}
+                  style={{ color: hint ? T.coralDark : T.sub, marginTop: 4 }}
                 >
                   {hint ?? "You can only select a maximum of 4 subjects."}
                 </AppText>
@@ -248,25 +247,30 @@ const JambSubjectStep = ({
               <Animated.View key={count} entering={popIn}>
                 <Chip
                   label={`${count}/${JAMB_MAX_SUBJECTS} selected`}
-                  color={complete ? "#fff" : J.deep}
-                  bg={complete ? J.green : J.mintStrong}
+                  color={complete ? "#fff" : T.greenDark}
+                  bg={complete ? T.green : T.greenSoft}
                 />
               </Animated.View>
             </Animated.View>
           </View>
 
+          {/* progress pips */}
+          <View style={styles.pips}>
+            {Array.from({ length: JAMB_MAX_SUBJECTS }).map((_, i) => (
+              <View
+                key={i}
+                style={[styles.pip, i < count && { backgroundColor: T.green }]}
+              />
+            ))}
+          </View>
+
           {roundProgress > 0 && (
             <Animated.View entering={FadeIn} style={styles.warn}>
-              <Ionicons name="information-circle" size={16} color={J.amber} />
+              <Ionicons name="information-circle" size={16} color={T.yellowInk} />
               <AppText
                 fontWeight="medium"
                 size={11.5}
-                style={{
-                  color: "#6B5A1E",
-                  marginLeft: 6,
-                  flex: 1,
-                  lineHeight: 16,
-                }}
+                style={{ color: "#5C4B10", marginLeft: 6, flex: 1, lineHeight: 16 }}
               >
                 A round is in progress. Changing your subjects will restart it.
               </AppText>
@@ -275,26 +279,7 @@ const JambSubjectStep = ({
 
           <View style={styles.grid}>
             {loading
-              ? Array.from({ length: 8 }).map((_, i) => (
-                  <View key={i} style={{ width: tile, marginBottom: ROW_GAP }}>
-                    <Skeleton
-                      style={{
-                        width: tile,
-                        height: getBoxHeight(tile),
-                        borderRadius: 18,
-                      }}
-                    />
-                    <Skeleton
-                      style={{
-                        width: tile * 0.7,
-                        height: 10,
-                        borderRadius: 5,
-                        alignSelf: "center",
-                        marginTop: NAME_GAP + 4,
-                      }}
-                    />
-                  </View>
-                ))
+              ? <Loader size={72} label="Loading subjects…" style={{ width: "100%", paddingVertical: 36 }} />
               : subjects.map((s, i) => (
                   <SubjectTile
                     key={s._id}
@@ -310,29 +295,15 @@ const JambSubjectStep = ({
         </Card>
 
         {/* Note */}
-        <Card index={2} base={80} style={styles.note}>
-          <View style={styles.noteRow}>
-            <View style={styles.noteIcon}>
-              <Ionicons name="bulb" size={22} color={J.deep} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppText fontWeight="bold" size={15} style={{ color: J.ink }}>
-                Important Note
-              </AppText>
-              <AppText
-                fontWeight="medium"
-                size={12.5}
-                style={{ color: J.ink, marginTop: 3, lineHeight: 18 }}
-              >
-                Once you select your 4 subjects, the JAMB Score Predictor will
-                estimate your potential score range based purely on your
-                performance within the Guru App. This is not a guarantee of your
-                actual JAMB result and should be used as a guide for effective
-                study.
-              </AppText>
-            </View>
-          </View>
-        </Card>
+        <Note index={2} base={80} title="Important Note" icon="bulb">
+          <AppText fontWeight="medium" size={12.5} style={styles.noteText}>
+            Once you select your 4 subjects, the JAMB Score Predictor will
+            estimate your potential score range based purely on your
+            performance within the Guru App. This is not a guarantee of your
+            actual JAMB result and should be used as a guide for effective
+            study.
+          </AppText>
+        </Note>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -357,50 +328,51 @@ const JambSubjectStep = ({
 export default JambSubjectStep;
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.paper },
   scroll: { paddingHorizontal: 16, paddingBottom: 24, paddingTop: 4 },
   backBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: "#fff",
+    borderRadius: 12,
+    backgroundColor: T.chalk,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  headerTitle: { color: J.deepest, lineHeight: 27 },
-  headerDesc: { color: J.ink, marginTop: 6, lineHeight: 18 },
+  headerTitle: { color: T.chalk, lineHeight: 26 },
+  headerDesc: { color: T.chalkSoft, marginTop: 6, lineHeight: 18 },
   selectHead: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 14,
+    marginBottom: 10,
   },
+  pips: { flexDirection: "row", gap: 6, marginBottom: 14 },
+  pip: { flex: 1, height: 6, borderRadius: 3, backgroundColor: T.track },
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: GAP },
-  tile: { borderRadius: 18, borderWidth: 1.5, overflow: "hidden" },
+  tile: { borderRadius: 18, borderWidth: 2, borderBottomWidth: 4, overflow: "hidden" },
   pressFill: { flex: 1 },
   tileInner: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingTop: BOX_PAD,
+    paddingHorizontal: 3,
   },
-  iconWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  iconWrap: { alignItems: "center", justifyContent: "center" },
   nameBox: {
     height: NAME_H,
     alignSelf: "stretch",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "center",
     marginTop: NAME_GAP,
-    paddingHorizontal: 1,
   },
   tileName: {
-    color: J.ink,
+    color: T.ink,
     textAlign: "center",
     textTransform: "capitalize",
     lineHeight: 14,
   },
-  badgeSlot: { position: "absolute", top: 4, right: 4, zIndex: 2 },
+  badgeSlot: { position: "absolute", top: 5, right: 5, zIndex: 2 },
   badge: {
     width: 18,
     height: 18,
@@ -411,25 +383,18 @@ const styles = StyleSheet.create({
   warn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: J.amberBg,
+    backgroundColor: T.yellowSoft,
     borderRadius: 12,
     padding: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  note: {
-    backgroundColor: "#EEF8E6",
-    borderWidth: 1,
-    borderColor: J.mintStrong,
+  noteText: { color: "#4A4020", marginTop: 4, lineHeight: 18 },
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    backgroundColor: T.paper,
+    borderTopWidth: 2,
+    borderTopColor: T.line,
   },
-  noteRow: { flexDirection: "row", alignItems: "flex-start" },
-  noteIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: J.mintStrong,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  footer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 6 },
 });

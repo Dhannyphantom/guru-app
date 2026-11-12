@@ -114,10 +114,12 @@ const ViewAllButton = memo(({ total, isTeacher, onPress }) => (
       <AppText fontWeight="heavy" size="large">
         {isTeacher
           ? `Browse all ${total} students`
-          : `Meet all ${total} classmates`}
+          : `See all ${total} schoolmates`}
       </AppText>
       <AppText size="small" style={{ color: colors.medium, marginTop: 2 }}>
-        Search by name and see everyone's stats
+        {isTeacher
+          ? "Filter by class, search and view stats"
+          : "Your class first. Browse other classes too"}
       </AppText>
     </View>
     <Ionicons name="chevron-forward" size={20} color={colors.medium} />
@@ -520,7 +522,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
             },
             {
               title: "Managing Students",
-              text: 'A preview of your students appears in the Students section.\nTap "Browse all students" to search the full list and see their stats.\n\nHead to Classes to assign and verify students.',
+              text: 'A preview of your students appears in the Students section.\nTap "Browse all students" to filter by class, search and see their stats.\n\nHead to Classes to assign and verify students.',
             },
           ]
         : [
@@ -541,8 +543,8 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
               text: "These are the teachers registered in your school.\nThey will create quizzes and assignments for you — treat them well! 😄",
             },
             {
-              title: "Your Classmates",
-              text: 'See who else has joined your school!\nTap "Meet all classmates" to search everyone and view their stats.\n\nTap the 🏳 icon on a student to report them if they don\'t belong here.',
+              title: "Your Schoolmates",
+              text: 'See who else has joined your school! Students from your own class show first.\nTap "See all schoolmates" to browse other classes, search and view stats.\n\nTap the 🏳 icon on a student to report them if they don\'t belong here.',
             },
           ],
     [isTeacher, user?.username],
@@ -679,7 +681,7 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
           <View style={styles.sheetHeader}>
             <View style={styles.row}>
               <AppText size="xlarge" fontWeight="bold">
-                {isTeacher ? "Students" : "Classmates"}
+                {isTeacher ? "Students" : "Schoolmates"}
               </AppText>
               <View style={styles.countBadge}>
                 <AppText
@@ -700,12 +702,19 @@ const SchoolProfile = ({ data, fetchSchoolData }) => {
             )}
           </View>
 
+          {!isTeacher && Boolean(data?.myClassLevel) && (
+            <AppText size="small" style={styles.sheetCaption}>
+              Your {String(data.myClassLevel).toUpperCase()} classmates come
+              first
+            </AppText>
+          )}
+
           {previewStudents.length === 0 ? (
             <ListEmpty
               message={
                 isTeacher
                   ? "Go to your Dashboard and create classes for your students, then invite them to join your school"
-                  : "No classmates yet. Invite your friends to join your school!"
+                  : "No schoolmates yet. Invite your friends to join your school!"
               }
             />
           ) : (
@@ -897,6 +906,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   row: { flexDirection: "row", alignItems: "center" },
+  sheetCaption: {
+    color: colors.medium,
+    marginTop: -8,
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
   countBadge: {
     marginLeft: 10,
     minWidth: 28,

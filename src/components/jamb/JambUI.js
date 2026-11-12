@@ -17,6 +17,7 @@ import Animated, {
 import Svg, { Circle } from "react-native-svg";
 
 import AppText from "./JambText";
+import LottieAnimator from "../LottieAnimator";
 import { T } from "./JambTheme";
 import { LAYOUT, SPRING, enter } from "./JambMotion";
 
@@ -184,12 +185,7 @@ export const Chunky = ({
 const BUTTONS = {
   primary: { face: T.green, lip: T.greenDark, text: "#FFFFFF" },
   yellow: { face: T.yellow, lip: T.yellowDark, text: T.ink },
-  ghost: {
-    face: "#FFFFFF",
-    lip: T.lineDark,
-    text: T.greenDark,
-    border: T.lineDark,
-  },
+  ghost: { face: "#FFFFFF", lip: T.lineDark, text: T.greenDark, border: T.lineDark },
   off: { face: "#E7E3D4", lip: "#D2CCB6", text: "#A29D88" },
 };
 
@@ -219,11 +215,7 @@ export const JambButton = ({
         <AppText
           fontWeight="black"
           size={small ? 13 : 15}
-          style={{
-            color: k.text,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-          }}
+          style={{ color: k.text, letterSpacing: 0.6, textTransform: "uppercase" }}
         >
           {title}
         </AppText>
@@ -271,20 +263,8 @@ export const Note = ({
 }) => {
   const c =
     tone === "green"
-      ? {
-          bg: T.greenSoft,
-          line: T.greenLine,
-          ico: T.greenDark,
-          tape: "rgba(34,165,89,0.35)",
-          text: T.ink,
-        }
-      : {
-          bg: T.yellowSoft,
-          line: T.yellowLine,
-          ico: T.yellowInk,
-          tape: "rgba(255,199,54,0.65)",
-          text: "#4A4020",
-        };
+      ? { bg: T.greenSoft, line: T.greenLine, ico: T.greenDark, tape: "rgba(34,165,89,0.35)", text: T.ink }
+      : { bg: T.yellowSoft, line: T.yellowLine, ico: T.yellowInk, tape: "rgba(255,199,54,0.65)", text: "#4A4020" };
 
   const body = (
     <View style={styles.noteRow}>
@@ -306,12 +286,7 @@ export const Note = ({
       index={index}
       base={base}
       style={[
-        {
-          backgroundColor: c.bg,
-          borderColor: c.line,
-          paddingTop: 18,
-          marginTop: 8,
-        },
+        { backgroundColor: c.bg, borderColor: c.line, paddingTop: 18, marginTop: 8 },
         style,
       ]}
     >
@@ -327,13 +302,7 @@ export const Note = ({
   );
 };
 
-export const Chip = ({
-  label,
-  color = T.greenDark,
-  bg = T.greenSoft,
-  icon,
-  style,
-}) => (
+export const Chip = ({ label, color = T.greenDark, bg = T.greenSoft, icon, style }) => (
   <View style={[styles.chip, { backgroundColor: bg }, style]}>
     {Boolean(icon) && (
       <Ionicons
@@ -349,24 +318,31 @@ export const Chip = ({
   </View>
 );
 
+/** Placeholder block: a soft box with the app's LottieAnimator loader inside. */
 export const Skeleton = ({ style }) => {
-  const o = useSharedValue(0.45);
-  useEffect(() => {
-    o.value = withRepeat(withTiming(1, { duration: 750 }), -1, true);
-  }, []);
-  const a = useAnimatedStyle(() => ({ opacity: o.value }));
-  return <Animated.View style={[styles.skeleton, a, style]} />;
+  const h = StyleSheet.flatten(style)?.height;
+  const size = Math.max(Math.min((typeof h === "number" ? h : 48) - 8, 48), 24);
+  return (
+    <View style={[styles.skeleton, style, styles.skeletonCenter]}>
+      <LottieAnimator size={size} />
+    </View>
+  );
 };
 
+/** Inline loader (centered) for any section that is waiting on data. */
+export const Loader = ({ size = 56, label, style }) => (
+  <View style={[styles.loaderBox, style]}>
+    <LottieAnimator size={size} />
+    {Boolean(label) && (
+      <AppText fontWeight="semibold" size={12} style={{ color: T.sub, marginTop: 2 }}>
+        {label}
+      </AppText>
+    )}
+  </View>
+);
+
 /** Small section heading: coloured icon tile + title (+ optional right node). */
-export const SectionTitle = ({
-  icon,
-  color = T.green,
-  bg = T.greenSoft,
-  title,
-  sub,
-  right,
-}) => (
+export const SectionTitle = ({ icon, color = T.green, bg = T.greenSoft, title, sub, right }) => (
   <View style={styles.sectionHead}>
     <View style={[styles.sectionIcon, { backgroundColor: bg }]}>
       <Ionicons name={icon} size={18} color={color} />
@@ -376,11 +352,7 @@ export const SectionTitle = ({
         {title}
       </AppText>
       {Boolean(sub) && (
-        <AppText
-          fontWeight="medium"
-          size={11.5}
-          style={{ color: T.sub, marginTop: 1 }}
-        >
+        <AppText fontWeight="medium" size={11.5} style={{ color: T.sub, marginTop: 1 }}>
           {sub}
         </AppText>
       )}
@@ -618,9 +590,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   skeleton: {
-    backgroundColor: "#EADFC0",
+    backgroundColor: "#F6EFD9",
     borderRadius: 14,
   },
+  skeletonCenter: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  loaderBox: { alignItems: "center", justifyContent: "center", paddingVertical: 18 },
   sectionHead: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   sectionIcon: {
     width: 34,

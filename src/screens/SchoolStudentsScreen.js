@@ -46,7 +46,7 @@ import { PAD_BOTTOM } from "../helpers/dataStore";
 
 const { width } = Dimensions.get("window");
 
-const PAGE_SIZE = 20; // even number → no half-empty last row in 2 columns
+const PAGE_SIZE = 20; // even → no half-empty last row in 2 columns
 const H_PAD = 16;
 const GAP = 12;
 const CARD_W = (width - H_PAD * 2 - GAP) / 2;
@@ -56,13 +56,86 @@ const SEARCH_MAX_W = width - H_PAD * 2 - BACK_W - 8;
 const AVATAR_BORDER = { width: 2, color: colors.lightly };
 const CAPITALIZE = { textTransform: "capitalize" };
 
+const norm = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+
 const compact = (n = 0) =>
   n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
 
 const keyExtractor = (item) => item._id;
+const classKeyExtractor = (item) => item.key;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stat chip inside a card
+// Class card (top carousel)
+// ─────────────────────────────────────────────────────────────────────────────
+const ClassCard = memo(({ item, selected, onPress }) => {
+  const fg = selected ? colors.white : colors.black;
+  const sub = selected ? colors.white : colors.medium;
+
+  return (
+    <Pressable
+      onPress={() => onPress(item)}
+      style={({ pressed }) => [
+        styles.classCard,
+        selected && styles.classCardOn,
+        pressed && { opacity: 0.9 },
+      ]}
+    >
+      <View style={styles.classTop}>
+        <View
+          style={[
+            styles.classIcon,
+            selected && { backgroundColor: "rgba(255,255,255,0.22)" },
+          ]}
+        >
+          <Ionicons
+            name={item.isAll ? "business" : "people"}
+            size={16}
+            color={selected ? colors.white : colors.primaryDeeper}
+          />
+        </View>
+        {item.isMine && (
+          <View
+            style={[
+              styles.mineTag,
+              selected && { backgroundColor: "rgba(255,255,255,0.25)" },
+            ]}
+          >
+            <AppText
+              size="xsmall"
+              fontWeight="black"
+              style={{ color: selected ? colors.white : colors.primaryDeeper }}
+            >
+              Your class
+            </AppText>
+          </View>
+        )}
+      </View>
+
+      <AppText
+        fontWeight="black"
+        size="large"
+        numberOfLines={1}
+        style={{ color: fg, marginTop: 10, textTransform: "uppercase" }}
+      >
+        {item.title}
+      </AppText>
+      <AppText
+        size="small"
+        numberOfLines={1}
+        style={{ color: sub, marginTop: 1 }}
+      >
+        {item.count} {item.count === 1 ? "student" : "students"}
+        {item.alias ? ` · ${item.alias}` : ""}
+      </AppText>
+    </Pressable>
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stat chip inside a student card
 // ─────────────────────────────────────────────────────────────────────────────
 const Stat = memo(({ icon, color, value, label }) => (
   <View style={styles.stat}>
@@ -79,7 +152,7 @@ const Stat = memo(({ icon, color, value, label }) => (
 ));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Student card (memoized — re-renders only if its own props change)
+// Student card
 // ─────────────────────────────────────────────────────────────────────────────
 const StudentCard = memo(({ item, isOwn, onFlag }) => {
   const name =
@@ -175,38 +248,98 @@ const SchoolStudentsScreen = () => {
   const school = useSelector(selectSchool);
   const isTeacher = user?.accountType === "teacher";
 
-  // query + offset live in ONE state object so they always change together
-  // (avoids a request with the new search text and the old offset)
-  const [params, setParams] = useState({ q: "", offset: 0 });
+  // query, class filter and offset live in ONE object so they always change
+  // together (never a request with a new filter and an old offset).
+  // Students start on their own class; teachers start on the whole school.
+  const [params, setParams] = useState(() => ({
+    q: "",
+    offset: 0,
+    classLevel: isTeacher ? "" : (user?.class?.level ?? ""),
+  }));
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [flagTarget, setFlagTarget] = useState(null);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
 
   const {
     data: res,
     isFetching,
+    isError,
+    error,
     refetch,
   } = useFetchSchoolStudentsQuery(
     {
       schoolId: school?._id,
       q: params.q,
+      classLevel: params.classLevel,
       offset: params.offset,
       limit: PAGE_SIZE,
     },
     { skip: !school?._id },
   );
 
-  const items = res?.data;
-  const total = res?.pagination?.total ?? 0;
-  const hasMore = Boolean(res?.pagination?.hasMore);
+  // RTK keeps the previous result while a new filter loads — don't show it
+  // under the wrong class/search.
+  const staleByFilter =
+    Boolean(res) &&
+    ((res.filters?.q ?? "") !== params.q ||
+      norm(res.filters?.classLevel) !== norm(params.classLevel));
+
+  const items = staleByFilter ? undefined : res?.data;
+  const total = staleByFilter ? 0 : (res?.pagination?.total ?? 0);
+  const hasMore = !staleByFilter && Boolean(res?.pagination?.hasMore);
+
+  // ── Class cards ─────────────────────────────────────────────────────────
+  const selectedKey = params.classLevel ? norm(params.classLevel) : "all";
+
+  const classCards = useMemo(() => {
+    const mapped = (res?.classes ?? []).map((c) => ({
+      key: norm(c.level),
+      level: c.level,
+      title: c.level,
+      alias: c.alias,
+      count: c.count,
+      isMine: c.isMine,
+    }));
+    const all = {
+      key: "all",
+      level: "",
+      title: "Whole school",
+      count: res?.schoolTotal ?? 0,
+      isAll: true,
+    };
+    const mine = mapped.filter((c) => c.isMine);
+    const rest = mapped.filter((c) => !c.isMine);
+    return [...mine, all, ...rest];
+  }, [res?.classes, res?.schoolTotal]);
+
+  const onSelectClass = useCallback((c) => {
+    setParams((p) =>
+      norm(p.classLevel) === norm(c.level)
+        ? p
+        : { ...p, classLevel: c.level, offset: 0 },
+    );
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
+  const renderClass = useCallback(
+    ({ item }) => (
+      <ClassCard
+        item={item}
+        selected={item.key === selectedKey}
+        onPress={onSelectClass}
+      />
+    ),
+    [selectedKey, onSelectClass],
+  );
 
   // ── Debounced search ────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => {
       const next = text.trim();
-      setParams((p) => (p.q === next ? p : { q: next, offset: 0 }));
+      setParams((p) => (p.q === next ? p : { ...p, q: next, offset: 0 }));
     }, 350);
     return () => clearTimeout(t);
   }, [text]);
@@ -246,7 +379,7 @@ const SchoolStudentsScreen = () => {
   const closeSearch = useCallback(() => {
     Keyboard.dismiss();
     setText("");
-    setParams((p) => (p.q === "" ? p : { q: "", offset: 0 }));
+    setParams((p) => (p.q === "" ? p : { ...p, q: "", offset: 0 }));
     setOpen(false);
     progress.value = withTiming(0, {
       duration: 220,
@@ -281,6 +414,7 @@ const SchoolStudentsScreen = () => {
   const handleFlag = useCallback((u) => setFlagTarget(u), []);
   const closeFlag = useCallback(() => setFlagTarget(null), []);
   const goBack = useCallback(() => router.back(), []);
+  const retry = useCallback(() => refetch(), [refetch]);
 
   const renderItem = useCallback(
     ({ item }) => (
@@ -289,24 +423,59 @@ const SchoolStudentsScreen = () => {
     [ownId, handleFlag],
   );
 
-  const subtitle = params.q
-    ? `${total} result${total === 1 ? "" : "s"} for "${params.q}"`
-    : `${total} ${isTeacher ? "students" : "classmates"} in ${school?.name ?? "your school"}`;
+  // ── Header: class cards + result line ───────────────────────────────────
+  const selectedCard = classCards.find((c) => c.key === selectedKey);
+
+  const subtitle = (() => {
+    if (!res || staleByFilter) return " ";
+    if (params.q) {
+      return `${total} result${total === 1 ? "" : "s"} for "${params.q}"`;
+    }
+    if (selectedKey === "all") {
+      return `${total} students in ${school?.name ?? "your school"}`;
+    }
+    const lvl = String(selectedCard?.title ?? params.classLevel).toUpperCase();
+    return selectedCard?.isMine
+      ? `Your classmates in ${lvl} · ${total}`
+      : `${total} student${total === 1 ? "" : "s"} in ${lvl}`;
+  })();
 
   const ListHeader = useMemo(
     () => (
-      <View style={styles.subHeader}>
-        <AppText
-          size="small"
-          fontWeight="medium"
-          numberOfLines={1}
-          style={[{ color: colors.medium }, CAPITALIZE]}
-        >
-          {res ? subtitle : " "}
-        </AppText>
+      <View>
+        {classCards.length > 1 && (
+          <View style={styles.classSection}>
+            <AppText
+              fontWeight="heavy"
+              size="large"
+              style={styles.sectionTitle}
+            >
+              Browse by class
+            </AppText>
+            <FlatList
+              data={classCards}
+              horizontal
+              keyExtractor={classKeyExtractor}
+              renderItem={renderClass}
+              extraData={selectedKey}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.classList}
+            />
+          </View>
+        )}
+        <View style={styles.subHeader}>
+          <AppText
+            size="small"
+            fontWeight="medium"
+            numberOfLines={1}
+            style={{ color: colors.medium }}
+          >
+            {subtitle}
+          </AppText>
+        </View>
       </View>
     ),
-    [res, subtitle],
+    [classCards, renderClass, selectedKey, subtitle],
   );
 
   const ListFooter = useMemo(() => {
@@ -330,7 +499,25 @@ const SchoolStudentsScreen = () => {
   }, [isFetching, hasMore, items?.length]);
 
   const ListEmptyEl = useMemo(() => {
-    if (!res && isFetching) {
+    if (isError && !items?.length) {
+      return (
+        <View style={styles.centerBox}>
+          <Ionicons name="cloud-offline" size={40} color={colors.medium} />
+          <AppText
+            fontWeight="bold"
+            style={{ color: colors.medium, marginTop: 10, textAlign: "center" }}
+          >
+            {error?.data?.message || error?.error || "Couldn't load students"}
+          </AppText>
+          <Pressable onPress={retry} style={styles.retryBtn}>
+            <AppText fontWeight="bold" style={{ color: colors.primaryDeeper }}>
+              Try again
+            </AppText>
+          </Pressable>
+        </View>
+      );
+    }
+    if (isFetching || staleByFilter || !res) {
       return (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -339,15 +526,14 @@ const SchoolStudentsScreen = () => {
     }
     return (
       <ListEmpty
-        vis={!isFetching}
         message={
           params.q
             ? `No one matches "${params.q}".\nTry a different name or username`
-            : "No students to show yet"
+            : "No students in this class yet"
         }
       />
     );
-  }, [res, isFetching, params.q]);
+  }, [isError, error, isFetching, staleByFilter, res, items?.length, params.q]);
 
   return (
     <View style={styles.container}>
@@ -362,7 +548,7 @@ const SchoolStudentsScreen = () => {
           pointerEvents="none"
         >
           <AppText fontWeight="black" size="xlarge">
-            {isTeacher ? "All Students" : "All Classmates"}
+            {isTeacher ? "All Students" : "Schoolmates"}
           </AppText>
         </Animated.View>
 
@@ -405,6 +591,7 @@ const SchoolStudentsScreen = () => {
 
       {/* ── Two-column infinite list ────────────────────────────────── */}
       <FlatList
+        ref={listRef}
         data={items}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
@@ -487,7 +674,39 @@ const styles = StyleSheet.create({
   },
   closeBtn: { paddingHorizontal: 12, height: 44, justifyContent: "center" },
 
-  subHeader: { paddingHorizontal: H_PAD, paddingTop: 6, paddingBottom: 14 },
+  // class cards
+  classSection: { paddingTop: 4 },
+  sectionTitle: { paddingHorizontal: H_PAD, marginBottom: 10 },
+  classList: { paddingHorizontal: H_PAD, gap: 10 },
+  classCard: {
+    width: 150,
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    elevation: 2,
+  },
+  classCardOn: { backgroundColor: colors.primary },
+  classTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  classIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primaryLighter,
+  },
+  mineTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 100,
+    backgroundColor: colors.primaryLighter,
+  },
+
+  subHeader: { paddingHorizontal: H_PAD, paddingTop: 16, paddingBottom: 14 },
   columnWrap: { paddingHorizontal: H_PAD, gap: GAP, marginBottom: GAP },
 
   card: {
@@ -545,5 +764,12 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 24, backgroundColor: colors.extraLight },
 
   footer: { paddingVertical: 20, alignItems: "center" },
-  centerBox: { paddingTop: 80, alignItems: "center" },
+  centerBox: { paddingTop: 60, paddingHorizontal: 30, alignItems: "center" },
+  retryBtn: {
+    marginTop: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 100,
+    backgroundColor: colors.primaryLighter,
+  },
 });
