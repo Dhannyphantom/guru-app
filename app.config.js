@@ -12,7 +12,7 @@ const APP_ID = IS_DEV
 export default {
   name: APP_NAME,
   slug: "guru",
-  version: "1.1.0",
+  version: "1.2.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: IS_DEV ? "guru-dev" : IS_PREVIEW ? "guru-preview" : "guru",
