@@ -1,12 +1,22 @@
 import {
   Dimensions,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   View,
 } from "react-native";
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, { useState, useCallback, useMemo, useRef, useId } from "react";
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  LinearGradient as SvgLinearGradient,
+  Polygon,
+  RadialGradient,
+  Rect,
+  Stop,
+  Text as SvgText,
+} from "react-native-svg";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams } from "expo-router";
 
@@ -14,7 +24,6 @@ import colors from "../helpers/colors";
 import Avatar from "../components/Avatar";
 import AppHeader from "../components/AppHeader";
 import AppText from "../components/AppText";
-import leaderboardStage from "../../assets/images/leaderboard.png";
 import Points from "../components/Points";
 import { formatPoints, getFullName } from "../helpers/helperFunctions";
 import { useSelector } from "react-redux";
@@ -104,6 +113,7 @@ const LeaderboardChampion = ({
   isSchools,
   points,
   hideSuffix,
+  textColor,
 }) => {
   return (
     <View
@@ -124,7 +134,7 @@ const LeaderboardChampion = ({
           marginTop: 18,
           marginBottom: 6,
           width: "100%",
-          color: colors.white,
+          color: textColor ?? colors.white,
         }}
         textFontsize="medium"
       />
@@ -194,7 +204,173 @@ export const LeaderboardItem = ({ item, isPro, index }) => {
   );
 };
 
-export const LeaderboardWinners = ({ data, isPro, isSchools }) => {
+// ─── 3D champions podium (SVG) ───────────────────────────────────────────────
+// Three solid blocks (front + top + right side) in gold / silver / bronze.
+// Slot order matches the original layout: [3rd, 1st, 2nd].
+const COL_W = width / 3;
+const CHAMP_H = width * 0.2 + 92; // avatar + name + points pill
+const PODIUM_H = Math.max(height * 0.4, CHAMP_H + 70 + 100);
+const PODIUM_SLOTS = [
+  { award: 3, top: 70 },
+  { award: 1, top: 0 },
+  { award: 2, top: 50 },
+];
+const PODIUM_TONES = {
+  1: {
+    front: ["#FFD873", "#F3B02D"],
+    top: "#FFEBB0",
+    side: ["#E39808", "#B97700"],
+    num: "#8A5A00",
+  },
+  2: {
+    front: ["#F7F8FB", "#CDD3DE"],
+    top: "#FFFFFF",
+    side: ["#B3BCCB", "#939DB0"],
+    num: "#6B7587",
+  },
+  3: {
+    front: ["#F2B887", "#CD7F32"],
+    top: "#F9D9B8",
+    side: ["#B5692A", "#8E4F1C"],
+    num: "#6B3A12",
+  },
+};
+
+const sparkle = (cx, cy, r) =>
+  `${cx},${cy - r} ${cx + r * 0.28},${cy - r * 0.28} ${cx + r},${cy} ${cx + r * 0.28},${cy + r * 0.28} ${cx},${cy + r} ${cx - r * 0.28},${cy + r * 0.28} ${cx - r},${cy} ${cx - r * 0.28},${cy - r * 0.28}`;
+
+const PodiumSvg = () => {
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const fw = COL_W * 0.7; // front face width
+  const d = fw * 0.16; // 3D depth (x)
+  const dy = d * 0.6; // 3D depth (y)
+  // Blocks run straight down to the bottom edge (a pixel past it, to avoid a
+  // hairline) so they sit flush under the list's rounded top - no gap, no strip.
+  const base = PODIUM_H + 1;
+  const midX = COL_W * 1.5;
+
+  return (
+    <Svg width={width} height={PODIUM_H}>
+      <Defs>
+        <RadialGradient id={`${uid}glow`} cx="50%" cy="50%" r="50%">
+          <Stop offset="0%" stopColor="#fff" stopOpacity="0.45" />
+          <Stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        </RadialGradient>
+        {[1, 2, 3].flatMap((a) => [
+          <SvgLinearGradient
+            key={`f${a}`}
+            id={`${uid}f${a}`}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+            <Stop offset="0" stopColor={PODIUM_TONES[a].front[0]} />
+            <Stop offset="1" stopColor={PODIUM_TONES[a].front[1]} />
+          </SvgLinearGradient>,
+          <SvgLinearGradient
+            key={`s${a}`}
+            id={`${uid}s${a}`}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+            <Stop offset="0" stopColor={PODIUM_TONES[a].side[0]} />
+            <Stop offset="1" stopColor={PODIUM_TONES[a].side[1]} />
+          </SvgLinearGradient>,
+        ])}
+      </Defs>
+
+      {/* glow behind the champion + sparkles */}
+      <Circle
+        cx={midX}
+        cy={CHAMP_H * 0.55}
+        r={COL_W * 0.85}
+        fill={`url(#${uid}glow)`}
+      />
+      <Polygon
+        points={sparkle(midX - COL_W * 0.55, 34, 8)}
+        fill="#fff"
+        opacity={0.85}
+      />
+      <Polygon
+        points={sparkle(midX + COL_W * 0.6, 20, 6)}
+        fill="#fff"
+        opacity={0.7}
+      />
+      <Polygon
+        points={sparkle(midX + COL_W * 0.3, CHAMP_H * 0.9, 5)}
+        fill="#fff"
+        opacity={0.6}
+      />
+
+      {PODIUM_SLOTS.map((s, i) => {
+        const t = PODIUM_TONES[s.award];
+        const cx = COL_W * i + COL_W / 2;
+        const x = cx - (fw + d) / 2;
+        const y = s.top + CHAMP_H + dy; // front top edge
+        const h = base - y;
+        const fs = fw * 0.5;
+
+        return (
+          <G key={s.award}>
+            {/* right side */}
+            <Polygon
+              points={`${x + fw},${y} ${x + fw + d},${y - dy} ${x + fw + d},${y - dy + h} ${x + fw},${y + h}`}
+              fill={`url(#${uid}s${s.award})`}
+            />
+            {/* top */}
+            <Polygon
+              points={`${x},${y} ${x + fw},${y} ${x + fw + d},${y - dy} ${x + d},${y - dy}`}
+              fill={t.top}
+            />
+            {/* front */}
+            <Rect
+              x={x}
+              y={y}
+              width={fw}
+              height={h}
+              fill={`url(#${uid}f${s.award})`}
+            />
+            <Rect
+              x={x}
+              y={y}
+              width={fw}
+              height={5}
+              fill="#fff"
+              opacity={0.35}
+            />
+            {/* embossed place number */}
+            <SvgText
+              x={x + fw / 2}
+              y={y + fs + 12 + 2}
+              fontSize={fs}
+              fontWeight="900"
+              textAnchor="middle"
+              fill="#000"
+              opacity={0.18}
+            >
+              {s.award}
+            </SvgText>
+            <SvgText
+              x={x + fw / 2}
+              y={y + fs + 12}
+              fontSize={fs}
+              fontWeight="900"
+              textAnchor="middle"
+              fill="#fff"
+            >
+              {s.award}
+            </SvgText>
+          </G>
+        );
+      })}
+    </Svg>
+  );
+};
+
+export const LeaderboardWinners = ({ data, isPro, isSchools, textColor }) => {
   const formattedData = [
     { ...data[2], isEmpty: Boolean(data[2]), award: 3 },
     { ...data[0], isEmpty: Boolean(data[0]), award: 1 },
@@ -215,6 +391,7 @@ export const LeaderboardWinners = ({ data, isPro, isSchools }) => {
           numberOfLines={2}
           points={item.totalPoints ?? 0}
           loading={false}
+          textColor={textColor}
         />
       );
     }
@@ -228,43 +405,29 @@ export const LeaderboardWinners = ({ data, isPro, isSchools }) => {
         isPro={isPro}
         avatar={item?.avatar?.image}
         points={item.totalPoints ?? item?.questionsCount}
+        textColor={textColor}
       />
     );
   };
 
   return (
-    <View style={{ height: height * 0.4 }}>
-      <View
-        style={{
-          position: "absolute",
-          zIndex: 50,
-          flexDirection: "row",
-          alignItems: "center",
-          alignSelf: "center",
-        }}
-      >
+    <View style={{ height: PODIUM_H }}>
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <PodiumSvg />
+      </View>
+      <View style={styles.championsRow}>
         {formattedData.map((item) => (
           <View
             key={item._id ?? nanoid()}
             style={{
+              width: COL_W,
+              alignItems: "center",
               top: item.award === 1 ? 0 : item.award === 2 ? 50 : 70,
-              marginHorizontal: 5,
             }}
           >
             {renderChamps({ item })}
           </View>
         ))}
-      </View>
-      <View style={{ width, justifyContent: "flex-end", alignItems: "center" }}>
-        <Image
-          resizeMode="cover"
-          source={leaderboardStage}
-          style={{
-            width: "125%",
-            height: height * 0.4,
-            top: height * 0.15,
-          }}
-        />
       </View>
     </View>
   );
@@ -627,6 +790,15 @@ const styles = StyleSheet.create({
   },
   mineText: {
     color: colors.white,
+  },
+  championsRow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   separator: {
     width: "95%",

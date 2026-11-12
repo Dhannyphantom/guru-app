@@ -26,13 +26,25 @@ export const BannerShell = ({ children, art, style }) => (
     <View style={styles.clip}>
       <View style={[styles.body, { paddingRight: ART_W - 2 }]}>
         <View pointerEvents="none" style={styles.frame} />
-        <AppText fontWeight="black" size={40} style={[styles.doodle, { top: 6, right: ART_W + 6 }]}>
+        <AppText
+          fontWeight="black"
+          size={40}
+          style={[styles.doodle, { top: 6, right: ART_W + 6 }]}
+        >
           π
         </AppText>
-        <AppText fontWeight="black" size={34} style={[styles.doodle, { bottom: 4, right: ART_W * 0.55 }]}>
+        <AppText
+          fontWeight="black"
+          size={34}
+          style={[styles.doodle, { bottom: 4, right: ART_W * 0.55 }]}
+        >
           ÷
         </AppText>
-        <AppText fontWeight="black" size={30} style={[styles.doodle, { bottom: 2, left: "46%" }]}>
+        <AppText
+          fontWeight="black"
+          size={30}
+          style={[styles.doodle, { bottom: 2, left: "46%" }]}
+        >
           √
         </AppText>
         {children}
@@ -106,11 +118,6 @@ const JambHero = ({
         </>
       ) : (
         <>
-          <View style={styles.tag}>
-            <AppText fontWeight="black" size={9.5} style={styles.tagText}>
-              GURU · EXAM PREP
-            </AppText>
-          </View>
           <AppText fontWeight="black" size={21} style={styles.title}>
             {"Guru JAMB\nScore Predictor"}
           </AppText>
