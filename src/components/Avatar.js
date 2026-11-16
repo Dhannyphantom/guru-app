@@ -1,23 +1,18 @@
-import { useEffect, useState } from "react";
-import {
-  Dimensions,
-  Image,
-  Pressable,
-  Platform,
-  StyleSheet,
-  View,
-} from "react-native";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { useCallback, useEffect, useState } from "react";
+import { Image, StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated from "react-native-reanimated";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useVerifySchoolInstanceMutation } from "../context/schoolSlice";
-import { useStudentActionMutation } from "../context/usersSlice";
-import AppButton from "./AppButton";
-import AnimatedPressable from "./AnimatedPressable";
+import {
+  useStudentActionMutation,
+  useUpdateUserAvatarMutation,
+  useLazyFetchUserInfoQuery,
+} from "../context/usersSlice";
 import PromptModal from "./PromptModal";
 import PopMessage from "./PopMessage";
-
-import AppText from "../components/AppText";
 import LottieAnimator from "./LottieAnimator";
+import AppModal from "./AppModal";
 import {
   getImageObj,
   getPickerName,
@@ -25,48 +20,152 @@ import {
   capFirstLetter,
   getName,
 } from "../helpers/helperFunctions";
+
+// Jamb design system
+import AppText from "./jamb/JambText";
+import { T, TINTS } from "./jamb/JambTheme";
+import { enter } from "./jamb/JambMotion";
 import {
-  useUpdateUserAvatarMutation,
-  useLazyFetchUserInfoQuery,
-} from "../context/usersSlice";
-import colors from "../helpers/colors";
-import AppModal from "./AppModal";
+  Card,
+  Chip,
+  Chunky,
+  JambPressable,
+  Loader,
+  Note,
+  SectionTitle,
+} from "./jamb/JambUI";
 
 import award1st from "../../assets/images/gold-medal.png";
 import award2nd from "../../assets/images/silver-medal.png";
 import award3rd from "../../assets/images/bronze-medal.png";
 
-const { width, height } = Dimensions.get("screen");
+const PROFILE_AVATAR = 116;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatPill — one metric cell inside the stats grid
+// ProfileButton — chunky action button (flex:1 so two can share a row)
 // ─────────────────────────────────────────────────────────────────────────────
-const StatPill = ({ label, value, accent }) => (
-  <View style={statStyles.pill}>
+const BUTTONS = {
+  primary: { face: T.green, lip: T.greenDark, text: "#FFFFFF" },
+  yellow: { face: T.yellow, lip: T.yellowDark, text: T.ink },
+  danger: { face: T.coral, lip: T.coralDark, text: "#FFFFFF" },
+  ghost: {
+    face: "#FFFFFF",
+    lip: T.lineDark,
+    text: T.greenDark,
+    border: T.lineDark,
+  },
+};
+
+const ProfileButton = ({
+  title,
+  icon,
+  variant = "primary",
+  onPress,
+  disabled,
+}) => {
+  const k = BUTTONS[variant] ?? BUTTONS.primary;
+  return (
+    <Chunky
+      onPress={onPress}
+      disabled={disabled}
+      face={k.face}
+      lip={k.lip}
+      faceBorder={k.border}
+      radius={16}
+      depth={5}
+      style={{ flex: 1 }}
+      contentStyle={styles.btn}
+    >
+      <AppText
+        fontWeight="black"
+        size={14}
+        style={{
+          color: k.text,
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+        }}
+      >
+        {title}
+      </AppText>
+      {Boolean(icon) && (
+        <Ionicons
+          name={icon}
+          size={17}
+          color={k.text}
+          style={{ marginLeft: 8 }}
+        />
+      )}
+    </Chunky>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StatTile — one metric in the stats row
+// ─────────────────────────────────────────────────────────────────────────────
+const StatTile = ({ icon, label, value, tint, index }) => (
+  <Animated.View
+    entering={enter(index, 200)}
+    style={[
+      styles.tile,
+      { backgroundColor: tint.bg, borderColor: tint.border },
+    ]}
+  >
+    <View style={styles.tileIcon}>
+      <Ionicons name={icon} size={15} color={tint.ink} />
+    </View>
     <AppText
       fontWeight="black"
-      size="large"
-      style={{ color: accent ?? colors.primaryDeep }}
+      size={17}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.7}
+      style={{ color: T.ink, marginTop: 6 }}
     >
-      {value ?? "—"}
+      {value}
     </AppText>
-    <AppText size="xsmall" fontWeight="medium" style={{ color: colors.medium }}>
+    <AppText fontWeight="bold" size={10.5} style={{ color: tint.ink }}>
       {label}
     </AppText>
+  </Animated.View>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InfoRow — icon tile + label + value (inside the About card)
+// ─────────────────────────────────────────────────────────────────────────────
+const InfoRow = ({ icon, tint, label, value, last }) => (
+  <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
+    <View
+      style={[
+        styles.infoIcon,
+        { backgroundColor: tint.bg, borderColor: tint.border },
+      ]}
+    >
+      <Ionicons name={icon} size={18} color={tint.ink} />
+    </View>
+    <View style={{ flex: 1 }}>
+      <AppText fontWeight="medium" size={10.5} style={{ color: T.sub }}>
+        {label}
+      </AppText>
+      <AppText
+        fontWeight="bold"
+        size={14}
+        numberOfLines={2}
+        style={{ color: T.ink, textTransform: "capitalize" }}
+      >
+        {value}
+      </AppText>
+    </View>
   </View>
 );
 
-const statStyles = StyleSheet.create({
-  pill: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-  },
-});
+const VERIFY_DONE_MSG = {
+  accept: "Verification successful",
+  reject: "Rejected successfully",
+  unverify: "Unverified successfully",
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RenderUserDetail
+// RenderUserDetail — the profile sheet
 // ─────────────────────────────────────────────────────────────────────────────
 const RenderUserDetail = ({
   setVisible,
@@ -74,18 +173,19 @@ const RenderUserDetail = ({
   closeCallback,
   data = null,
 }) => {
+  const { width } = useWindowDimensions();
+  const sheetWidth = Math.min(width * 0.95, 460);
+
   const [fetchUserInfo, { isLoading: userLoading }] =
     useLazyFetchUserInfoQuery();
 
   // profile shape:
-  //   profile.user         — viewed user's data (no following/followers arrays)
+  //   profile.user         — viewed user's data
   //   profile.relationship — { isViewerFollowing, isFollowingViewer, isSelf }
-  //   profile.type / profile.instance / profile.school / profile.verified
-  //     — verification-specific fields passed in via `data` prop
+  //   profile.type / instance / school / verified — verification fields (via `data`)
   const [profile, setProfile] = useState(data);
   const [prompt, setPrompt] = useState({ vis: false });
   const [popper, setPopper] = useState({ vis: false });
-  const [bools, setBools] = useState({ loading: Boolean(userID) });
 
   const [verifySchoolInstance, { isLoading: verifyLoading }] =
     useVerifySchoolInstanceMutation();
@@ -95,19 +195,24 @@ const RenderUserDetail = ({
   const user = profile?.user;
   const isVerification = profile?.type === "verify";
   const isStudent = user?.accountType === "student";
+  const instanceLabel = profile?.instance ?? user?.accountType ?? "account";
 
-  // ── Relationship — sourced from server flags, no client-side array scanning
+  // ── Relationship (server flags) ──────────────────────────────────────────
   const {
     isViewerFollowing = false,
     isFollowingViewer = false,
     isSelf = false,
   } = profile?.relationship ?? {};
 
-  // Follow button label derived from the two directional flags
-  let followLabel = "Follow";
-  if (isViewerFollowing && isFollowingViewer) followLabel = "Friends";
-  else if (isViewerFollowing) followLabel = "Following";
-  else if (isFollowingViewer) followLabel = "Follow Back";
+  const follow = isViewerFollowing
+    ? isFollowingViewer
+      ? { title: "Friends", icon: "people", variant: "ghost" }
+      : { title: "Following", icon: "checkmark", variant: "ghost" }
+    : isFollowingViewer
+      ? { title: "Follow Back", icon: "person-add", variant: "yellow" }
+      : { title: "Follow", icon: "person-add", variant: "primary" };
+
+  const showFollow = !isVerification && !isSelf && isStudent;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleCloseModal = async () => {
@@ -167,262 +272,328 @@ const RenderUserDetail = ({
     });
   };
 
+  const runVerification = async (type) => {
+    try {
+      const res = await verifySchoolInstance({
+        instance: user?.accountType,
+        instanceId: user?._id,
+        schoolId: profile?.school?._id,
+        type,
+      }).unwrap();
+      if (res?.status === "success") {
+        setPopper({
+          vis: true,
+          msg: VERIFY_DONE_MSG[type],
+          type: "success",
+          cb: () => handleCloseModal(),
+        });
+      }
+    } catch (_) {}
+  };
+
   const handlePrompt = async (type) => {
-    switch (type) {
-      case "unfollow":
-        await executeFollow("unfollow");
-        break;
-
-      case "accept":
-        try {
-          const res = await verifySchoolInstance({
-            instance: user?.accountType,
-            instanceId: user?._id,
-            schoolId: profile?.school?._id,
-            type,
-          }).unwrap();
-          if (res?.status === "success") {
-            setPopper({
-              vis: true,
-              msg: "Verification successful",
-              type: "success",
-              cb: () => handleCloseModal(),
-            });
-          }
-        } catch (_) {}
-        break;
-
-      case "reject":
-        try {
-          const res = await verifySchoolInstance({
-            instance: user?.accountType,
-            instanceId: user?._id,
-            schoolId: profile?.school?._id,
-            type,
-          }).unwrap();
-          if (res?.status === "success") {
-            setPopper({
-              vis: true,
-              msg: "Rejected successfully",
-              type: "success",
-              cb: () => handleCloseModal(),
-            });
-          }
-        } catch (_) {}
-        break;
-
-      case "unverify":
-        try {
-          const res = await verifySchoolInstance({
-            instance: user?.accountType,
-            instanceId: user?._id,
-            schoolId: profile?.school?._id,
-            type,
-          }).unwrap();
-          if (res?.status === "success") {
-            setPopper({
-              vis: true,
-              msg: "Unverified successfully",
-              type: "success",
-              cb: () => handleCloseModal(),
-            });
-          }
-        } catch (_) {}
-        break;
-
-      default:
-        break;
-    }
+    if (type === "unfollow") return executeFollow("unfollow");
+    if (VERIFY_DONE_MSG[type]) return runVerification(type);
   };
 
   const getUserInfoData = async () => {
     try {
       const res = await fetchUserInfo(userID).unwrap();
       // res = { user, status, relationship }
-      // Spread into existing profile so verification fields (type, instance,
-      // school, verified) passed in via the `data` prop are preserved.
+      // Spread into existing profile so verification fields are preserved.
       setProfile((prev) => ({ ...prev, ...res }));
     } catch (_) {}
   };
 
   useEffect(() => {
-    getUserInfoData();
-  }, [data]);
+    if (userID) getUserInfoData();
+  }, [userID]);
 
-  // ── Derived display values ────────────────────────────────────────────────
+  // ── Derived display values ───────────────────────────────────────────────
   const gtPoints = user?.points != null ? user.points.toLocaleString() : "—";
   const totalPoints =
     user?.totalPoints != null ? user.totalPoints.toLocaleString() : "—";
   const streakDisplay = user?.streak ? `${user.streak}d` : "0d";
-  const streakAccent = user?.streak >= 7 ? "#E88C00" : colors.medium;
   const rankNumber = user?.leaderboardRank ?? "—";
+
+  const chips = [];
+  if (user?.accountType)
+    chips.push({
+      label: capFirstLetter(user.accountType),
+      icon: isStudent ? "school" : "person",
+      color: T.blueDark,
+      bg: T.blueSoft,
+    });
+  if (user?.class?.level)
+    chips.push({
+      label: String(user.class.level).toUpperCase(),
+      icon: "book",
+      color: T.purpleDark,
+      bg: T.purpleSoft,
+    });
+  if (user?.gender)
+    chips.push({
+      label: capFirstLetter(user.gender),
+      icon: "male-female",
+      color: T.greenDark,
+      bg: T.greenSoft,
+    });
+  if (user?.rank)
+    chips.push({
+      label: capFirstLetter(user.rank),
+      icon: "ribbon",
+      color: T.yellowInk,
+      bg: T.yellowSoft,
+    });
+
+  const schoolName = profile?.school?.name ?? user?.school?.name;
+  const location = [user?.lga, user?.state ? `${user.state} state` : null]
+    .filter(Boolean)
+    .join(", ");
+  const infoRows = [
+    schoolName && {
+      icon: "school",
+      tint: TINTS[0],
+      label: "School",
+      value: schoolName,
+    },
+    location && {
+      icon: "location",
+      tint: TINTS[2],
+      label: "Location",
+      value: location,
+    },
+  ].filter(Boolean);
 
   return (
     <>
-      <View style={styles.user}>
-        {/* ── Avatar ────────────────────────────────────────────────────── */}
-        <Avatar
-          size={Platform.OS === "web" ? 200 : width * 0.6}
-          name={getName(user)}
-          imageStyle={{ backgroundColor: "#fff" }}
-          textFontsize={30}
-          source={user?.avatar?.image}
-          border={{ width: 6, color: colors.white }}
-          textStyle={{ maxWidth: width * 0.9 }}
-          disabled
-        />
-
-        {/* ── Username ──────────────────────────────────────────────────── */}
-        {user?.username && (
+      <View style={[styles.sheet, { width: sheetWidth }]}>
+        {/* ── Chalkboard banner ───────────────────────────────────────── */}
+        <View style={styles.banner}>
+          <View pointerEvents="none" style={styles.frame} />
           <AppText
-            style={{
-              width: "90%",
-              marginTop: 5,
-              textAlign: "center",
-              color: colors.primaryDeep,
-            }}
-            numberOfLines={2}
-            ellipsizeMode="middle"
-            fontWeight="bold"
-            size="large"
+            fontWeight="black"
+            size={44}
+            style={[styles.doodle, { top: 4, right: 70 }]}
           >
-            @{user?.username}
+            π
           </AppText>
-        )}
-
-        {/* ── School ────────────────────────────────────────────────────── */}
-        <AppText
-          style={styles.schoolName}
-          numberOfLines={2}
-          ellipsizeMode="middle"
-          fontWeight="bold"
-          size="large"
-        >
-          {profile?.school?.name ?? user?.school?.name}
-        </AppText>
-
-        {/* ── Location ──────────────────────────────────────────────────── */}
-        <AppText
-          style={styles.addressTxt}
-          numberOfLines={2}
-          ellipsizeMode="middle"
-          fontWeight="medium"
-          size="small"
-        >
-          {user?.lga}
-          {user?.state ? `, ${user?.state} state` : ""}
-        </AppText>
-
-        {/* ── Account type + class ──────────────────────────────────────── */}
-        {user?.accountType && (
-          <AppText style={styles.accountType} fontWeight="bold">
-            {user?.gender}{" "}
-            {user?.class?.level && (
-              <AppText
-                fontWeight="black"
-                style={{
-                  color: colors.primaryDeep,
-                  textTransform: "uppercase",
-                }}
-              >
-                {user?.class?.level + " "}
-              </AppText>
-            )}
-            {user?.accountType}
+          <AppText
+            fontWeight="black"
+            size={34}
+            style={[styles.doodle, { bottom: 6, left: "58%" }]}
+          >
+            ÷
           </AppText>
-        )}
+          <AppText
+            fontWeight="black"
+            size={30}
+            style={[styles.doodle, { bottom: 4, left: 18 }]}
+          >
+            √
+          </AppText>
 
-        {/* ── Rank badge (string: "beginner", "expert", etc.) ───────────── */}
-        {user?.rank && (
-          <View style={styles.rankBadge}>
+          <View style={styles.tag}>
             <AppText
-              size="xsmall"
-              fontWeight="bold"
-              style={{
-                color: colors.primaryDeep,
-                textTransform: "capitalize",
-              }}
+              fontWeight="black"
+              size={10}
+              style={{ color: T.yellow, letterSpacing: 1.2 }}
             >
-              {user.rank}
+              {isVerification ? "VERIFICATION REQUEST" : "PROFILE"}
             </AppText>
           </View>
-        )}
 
-        {/* ── Stats grid (students only) ────────────────────────────────── */}
-        {isStudent && (
-          <View style={styles.statsGrid}>
-            <StatPill label="GT" value={gtPoints} accent={colors.primaryDeep} />
-            <View style={styles.statDivider} />
-            <StatPill label="Points" value={totalPoints} />
-            <View style={styles.statDivider} />
-            <StatPill
-              label="Streak"
-              value={streakDisplay}
-              accent={streakAccent}
-            />
-            <View style={styles.statDivider} />
-            <StatPill
-              label="Rank #"
-              value={rankNumber}
-              accent={colors.primaryDeep}
-            />
-          </View>
-        )}
+          <JambPressable
+            onPress={handleCloseModal}
+            scaleTo={0.9}
+            hitSlop={8}
+            style={styles.closeWrap}
+            contentStyle={styles.closeBtn}
+          >
+            <Ionicons name="close" size={20} color={T.chalk} />
+          </JambPressable>
+        </View>
 
-        {/* ── Action buttons ────────────────────────────────────────────── */}
-        {isVerification ? (
-          <View style={styles.btns}>
-            {profile?.verified ? (
-              <AppButton
-                title="Unverify"
-                onPress={() => handleVerification("unverify")}
-                type="accent"
-              />
-            ) : (
-              <>
-                <AppButton
-                  title="Accept"
-                  onPress={() => handleVerification("accept")}
-                  icon={{ left: true, name: "check" }}
-                />
-                <AppButton
-                  title="Reject"
-                  onPress={() => handleVerification("reject")}
-                  icon={{ left: true, name: "cancel" }}
-                  type="warn"
-                />
-              </>
-            )}
-          </View>
+        {/* ── Avatar overlapping the banner ───────────────────────────── */}
+        <View style={styles.avatarWrap}>
+          <Avatar
+            size={PROFILE_AVATAR}
+            source={user?.avatar?.image}
+            imageStyle={{ backgroundColor: T.paper }}
+            border={{ width: 5, color: T.card }}
+            disabled
+          />
+        </View>
+
+        {!user ? (
+          <Loader label={userLoading ? "Loading profile…" : undefined} />
         ) : (
-          <View style={styles.btns}>
-            {/* Follow button — hidden for self or non-students */}
-            {!isSelf && isStudent && (
-              <AppButton
-                title={followLabel}
-                onPress={handleFollowPress}
-                type={isViewerFollowing ? "accent" : "primary"}
-                loading={followLoading}
-              />
+          <View style={styles.body}>
+            {/* ── Identity ──────────────────────────────────────────── */}
+            <AppText
+              fontWeight="black"
+              size={22}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              style={styles.name}
+            >
+              {getName(user)}
+            </AppText>
+            {Boolean(user?.username) && (
+              <AppText
+                fontWeight="semibold"
+                size={13}
+                numberOfLines={1}
+                ellipsizeMode="middle"
+                style={styles.username}
+              >
+                @{user.username}
+              </AppText>
             )}
-            <AppButton
-              title="Close"
-              onPress={handleCloseModal}
-              type="white"
-              contStyle={!isSelf && isStudent ? {} : { marginTop: 50 }}
-            />
-          </View>
-        )}
 
-        {/* ── Verification close X ──────────────────────────────────────── */}
-        {isVerification && (
-          <AnimatedPressable onPress={handleCloseModal} style={styles.close}>
-            <Ionicons name="close" size={30} color={colors.medium} />
-          </AnimatedPressable>
+            {chips.length > 0 && (
+              <View style={styles.chips}>
+                {chips.map((c) => (
+                  <Chip
+                    key={c.label}
+                    label={c.label}
+                    icon={c.icon}
+                    color={c.color}
+                    bg={c.bg}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* ── Verification status note ──────────────────────────── */}
+            {isVerification && (
+              <Note
+                icon={profile?.verified ? "shield-checkmark" : "time"}
+                tone={profile?.verified ? "green" : "yellow"}
+                title={
+                  profile?.verified
+                    ? `Verified ${instanceLabel}`
+                    : `Pending ${instanceLabel} verification`
+                }
+                style={{ marginBottom: 0, marginTop: 16 }}
+              >
+                <AppText
+                  fontWeight="medium"
+                  size={12}
+                  style={{ color: T.sub, marginTop: 2, lineHeight: 17 }}
+                >
+                  {profile?.verified
+                    ? "This account is currently linked to your school."
+                    : "Review the details below before accepting or rejecting."}
+                </AppText>
+              </Note>
+            )}
+
+            {/* ── Stats (students only) ─────────────────────────────── */}
+            {isStudent && (
+              <View style={styles.statsRow}>
+                <StatTile
+                  index={0}
+                  icon="diamond"
+                  label="GT"
+                  value={gtPoints}
+                  tint={TINTS[0]}
+                />
+                <StatTile
+                  index={1}
+                  icon="star"
+                  label="Points"
+                  value={totalPoints}
+                  tint={TINTS[1]}
+                />
+                <StatTile
+                  index={2}
+                  icon="flame"
+                  label="Streak"
+                  value={streakDisplay}
+                  tint={TINTS[2]}
+                />
+                <StatTile
+                  index={3}
+                  icon="trophy"
+                  label="Rank #"
+                  value={rankNumber}
+                  tint={TINTS[3]}
+                />
+              </View>
+            )}
+
+            {/* ── About ─────────────────────────────────────────────── */}
+            {infoRows.length > 0 && (
+              <Card
+                index={1}
+                base={200}
+                style={{ marginBottom: 0, marginTop: 16 }}
+              >
+                <SectionTitle
+                  icon="id-card"
+                  color={T.greenDark}
+                  bg={T.greenSoft}
+                  title="About"
+                />
+                {infoRows.map((row, i) => (
+                  <InfoRow
+                    key={row.label}
+                    {...row}
+                    last={i === infoRows.length - 1}
+                  />
+                ))}
+              </Card>
+            )}
+
+            {/* ── Actions ───────────────────────────────────────────── */}
+            <View style={styles.actions}>
+              {isVerification ? (
+                profile?.verified ? (
+                  <ProfileButton
+                    title="Unverify"
+                    icon="close-circle"
+                    variant="danger"
+                    onPress={() => handleVerification("unverify")}
+                  />
+                ) : (
+                  <>
+                    <ProfileButton
+                      title="Reject"
+                      icon="close"
+                      variant="danger"
+                      onPress={() => handleVerification("reject")}
+                    />
+                    <ProfileButton
+                      title="Accept"
+                      icon="checkmark"
+                      variant="primary"
+                      onPress={() => handleVerification("accept")}
+                    />
+                  </>
+                )
+              ) : showFollow ? (
+                <ProfileButton
+                  title={follow.title}
+                  icon={follow.icon}
+                  variant={follow.variant}
+                  onPress={handleFollowPress}
+                  disabled={followLoading}
+                />
+              ) : (
+                <ProfileButton
+                  title="Close"
+                  icon="close"
+                  variant="ghost"
+                  onPress={handleCloseModal}
+                />
+              )}
+            </View>
+          </View>
         )}
 
         <LottieAnimator
-          visible={verifyLoading || followLoading}
+          visible={verifyLoading || followLoading || userLoading}
           absolute
           wTransparent
         />
@@ -430,11 +601,6 @@ const RenderUserDetail = ({
           prompt={prompt}
           setPrompt={setPrompt}
           onPress={handlePrompt}
-        />
-        <LottieAnimator
-          visible={bools.loading && userLoading}
-          absolute
-          wTransparent
         />
       </View>
       <PopMessage popData={popper} setPopData={setPopper} />
@@ -452,19 +618,22 @@ export const ProfileModal = ({
   closeCallback,
   setVisible,
 }) => {
+  // Stable component identity — an inline arrow here would remount the sheet
+  // (and refetch the profile) on every parent re-render.
+  const Content = useCallback(
+    () => (
+      <RenderUserDetail
+        data={data}
+        userID={userID}
+        closeCallback={closeCallback}
+        setVisible={setVisible}
+      />
+    ),
+    [data, userID, closeCallback, setVisible],
+  );
+
   return (
-    <AppModal
-      visible={visible}
-      setVisible={setVisible}
-      Component={() => (
-        <RenderUserDetail
-          data={data}
-          userID={userID}
-          closeCallback={closeCallback}
-          setVisible={setVisible}
-        />
-      )}
-    />
+    <AppModal visible={visible} setVisible={setVisible} Component={Content} />
   );
 };
 
@@ -493,9 +662,10 @@ const Avatar = ({
   textFontsize = "large",
   textStyle,
 }) => {
+  const { width } = useWindowDimensions();
   const [updateAvatar, { isLoading }] = useUpdateUserAvatarMutation();
 
-  const [bools, setBools] = useState({ loaded: false });
+  const [loaded, setLoaded] = useState(false);
   const [modal, setModal] = useState(false);
 
   let awardSrc;
@@ -512,25 +682,27 @@ const Avatar = ({
   }
 
   const sourceObj = getImageObj(source);
+  const interactive = Boolean(imagePicker || onPress || userID);
+  const badge = Math.max(28, Math.round(size * 0.28));
 
   const handleImageLoad = () => {
-    !bools.loaded && setBools({ ...bools, loaded: true });
+    !loaded && setLoaded(true);
   };
 
   const handleAvatarPress = async () => {
     if (imagePicker) {
       const res = await launchGallery();
 
-      imagePicker(res.asset);
-      if (res.asset) {
+      imagePicker(res?.asset);
+      if (res?.asset) {
         try {
           await updateAvatar({
-            uri: res?.asset.uri,
-            height: res?.asset.height,
-            width: res?.asset.width,
-            mimeType: res?.asset.mimeType,
-            fileName: res?.asset.fileName,
-            assetId: getPickerName(res?.asset.uri),
+            uri: res.asset.uri,
+            height: res.asset.height,
+            width: res.asset.width,
+            mimeType: res.asset.mimeType,
+            fileName: res.asset.fileName,
+            assetId: getPickerName(res.asset.uri),
           }).unwrap();
         } catch (err) {
           imagePickerError?.(true, err);
@@ -554,51 +726,58 @@ const Avatar = ({
         ...contStyle,
       }}
     >
-      <Pressable
-        style={{
-          width: horizontal ? null : size,
-          flexDirection: horizontal ? "row" : "column",
-          alignItems: "center",
-          ...style,
-        }}
+      <JambPressable
         onPress={handleAvatarPress}
-        disabled={disabled}
+        disabled={disabled || !interactive}
+        scaleTo={0.95}
+        style={{ width: horizontal ? undefined : size }}
+        contentStyle={[
+          {
+            alignItems: "center",
+            flexDirection: horizontal ? "row" : "column",
+          },
+          style,
+        ]}
       >
-        <View
-          style={[
-            styles.container,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderWidth: border?.width ?? 0,
-              borderColor: border?.color ?? "transparent",
-              overflow: award ? null : "hidden",
-              ...imageStyle,
-            },
-          ]}
-        >
-          {source ? (
-            <>
-              <Image
-                source={sourceObj}
-                onLoad={handleImageLoad}
-                onLoadEnd={handleImageLoad}
-                style={styles.image}
-              />
-              <LottieAnimator
-                visible={!bools.loaded}
-                name="avatar"
-                loop={true}
-                size={size * 1.5}
-                absolute
-                wTransparent
-              />
-            </>
-          ) : (
-            <Ionicons name="person" size={size * 0.5} color={colors.medium} />
-          )}
-          {award && (
+        <View style={{ width: size, height: size, alignItems: "center" }}>
+          <View
+            style={[
+              styles.avatar,
+              {
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                borderWidth: border?.width ?? 0,
+                borderColor: border?.color ?? "transparent",
+              },
+              imageStyle,
+            ]}
+          >
+            {source ? (
+              <>
+                <Image
+                  source={sourceObj}
+                  onLoad={handleImageLoad}
+                  onLoadEnd={handleImageLoad}
+                  style={styles.image}
+                />
+                <LottieAnimator
+                  visible={!loaded}
+                  name="avatar"
+                  loop={true}
+                  size={size * 1.5}
+                  absolute
+                  wTransparent
+                />
+              </>
+            ) : (
+              <Ionicons name="person" size={size * 0.5} color={T.faint} />
+            )}
+            <LottieAnimator visible={isLoading} absolute wTransparent />
+          </View>
+
+          {/* Medal (outside the clipped circle) */}
+          {Boolean(award) && (
             <View style={[styles.award, { bottom: -(size / 1.8) / 2 }]}>
               <Image
                 source={awardSrc}
@@ -606,14 +785,24 @@ const Avatar = ({
               />
             </View>
           )}
+
+          {/* Edit badge — small pencil-yellow chip on the bottom-right */}
           {Boolean(imagePicker) && (
-            <View style={styles.edit}>
-              <Feather name="edit" size={18} color={colors.primary} />
+            <View
+              style={[
+                styles.edit,
+                {
+                  width: badge,
+                  height: badge,
+                  borderRadius: badge / 2,
+                },
+              ]}
+            >
+              <Ionicons name="pencil" size={badge * 0.5} color={T.ink} />
             </View>
           )}
-          <LottieAnimator visible={isLoading} absolute wTransparent />
         </View>
-      </Pressable>
+      </JambPressable>
 
       {name && (
         <AppText
@@ -621,24 +810,28 @@ const Avatar = ({
           fontWeight={textFontweight}
           numberOfLines={numberOfLines}
           ellipsizeMode="tail"
-          style={{
-            ...styles.name,
-            marginLeft: horizontal ? 10 : 0,
-            marginTop: horizontal ? 0 : 10,
-            maxWidth: width * 0.3,
-            ...textStyle,
-          }}
+          style={[
+            styles.name,
+            {
+              marginLeft: horizontal ? 10 : 0,
+              marginTop: horizontal ? 0 : 10,
+              maxWidth: width * 0.3,
+            },
+            textStyle,
+          ]}
         >
           {name}
         </AppText>
       )}
 
-      <ProfileModal
-        visible={modal}
-        data={data}
-        userID={userID}
-        setVisible={setModal}
-      />
+      {Boolean(userID) && (
+        <ProfileModal
+          visible={modal}
+          data={data}
+          userID={userID}
+          setVisible={setModal}
+        />
+      )}
     </View>
   );
 };
@@ -649,101 +842,173 @@ export default Avatar;
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  // ── Avatar component ──────────────────────────────────────────────────────
-  award: {
-    position: "absolute",
-    zIndex: 100,
-  },
-  edit: {
-    position: "absolute",
-    backgroundColor: colors.unchange,
-    borderRadius: 100,
-    opacity: 0.6,
-    padding: 10,
-    zIndex: 5,
-  },
-  container: {
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  avatar: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.extraLight,
+    backgroundColor: T.paper,
+    overflow: "hidden",
   },
   image: {
     width: "100%",
     height: "100%",
     borderRadius: 1000,
   },
+  award: {
+    position: "absolute",
+    zIndex: 100,
+  },
+  edit: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    zIndex: 5,
+    backgroundColor: T.yellow,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.yellowDark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   name: {
     textAlign: "center",
     textTransform: "capitalize",
+    color: T.ink,
   },
 
-  // ── RenderUserDetail component ────────────────────────────────────────────
-  user: {
-    width: width * 0.95,
-    backgroundColor: colors.lightly,
-    borderRadius: 25,
-    minHeight: height * 0.4,
-    alignItems: "center",
-    paddingTop: 35,
-    paddingBottom: 15,
-    boxShadow: `2px 8px 12px ${colors.primary}25`,
+  // ── Profile sheet ─────────────────────────────────────────────────────────
+  sheet: {
+    alignSelf: "center",
+    backgroundColor: T.paper,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderBottomWidth: 6,
+    borderColor: T.line,
+    overflow: "hidden",
   },
-  schoolName: {
-    width: "90%",
-    marginTop: 10,
-    textAlign: "center",
-    textTransform: "capitalize",
+  banner: {
+    height: 112,
+    backgroundColor: T.board,
+    borderBottomWidth: 5,
+    borderBottomColor: T.boardDark,
   },
-  addressTxt: {
-    width: "90%",
-    textAlign: "center",
-    marginTop: 5,
-    textTransform: "capitalize",
-  },
-  accountType: {
-    color: colors.primaryDeeper,
-    backgroundColor: colors.extraLight,
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 80,
-    marginTop: 10,
-    textTransform: "capitalize",
-  },
-  rankBadge: {
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.primaryLighter,
-    backgroundColor: colors.primaryLighter + "25",
-  },
-  statsGrid: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    marginTop: 14,
-    marginHorizontal: 20,
-    paddingVertical: 4,
-    boxShadow: `2px 8px 12px ${colors.primary}25`,
-  },
-  statDivider: {
-    width: 0.5,
-    height: 28,
-    backgroundColor: colors.extraLight,
-  },
-  btns: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-evenly",
-    marginTop: 25,
-  },
-  close: {
+  frame: {
     position: "absolute",
-    right: 0,
-    top: 0,
-    padding: 20,
+    top: 8,
+    left: 8,
+    right: 8,
+    bottom: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "rgba(255,248,231,0.22)",
+  },
+  doodle: { position: "absolute", color: "rgba(255,248,231,0.07)" },
+  tag: {
+    position: "absolute",
+    top: 18,
+    left: 20,
+    backgroundColor: "rgba(255,199,54,0.18)",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  closeWrap: { position: "absolute", top: 12, right: 12, zIndex: 5 },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,248,231,0.12)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,248,231,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarWrap: {
+    alignItems: "center",
+    marginTop: -(PROFILE_AVATAR / 2),
+    zIndex: 10,
+  },
+  body: {
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+  },
+  name: {
+    width: "100%",
+    marginTop: 10,
+    textAlign: "center",
+    textTransform: "capitalize",
+    color: T.ink,
+    lineHeight: 28,
+  },
+  username: {
+    textAlign: "center",
+    color: T.sub,
+    marginTop: 1,
+  },
+  chips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 12,
+  },
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  statsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 16,
+  },
+  tile: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+  },
+  tileIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // ── About ─────────────────────────────────────────────────────────────────
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: T.line,
+    borderStyle: "dashed",
+  },
+  infoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  actions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+  },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
 });

@@ -10,7 +10,6 @@ import AppButton from "../AppButton";
 import LottieAnimator from "../LottieAnimator";
 import PromptModal from "../PromptModal";
 import QuestionDisplay from "../QuestionDisplay";
-import { estimatedMinutes, totalAssessmentQuestions } from "../../helpers/jambConfig";
 import { T } from "./JambTheme";
 import { Chip } from "./JambUI";
 import uuid from "react-native-uuid";
@@ -31,18 +30,45 @@ const CHIP_TONES = [
   { color: T.purpleDark, bg: T.purpleSoft },
 ];
 
-const PreparingLoader = ({ selected, onCancel }) => {
-  const total = totalAssessmentQuestions(selected);
+/**
+ * Question counts come from the server (summary.exam), never from constants in the app:
+ * total = sum of the paper size of the subjects being practised now.
+ */
+const examTotals = (selected, exam) => {
+  const per = exam?.perSubject;
+  if (!per) return null;
+  const counts = selected.map((s) => per[s._id]);
+  if (counts.some((n) => typeof n !== "number")) return null;
+  const total = counts.reduce((a, b) => a + b, 0);
+  const minutes = Math.max(
+    Math.ceil((total * (exam.secondsPerQuestion ?? 0)) / 60),
+    1,
+  );
+  return { total, minutes };
+};
+
+const PreparingLoader = ({ selected, exam, onCancel }) => {
+  const info = examTotals(selected, exam);
 
   return (
-    <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)} style={styles.loader}>
+    <Animated.View
+      entering={FadeIn.duration(300)}
+      exiting={FadeOut.duration(200)}
+      style={styles.loader}
+    >
       <LottieAnimator size={110} />
 
-      <AppText fontWeight="black" size={22} style={{ color: T.ink, marginTop: 20 }}>
+      <AppText
+        fontWeight="black"
+        size={22}
+        style={{ color: T.ink, marginTop: 20 }}
+      >
         Sharpening your pencils…
       </AppText>
       <AppText fontWeight="medium" size={14} style={styles.loaderSub}>
-        {total} questions • about {Math.max(estimatedMinutes(total), 1)} min
+        {info
+          ? `${info.total} questions • about ${info.minutes} min`
+          : "Getting your questions ready…"}
       </AppText>
       <View style={styles.loaderSubjects}>
         {selected.map((s, i) => (
@@ -56,7 +82,12 @@ const PreparingLoader = ({ selected, onCancel }) => {
         ))}
       </View>
 
-      <AppButton title="Cancel" type="white" onPress={onCancel} contStyle={{ marginTop: 28 }} />
+      <AppButton
+        title="Cancel"
+        type="white"
+        onPress={onCancel}
+        contStyle={{ marginTop: 28 }}
+      />
     </Animated.View>
   );
 };
@@ -68,7 +99,7 @@ const PreparingLoader = ({ selected, onCancel }) => {
  *   onFinish(session, { attemptId, idempotencyKey, durationMs })
  * Non-retryable load errors are reported through onError(e).
  */
-const JambQuizStep = ({ selected = [], onFinish, onQuit, onError }) => {
+const JambQuizStep = ({ selected = [], exam, onFinish, onQuit, onError }) => {
   const [bank, setBank] = useState(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0); // bump to retry
@@ -127,24 +158,45 @@ const JambQuizStep = ({ selected = [], onFinish, onQuit, onError }) => {
         <View style={styles.errIcon}>
           <Ionicons name="cloud-offline" size={40} color={T.coralDark} />
         </View>
-        <AppText fontWeight="black" size={19} style={{ marginTop: 18, color: T.ink }}>
+        <AppText
+          fontWeight="black"
+          size={19}
+          style={{ marginTop: 18, color: T.ink }}
+        >
           Couldn't load the assessment
         </AppText>
-        <AppText fontWeight="medium" size={13} style={{ color: T.sub, marginTop: 6, textAlign: "center" }}>
+        <AppText
+          fontWeight="medium"
+          size={13}
+          style={{ color: T.sub, marginTop: 6, textAlign: "center" }}
+        >
           Check your connection and try again.
         </AppText>
-        <AppButton title="Try Again" onPress={() => setAttempt((n) => n + 1)} contStyle={{ marginTop: 20 }} />
-        <AppButton title="Go Back" type="white" onPress={onQuit} contStyle={{ marginTop: 10 }} />
+        <AppButton
+          title="Try Again"
+          onPress={() => setAttempt((n) => n + 1)}
+          contStyle={{ marginTop: 20 }}
+        />
+        <AppButton
+          title="Go Back"
+          type="white"
+          onPress={onQuit}
+          contStyle={{ marginTop: 10 }}
+        />
       </View>
     );
   }
 
-  if (!bank) return <PreparingLoader selected={selected} onCancel={onQuit} />;
+  if (!bank)
+    return (
+      <PreparingLoader selected={selected} exam={exam} onCancel={onQuit} />
+    );
 
   return (
     <Animated.View entering={FadeIn.duration(350)} style={{ flex: 1 }}>
       <QuestionDisplay
         questionBank={bank}
+        penaltyRate={exam?.penaltyRate ?? null}
         sessionId={null}
         handleQuit={() => setPrompt({ vis: true, data: QUIT_PROMPT })}
         setQuizSession={(s) => {

@@ -94,6 +94,7 @@ const QuestionDisplay = ({
   qColor = colors.black,
   subjColor = colors.primaryDeep,
   sessionId,
+  penaltyRate = null, // JAMB: fraction of the question point lost on a wrong/skipped answer
 }) => {
   const timerRef = useRef(null);
   const isMultiplayer = Boolean(sessionId);
@@ -249,7 +250,11 @@ const QuestionDisplay = ({
         vis: true,
         msg: "Incorrect!\nBetter luck next time",
         type: "failed",
-        point: formatPoints(-2),
+        point: formatPoints(
+          penaltyRate != null
+            ? -Number(((currentQuestion.point || 0) * penaltyRate).toFixed(2))
+            : -2,
+        ),
         popId: nanoid(),
       });
       if (isMultiplayer) {
@@ -342,11 +347,15 @@ const QuestionDisplay = ({
     <>
       <View style={styles.questions}>
         <View style={styles.header}>
-          <AppText size="large" style={{color: qColor}} fontWeight="heavy">
+          <AppText size="large" style={{ color: qColor }} fontWeight="heavy">
             {active.current}/{totalQuestions}
           </AppText>
 
-          <AppText style={{...styles.subjectTxt, color: subjColor}} size="xxlarge" fontWeight="black">
+          <AppText
+            style={{ ...styles.subjectTxt, color: subjColor }}
+            size="xxlarge"
+            fontWeight="black"
+          >
             {questionStore?.[active.subject]?.subject?.name}
           </AppText>
 

@@ -300,6 +300,7 @@ const JambPredictorScreen = () => {
         return (
           <JambQuizStep
             selected={practice}
+            exam={summary?.exam}
             onFinish={handleFinish}
             onQuit={() => go("overview")}
             onError={handleApiError}

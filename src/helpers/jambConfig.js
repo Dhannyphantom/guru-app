@@ -95,11 +95,51 @@ export const estimatedMinutes = (totalQuestions) =>
 
 // ─── Achievement levels (PLACEHOLDERS until the backend defines them) ────────
 export const LEVELS = [
-  { key: "beginner", name: "Beginner", min: 0, max: 499, icon: "rocket", color: "#2E9B57", bg: "#E0F2E1" },
-  { key: "amateur", name: "Amateur", min: 500, max: 999, icon: "medal", color: "#E0A000", bg: "#FFF3CF" },
-  { key: "professional", name: "Professional", min: 1000, max: 1999, icon: "ribbon", color: "#2F7DE1", bg: "#E1EEFD" },
-  { key: "expert", name: "Expert", min: 2000, max: 3999, icon: "star", color: "#E0623A", bg: "#FDE7DE" },
-  { key: "ultimate", name: "Ultimate", min: 4000, max: null, icon: "diamond", color: "#7C4DDB", bg: "#EBE2FB" },
+  {
+    key: "beginner",
+    name: "Beginner",
+    min: 0,
+    max: 499,
+    icon: "rocket",
+    color: "#2E9B57",
+    bg: "#E0F2E1",
+  },
+  {
+    key: "amateur",
+    name: "Amateur",
+    min: 500,
+    max: 999,
+    icon: "medal",
+    color: "#E0A000",
+    bg: "#FFF3CF",
+  },
+  {
+    key: "professional",
+    name: "Professional",
+    min: 1000,
+    max: 1999,
+    icon: "ribbon",
+    color: "#2F7DE1",
+    bg: "#E1EEFD",
+  },
+  {
+    key: "expert",
+    name: "Expert",
+    min: 2000,
+    max: 3999,
+    icon: "star",
+    color: "#E0623A",
+    bg: "#FDE7DE",
+  },
+  {
+    key: "ultimate",
+    name: "Ultimate",
+    min: 4000,
+    max: null,
+    icon: "diamond",
+    color: "#7C4DDB",
+    bg: "#EBE2FB",
+  },
 ];
 
 export const getLevelInfo = (correct = 0) => {
@@ -119,12 +159,16 @@ export const getLevelInfo = (correct = 0) => {
 };
 
 export const levelRangeLabel = (l) =>
-  l.max ? `${l.min.toLocaleString()} – ${l.max.toLocaleString()}` : `${l.min.toLocaleString()}+`;
+  l.max
+    ? `${l.min.toLocaleString()} – ${l.max.toLocaleString()}`
+    : `${l.min.toLocaleString()}+`;
 
 // ─── Rating ──────────────────────────────────────────────────────────────────
 export const getRating = (percent) => {
-  if (percent >= 80) return { label: "Excellent", color: "#136C43", bg: "#D6F0DF" };
-  if (percent >= 65) return { label: "Very Good", color: "#1E8E55", bg: "#DDF3E4" };
+  if (percent >= 80)
+    return { label: "Excellent", color: "#136C43", bg: "#D6F0DF" };
+  if (percent >= 65)
+    return { label: "Very Good", color: "#1E8E55", bg: "#DDF3E4" };
   if (percent >= 50) return { label: "Good", color: "#2E9B57", bg: "#E4F4D9" };
   if (percent >= 40) return { label: "Fair", color: "#B7791F", bg: "#FFF1CC" };
   return { label: "Needs Work", color: "#C0392B", bg: "#FDECEA" };
@@ -143,7 +187,10 @@ export const buildInsights = (subjects = []) => {
   const strongest = sorted[0];
   const weakest = sorted[sorted.length - 1];
 
-  let focus = sorted.filter((s) => s.percent < 65).reverse().slice(0, 2);
+  let focus = sorted
+    .filter((s) => s.percent < 65)
+    .reverse()
+    .slice(0, 2);
   if (!focus.length) focus = [weakest];
 
   const nextStep =

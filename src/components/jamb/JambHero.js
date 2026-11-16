@@ -125,15 +125,7 @@ const JambHero = ({
             Know your score, discover your weaknesses and get a personalised
             study plan to improve.
           </AppText>
-          {hasAvg && (
-            <Chip
-              icon="trending-up"
-              label={`Avg ${summary.average}/${JAMB_TOTAL} · ${summary.rounds} round${summary.rounds === 1 ? "" : "s"}`}
-              color={T.ink}
-              bg={T.chalk}
-              style={{ marginTop: 9 }}
-            />
-          )}
+
           {!isResult && cooldown.active && (
             <Chip
               icon="hourglass"
