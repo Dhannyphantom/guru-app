@@ -1241,83 +1241,97 @@ const describeTransaction = (tx) => {
   };
 };
 
-const SubHistory = ({ view, index = 0 }) => {
+const SubHistory = ({ view }) => {
   if (!view) return null;
   const { tone } = view;
 
-  const meta = [view.description, ...view.lines].filter(Boolean).join(" · ");
-  const when = [view.date, view.reference ? `ID ${view.reference}` : null]
-    .filter(Boolean)
-    .join(" · ");
-  const hasPills = Boolean(view.detail || view.status);
-
   return (
-    <Animated.View
-      entering={FadeInDown.duration(240).delay(Math.min(index, 6) * 40)}
-      style={[styles.tx, { borderColor: tone.border }]}
+    <View
+      style={[styles.subHistory, { borderWidth: 2, borderColor: tone.border }]}
     >
-      <View style={[styles.txIcon, { backgroundColor: tone.badge }]}>
-        <MaterialCommunityIcons name={view.icon} color={tone.icon} size={19} />
+      <View style={styles.subHistoryIcon}>
+        <MaterialCommunityIcons
+          name={view.icon}
+          color={tone.icon}
+          size={15}
+          style={{
+            backgroundColor: tone.badge,
+            alignSelf: "center",
+            borderRadius: 50,
+            padding: 5,
+            boxShadow: `2px 8px 12px ${colors.primary}25`,
+          }}
+        />
       </View>
-
-      <View style={styles.txMain}>
-        <AppText fontWeight="bold" numberOfLines={1}>
+      <View style={styles.subHistoryContent}>
+        <AppText
+          fontWeight="black"
+          size={"large"}
+          style={{ color: colors.medium }}
+        >
           {view.title}
         </AppText>
-        {meta ? (
+        {view.description ? (
           <AppText
             fontWeight="medium"
-            size="small"
-            numberOfLines={2}
-            style={styles.txMeta}
+            size={"medium"}
+            style={{ color: colors.medium }}
           >
-            {meta}
+            {view.description}
           </AppText>
         ) : null}
-        {(hasPills || when) && (
-          <View style={styles.txBottom}>
-            {view.detail ? (
-              <View style={[styles.txPill, { backgroundColor: tone.border }]}>
-                <AppText
-                  fontWeight="bold"
-                  size={10.5}
-                  style={{ color: tone.text }}
-                >
-                  {view.detail}
-                </AppText>
-              </View>
-            ) : null}
-            {view.status ? (
-              <View
-                style={[
-                  styles.txPill,
-                  { backgroundColor: view.status.color + "1A" },
-                ]}
-              >
-                <AppText
-                  fontWeight="bold"
-                  size={10.5}
-                  style={{ color: view.status.color }}
-                >
-                  {view.status.label}
-                </AppText>
-              </View>
-            ) : null}
-            {when ? (
-              <AppText numberOfLines={1} size={11} style={styles.txWhen}>
-                {when}
-              </AppText>
-            ) : null}
-          </View>
-        )}
+        {view.lines.map((line, i) => (
+          <AppText
+            key={i}
+            size={"small"}
+            style={{ color: colors.medium, marginTop: 2 }}
+          >
+            {line}
+          </AppText>
+        ))}
+        {view.amountText ? (
+          <AppText
+            style={{ marginTop: 4, color: tone.text }}
+            fontWeight="heavy"
+            size={"xlarge"}
+          >
+            {view.amountText}
+          </AppText>
+        ) : null}
       </View>
-
-      {view.amountText ? (
-        <AppText fontWeight="heavy" size="large" style={{ color: tone.text }}>
-          {view.amountText}
-        </AppText>
-      ) : null}
-    </Animated.View>
+      <View style={styles.subHistoryDetail}>
+        {view.detail ? (
+          <AppText fontWeight="bold" size={"small"}>
+            {" "}
+            {view.detail}{" "}
+          </AppText>
+        ) : null}
+        {view.status ? (
+          <AppText
+            fontWeight="bold"
+            size={"small"}
+            style={{ color: view.status.color, marginTop: 4 }}
+          >
+            {view.status.label}
+          </AppText>
+        ) : null}
+        {view.reference ? (
+          <AppText
+            numberOfLines={1}
+            style={{ marginTop: 6, maxWidth: width * 0.2 }}
+            size={"small"}
+          >
+            <AppText fontWeight="bold">ID: </AppText>
+            {view.reference}
+          </AppText>
+        ) : null}
+        {view.date ? (
+          <AppText style={{ marginTop: 10 }} fontWeight="thin" size={"small"}>
+            {view.date}
+          </AppText>
+        ) : null}
+      </View>
+    </View>
   );
 };
 
@@ -1642,9 +1656,7 @@ const SubscriptionScreen = () => {
               }
             />
           )}
-          renderItem={({ item, index }) => (
-            <SubHistory view={item.view} index={index} />
-          )}
+          renderItem={({ item }) => <SubHistory view={item.view} />}
         />
       ) : (
         <ScrollView
@@ -2156,52 +2168,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 2,
   },
-  tx: {
+  subHistory: {
     flexDirection: "row",
-    alignItems: "center",
-    columnGap: 10,
     width: width * 0.92,
-    alignSelf: "center",
-    marginBottom: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderBottomWidth: 3,
-    backgroundColor: colors.white,
-  },
-  txIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  txMain: {
-    flex: 1,
-  },
-  txMeta: {
-    color: colors.medium,
-    marginTop: 1,
-  },
-  txBottom: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    columnGap: 6,
-    rowGap: 3,
-    marginTop: 4,
-  },
-  txPill: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    padding: 12,
     borderRadius: 10,
+    boxShadow: `2px 8px 12px ${colors.primary}25`,
+    alignSelf: "center",
+    marginBottom: 10,
+    backgroundColor: colors.lightly,
+    paddingLeft: 1,
   },
-  txWhen: {
-    flexShrink: 1,
-    color: colors.medium,
-    opacity: 0.8,
+  subHistoryIcon: {
+    margin: 15,
+    justifyContent: "center",
+    alignItems: "center",
   },
+  subHistoryContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  subHistoryDetail: {},
 
   noSchool: {
     alignItems: "center",
