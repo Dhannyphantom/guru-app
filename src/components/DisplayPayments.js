@@ -1,255 +1,271 @@
-import { Dimensions, StyleSheet, View } from "react-native";
-
-import AppText from "../components/AppText";
-import {
-  selectUser,
-  useVerifySubscriptionMutation,
-} from "../context/usersSlice";
+import { useCallback, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { PayWithFlutterwave } from "flutterwave-react-native";
 import { useSelector } from "react-redux";
-import { useState } from "react";
-import { getFullName, hasCompletedProfile } from "../helpers/helperFunctions";
-import colors from "../helpers/colors";
-import Animated, { LinearTransition } from "react-native-reanimated";
-import {
-  enterAnimOther,
-  exitingAnim,
-  subDropdown,
-  subSchoolDrop,
-} from "../helpers/dataStore";
-import { FormikInput } from "./FormInput";
-import PopMessage from "./PopMessage";
-import LottieAnimator from "./LottieAnimator";
-import AppButton from "./AppButton";
-import { Formik } from "formik";
-import { subInitials, subUserSchema } from "../helpers/yupSchemas";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-const { width, height } = Dimensions.get("screen");
+import { selectUser } from "../context/usersSlice";
+import { useRouter } from "expo-router";
+import { getFullName, hasCompletedProfile } from "../helpers/helperFunctions";
+import { subDropdown, subSchoolDrop } from "../helpers/dataStore";
+import {
+  FLW_PUBLIC_KEY,
+  HERO,
+  PAY_CURRENCY,
+  PAY_OPTIONS,
+  PERKS,
+  PROFILE_ROUTE,
+} from "../helpers/payConfig";
+import PopMessage from "./PopMessage";
 
+import Animated from "react-native-reanimated";
+import { P } from "./payment/PayTheme";
+import { LAYOUT } from "./payment/PayMotion";
+import {
+  PayButton,
+  PayText,
+  PressScale,
+  SectionTitle,
+  formatMoney,
+} from "./payment/PayUI";
+import { buildPlans, pickDefaultPlan } from "./payment/payPlans";
+import usePaymentFlow from "./payment/usePaymentFlow";
+import PayHero from "./payment/PayHero";
+import PlanCard from "./payment/PlanCard";
+import PerksList from "./payment/PerksList";
+import PayTrust from "./payment/PayTrust";
+import PayCheckoutBar from "./payment/PayCheckoutBar";
+import PaySuccess from "./payment/PaySuccess";
+import PayRecovery from "./payment/PayRecovery";
+import PayVerifying from "./payment/PayVerifying";
+import PayProfileGate from "./payment/PayProfileGate";
+import useTabBarOffset from "./payment/useTabBarOffset";
+
+/**
+ * Subscription / payment flow.
+ *
+ *   hero  →  pick a plan  →  perks  →  trust & help  →  [sticky Pay bar]
+ *                                  ↓ Flutterwave
+ *                       verifying overlay → success celebration
+ *                                         ↘ recovery (couldn't confirm)
+ *
+ * Props are unchanged: { hideModal(isSuccess), data: { type, schoolId, data } }
+ */
 const DisplayPayments = ({ hideModal, data }) => {
-  const [verifySubscription, { isLoading, data: subbed }] =
-    useVerifySubscriptionMutation();
-
-  const isSchool = data?.type === "school";
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const tabOffset = useTabBarOffset();
   const user = useSelector(selectUser);
 
-  const [bools, setBools] = useState({
-    loading: true,
-    status: "pending",
-    payload: null,
-    saveInfo: false,
-    useSavedInfo: false,
-  });
-  const [popper, setPopper] = useState({ vis: false });
-
-  // const webViewRef = useRef();
-  const isSuccess = bools.status === "success";
-  const isPending = bools.status === "pending";
+  // Block payment until the profile is complete
   const profile = hasCompletedProfile(user);
+  const profileOk = Boolean(profile?.bool);
+  const profileMsg =
+    typeof profile?.msg === "string"
+      ? profile.msg
+      : typeof profile?.message === "string"
+        ? profile.message
+        : "";
+  const goCompleteProfile = useCallback(() => {
+    if (PROFILE_ROUTE) router.push(PROFILE_ROUTE);
+    else hideModal?.(false);
+  }, [router, hideModal]);
 
-  /* An example function called when transaction is completed successfully or canceled */
-  // In DisplayPayments.jsx - replace handleOnRedirect
-  const handleOnRedirect = async (response) => {
-    try {
-      // Even on "cancelled", flutterwave sometimes fires this with a tx_ref
-      // Always attempt verification if we have a tx_ref
-      if (response?.tx_ref) {
-        const result = await verifySubscription({
-          transaction_id: response.transaction_id ?? null,
-          tx_ref: response.tx_ref,
-          status: response.status,
-        }).unwrap();
+  const isSchool = data?.type === "school";
+  const copy = isSchool ? HERO.school : HERO.student;
+  const perks = isSchool ? PERKS.school : PERKS.student;
 
-        if (result.success) {
-          setBools({ ...bools, status: "success" });
-          return;
-        }
-      }
+  const plans = useMemo(
+    () => buildPlans(isSchool ? subSchoolDrop : subDropdown),
+    [isSchool],
+  );
+  const [selectedId, setSelectedId] = useState(
+    () => pickDefaultPlan(plans)?.id ?? null,
+  );
+  const plan = plans.find((p) => p.id === selectedId) ?? null;
 
-      if (response?.status === "cancelled" && !response?.transaction_id) {
-        setPopper({ vis: true, type: "info", msg: "Payment cancelled." });
-      }
-    } catch (error) {
-      // Payment may have succeeded server-side even if redirect failed
-      // Show manual recovery UI instead of just "failed"
-      setPopper({
-        vis: true,
-        type: "info",
-        msg: "Payment status unclear. If you were debited, use 'Recover Payment' below.",
-      });
-      setBools({ ...bools, status: "pending", showRecovery: true });
-    }
-  };
+  // Show only the first few plans; the rest sit behind a "show more" toggle.
+  // If the pre-selected plan is beyond the preview, start expanded so it's visible.
+  const PREVIEW_COUNT = 3;
+  const [showAll, setShowAll] = useState(
+    () => plans.findIndex((p) => p.id === selectedId) >= PREVIEW_COUNT,
+  );
+  const hiddenCount = Math.max(plans.length - PREVIEW_COUNT, 0);
+  const visiblePlans = showAll ? plans : plans.slice(0, PREVIEW_COUNT);
 
-  /* An example function to generate a random transaction reference */
-  const generateTransactionRef = (length) => {
-    let result = "";
-    const characters =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    const charactersLength = characters.length;
+  const [popper, setPopper] = useState({ vis: false });
+  const notify = useCallback(
+    (type, msg) => setPopper({ vis: true, type, msg }),
+    [],
+  );
 
-    for (let i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
+  const { status, txRef, receipt, handleRedirect, retryVerify, startOver } =
+    usePaymentFlow({ plan, notify });
 
-    return `flw_tx_ref_${result}`;
-  };
+  const fullName = getFullName(user);
+  const schoolId = isSchool ? (data?.schoolId ?? data?.data?._id) : "";
+
+  // Flutterwave reads these when the button is pressed. tx_ref is stable per
+  // attempt (and re-issued by the hook after a cancel / failure).
+  const options = useMemo(() => {
+    if (!plan) return null;
+    return {
+      tx_ref: txRef,
+      authorization: FLW_PUBLIC_KEY,
+      customer: { email: user?.email, name: fullName },
+      amount: plan.amount,
+      currency: PAY_CURRENCY,
+      payment_options: PAY_OPTIONS,
+      meta: {
+        account_type: data?.type,
+        name: fullName,
+        days: plan.days,
+        schoolId: schoolId ?? "",
+      },
+    };
+  }, [plan, txRef, user?.email, fullName, data?.type, schoolId]);
+
+  // ─── Success ───────────────────────────────────────────────────────────────
+  if (status === "success") {
+    return (
+      <View style={styles.root}>
+        <PaySuccess
+          receipt={receipt}
+          userName={fullName}
+          isSchool={isSchool}
+          onDone={() => hideModal?.(true)}
+          bottomOffset={tabOffset}
+        />
+        <PopMessage popData={popper} setPopData={setPopper} />
+      </View>
+    );
+  }
+
+  // ─── Choose / pay / recover ────────────────────────────────────────────────
+  const inRecovery = status === "recovery";
 
   return (
-    <View style={styles.webViewContainer}>
-      <Formik
-        initialValues={subInitials}
-        validationSchema={subUserSchema}
-        onSubmit={() => {}}
-      >
-        {({ values }) => {
-          const amount = Number(values["sub_amount"]?.value ?? 0);
-
-          return (
-            <View style={styles.main}>
-              {!isSuccess && (
-                <AppText size={"large"} fontWeight="heavy" style={styles.title}>
-                  Choose {isSchool ? "School" : "Student"} Payment Plan
-                </AppText>
-              )}
-
-              {isPending && (
-                <Animated.View
-                  entering={profile.bool && enterAnimOther}
-                  exiting={profile.bool && exitingAnim}
-                >
-                  <FormikInput
-                    headerText={"Subscription amount"}
-                    name={"sub_amount"}
-                    data={isSchool ? subSchoolDrop : subDropdown}
-                    type="dropdown"
-                    placeholder="Select subscription plan"
-                  />
-                </Animated.View>
-              )}
-
-              {isSuccess && (
-                <Animated.View
-                  entering={enterAnimOther}
-                  style={{ alignItems: "center" }}
-                >
-                  <LottieAnimator
-                    name="payment"
-                    style={{ width: width * 0.7, height: height * 0.4 }}
-                  />
-                  <AppText
-                    fontWeight="black"
-                    size={"xxlarge"}
-                    style={{ color: colors.greenDark }}
-                  >
-                    Subcription Successful
-                  </AppText>
-                  <AppText
-                    fontWeight="light"
-                    style={{
-                      textAlign: "center",
-                      marginTop: 10,
-                      marginBottom: 40,
-                    }}
-                  >
-                    You have successfully added a {subbed?.data?.days || "N"}{" "}
-                    days subscription to your account. Congratulations!
-                  </AppText>
-                </Animated.View>
-              )}
-
-              <Animated.View
-                layout={LinearTransition.springify()}
-                style={styles.formBtn}
-              >
-                {!isSuccess && Boolean(values["sub_amount"]) && (
-                  <>
-                    <PayWithFlutterwave
-                      onRedirect={handleOnRedirect}
-                      options={{
-                        tx_ref: generateTransactionRef(10),
-                        authorization:
-                          "FLWPUBK-2b39b5e1580ac31aa7301fd6a66e48e5-X",
-                        customer: {
-                          email: user.email,
-                          name: getFullName(user),
-                        },
-                        amount,
-                        currency: "NGN",
-                        payment_options: "card,banktransfer,ussd",
-                        meta: {
-                          account_type: data?.type,
-                          name: getFullName(user),
-                          days: values["sub_amount"]?.days,
-                          schoolId: isSchool
-                            ? data?.schoolId ?? data?.data?._id
-                            : "",
-                        },
-                      }}
-                      customButton={(props) => (
-                        <AppButton
-                          title={"Subscribe"}
-                          icon={{ name: "wallet", left: true }}
-                          style={styles.paymentButton}
-                          onPress={props.onPress}
-                          isBusy={props.isInitializing}
-                          disabled={props.disabled}
-                        />
-                      )}
-                    />
-                  </>
-                )}
-
-                <AppButton
-                  title={isSuccess ? "Finish Session" : "Cancel Session"}
-                  type={isSuccess ? "accent" : "warn"}
-                  onPress={() => hideModal(isSuccess)}
-                  contStyle={{ marginHorizontal: 20 }}
-                />
-              </Animated.View>
-              <LottieAnimator visible={isLoading} absolute />
-            </View>
-          );
+    <View style={styles.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingBottom: 150 + (tabOffset || insets.bottom),
         }}
-      </Formik>
-      {/* Payment Info Tips — outside the white main view */}
-      <View style={styles.infoSection}>
-        {[
-          {
-            icon: "card-outline",
-            title: "Card not working?",
-            desc: "Switch to bank transfer or USSD from the payment options screen.",
-          },
-          {
-            icon: "shield-checkmark-outline",
-            title: "Secure & encrypted",
-            desc: "Your payment details are never stored on our servers.",
-          },
-          {
-            icon: "refresh-outline",
-            title: "Debited but not activated?",
-            desc: "Go to Profile → Settings & More → Contact Us and open a Payment & Billing ticket. We'll get back to you within minutes.",
-          },
-        ].map((tip, i) => (
-          <View key={i} style={styles.tipRow}>
-            <View style={styles.tipIconWrap}>
-              <Ionicons name={tip.icon} size={16} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppText fontWeight="semibold" size="small">
-                {tip.title}
-              </AppText>
-              <AppText
-                size="xsmall"
-                style={{ color: colors.medium, marginTop: 2 }}
-              >
-                {tip.desc}
-              </AppText>
-            </View>
+      >
+        <PayHero title={copy.title} sub={copy.sub} pills={copy.pills} />
+
+        {!profileOk && !inRecovery && (
+          <PayProfileGate
+            message={profileMsg}
+            onPress={goCompleteProfile}
+            buttonLabel={PROFILE_ROUTE ? "Complete profile" : "Go back"}
+          />
+        )}
+
+        {inRecovery ? (
+          <PayRecovery onRetry={retryVerify} onStartOver={startOver} />
+        ) : (
+          <View style={styles.section}>
+            <SectionTitle
+              icon="pricetags"
+              title={isSchool ? "Choose a school plan" : "Choose your plan"}
+              sub="Pay once. No auto-renewal."
+            />
+
+            {plans.length > 0 ? (
+              <>
+                {visiblePlans.map((p, i) => (
+                  <PlanCard
+                    key={p.id}
+                    plan={p}
+                    index={i < PREVIEW_COUNT ? i : i - PREVIEW_COUNT}
+                    selected={p.id === selectedId}
+                    onSelect={setSelectedId}
+                  />
+                ))}
+
+                {hiddenCount > 0 && (
+                  <Animated.View layout={LAYOUT}>
+                    <PressScale
+                      onPress={() => setShowAll((v) => !v)}
+                      scaleTo={0.98}
+                      contentStyle={styles.moreBtn}
+                      accessibilityRole="button"
+                    >
+                      <Ionicons
+                        name={showAll ? "chevron-up" : "sparkles"}
+                        size={16}
+                        color={P.brandDark}
+                      />
+                      <PayText
+                        fontWeight="black"
+                        size={13}
+                        style={{ color: P.brandDark, marginLeft: 8 }}
+                      >
+                        {showAll
+                          ? "Show fewer plans"
+                          : `Explore ${hiddenCount} more ${
+                              hiddenCount === 1 ? "plan" : "plans"
+                            }`}
+                      </PayText>
+                    </PressScale>
+                  </Animated.View>
+                )}
+              </>
+            ) : (
+              <View style={styles.empty}>
+                <Ionicons name="alert-circle" size={22} color={P.coralDark} />
+                <PayText
+                  fontWeight="semibold"
+                  size={13}
+                  style={{ color: P.sub, marginLeft: 10, flex: 1 }}
+                >
+                  No subscription plans are available right now. Please check
+                  back shortly.
+                </PayText>
+              </View>
+            )}
           </View>
-        ))}
-      </View>
+        )}
+
+        <PerksList perks={perks} />
+        <PayTrust />
+      </ScrollView>
+
+      {!inRecovery && (
+        <PayCheckoutBar plan={plan} bottomOffset={tabOffset}>
+          {!profileOk ? (
+            <PayButton
+              title={PROFILE_ROUTE ? "Finish profile" : "Profile incomplete"}
+              icon="person"
+              variant="brand"
+              onPress={goCompleteProfile}
+            />
+          ) : plan && options ? (
+            <PayWithFlutterwave
+              onRedirect={handleRedirect}
+              options={options}
+              customButton={(props) => (
+                <PayButton
+                  title={`Pay ${formatMoney(plan.amount)}`}
+                  icon="lock-closed"
+                  shine
+                  loading={props.isInitializing}
+                  disabled={props.disabled}
+                  onPress={props.onPress}
+                />
+              )}
+            />
+          ) : (
+            <PayButton title="Pick a plan" icon={null} disabled />
+          )}
+        </PayCheckoutBar>
+      )}
+
+      {status === "verifying" && <PayVerifying />}
+
       <PopMessage popData={popper} setPopData={setPopper} />
     </View>
   );
@@ -258,82 +274,28 @@ const DisplayPayments = ({ hideModal, data }) => {
 export default DisplayPayments;
 
 const styles = StyleSheet.create({
-  avoidingView: {
-    flex: 1,
-  },
-  cardInfo: {
-    color: colors.medium,
-    textAlign: "center",
-    width: "85%",
-    alignSelf: "center",
-    marginTop: 6,
-  },
-  checkbox: {
-    alignSelf: "flex-end",
+  root: { flex: 1, backgroundColor: P.paper },
+  section: { marginHorizontal: 16 },
+  moreBtn: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  dateInput: {
-    width: width * 0.4,
-  },
-  infoSection: {
-    marginBottom: 14,
-    borderRadius: 12,
-    marginHorizontal: 10,
-    // borderWidth: 1,
-    // borderColor: colors.primary + "25",
-    // overflow: "hidden",
-  },
-  tipRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 12,
-    gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.extraLight,
-  },
-  tipIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: colors.primary + "15",
     justifyContent: "center",
-    alignItems: "center",
+    paddingVertical: 13,
+    marginBottom: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: P.brandMid,
+    backgroundColor: P.brandSoft,
   },
-  formBtn: {
-    // flex: 1,
-    // justifyContent: "flex-end",
-  },
-  main: {
-    backgroundColor: colors.white,
-    padding: 15,
-    borderRadius: 10,
-    boxShadow: `2px 8px 18px ${colors.primary}25`,
-    marginBottom: 20,
-  },
-  payTxt: {
-    textAlign: "center",
-  },
-
-  row: {
+  empty: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  webViewContainer: {
-    // backgroundColor: "red",
-    // flex: 1,
-    // padding: 8,
-    // backgroundColor: colors.white,
-    // justifyContent: "center",
-    // alignItems: "center",
-  },
-  webView: {
-    // borderRadius: 30,
-    overflow: "hidden",
-  },
-  title: {
-    marginTop: 5,
-    marginBottom: 15,
+    backgroundColor: P.coralSoft,
+    borderWidth: 2,
+    borderColor: P.coralLine,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
   },
 });

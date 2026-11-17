@@ -148,7 +148,8 @@ const CreateSchool = ({ schoolData, fetchSchoolData }) => {
 
   const handleSchoolSub = () => {
     router.push({
-      pathname: "/school/subscribe",
+      pathname: "/(protected)/subscribe/",
+      // pathname: "/school/subscribe",
       params: { type: "school", data: JSON.stringify(school) },
     });
   };

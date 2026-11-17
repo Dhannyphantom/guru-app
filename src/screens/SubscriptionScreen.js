@@ -1,9 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable no-unused-expressions */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -12,9 +12,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import AppButton, { FormikButton } from "../components/AppButton";
-// import Screen from "../components/Screen";
-
-import AppModal from "../components/AppModal";
 import colors from "../helpers/colors";
 import LottieAnimator from "../components/LottieAnimator";
 import {
@@ -44,7 +41,15 @@ import {
   hasCompletedProfile,
 } from "../helpers/helperFunctions";
 import FormInput, { FormikInput } from "../components/FormInput";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  ZoomIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import PopMessage from "../components/PopMessage";
 import { useSelector } from "react-redux";
 import { Formik } from "formik";
@@ -67,8 +72,225 @@ import { StatusBar } from "expo-status-bar";
 
 const { width, height } = Dimensions.get("screen");
 
-const PROGRESS_SIZE = width * 0.45;
+const PROGRESS_SIZE = width * 0.3;
+
+// One entrance spring for every card: settled, no wobble.
+const enterSpring = (delay = 0) =>
+  FadeInDown.delay(delay).springify().damping(26).stiffness(220).mass(1);
+const PRESS_SPRING = { damping: 22, stiffness: 420, mass: 0.7 };
 const maxProgress = 295;
+
+// Renewal payment source -> value sent to /renew-subscription as `payWith`
+const PAY_OPTIONS = {
+  "GT Points": "points",
+  "Sub Points": "subscriptionPoints",
+  Both: "both",
+};
+const PAY_HINTS = {
+  points: "Pay with your GT points (the withdrawable balance).",
+  subscriptionPoints:
+    "Pay with subscription points earned from competitions. They can only be used for renewals.",
+  both: "Subscription points are used first, then GT points cover the rest.",
+};
+
+const NETWORKS = [
+  { label: "MTN", color: colors.warning },
+  { label: "GLO", color: "#00B140" },
+  { label: "AIRTEL", color: "#E90000" },
+  { label: "9MOBILE", color: "#006400" },
+];
+
+const FLOW_STEPS = {
+  transfer: ["Amount", "Account", "Done"],
+  default: ["Details", "Done"],
+};
+
+/* ------------------------------------------------------------------ */
+/* Withdraw flow building blocks                                       */
+/* ------------------------------------------------------------------ */
+
+const SectionLabel = ({ icon, text }) => (
+  <View style={styles.sectionLabel}>
+    <MaterialCommunityIcons name={icon} size={16} color={colors.primary} />
+    <AppText fontWeight="bold" size={12} style={styles.sectionLabelText}>
+      {text.toUpperCase()}
+    </AppText>
+  </View>
+);
+
+const Steps = ({ labels, active }) => (
+  <View style={styles.steps}>
+    {labels.map((label, i) => {
+      const done = i < active;
+      const now = i === active;
+      return (
+        <React.Fragment key={label}>
+          {i > 0 && (
+            <View style={[styles.stepLine, i <= active && styles.stepLineOn]} />
+          )}
+          <View style={styles.stepItem}>
+            <Animated.View
+              key={now ? "now" : done ? "done" : "next"}
+              entering={ZoomIn.springify().damping(22).stiffness(260)}
+              style={[
+                styles.stepDot,
+                (done || now) && styles.stepDotOn,
+                now && styles.stepDotNow,
+              ]}
+            >
+              {done ? (
+                <MaterialCommunityIcons
+                  name="check"
+                  size={15}
+                  color={colors.white}
+                />
+              ) : (
+                <AppText
+                  fontWeight="black"
+                  size={12}
+                  style={{ color: now ? colors.white : colors.medium }}
+                >
+                  {i + 1}
+                </AppText>
+              )}
+            </Animated.View>
+            <AppText
+              fontWeight={now ? "bold" : "medium"}
+              size={11}
+              style={{ color: now ? colors.primaryDeep : colors.medium }}
+            >
+              {label}
+            </AppText>
+          </View>
+        </React.Fragment>
+      );
+    })}
+  </View>
+);
+
+const BalanceCard = ({ label = "Wallet balance", value, chips = [] }) => (
+  <Animated.View entering={enterSpring()} style={styles.balanceWrap}>
+    <LinearGradient
+      colors={[colors.primary, colors.primaryDeep]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.balanceCard}
+    >
+      <View style={styles.blobA} />
+      <View style={styles.blobB} />
+      <View style={styles.balanceTop}>
+        <View style={styles.balanceIcon}>
+          <MaterialCommunityIcons
+            name="wallet-outline"
+            size={18}
+            color={colors.white}
+          />
+        </View>
+        <AppText fontWeight="bold" size={12} style={styles.balanceLabel}>
+          {label.toUpperCase()}
+        </AppText>
+      </View>
+      <AppText fontWeight="black" size={34} style={styles.balanceValue}>
+        {value}
+      </AppText>
+      {chips.length > 0 && (
+        <View style={styles.balanceChips}>
+          {chips.map((chip) => (
+            <View key={chip.label} style={styles.balanceChip}>
+              <AppText
+                fontWeight="medium"
+                size={11}
+                style={styles.balanceChipLabel}
+              >
+                {chip.label}
+              </AppText>
+              <AppText
+                fontWeight="heavy"
+                size={14}
+                style={styles.balanceChipValue}
+              >
+                {chip.value}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      )}
+    </LinearGradient>
+  </Animated.View>
+);
+
+const QuickChip = ({ label, active, onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.quickChip,
+      active && styles.quickChipOn,
+      pressed && { opacity: 0.7 },
+    ]}
+  >
+    <AppText
+      fontWeight="bold"
+      size={13}
+      style={{ color: active ? colors.white : colors.primaryDeep }}
+    >
+      {label}
+    </AppText>
+  </Pressable>
+);
+
+const CostPreview = ({ text }) => (
+  <Animated.View key={text} entering={FadeIn.duration(180)} style={styles.cost}>
+    <View style={styles.costIcon}>
+      <MaterialCommunityIcons
+        name="swap-horizontal"
+        size={20}
+        color={colors.primaryDeep}
+      />
+    </View>
+    <View>
+      <AppText fontWeight="medium" size={11} style={styles.costLabel}>
+        {"YOU'LL SPEND"}
+      </AppText>
+      <AppText fontWeight="black" size="xlarge" style={styles.costValue}>
+        {text}
+      </AppText>
+    </View>
+  </Animated.View>
+);
+
+const AmountBlock = ({ amount, onChange, editable, quick, max, preview }) => (
+  <>
+    <FormInput
+      keyboardType="numeric"
+      placeholder="Enter amount to withdraw"
+      headerText="Amount (₦)"
+      editable={editable}
+      disabled={!editable}
+      value={amount}
+      onChangeText={onChange}
+    />
+    {editable && (
+      <View style={styles.quickRow}>
+        {quick.map((v) => (
+          <QuickChip
+            key={v}
+            label={getCurrencyAmount(v)}
+            active={amount === String(v)}
+            onPress={() => onChange(String(v))}
+          />
+        ))}
+        {max > 0 && (
+          <QuickChip
+            label="Max"
+            active={amount === String(max)}
+            onPress={() => onChange(String(max))}
+          />
+        )}
+      </View>
+    )}
+    {Boolean(amount) && <CostPreview text={preview} />}
+  </>
+);
 
 export const WithdrawModal = ({
   closeModal,
@@ -96,8 +318,15 @@ export const WithdrawModal = ({
   const [contact, setContact] = useState(user?.contact);
   const [tab, setTab] = useState("MTN");
   const [refreshing, setRefreshing] = useState(false);
+  // Renewal only: "points" | "subscriptionPoints" | "both"
+  const [payWith, setPayWith] = useState("points");
 
+  const subPoints = user?.subscriptionPoints || 0;
   const balance = calculatePointsAmount(user.points);
+  // Renewals can also draw on subscription points, so the minimum-balance
+  // check for that flow looks at the combined balance.
+  const renewBalance = calculatePointsAmount((user.points || 0) + subPoints);
+  const shownBalance = type === "subscription" ? renewBalance : balance;
   const shouldHideContinueBtn = ["subscription", "data"].includes(type);
 
   const isPending = state.status === "pending";
@@ -116,7 +345,7 @@ export const WithdrawModal = ({
       : type === "subscription"
         ? MIN_RENEWAL
         : MIN_AIRTIME_DATA;
-  const editable = Number(balance.amount) >= minRequired;
+  const editable = Number(shownBalance.amount) >= minRequired;
   const profile = hasCompletedProfile(user);
   buyDataInitials.phoneNumber = user?.contact;
 
@@ -169,7 +398,6 @@ export const WithdrawModal = ({
   };
 
   const handleCashOut = async (formValues) => {
-    // ADD THIS BLOCK
     if (Number(amount) < minRequired) {
       return setPopper({
         vis: true,
@@ -190,7 +418,7 @@ export const WithdrawModal = ({
         setPopper({
           vis: true,
           type: "failed",
-          msg: "Transaction failed: " + res?.message ?? "",
+          msg: "Transaction failed: " + (res?.message ?? ""),
         });
       }
     } catch (err) {
@@ -198,13 +426,12 @@ export const WithdrawModal = ({
       setPopper({
         vis: true,
         type: "failed",
-        msg: "Transaction failed " + err?.msg ?? err?.data,
+        msg: "Transaction failed " + (err?.msg ?? err?.data?.message ?? ""),
       });
     }
   };
 
   const handleContinue = async () => {
-    // ADD THIS BLOCK
     if (Number(amount) < minRequired) {
       return setPopper({
         vis: true,
@@ -237,9 +464,7 @@ export const WithdrawModal = ({
           timer: 1200,
           type: "failed",
           msg:
-            errr?.data?.message + txt ??
-            errr?.error + txt ??
-            `Transaction Failed: ${txt}`,
+            (errr?.data?.message ?? errr?.error ?? "Transaction Failed") + txt,
         });
       }
     }
@@ -266,16 +491,35 @@ export const WithdrawModal = ({
   };
 
   const onRenewSub = async (fv) => {
-    if (user.points < fv?.amount?.value) {
+    const cost = Number(fv?.amount?.value || 0);
+    const gt = user.points || 0;
+    const sub = user.subscriptionPoints || 0;
+
+    const notEnough =
+      payWith === "points"
+        ? gt < cost
+        : payWith === "subscriptionPoints"
+          ? sub < cost
+          : gt + sub < cost;
+
+    if (notEnough) {
       return setPopper({
         vis: true,
         type: "failed",
-        timer: 1000,
-        msg: "You don't have enough Guru Tokens",
+        timer: 1500,
+        msg:
+          payWith === "points"
+            ? "You don't have enough Guru Tokens"
+            : payWith === "subscriptionPoints"
+              ? "You don't have enough subscription points"
+              : "You don't have enough points (Guru Tokens + subscription points)",
       });
     }
     try {
-      const res = await renewSubscription(fv?.amount).unwrap();
+      const res = await renewSubscription({
+        ...fv?.amount,
+        payWith,
+      }).unwrap();
       setAmount(fv?.amount?.days);
       if (res?.status === "success") {
         setState({ ...state, status: "success" });
@@ -323,10 +567,7 @@ export const WithdrawModal = ({
         vis: true,
         timer: 1200,
         type: "failed",
-        msg:
-          errr?.data?.message + txt ??
-          errr?.error + txt ??
-          `Transaction Failed: ${txt}`,
+        msg: (errr?.data?.message ?? errr?.error ?? "Transaction Failed") + txt,
       });
     }
   };
@@ -362,222 +603,211 @@ export const WithdrawModal = ({
     onBankFetch(true);
   }, []);
 
+  const maxAmount = Math.floor(Number(balance.amount) || 0);
+  const quickAmounts = [
+    ...new Set([
+      minRequired,
+      minRequired * 2,
+      minRequired * 5,
+      minRequired * 10,
+    ]),
+  ].filter((v) => v <= maxAmount && v !== maxAmount);
+  const showMax = maxAmount >= minRequired;
+  const amountProps = {
+    amount,
+    onChange: onChangeAmount,
+    editable,
+    quick: quickAmounts,
+    max: showMax ? maxAmount : 0,
+    preview: calculatePointsAmount(amount).pointFormat,
+  };
+
+  const stepLabels = FLOW_STEPS[type] ?? FLOW_STEPS.default;
+  const stepIndex =
+    type === "transfer"
+      ? isPending
+        ? 0
+        : isDetails
+          ? 1
+          : 2
+      : isPending
+        ? 0
+        : 1;
+
+  const balanceChips = [
+    { label: "GT points", value: formatPoints(user?.points) },
+  ];
+  if (type === "subscription") {
+    balanceChips.push({
+      label: "Sub points",
+      value: subPoints.toLocaleString(),
+    });
+  }
+
   return (
-    <Animated.View entering={FadeIn.delay(300)} style={styles.withdraw}>
+    <Animated.View entering={FadeIn.delay(150)} style={styles.withdraw}>
       <ScrollView
+        showsVerticalScrollIndicator={false}
         refreshControl={getRefresher({ refreshing, onRefresh })}
         contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
       >
+        <Steps labels={stepLabels} active={stepIndex} />
+
         {isPending && (
           <Animated.View exiting={exitingAnim}>
-            <LinearGradient
-              colors={[colors.primaryDeep, colors.primaryDeeper]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.balanceBar}
-            >
-              <View style={styles.balanceItem}>
-                <AppText
-                  size="small"
-                  fontWeight="medium"
-                  style={styles.balanceLabel}
-                >
-                  BALANCE
-                </AppText>
-                <AppText
-                  size="xxlarge"
-                  fontWeight="black"
-                  style={styles.balanceValue}
-                >
-                  {balance.format}
-                </AppText>
-              </View>
-              <View style={styles.balanceDivider} />
-              <View style={styles.balanceItem}>
-                <AppText
-                  size="small"
-                  fontWeight="medium"
-                  style={styles.balanceLabel}
-                >
-                  POINTS
-                </AppText>
-                <AppText
-                  size="xxlarge"
-                  fontWeight="black"
-                  style={styles.balanceValue}
-                >
-                  {formatPoints(user?.points)}
-                </AppText>
-              </View>
-            </LinearGradient>
+            <BalanceCard value={balance.format} chips={balanceChips} />
 
             {type === "airtime" && (
-              <View style={{}}>
+              <View style={styles.block}>
+                <SectionLabel icon="sim-outline" text="Network" />
                 <TabSelector
-                  options={[
-                    { label: "MTN", color: colors.warning },
-                    { label: "GLO", color: "#00B140" },
-                    { label: "AIRTEL", color: "#E90000" },
-                    { label: "9MOBILE", color: "#006400" },
-                  ]}
-                  onChange={(item, index) => {
-                    setTab(item?.label);
-                  }}
+                  options={NETWORKS}
+                  onChange={(item) => setTab(item?.label)}
                 />
+                <SectionLabel icon="phone-outline" text="Who gets it" />
                 <FormInput
                   keyboardType="numeric"
                   placeholder="Enter phone number"
                   maxLength={20}
-                  headerText={"Phone Number:"}
+                  headerText="Phone number"
                   LeftComponent={() => (
-                    <View>
-                      <AppText
-                        fontWeight="bold"
-                        style={{ color: colors.medium }}
-                      >
-                        +234
-                      </AppText>
-                    </View>
+                    <AppText fontWeight="bold" style={{ color: colors.medium }}>
+                      +234
+                    </AppText>
                   )}
                   value={contact}
                   onChangeText={(val) => setContact(val)}
                 />
-                <FormInput
-                  keyboardType="numeric"
-                  placeholder="Enter amount to withdraw"
-                  editable={editable}
-                  headerText={"Enter amount(₦):"}
-                  value={amount}
-                  onChangeText={onChangeAmount}
-                />
-                <AppText
-                  style={styles.preview}
-                  fontWeight="black"
-                  size="xxlarge"
-                >
-                  {calculatePointsAmount(amount).pointFormat}
-                </AppText>
+                <SectionLabel icon="cash" text="How much" />
+                <AmountBlock {...amountProps} />
               </View>
             )}
+
             {type === "transfer" && (
-              <View style={{ marginTop: 20 }}>
-                <FormInput
-                  keyboardType="numeric"
-                  placeholder="Enter amount to withdraw"
-                  editable={editable}
-                  headerText={"Enter amount(₦):"}
-                  value={amount}
-                  onChangeText={onChangeAmount}
-                />
-                <AppText
-                  style={styles.preview}
-                  fontWeight="black"
-                  size="xxlarge"
-                >
-                  {calculatePointsAmount(amount).pointFormat}
-                </AppText>
+              <View style={styles.block}>
+                <SectionLabel icon="cash" text="How much" />
+                <AmountBlock {...amountProps} />
               </View>
             )}
+
             {type === "data" && (
-              <View>
+              <View style={styles.block}>
                 <Formik
                   initialValues={buyDataInitials}
                   validationSchema={buyDataSchema}
                   onSubmit={onBuyData}
                 >
-                  {({ values, setFieldValue }) => {
-                    return (
-                      <>
-                        <TabSelector
-                          options={[
-                            { label: "MTN", color: colors.warning },
-                            { label: "GLO", color: "#00B140" },
-                            { label: "AIRTEL", color: "#E90000" },
-                            { label: "9MOBILE", color: "#006400" },
-                          ]}
-                          onChange={(item, index) => {
-                            setFieldValue("network", item?.label);
-                            setFieldValue("bundle", {});
-                          }}
-                        />
-                        <FormikInput
-                          keyboardType="numeric"
-                          placeholder="Enter phone number"
-                          maxLength={20}
-                          LeftComponent={() => (
-                            <View>
-                              <AppText
-                                fontWeight="bold"
-                                style={{ color: colors.medium }}
-                              >
-                                +234
-                              </AppText>
-                            </View>
-                          )}
-                          name={"phoneNumber"}
-                          headerText={"Phone Number:"}
-                        />
-                        <FormikInput
-                          name={"bundle"}
-                          placeholder={"Select Subscription Plan"}
-                          data={bundles[values["network"]]}
-                          hideText
-                          type="dropdown"
-                          isLoading={isBundling}
-                          items={[
-                            { name: "points", fontWeight: "medium" },
-                            {
-                              name: "description",
-                              fontWeight: "bold",
-                              size: "medium",
-                            },
-                          ]}
-                          numDisplayItems={2}
-                          headerText={"Subscription Plan"}
-                        />
-                        {values["bundle"]?.points && (
+                  {({ values, setFieldValue }) => (
+                    <>
+                      <SectionLabel icon="sim-outline" text="Network" />
+                      <TabSelector
+                        options={NETWORKS}
+                        onChange={(item) => {
+                          setFieldValue("network", item?.label);
+                          setFieldValue("bundle", {});
+                        }}
+                      />
+                      <SectionLabel icon="phone-outline" text="Who gets it" />
+                      <FormikInput
+                        keyboardType="numeric"
+                        placeholder="Enter phone number"
+                        maxLength={20}
+                        LeftComponent={() => (
                           <AppText
-                            style={styles.preview}
-                            fontWeight="black"
-                            size="xxlarge"
+                            fontWeight="bold"
+                            style={{ color: colors.medium }}
                           >
-                            -{values["bundle"]?.points}
+                            +234
                           </AppText>
                         )}
+                        name={"phoneNumber"}
+                        headerText={"Phone number"}
+                      />
+                      <SectionLabel
+                        icon="package-variant"
+                        text="Pick a bundle"
+                      />
+                      <FormikInput
+                        name={"bundle"}
+                        placeholder={"Select data plan"}
+                        data={bundles[values["network"]]}
+                        hideText
+                        type="dropdown"
+                        isLoading={isBundling}
+                        items={[
+                          { name: "points", fontWeight: "medium" },
+                          {
+                            name: "description",
+                            fontWeight: "bold",
+                            size: "medium",
+                          },
+                        ]}
+                        headerText={"Data plan"}
+                      />
+                      {Boolean(values["bundle"]?.points) && (
+                        <CostPreview text={`-${values["bundle"]?.points}`} />
+                      )}
 
-                        <FormikButton
-                          contStyle={{
-                            marginTop: 25,
-                            marginHorizontal: width * 0.1,
-                          }}
-                          title={"Buy Data"}
-                          type="accent"
-                        />
-                      </>
-                    );
-                  }}
+                      <FormikButton
+                        contStyle={styles.submitBtn}
+                        title={"Buy Data"}
+                        type="accent"
+                      />
+                    </>
+                  )}
                 </Formik>
               </View>
             )}
+
             {type === "subscription" && (
-              <View>
+              <View style={styles.block}>
                 <Formik
                   initialValues={renewInitials}
                   validationSchema={renewSubsSchema}
                   onSubmit={onRenewSub}
                 >
                   <>
+                    <SectionLabel icon="wallet-outline" text="Pay with" />
+                    <TabSelector
+                      options={[
+                        { label: "GT Points", color: colors.accentDeeper },
+                        { label: "Sub Points", color: colors.primary },
+                        { label: "Both", color: colors.greenDark },
+                      ]}
+                      onChange={(item) =>
+                        setPayWith(PAY_OPTIONS[item?.label] ?? "points")
+                      }
+                    />
+                    <Animated.View
+                      key={payWith}
+                      entering={FadeIn.duration(180)}
+                      style={styles.hintBox}
+                    >
+                      <MaterialCommunityIcons
+                        name="information-outline"
+                        size={16}
+                        color={colors.primaryDeep}
+                      />
+                      <AppText
+                        fontWeight="medium"
+                        size={12}
+                        style={styles.hintText}
+                      >
+                        {PAY_HINTS[payWith]}
+                      </AppText>
+                    </Animated.View>
+
+                    <SectionLabel icon="calendar-star" text="Choose a plan" />
                     <FormikInput
                       name={"amount"}
-                      placeholder={"Select Subscription Plan"}
+                      placeholder={"Select subscription plan"}
                       data={renewSubList}
                       type="dropdown"
-                      numDisplayItems={2}
-                      headerText={"Subscription Plan"}
+                      headerText={"Subscription plan"}
                     />
 
                     <FormikButton
-                      contStyle={{ marginHorizontal: width * 0.1 }}
+                      contStyle={styles.submitBtn}
                       title={"Buy Subscription"}
                       type="accent"
                     />
@@ -585,53 +815,93 @@ export const WithdrawModal = ({
                 </Formik>
               </View>
             )}
+
             {isError && <AppText>{error.message}</AppText>}
           </Animated.View>
         )}
+
         {isDetails && (
-          <Animated.View exiting={exitingAnim} entering={enterAnimOther}>
-            <AppText
-              style={[styles.withdrawHeaderTxt, { color: colors.black }]}
-              fontWeight="bold"
-            >
-              Enter Bank Account Details
-            </AppText>
+          <Animated.View
+            exiting={exitingAnim}
+            entering={enterAnimOther}
+            style={styles.block}
+          >
+            <View style={styles.sendingCard}>
+              <View style={styles.sendingIcon}>
+                <MaterialCommunityIcons
+                  name="bank-transfer-out"
+                  size={24}
+                  color={colors.white}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText fontWeight="medium" size={11} style={styles.costLabel}>
+                  WITHDRAWING
+                </AppText>
+                <AppText
+                  fontWeight="black"
+                  size="xlarge"
+                  style={styles.costValue}
+                >
+                  {getCurrencyAmount(Number(amount) || 0)}
+                </AppText>
+              </View>
+            </View>
+
+            <SectionLabel icon="bank-outline" text="Where should it go?" />
             <Formik
               initialValues={withdrawInitials}
               validationSchema={withdrawPointsSchema}
               onSubmit={verifyAccount}
             >
-              <View style={{ marginTop: 20 }}>
+              <View>
                 <FormikInput
                   name={"bank"}
-                  placeholder={"Select Bank"}
+                  placeholder={"Select bank"}
                   data={state.banks}
                   type="dropdown"
-                  numDisplayItems={2}
                   headerText={"Bank"}
                 />
                 <FormikInput
                   name={"acct_number"}
-                  placeholder={"Enter Account Number"}
+                  placeholder={"Enter account number"}
                   isLoading={isVerifying}
                   keyboardType="numeric"
-                  headerText={"Account Number"}
+                  headerText={"Account number"}
                 />
+
                 {isVerified && (
-                  <View style={styles.acctName}>
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      color={colors.primary}
-                      size={16}
-                    />
-                    <AppText fontWeight="bold" style={styles.accountName}>
-                      {state.bankName}
-                    </AppText>
-                  </View>
+                  <Animated.View
+                    entering={ZoomIn.springify().damping(22).stiffness(260)}
+                    style={styles.verified}
+                  >
+                    <View style={styles.verifiedIcon}>
+                      <MaterialCommunityIcons
+                        name="check"
+                        color={colors.white}
+                        size={16}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppText
+                        fontWeight="medium"
+                        size={11}
+                        style={styles.costLabel}
+                      >
+                        ACCOUNT NAME
+                      </AppText>
+                      <AppText
+                        fontWeight="heavy"
+                        style={{ color: colors.primaryDeep }}
+                      >
+                        {state.bankName}
+                      </AppText>
+                    </View>
+                  </Animated.View>
                 )}
 
                 <FormikButton
-                  contStyle={{ marginHorizontal: width * 0.1 }}
+                  contStyle={styles.submitBtn}
                   title={isVerified ? "Withdraw" : "Verify Account"}
                   type="accent"
                 />
@@ -641,37 +911,24 @@ export const WithdrawModal = ({
         )}
 
         {isSuccess && (
-          <Animated.View
-            entering={enterAnimOther}
-            style={{
-              alignItems: "center",
-              backgroundColor: colors.white,
-              marginBottom: 15,
-            }}
-          >
+          <Animated.View entering={enterAnimOther} style={styles.success}>
             <LottieAnimator
               name="success"
-              style={{ width: width * 0.7, height: height * 0.35 }}
+              style={{ width: width * 0.62, height: height * 0.3 }}
             />
             <AppText
               fontWeight="black"
               size={"xxlarge"}
-              style={{ color: colors.accentDeep }}
+              style={styles.successTitle}
             >
               {headerTxt}
             </AppText>
-            <AppText
-              fontWeight="light"
-              style={{
-                textAlign: "center",
-                marginHorizontal: 30,
-                marginBottom: 25,
-              }}
-            >
+            <AppText fontWeight="medium" style={styles.successText}>
               {successTxt}
             </AppText>
           </Animated.View>
         )}
+
         {!editable && isPending && (
           <Animated.View entering={FadeIn.delay(200)} style={styles.minNotice}>
             <View style={styles.minNoticeIconWrap}>
@@ -687,7 +944,7 @@ export const WithdrawModal = ({
                 size="large"
                 style={styles.minNoticeTitle}
               >
-                Minimum Balance Required
+                Almost there
               </AppText>
               <AppText
                 fontWeight="medium"
@@ -695,16 +952,16 @@ export const WithdrawModal = ({
                 style={styles.minNoticeDesc}
               >
                 {type === "transfer"
-                  ? `Bank transfers require a minimum of `
+                  ? `Bank transfers need at least `
                   : type === "subscription"
-                    ? `Subscription renewals require a minimum of `
-                    : `Airtime & data require a minimum of `}
+                    ? `Subscription renewals need at least `
+                    : `Airtime & data need at least `}
                 <AppText fontWeight="black" style={styles.minNoticeAmount}>
                   {getCurrencyAmount(minRequired)}
                 </AppText>
-                {` in your wallet. You currently have `}
+                {` in your wallet. You have `}
                 <AppText fontWeight="black" style={styles.minNoticeAmount}>
-                  {balance.format}
+                  {shownBalance.format}
                 </AppText>
                 {`.`}
               </AppText>
@@ -715,7 +972,7 @@ export const WithdrawModal = ({
                     {
                       width: `${Math.min(
                         100,
-                        (Number(balance.amount) / minRequired) * 100,
+                        (Number(shownBalance.amount) / minRequired) * 100,
                       )}%`,
                     },
                   ]}
@@ -731,6 +988,7 @@ export const WithdrawModal = ({
             </View>
           </Animated.View>
         )}
+
         <View style={styles.withdrawBtns}>
           {editable && isPending && !shouldHideContinueBtn && (
             <AppButton
@@ -740,11 +998,12 @@ export const WithdrawModal = ({
             />
           )}
           <AppButton
-            title={isSuccess ? "Close" : "Cancel Withdrawal"}
+            title={isSuccess ? "Close" : "Cancel"}
             type={isSuccess ? "accent" : "warn"}
             onPress={closeModal}
           />
         </View>
+
         <LottieAnimator
           visible={
             isLoading || bankLoading || isRenewing || isRecharging || isBuying
@@ -757,85 +1016,342 @@ export const WithdrawModal = ({
   );
 };
 
-const SubHistory = ({ item }) => {
-  if (!item) return null;
-  const isSub = ["credit", "points"].includes(item?.transactionType);
+// ─────────────────────────────────────────────────────────────────────────────
+// History
+//
+// Every WalletTransaction is normalised by `describeTransaction` BEFORE it is
+// rendered, so a missing metadata field can never show up as "NaN GT" or
+// "+undefined days" — anything that isn't a real number is simply not shown.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** First value that is a real, finite number — otherwise null. */
+const toNum = (...vals) => {
+  for (const v of vals) {
+    if (v === null || v === undefined || v === "") continue;
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+};
+
+const toTitle = (s) =>
+  String(s || "")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const safeDate = (value, format = "fullDate") => {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    return dateFormatter(value, format);
+  } catch {
+    return null;
+  }
+};
+
+// tone → colours (border / icon badge / amount text)
+const HISTORY_TONES = {
+  accent: {
+    border: colors.accentLighter,
+    icon: colors.accentLight,
+    badge: colors.accentDeeper,
+    text: colors.accentDeeper,
+  },
+  gold: {
+    border: colors.warning + "66",
+    icon: "#fff",
+    badge: colors.warning,
+    text: colors.warningDark,
+  },
+  green: {
+    border: colors.greenLighter,
+    icon: colors.greenLight,
+    badge: colors.green,
+    text: colors.greenDark,
+  },
+  blue: {
+    border: colors.primaryLighter,
+    icon: colors.primaryLighter,
+    badge: colors.primary,
+    text: colors.primary,
+  },
+  neutral: {
+    border: colors.lightly,
+    icon: "#fff",
+    badge: colors.medium,
+    text: colors.medium,
+  },
+};
+
+const HISTORY_KINDS = {
+  renewal: { title: "Subscription Renewal", icon: "autorenew", tone: "accent" },
+  prize: { title: "Competition Prize", icon: "trophy", tone: "gold" },
+  withdrawal: {
+    title: "Withdrawal",
+    icon: "bank-transfer-out",
+    tone: "green",
+  },
+  airtime: { title: "Airtime Purchase", icon: "cellphone", tone: "green" },
+  data: { title: "Data Bundle", icon: "wifi", tone: "green" },
+  refund: { title: "Refund", icon: "cash-refund", tone: "blue" },
+  other: { title: "Transaction", icon: "swap-horizontal", tone: "neutral" },
+};
+
+const HISTORY_FILTERS = [
+  { label: "All", color: colors.primary, kinds: null },
+  { label: "Renewals", color: colors.accentDeeper, kinds: ["renewal"] },
+  { label: "Prizes", color: colors.warning, kinds: ["prize"] },
+  {
+    label: "Withdrawals",
+    color: colors.greenDark,
+    kinds: ["withdrawal", "airtime", "data"],
+  },
+];
+
+const STATUS_STYLES = {
+  pending: { label: "Pending", color: colors.warningDark },
+  processing: { label: "Processing", color: colors.warningDark },
+  failed: { label: "Failed", color: "#D32F2F" },
+  reversed: { label: "Reversed", color: "#D32F2F" },
+};
+
+/** Turn a raw WalletTransaction into everything the history card needs. */
+const describeTransaction = (tx) => {
+  const meta = tx?.metadata ?? {};
+  const category = String(tx?.category || "").toLowerCase();
+  const payout = String(meta?.payoutType || "").toLowerCase();
+
+  const cash = toNum(tx?.amount);
+  const days = toNum(meta.days);
+  const spent = toNum(
+    meta.pointsSpent,
+    meta.pointsConverted,
+    meta.pointsToConvert,
+    meta.points,
+  );
+  const fromSub = toNum(meta.fromSubscriptionPoints) ?? 0;
+  const fromGT = toNum(meta.fromPoints);
+
+  // ── What kind of transaction is this? ───────────────────────────────────
+  let kind = "other";
+  if (category === "adjustment" && meta.pointsType === "subscription") {
+    kind = "prize";
+  } else if (category.includes("subscription") || (days !== null && days > 0)) {
+    kind = "renewal";
+  } else if (category.includes("airtime") || payout.includes("airtime")) {
+    kind = "airtime";
+  } else if (category.includes("data") || payout.includes("data")) {
+    kind = "data";
+  } else if (
+    category.includes("payout") ||
+    category.includes("withdraw") ||
+    payout
+  ) {
+    kind = "withdrawal";
+  } else if (category.includes("refund")) {
+    kind = "refund";
+  }
+
+  const base = HISTORY_KINDS[kind];
+  const title = kind === "other" && category ? toTitle(category) : base.title;
+
+  // ── Amount line (only ever built from real numbers) ─────────────────────
+  let amountText = null;
+  if (kind === "prize" || kind === "other") {
+    if (cash !== null && cash > 0) {
+      amountText = `+${cash.toLocaleString()} sub pts`;
+    }
+  } else if (kind === "renewal") {
+    const total = spent ?? (fromGT ?? 0) + fromSub;
+    if (total > 0) {
+      amountText =
+        fromSub > 0 && !(fromGT > 0)
+          ? `-${fromSub.toLocaleString()} sub pts`
+          : `-${formatPoints(total)}`;
+    } else if (cash !== null && cash > 0) {
+      amountText = getCurrencyAmount(cash);
+    }
+  } else if (cash !== null && cash > 0) {
+    amountText = `${kind === "refund" ? "+" : ""}${getCurrencyAmount(cash)}`;
+  } else if (spent !== null && spent > 0) {
+    amountText = `-${formatPoints(spent)}`;
+  }
+
+  // ── Right-hand headline ─────────────────────────────────────────────────
+  let detail = null;
+  if (kind === "renewal" && days !== null && days > 0) {
+    detail = `+${days} day${days === 1 ? "" : "s"}`;
+  } else if (kind === "prize") {
+    detail = "Sub points";
+  } else if (kind === "withdrawal" && payout) {
+    detail = toTitle(payout);
+  }
+
+  // ── Extra lines under the description ───────────────────────────────────
+  const lines = [];
+
+  if (kind === "renewal") {
+    if (fromSub > 0) {
+      lines.push(
+        fromGT > 0
+          ? `Paid: ${formatPoints(fromGT)} + ${fromSub.toLocaleString()} sub pts`
+          : `Paid with ${fromSub.toLocaleString()} sub pts`,
+      );
+    }
+    const until = safeDate(meta.newExpiry);
+    if (until) lines.push(`Valid until ${until}`);
+  }
+
+  if (kind === "prize") {
+    const place = toNum(meta.place);
+    if (place !== null) lines.push(`Finished #${place}`);
+    if (meta.month && meta.year) {
+      lines.push(`${meta.month}/${meta.year} tournament`);
+    }
+  }
+
+  if (["withdrawal", "airtime", "data"].includes(kind)) {
+    if (meta.network) lines.push(`Network: ${String(meta.network)}`);
+    if (meta.phoneNumber) lines.push(`To: ${String(meta.phoneNumber)}`);
+    if (meta.bundleName) lines.push(String(meta.bundleName));
+    if (kind === "withdrawal" && spent !== null && spent > 0) {
+      lines.push(`Converted ${formatPoints(spent)}`);
+    }
+  }
+
+  const description =
+    tx?.description && tx.description !== title ? tx.description : null;
+
+  const status = String(tx?.status || "").toLowerCase();
+
+  return {
+    kind,
+    title,
+    icon: base.icon,
+    tone: HISTORY_TONES[base.tone],
+    amountText,
+    detail,
+    description,
+    lines,
+    status: STATUS_STYLES[status] ?? null,
+    reference: meta.flutterwaveReference || null,
+    date: safeDate(tx?.createdAt),
+  };
+};
+
+const SubHistory = ({ view, index = 0 }) => {
+  if (!view) return null;
+  const { tone } = view;
+
+  const meta = [view.description, ...view.lines].filter(Boolean).join(" · ");
+  const when = [view.date, view.reference ? `ID ${view.reference}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  const hasPills = Boolean(view.detail || view.status);
+
   return (
-    <View
-      style={[
-        styles.subHistory,
-        {
-          borderWidth: 2,
-          borderColor: isSub ? colors.accentLighter : colors.greenLighter,
-        },
-      ]}
+    <Animated.View
+      entering={FadeInDown.duration(240).delay(Math.min(index, 6) * 40)}
+      style={[styles.tx, { borderColor: tone.border }]}
     >
-      <View style={styles.subHistoryIcon}>
-        <MaterialCommunityIcons
-          name={isSub ? "dots-circle" : "dots-hexagon"}
-          color={isSub ? colors.accentLight : colors.greenLight}
-          size={15}
-          style={{
-            backgroundColor: isSub ? colors.accentDeeper : colors.green,
-            alignSelf: "center",
-            borderRadius: 50,
-            padding: 5,
-            boxShadow: `2px 8px 12px ${colors.primary}25`,
-          }}
-        />
+      <View style={[styles.txIcon, { backgroundColor: tone.badge }]}>
+        <MaterialCommunityIcons name={view.icon} color={tone.icon} size={19} />
       </View>
-      <View style={styles.subHistoryContent}>
-        <AppText
-          fontWeight="black"
-          size={"large"}
-          style={{ color: colors.medium }}
-        >
-          {isSub ? "Subscription" : "Withdrawal"}
-        </AppText>
-        <AppText
-          fontWeight="medium"
-          size={"medium"}
-          style={{ color: colors.medium }}
-        >
-          {item?.description}
-        </AppText>
-        <AppText
-          style={{
-            marginTop: 4,
 
-            color: isSub ? colors.accentDeeper : colors.greenDark,
-          }}
-          fontWeight="heavy"
-          size={"xlarge"}
-        >
-          {item?.transactionType === "points"
-            ? formatPoints(item?.metadata?.pointsSpent)
-            : getCurrencyAmount(item.amount)}
+      <View style={styles.txMain}>
+        <AppText fontWeight="bold" numberOfLines={1}>
+          {view.title}
         </AppText>
-      </View>
-      <View style={styles.subHistoryDetail}>
-        <AppText fontWeight="bold" size={"small"}>
-          {" "}
-          {isSub
-            ? `+${item?.metadata?.days} days`
-            : item?.metadata?.payoutType}{" "}
-        </AppText>
-        {item?.metadata?.flutterwaveReference && (
+        {meta ? (
           <AppText
-            numberOfLines={1}
-            style={{ marginTop: 6, maxWidth: width * 0.2 }}
-            size={"small"}
+            fontWeight="medium"
+            size="small"
+            numberOfLines={2}
+            style={styles.txMeta}
           >
-            <AppText fontWeight="bold">ID: </AppText>
-            {item?.metadata?.flutterwaveReference}
+            {meta}
           </AppText>
+        ) : null}
+        {(hasPills || when) && (
+          <View style={styles.txBottom}>
+            {view.detail ? (
+              <View style={[styles.txPill, { backgroundColor: tone.border }]}>
+                <AppText
+                  fontWeight="bold"
+                  size={10.5}
+                  style={{ color: tone.text }}
+                >
+                  {view.detail}
+                </AppText>
+              </View>
+            ) : null}
+            {view.status ? (
+              <View
+                style={[
+                  styles.txPill,
+                  { backgroundColor: view.status.color + "1A" },
+                ]}
+              >
+                <AppText
+                  fontWeight="bold"
+                  size={10.5}
+                  style={{ color: view.status.color }}
+                >
+                  {view.status.label}
+                </AppText>
+              </View>
+            ) : null}
+            {when ? (
+              <AppText numberOfLines={1} size={11} style={styles.txWhen}>
+                {when}
+              </AppText>
+            ) : null}
+          </View>
         )}
-
-        <AppText style={{ marginTop: 10 }} fontWeight="thin" size={"small"}>
-          {dateFormatter(item.createdAt, "fullDate")}
-        </AppText>
       </View>
-    </View>
+
+      {view.amountText ? (
+        <AppText fontWeight="heavy" size="large" style={{ color: tone.text }}>
+          {view.amountText}
+        </AppText>
+      ) : null}
+    </Animated.View>
+  );
+};
+
+const ActionTile = ({ icon, title, face, lip, onPress, index = 0 }) => {
+  const sink = useSharedValue(0);
+  const motion = useAnimatedStyle(() => ({
+    transform: [{ translateY: sink.value * 3 }],
+  }));
+
+  return (
+    <Animated.View entering={enterSpring(180 + index * 80)}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => {
+          sink.value = withTiming(1, { duration: 60 });
+        }}
+        onPressOut={() => {
+          sink.value = withSpring(0, PRESS_SPRING);
+        }}
+      >
+        <Animated.View
+          style={[
+            styles.action,
+            { backgroundColor: face, borderColor: lip },
+            motion,
+          ]}
+        >
+          <MaterialCommunityIcons name={icon} size={18} color={colors.white} />
+          <AppText fontWeight="black" size={13} style={styles.actionText}>
+            {title}
+          </AppText>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -857,15 +1373,22 @@ const SubscriptionScreen = () => {
   const [fetchUser] = useLazyFetchUserQuery();
   const { data, isLoading, refetch } = useFetchTransactionsQuery();
 
-  const [bools, setBools] = useState({
-    modal: false,
-    uri: null,
-  });
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState("All");
 
   const lottieRef = useRef(null);
   const history = data?.data;
+
+  const historyItems = useMemo(() => {
+    const all = (history?.transactions ?? []).map((tx) => ({
+      key: String(tx?._id ?? tx?.reference),
+      view: describeTransaction(tx),
+    }));
+    const active = HISTORY_FILTERS.find((f) => f.label === historyFilter);
+    if (!active?.kinds) return all;
+    return all.filter((item) => active.kinds.includes(item.view.kind));
+  }, [history, historyFilter]);
 
   const { sub, total, terms } = dateFormatter(expiry, "sub", { current });
   const isTeacher = user?.accountType === "teacher";
@@ -887,7 +1410,7 @@ const SubscriptionScreen = () => {
     }
 
     router.push({
-      pathname: fromSchool ? "/school/subscribe" : "/profile/subscribe",
+      pathname: "/(protected)/subscribe",
       params: { type: isSchool ? "school" : "student", schoolId: school?._id },
     });
   };
@@ -901,7 +1424,6 @@ const SubscriptionScreen = () => {
       pathname: "/(protected)/(tabs)/profile/payment",
       params: "withdrawal",
     });
-    // setBools({ ...bools, modal: true, type: "withdraw" });
   };
 
   const onRefresh = async () => {
@@ -925,257 +1447,241 @@ const SubscriptionScreen = () => {
     lottieRef.current?.play(0, animFrame);
   }, [sub, total]);
 
+  const hasSchool = Boolean(school?.name);
+
+  const planLabel = isSchool
+    ? isActive
+      ? "Active"
+      : "Inactive"
+    : isActive
+      ? "Premium"
+      : "Freemium";
+
+  const stats = isSchool
+    ? [
+        { label: "Students", value: String(school?.students?.length ?? 0) },
+        { label: "Expires", value: safeDate(expiry) ?? "-" },
+      ]
+    : [
+        { label: "Cash", value: calculatePointsAmount(user.points).format },
+        {
+          label: "Sub points",
+          value: (user?.subscriptionPoints || 0).toLocaleString(),
+        },
+        { label: "Total earned", value: formatPoints(user.totalPoints) },
+      ];
+
+  const walletCard = (
+    <Animated.View entering={enterSpring()} style={styles.cardWrap}>
+      <LinearGradient
+        colors={[colors.primary, colors.primaryDeeper]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        <View style={styles.decorOne} />
+        <View style={styles.decorTwo} />
+
+        <View style={styles.cardHeader}>
+          <View style={styles.cardBrand}>
+            <View style={styles.brandIcon}>
+              <MaterialCommunityIcons
+                name={isSchool ? "school" : "wallet"}
+                size={16}
+                color={colors.white}
+              />
+            </View>
+            <AppText style={styles.brandText} size={14} fontWeight="bold">
+              {isSchool ? "School Account" : "Guru Wallet"}
+            </AppText>
+          </View>
+          <View style={styles.statusPill}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isActive ? "#5BE49B" : colors.warning },
+              ]}
+            />
+            <AppText
+              fontWeight="bold"
+              size={11}
+              style={{ color: colors.white }}
+            >
+              {planLabel}
+            </AppText>
+          </View>
+        </View>
+
+        <View style={styles.cardContent}>
+          <View style={styles.cardLeft}>
+            <AppText style={styles.cardKicker} size={11} fontWeight="medium">
+              {isSchool ? "SUBSCRIPTION" : "AVAILABLE POINTS"}
+            </AppText>
+            <AppText
+              style={styles.cardBig}
+              size={32}
+              fontWeight="black"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {isSchool
+                ? `${Math.max(0, terms)} TERM${terms > 1 ? "S" : ""}`
+                : formatPoints(user?.points)}
+            </AppText>
+          </View>
+
+          <View style={styles.progressContainer}>
+            <LottieAnimator
+              name="circle_progress"
+              speed={1.5}
+              animRef={lottieRef}
+              autoPlay={false}
+              size={PROGRESS_SIZE}
+              loop={false}
+            />
+            <View style={styles.progressOverlay}>
+              <AppText
+                size="xlarge"
+                style={{ color: colors.white, textAlign: "center" }}
+                fontWeight="black"
+              >
+                {isActive ? sub : 0}
+              </AppText>
+              <AppText size={10} style={styles.daysLeft} fontWeight="bold">
+                days left
+              </AppText>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.statStrip}>
+          {stats.map((stat, i) => (
+            <View
+              key={stat.label}
+              style={[styles.stat, i > 0 && styles.statDivider]}
+            >
+              <AppText style={styles.tileLabel} size={10} fontWeight="medium">
+                {stat.label.toUpperCase()}
+              </AppText>
+              <AppText
+                style={styles.tileValue}
+                size={14}
+                fontWeight="heavy"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {stat.value}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+
+  const header = (
+    <>
+      {walletCard}
+
+      <View style={styles.actions}>
+        <ActionTile
+          icon="crown"
+          title="Subscribe"
+          face={colors.accent}
+          lip={colors.accentDeeper}
+          onPress={openSubsciptionModal}
+        />
+        {!isSchool && (
+          <ActionTile
+            index={1}
+            icon="cash-fast"
+            title="Withdraw"
+            face={colors.primary}
+            lip={colors.primaryDeeper}
+            onPress={handleWithdrawal}
+          />
+        )}
+      </View>
+
+      <View style={styles.historyHead}>
+        <AppText fontWeight="black" size="xlarge">
+          History
+        </AppText>
+        <AppText fontWeight="medium" size={12} style={{ color: colors.medium }}>
+          {historyItems.length
+            ? `${historyItems.length} record${historyItems.length === 1 ? "" : "s"}`
+            : ""}
+        </AppText>
+      </View>
+      <TabSelector
+        options={HISTORY_FILTERS.map(({ label, color }) => ({ label, color }))}
+        onChange={(item) => setHistoryFilter(item?.label ?? "All")}
+      />
+    </>
+  );
+
   return (
     <View style={styles.container}>
       <AppHeader title="Subscriptions" />
-      <FlatList
-        data={["Sub"]}
-        refreshControl={getRefresher({ refreshing, onRefresh })}
-        contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
-        renderItem={() => (
-          <>
-            {!Boolean(school?.name) ? (
-              <View style={{ flex: 1, alignItems: "center", marginTop: 50 }}>
-                <LottieAnimator
-                  name="person_float"
-                  style={{ width: width * 0.65, height: width * 0.65 }}
-                  visible
-                />
-                <AppText style={{ width: "85%", textAlign: "center" }}>
-                  Create or join a school to activate your wallet, subscribe to
-                  premium, and gain full access to Guru’s features.
-                </AppText>
-                <AppText
-                  style={{ width: "85%", marginTop: 30, textAlign: "center" }}
-                >
-                  Navigate to the School Tab 🎓 now
-                </AppText>
-              </View>
-            ) : (
-              <>
-                <LinearGradient
-                  colors={[colors.primary, colors.primaryDeeper]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.card}
-                >
-                  {/* Decorative elements */}
-                  <View style={styles.cardDecoration}>
-                    <View style={styles.decorativeCircle1} />
-                    <View style={styles.decorativeCircle2} />
-                  </View>
 
-                  {/* Card Header */}
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardBrand}>
-                      <MaterialCommunityIcons
-                        name={isSchool ? "school" : "wallet"}
-                        size={24}
-                        color={colors.white}
-                      />
-                      <AppText
-                        style={{ color: colors.white, marginLeft: 8 }}
-                        size={16}
-                        fontWeight="bold"
-                      >
-                        {isSchool ? "School Account" : "Guru Wallet"}
-                      </AppText>
-                    </View>
-                    <MaterialCommunityIcons
-                      name="contactless-payment"
-                      size={28}
-                      color={colors.primaryLighter}
-                    />
-                  </View>
-
-                  {/* Main Content Area */}
-                  <View style={styles.cardContent}>
-                    {/* Left side - Main balance/points */}
-                    <View style={styles.cardLeft}>
-                      <AppText
-                        style={{
-                          color: colors.primaryLighter,
-                          marginBottom: 8,
-                        }}
-                        size={13}
-                        fontWeight="medium"
-                      >
-                        {isSchool ? "ACTIVE SUBSCRIPTION" : "AVAILABLE POINTS"}
-                      </AppText>
-                      <AppText
-                        style={{ color: colors.white, marginBottom: 4 }}
-                        size={isSchool ? 36 : 30}
-                        fontWeight="black"
-                      >
-                        {isSchool
-                          ? `${Math.max(0, terms)} TERM${terms > 1 ? "S" : ""}`
-                          : formatPoints(user?.points)}
-                      </AppText>
-                      <AppText
-                        style={{ color: colors.primaryLighter }}
-                        size={12}
-                        fontWeight="medium"
-                      >
-                        {isSchool
-                          ? "subscription active"
-                          : `Total Earned: ${formatPoints(user.totalPoints)}`}
-                      </AppText>
-                    </View>
-
-                    {/* Right side - Progress indicator */}
-                    <View style={styles.cardRight}>
-                      <View style={styles.progressContainer}>
-                        <LottieAnimator
-                          name="circle_progress"
-                          speed={1.5}
-                          animRef={lottieRef}
-                          autoPlay={false}
-                          size={PROGRESS_SIZE}
-                          loop={false}
-                          style={
-                            {
-                              // width: PROGRESS_SIZE,
-                              // height: PROGRESS_SIZE,
-                              // backgroundColor: "red",
-                            }
-                          }
-                        />
-                        <View style={styles.progressOverlay}>
-                          <AppText
-                            // size={28}
-                            size="xxlarge"
-                            style={{
-                              color: colors.white,
-                              textAlign: "center",
-                            }}
-                            fontWeight="black"
-                          >
-                            {isActive ? sub : 0}
-                          </AppText>
-                          <AppText
-                            size={12}
-                            style={{
-                              color: colors.primaryLighter,
-                              textAlign: "center",
-                              marginTop: -4,
-                            }}
-                            fontWeight="bold"
-                          >
-                            days left
-                          </AppText>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Card Footer */}
-                  <View style={styles.cardFooter}>
-                    <View style={styles.cardFooterItem}>
-                      <AppText
-                        style={{ color: colors.primaryLighter }}
-                        size={11}
-                        fontWeight="medium"
-                      >
-                        {isSchool ? "ACTIVE STUDENTS" : "CASH BALANCE"}
-                      </AppText>
-                      <AppText
-                        style={{ color: colors.white, marginTop: 4 }}
-                        size={20}
-                        fontWeight="black"
-                      >
-                        {isSchool
-                          ? (school?.students?.length ?? 0)
-                          : calculatePointsAmount(user.points).format}
-                      </AppText>
-                    </View>
-                    <View style={styles.cardFooterDivider} />
-                    <View style={styles.cardFooterItem}>
-                      <AppText
-                        style={{ color: colors.primaryLighter }}
-                        size={11}
-                        fontWeight="medium"
-                      >
-                        {isSchool ? "STATUS" : "ACCOUNT TYPE"}
-                      </AppText>
-                      <AppText
-                        style={{ color: colors.white, marginTop: 4 }}
-                        size={14}
-                        fontWeight="bold"
-                      >
-                        {isSchool
-                          ? isActive
-                            ? "Active"
-                            : "Inactive"
-                          : isActive
-                            ? "Premium"
-                            : "Freemium"}
-                      </AppText>
-                    </View>
-                  </View>
-
-                  {/* Card chip decoration */}
-                  <View style={styles.cardChip}>
-                    <View style={styles.chipLine1} />
-                    <View style={styles.chipLine2} />
-                  </View>
-                </LinearGradient>
-
-                <View style={styles.btns}>
-                  <AppButton
-                    type="accent"
-                    title={"Subscribe"}
-                    icon={{ name: "wallet", left: true }}
-                    style={{ paddingHorizontal: 40 }}
-                    onPress={openSubsciptionModal}
-                  />
-                  {!isSchool && (
-                    <AppButton
-                      title={"Withdraw"}
-                      icon={{ name: "cash-remove", left: true }}
-                      style={{ paddingHorizontal: 40 }}
-                      onPress={handleWithdrawal}
-                    />
-                  )}
-                </View>
-
-                <View style={styles.history}>
-                  <AppText
-                    fontWeight="bold"
-                    size={"xlarge"}
-                    style={{ margin: 15 }}
-                  >
-                    History
-                  </AppText>
-                  <FlatList
-                    data={history?.transactions}
-                    keyExtractor={(item) => item._id}
-                    contentContainerStyle={{ paddingBottom: height * 0.42 }}
-                    ListEmptyComponent={() => (
-                      <ListEmpty vis={!isLoading} message="No history data" />
-                    )}
-                    renderItem={({ item }) => <SubHistory item={item} />}
-                  />
-                </View>
-              </>
-            )}
-          </>
-        )}
-      />
-      <AppModal
-        visible={bools.modal}
-        setVisible={() => setBools({ ...bools, modal: false })}
-        Component={() => {
-          return (
-            <WithdrawModal
-              closeModal={() => setBools({ ...bools, modal: false })}
-              setPopData={(data) => setPopper(data)}
+      {hasSchool ? (
+        <FlatList
+          data={historyItems}
+          keyExtractor={(item) => item.key}
+          refreshControl={getRefresher({ refreshing, onRefresh })}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+          ListHeaderComponent={header}
+          ListEmptyComponent={() => (
+            <ListEmpty
+              vis={!isLoading}
+              message={
+                historyFilter === "All"
+                  ? "No history data"
+                  : `No ${historyFilter.toLowerCase()} yet`
+              }
             />
-          );
-        }}
-      />
+          )}
+          renderItem={({ item, index }) => (
+            <SubHistory view={item.view} index={index} />
+          )}
+        />
+      ) : (
+        <ScrollView
+          refreshControl={getRefresher({ refreshing, onRefresh })}
+          contentContainerStyle={styles.noSchool}
+        >
+          <LottieAnimator
+            name="person_float"
+            style={{ width: width * 0.65, height: width * 0.65 }}
+            visible
+          />
+          <AppText
+            fontWeight="black"
+            size="xlarge"
+            style={styles.noSchoolTitle}
+          >
+            Your wallet is waiting
+          </AppText>
+          <AppText fontWeight="medium" style={styles.noSchoolText}>
+            Create or join a school to activate your wallet, subscribe to
+            premium, and gain full access to Guru’s features.
+          </AppText>
+          <View style={styles.noSchoolHint}>
+            <MaterialCommunityIcons
+              name="school"
+              size={18}
+              color={colors.primaryDeep}
+            />
+            <AppText fontWeight="bold" style={{ color: colors.primaryDeep }}>
+              Head to the School tab to get started
+            </AppText>
+          </View>
+        </ScrollView>
+      )}
+
       <PopMessage popData={popper} setPopData={setPopper} />
       <StatusBar style="dark" />
-      {/* <LottieAnimator visible={isLoading} absolute wTransparent /> */}
     </View>
   );
 };
@@ -1183,126 +1689,406 @@ const SubscriptionScreen = () => {
 export default SubscriptionScreen;
 
 const styles = StyleSheet.create({
-  acctName: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: colors.unchange,
-    marginBottom: 20,
-    alignSelf: "flex-start",
-  },
-  accountName: {
-    marginHorizontal: 5,
-  },
-  avoidingView: {
-    flex: 1,
-  },
-  btns: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-evenly",
-  },
-  balanceBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 12,
-    marginBottom: 16,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    boxShadow: `2px 8px 18px ${colors.primaryDeeper}50`,
-  },
-  balanceItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  balanceDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: colors.primaryLight,
-    opacity: 0.4,
-    marginHorizontal: 8,
-  },
-  balanceLabel: {
-    color: colors.primaryLighter,
-    letterSpacing: 0.8,
-    marginBottom: 2,
-  },
-  balanceValue: {
-    color: colors.white,
-  },
   container: {
     flex: 1,
   },
-  card: {
-    width: width * 0.95,
-    minHeight: height * 0.28,
-    alignSelf: "center",
-    marginBottom: 20,
-    marginTop: 10,
-    borderRadius: 24,
-    boxShadow: `2px 8px 12px ${colors.primary}25`,
-    padding: 24,
+
+  /* withdraw flow */
+  withdraw: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingTop: 4,
+  },
+  block: {
+    marginTop: 4,
+  },
+  sectionLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 6,
+    marginTop: 14,
+    marginBottom: 8,
+    marginLeft: 10,
+  },
+  sectionLabelText: {
+    color: colors.medium,
+    letterSpacing: 1,
+  },
+  steps: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginHorizontal: 22,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  stepItem: {
+    alignItems: "center",
+    rowGap: 4,
+  },
+  stepLine: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 12,
+    marginHorizontal: 6,
+    backgroundColor: colors.lightly,
+  },
+  stepLineOn: {
+    backgroundColor: colors.primary,
+  },
+  stepDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.lightly,
+  },
+  stepDotOn: {
+    backgroundColor: colors.primary,
+  },
+  stepDotNow: {
+    borderWidth: 3,
+    borderColor: colors.primary + "40",
+    backgroundColor: colors.primaryDeep,
+  },
+
+  balanceWrap: {
+    marginHorizontal: 2,
+    borderRadius: 26,
+    paddingBottom: 6,
+    backgroundColor: colors.primaryDeeper,
+  },
+  balanceCard: {
+    borderRadius: 26,
+    padding: 20,
     overflow: "hidden",
-    position: "relative",
   },
-  cardDecoration: {
+  blobA: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    width: "100%",
+    top: -50,
+    right: -30,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  blobB: {
+    position: "absolute",
+    bottom: -40,
+    left: 60,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,255,255,0.07)",
+  },
+  balanceTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 8,
+  },
+  balanceIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  balanceLabel: {
+    color: colors.primaryLighter,
+    letterSpacing: 1,
+  },
+  balanceValue: {
+    color: colors.white,
+    marginTop: 8,
+  },
+  balanceChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14,
+  },
+  balanceChip: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.16)",
+  },
+  balanceChipLabel: {
+    color: colors.primaryLighter,
+  },
+  balanceChipValue: {
+    color: colors.white,
+  },
+
+  quickRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginHorizontal: 10,
+    marginBottom: 12,
+  },
+  quickChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: colors.primary + "55",
+    backgroundColor: colors.primary + "14",
+  },
+  quickChipOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryDeep,
+  },
+  cost: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 12,
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+    borderRadius: 18,
+    backgroundColor: colors.primary + "14",
+  },
+  costIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary + "22",
+  },
+  costLabel: {
+    color: colors.medium,
+    letterSpacing: 0.8,
+  },
+  costValue: {
+    color: colors.primaryDeep,
+  },
+  hintBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 8,
+    marginHorizontal: 10,
+    marginBottom: 6,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.primary + "14",
+  },
+  hintText: {
+    flex: 1,
+    color: colors.primaryDeep,
+  },
+  submitBtn: {
+    marginTop: 18,
+    marginHorizontal: width * 0.1,
+  },
+
+  sendingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 14,
+    marginHorizontal: 2,
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: colors.primary + "55",
+    backgroundColor: colors.primary + "14",
+  },
+  sendingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+  },
+  verified: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 12,
+    marginHorizontal: 10,
+    marginBottom: 6,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: colors.primary + "14",
+  },
+  verifiedIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+  },
+
+  success: {
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  successTitle: {
+    color: colors.accentDeep,
+    textAlign: "center",
+    marginHorizontal: 20,
+  },
+  successText: {
+    textAlign: "center",
+    marginHorizontal: 30,
+    marginTop: 8,
+    marginBottom: 25,
+    color: colors.medium,
+  },
+
+  minNotice: {
+    flexDirection: "row",
+    marginHorizontal: 2,
+    marginVertical: 16,
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: colors.warning + "14",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: colors.warning + "88",
+    alignItems: "flex-start",
+  },
+  minNoticeIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: colors.warning + "33",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  minNoticeBody: {
+    flex: 1,
+  },
+  minNoticeTitle: {
+    color: colors.warningDark,
+    marginBottom: 4,
+  },
+  minNoticeDesc: {
+    color: colors.medium,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  minNoticeAmount: {
+    color: colors.warningDark,
+  },
+  minNoticeProgress: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.warning + "33",
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  minNoticeBar: {
     height: "100%",
+    borderRadius: 5,
+    backgroundColor: colors.warning,
   },
-  decorativeCircle1: {
+  minNoticeHint: {
+    color: colors.medium,
+    opacity: 0.8,
+  },
+  withdrawBtns: {
+    marginHorizontal: width * 0.1,
+  },
+
+  /* wallet screen */
+  cardWrap: {
+    width: width * 0.95,
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 24,
+    paddingBottom: 5,
+    backgroundColor: colors.primaryDeeper,
+  },
+  card: {
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 14,
+    overflow: "hidden",
+  },
+  decorOne: {
     position: "absolute",
-    top: -40,
+    top: -50,
     right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  decorTwo: {
+    position: "absolute",
+    bottom: -45,
+    left: -30,
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.primaryLight,
-    opacity: 0.1,
-  },
-  decorativeCircle2: {
-    position: "absolute",
-    bottom: -40,
-    left: -40,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.white,
-    opacity: 0.05,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    zIndex: 1,
   },
   cardBrand: {
     flexDirection: "row",
     alignItems: "center",
+    columnGap: 8,
+  },
+  brandIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  brandText: {
+    color: colors.white,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   cardContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    zIndex: 1,
+    columnGap: 8,
+    marginTop: 8,
+    marginBottom: 10,
   },
   cardLeft: {
-    // flex: 1,
-    // backgroundColor: "red",
-    width: width * 0.95 - PROGRESS_SIZE,
-
-    // paddingRight: 12,
+    flex: 1,
   },
-  cardRight: {
-    alignItems: "center",
-    justifyContent: "center",
+  cardKicker: {
+    color: colors.primaryLighter,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  cardBig: {
+    color: colors.white,
   },
   progressContainer: {
-    position: "relative",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1311,187 +2097,135 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.primaryLight,
-    opacity: 0.8,
-    zIndex: 1,
-  },
-  cardFooterItem: {
-    flex: 1,
-  },
-  cardFooterDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.primaryLight,
-    opacity: 0.3,
-    marginHorizontal: 16,
-  },
-  cardChip: {
-    position: "absolute",
-    top: 20,
-    right: 24,
-    width: 40,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: colors.white,
-    opacity: 0.15,
-    padding: 6,
-    justifyContent: "space-between",
-  },
-  chipLine1: {
-    width: "100%",
-    height: 2,
-    backgroundColor: colors.primary,
-    borderRadius: 1,
-  },
-  chipLine2: {
-    width: "70%",
-    height: 2,
-    backgroundColor: colors.primary,
-    borderRadius: 1,
-  },
-  cardMini: {
-    width: width * 0.4,
-    backgroundColor: colors.primaryDeep,
-    padding: 20,
-    borderRadius: 20,
-    boxShadow: `2px 8px 18px ${colors.primary}55`,
-    marginBottom: 20,
-    borderColor: colors.primary,
-    borderWidth: 3,
-    borderBottomWidth: 6,
-  },
-  cardDetails: {
-    width: "48%",
-    justifyContent: "space-around",
-    marginVertical: 20,
-    marginLeft: 15,
-  },
-  circleView: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dateInput: {
-    width: width * 0.3,
-  },
-  formBtn: {
-    justifyContent: "flex-end",
-  },
-  info: {
+  daysLeft: {
+    color: colors.primaryLighter,
     textAlign: "center",
-    marginBottom: 20,
+    marginTop: -4,
   },
-  minNotice: {
+  statStrip: {
     flexDirection: "row",
-    marginHorizontal: 12,
-    marginVertical: 16,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: colors.warningLight + 60 ?? "#FFF8E1",
-    borderWidth: 1.5,
-    borderColor: colors.warning ?? "#FFB300",
-    alignItems: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.14)",
   },
-  minNoticeIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.warning + "22",
+  stat: {
+    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    paddingHorizontal: 6,
+  },
+  statDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: "rgba(255,255,255,0.2)",
+  },
+  tileLabel: {
+    color: colors.primaryLighter,
+    letterSpacing: 0.6,
+  },
+  tileValue: {
+    color: colors.white,
     marginTop: 2,
   },
-  minNoticeBody: {
-    flex: 1,
-  },
-  minNoticeTitle: {
-    color: colors.warningDark ?? "#E65100",
-    marginBottom: 4,
-  },
-  minNoticeDesc: {
-    color: colors.medium,
-    lineHeight: 20,
-    marginBottom: 10,
-  },
-  minNoticeAmount: {
-    color: colors.warningDark ?? "#E65100",
-  },
-  minNoticeProgress: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.warning + "33",
-    marginBottom: 8,
-    overflow: "hidden",
-  },
-  minNoticeBar: {
-    height: "100%",
-    borderRadius: 3,
-    backgroundColor: colors.warning ?? "#FFB300",
-  },
-  minNoticeHint: {
-    color: colors.medium,
-    opacity: 0.7,
-  },
-  payTxt: {
-    textAlign: "center",
-  },
-  preview: {
-    textAlign: "center",
-  },
-  row: {
+
+  actions: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  subHistory: {
-    flexDirection: "row",
-    width: width * 0.92,
-    padding: 12,
-    borderRadius: 10,
-    boxShadow: `2px 8px 12px ${colors.primary}25`,
-    alignSelf: "center",
-    marginBottom: 10,
-    backgroundColor: colors.lightly,
-    paddingLeft: 1,
-  },
-  subHistoryIcon: {
-    margin: 15,
     justifyContent: "center",
-    alignItems: "center",
+    columnGap: 12,
+    marginBottom: 6,
   },
-  subHistoryContent: {
-    flex: 1,
-    marginRight: 8,
-  },
-  subHistoryDetail: {},
-  title: {
-    marginTop: 5,
-    marginBottom: 15,
-  },
-  withdraw: {
-    flex: 1,
-    padding: 10,
-  },
-  withdrawRow: {
+  action: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
+    columnGap: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
   },
-  withdrawHeaderTxt: {
-    marginBottom: 20,
+  actionText: {
     color: colors.white,
+    letterSpacing: 0.3,
   },
-  withdrawTxt: {
-    color: colors.white,
+
+  historyHead: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginHorizontal: 18,
+    marginTop: 8,
+    marginBottom: 2,
   },
-  withdrawBtns: {
-    marginHorizontal: width * 0.1,
+  tx: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 10,
+    width: width * 0.92,
+    alignSelf: "center",
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderBottomWidth: 3,
+    backgroundColor: colors.white,
+  },
+  txIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  txMain: {
+    flex: 1,
+  },
+  txMeta: {
+    color: colors.medium,
+    marginTop: 1,
+  },
+  txBottom: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: 6,
+    rowGap: 3,
+    marginTop: 4,
+  },
+  txPill: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  txWhen: {
+    flexShrink: 1,
+    color: colors.medium,
+    opacity: 0.8,
+  },
+
+  noSchool: {
+    alignItems: "center",
+    paddingTop: 40,
+    paddingBottom: PAD_BOTTOM,
+  },
+  noSchoolTitle: {
+    marginTop: 10,
+    textAlign: "center",
+  },
+  noSchoolText: {
+    width: "85%",
+    marginTop: 8,
+    textAlign: "center",
+    color: colors.medium,
+  },
+  noSchoolHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 8,
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    backgroundColor: colors.primary + "14",
   },
 });

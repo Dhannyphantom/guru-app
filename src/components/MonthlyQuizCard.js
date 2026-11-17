@@ -67,6 +67,7 @@ const MONTHS = [
   "December",
 ];
 
+/** Approximate quiz length. Input is in SECONDS (server `approxDuration`). */
 const formatDuration = (seconds) => {
   if (!seconds) return "~0 min";
   const mins = Math.ceil(seconds / 60);
@@ -76,12 +77,24 @@ const formatDuration = (seconds) => {
   return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
 };
 
-/** Time a participant actually took (seconds → "3m 12s") */
-const formatTimeTaken = (seconds) => {
-  if (!seconds) return null;
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+/**
+ * Time a participant actually took.
+ * Input is in MILLISECONDS (that's what the client submits and the server
+ * stores in `participant.duration`) →
+ *   45s  |  2m 45s  |  1h 05m
+ */
+const formatTimeTaken = (ms) => {
+  const value = Number(ms);
+  if (!Number.isFinite(value) || value <= 0) return null;
+
+  const totalSeconds = Math.max(1, Math.round(value / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
 };
 
 const formatEndDate = (date) => {
@@ -105,7 +118,8 @@ const currencySymbol = (code) => {
 
 /**
  * Format a prize's reward for display.
- * points → "500 GT"  |  cash → "₦5,000" (or "5,000 NGN" fallback)
+ * points → "500 sub pts" (SUBSCRIPTION points, not withdrawable)
+ * cash   → "₦5,000" (or "5,000 NGN" fallback)
  */
 const formatPrizeReward = (prize) => {
   if (!prize) return "—";
@@ -113,7 +127,7 @@ const formatPrizeReward = (prize) => {
     const symbol = currencySymbol(prize.currency);
     return `${symbol}${Number(prize.reward || 0).toLocaleString()}`;
   }
-  return formatPoints(prize.reward);
+  return `${Number(prize.reward || 0).toLocaleString()} sub pts`;
 };
 
 const useCountdown = (targetDate, active) => {
@@ -239,6 +253,7 @@ const PrizePill = ({ emoji, prize }) => (
 // ─── Prize tile (modal) ───────────────────────────────────────────────────────
 const PrizeRow = ({ place, prize, medal }) => {
   const isCash = prize?.type === "cash";
+  const isPoints = !!prize && !isCash;
   return (
     <View
       style={[
@@ -274,6 +289,15 @@ const PrizeRow = ({ place, prize, medal }) => {
           style={{ color: T.sub, textAlign: "center", marginTop: 2 }}
         >
           {prize.description}
+        </AppText>
+      ) : null}
+      {isPoints ? (
+        <AppText
+          size="xxsmall"
+          numberOfLines={1}
+          style={{ color: T.sub, textAlign: "center", marginTop: 2 }}
+        >
+          Subscription points
         </AppText>
       ) : null}
     </View>
@@ -368,8 +392,8 @@ const ManagerStatusBanner = ({ comp }) => {
         title="Results published"
       >
         Participants can now see their scores and ranks. Points prizes are
-        credited automatically and winners are notified; cash prizes need manual
-        payout.
+        credited automatically as subscription points and winners are notified;
+        cash prizes need manual payout.
       </StatusCard>
     );
   }
@@ -378,7 +402,7 @@ const ManagerStatusBanner = ({ comp }) => {
     return (
       <StatusCard icon="megaphone" tone="yellow" title="Ready to publish">
         The tournament has ended. Publishing ranks everyone, credits points
-        prizes to the top 3 and can't be undone.
+        prizes (as subscription points) to the top 3 and can't be undone.
       </StatusCard>
     );
   }
@@ -495,8 +519,8 @@ const PrizeSettlementPanel = ({ comp, onRetry, retrying }) => {
         Prize settlement
       </AppText>
       <AppText size="xxsmall" style={{ color: T.sub, marginBottom: 6 }}>
-        Points prizes are credited automatically. Cash prizes are never
-        auto-paid — settle those manually.
+        Points prizes are credited automatically as subscription points. Cash
+        prizes are never auto-paid — settle those manually.
       </AppText>
 
       {winners.map((w) => (
@@ -613,7 +637,7 @@ const MyResultCard = ({ myRank, myScore, totalParticipants, prizes }) => {
                 >
                   {prize.type === "cash"
                     ? `${formatPrizeReward(prize)} prize — payout arranged separately`
-                    : `+${formatPrizeReward(prize)} credited to your account`}
+                    : `+${formatPrizeReward(prize)} added to your subscription points — use them to renew your subscription`}
                 </AppText>
               </View>
             )}
@@ -812,6 +836,41 @@ const CompetitionDetailsModal = ({
   // never block or wrongly allow publishing.
   const canPublishResults = Boolean(comp?.canPublishResults);
 
+  // Podium data. Scores come from the stored winner entry when present, and
+  // fall back to the ranked participant list, so the podium never renders
+  // without points. Score is exposed under the common point-field names the
+  // podium component may read.
+  const podiumData = useMemo(() => {
+    if (!comp) return [];
+    const idOf = (u) => String(u?._id || u || "");
+    const scoreByUser = new Map(
+      (comp.leaderboard || []).map((p) => [idOf(p.user), p.score]),
+    );
+
+    const source =
+      comp.finalRankings?.length > 0
+        ? comp.finalRankings
+        : (comp.leaderboard || []).map((p, i) => ({
+            ...p,
+            rank: p.rank ?? i + 1,
+          }));
+
+    return source.slice(0, 3).map((w) => {
+      const score = Number(w.score ?? scoreByUser.get(idOf(w.user)) ?? 0);
+      return {
+        _id: w.user?._id || w.user,
+        username: w.user?.username,
+        firstName: w.user?.firstName,
+        lastName: w.user?.lastName,
+        avatar: w.user?.avatar,
+        rank: w.rank,
+        points: score,
+        score,
+        totalPoints: score,
+      };
+    });
+  }, [comp]);
+
   const onRetryAwards = async () => {
     if (awardingPrizes) return;
     try {
@@ -873,7 +932,7 @@ const CompetitionDetailsModal = ({
 
     Alert.alert(
       "Publish results?",
-      "This ranks all participants, credits points prizes to the top 3 and notifies them (cash prizes are paid manually), and makes scores visible to everyone. It can't be undone.",
+      "This ranks all participants, credits points prizes to the top 3 as subscription points and notifies them (cash prizes are paid manually), and makes scores visible to everyone. It can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Publish", style: "default", onPress: runPublish },
@@ -984,6 +1043,11 @@ const CompetitionDetailsModal = ({
   const showRankings =
     comp?.leaderboard?.length > 0 &&
     (isManager || comp?.isLive || comp?.resultsPublished);
+
+  const hasPointsPrize = ["first", "second", "third"].some((k) => {
+    const p = comp?.prizes?.[k];
+    return p && p.type !== "cash" && Number(p.reward) > 0;
+  });
 
   return (
     <Modal
@@ -1167,6 +1231,19 @@ const CompetitionDetailsModal = ({
                     medal={MEDALS[3]}
                   />
                 </View>
+                {hasPointsPrize ? (
+                  <View style={styles.prizeNote}>
+                    <Ionicons
+                      name="information-circle"
+                      size={16}
+                      color={T.yellowInk}
+                    />
+                    <AppText size="xxsmall" style={styles.prizeNoteText}>
+                      Points prizes are subscription points. Use them to renew
+                      your subscription — they can't be withdrawn.
+                    </AppText>
+                  </View>
+                ) : null}
 
                 {/* Results pending panel — replaces all score/ranking UI */}
                 {showResultsPending ? (
@@ -1177,32 +1254,25 @@ const CompetitionDetailsModal = ({
                 ) : (
                   <>
                     {/* Winners (only once results are published) */}
-                    {comp?.resultsPublished &&
-                      comp?.finalRankings?.length > 0 && (
-                        <>
-                          <View style={{ marginTop: 18 }}>
-                            <SectionTitle
-                              icon="ribbon"
-                              color={T.purpleDark}
-                              bg={T.purpleSoft}
-                              title="Winners"
-                            />
-                          </View>
-                          <View style={{ marginHorizontal: -20 }}>
-                            <LeaderboardWinners
-                              isPro={false}
-                              textColor={T.ink}
-                              data={comp.finalRankings.slice(0, 3).map((w) => ({
-                                _id: w.user?._id || w.user,
-                                username: w.user?.username,
-                                firstName: w.user?.firstName,
-                                points: w.score,
-                                avatar: w.user?.avatar,
-                              }))}
-                            />
-                          </View>
-                        </>
-                      )}
+                    {comp?.resultsPublished && podiumData.length > 0 && (
+                      <>
+                        <View style={{ marginTop: 18 }}>
+                          <SectionTitle
+                            icon="ribbon"
+                            color={T.purpleDark}
+                            bg={T.purpleSoft}
+                            title="Winners"
+                          />
+                        </View>
+                        <View style={{ marginHorizontal: -20 }}>
+                          <LeaderboardWinners
+                            isPro={false}
+                            textColor={T.ink}
+                            data={podiumData}
+                          />
+                        </View>
+                      </>
+                    )}
 
                     {/* Participants & rankings
                         - Manager: every participant who submitted, ranked
@@ -1745,6 +1815,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 6,
   },
+  prizeNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 4,
+  },
+  prizeNoteText: { flex: 1, color: T.sub, lineHeight: 16 },
   medalBadge: {
     width: 38,
     height: 38,

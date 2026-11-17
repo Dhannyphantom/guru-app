@@ -807,15 +807,6 @@ const ProfileScreen = () => {
 
         {/* ── Menu ── */}
         <View style={s.menu}>
-          {isProVerified && (
-            <ProfileLink
-              title="Pro Mode+"
-              icon="cog"
-              onPress={() =>
-                profile.bool ? router.push("/pros/pro") : setPopper(profile.pop)
-              }
-            />
-          )}
           <ProfileLink
             title={`${profile.bool ? "Edit" : "Complete"} Profile`}
             onPress={() => router.push("/profile/edit")}
