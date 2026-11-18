@@ -1,45 +1,37 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable react-hooks/immutability */
-/* eslint-disable react-hooks/refs */
-import {
-  Dimensions,
-  FlatList,
-  StyleSheet,
-  View,
-  Animated,
-  Easing,
-} from "react-native";
-import { useEffect, useRef, useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { Dimensions, FlatList, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
 import LottieAnimator from "./LottieAnimator";
-import AppButton from "./AppButton";
 import QuizCorrections from "./QuizCorrections";
 import { useSubmitQuizMutation } from "../context/schoolSlice";
-import {
-  useSubmitFreemiumQuizMutation,
-  useSubmitPremiumQuizMutation,
-} from "../context/instanceSlice";
+import { useSubmitFreemiumQuizMutation, useSubmitPremiumQuizMutation } from "../context/instanceSlice";
 import { useSubmitCompetitionQuizMutation } from "../context/competitionSlice";
-import {
-  LeaderboardItem,
-  LeaderboardWinners,
-} from "../screens/LeaderboardScreen";
+import { LeaderboardItem, LeaderboardWinners } from "../screens/LeaderboardScreen";
 import { getUserProfile, socket } from "../helpers/helperFunctions";
 import { selectUser } from "../context/usersSlice";
-
-// ─── Constants ───────────────────────────────────────────────────────────────
+import { Q, TONES } from "./quiz/QuizTheme";
+import {
+  Chip,
+  Confetti,
+  FooterBar,
+  QuizButton,
+  QuizCard,
+  QuizPressable,
+  StarRow,
+  useCountUp,
+} from "./quiz/QuizUI";
 
 const { width, height } = Dimensions.get("screen");
 
-// View phases for the single-player flow
-const PHASE = {
-  RESULT: "result", // congrats / bad-luck screen
-  STATS: "stats", // detailed stats + corrections
-};
+const PHASE = { RESULT: "result", STATS: "stats" };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,10 +45,11 @@ const computeLocalStats = (session) => {
 
   session?.questions?.forEach((quest) => {
     quest?.questions?.forEach((question) => {
-      totalPoints += question.point;
+      const pts = question?.point ?? 0;
+      totalPoints += pts;
       if (question?.answered?.correct) {
         answeredCorrectly += 1;
-        statPoints += question.point;
+        statPoints += pts;
       } else {
         statPoints -= 2;
       }
@@ -66,271 +59,209 @@ const computeLocalStats = (session) => {
   return { answeredCorrectly, point: statPoints, total: totalPoints };
 };
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+const formatDuration = (ms) => {
+  if (ms == null) return "—";
+  const s = Math.max(Math.round(ms / 1000), 0);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
-/**
- * Resolves the "real" stats, preferring server results over local computation.
- * Returns a normalised { pointsEarned, correctAnswers, totalQuestions, accuracy } object.
- */
-const useResolvedStats = ({
-  results,
-  freemiumResults,
-  competitionResults,
-  localStat,
-  session,
-}) => {
-  const serverData =
-    results?.data ?? freemiumResults?.data ?? competitionResults?.data ?? null;
+/** Server numbers win; otherwise derive everything from the local session. */
+const useResolvedStats = ({ results, freemiumResults, competitionResults, localStat, session }) => {
+  const serverData = results?.data ?? freemiumResults?.data ?? competitionResults?.data ?? null;
+  const totalQuestions = serverData?.totalQuestions ?? getTotalQuestions(session?.questions) ?? 0;
+  const correctAnswers = serverData?.correctAnswers ?? localStat?.answeredCorrectly ?? 0;
 
   return {
-    pointsEarned: Number(
-      serverData?.pointsEarned ?? localStat?.point ?? 0,
-    ).toFixed(1),
-    correctAnswers:
-      serverData?.correctAnswers ?? localStat?.answeredCorrectly ?? 0,
-    totalQuestions:
-      serverData?.totalQuestions ?? getTotalQuestions(session?.questions) ?? 0,
-    accuracy:
-      serverData?.accuracy ?? localStat?.accuracy ?? localStat?.total ?? 0,
+    pointsEarned: Number(serverData?.pointsEarned ?? localStat?.point ?? 0),
+    correctAnswers,
+    totalQuestions,
+    accuracy: serverData?.accuracy ?? (totalQuestions ? Math.round((correctAnswers / totalQuestions) * 100) : 0),
   };
 };
 
-/** Animated fade-in wrapper */
-const FadeIn = ({ delay = 0, children, style }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(16)).current;
+// ─── Result phase ────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 400,
-        delay,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 400,
-        delay,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
+const MiniStat = ({ icon, tone, value, label, delay }) => {
+  const t = TONES[tone];
   return (
-    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
-      {children}
+    <Animated.View entering={FadeInDown.delay(delay).springify().damping(16)} style={[styles.mini, { backgroundColor: t.soft, borderColor: t.line }]}>
+      <Ionicons name={icon} size={18} color={t.ink} />
+      <AppText fontWeight="black" size={18} style={{ color: Q.ink, marginTop: 4 }}>
+        {value}
+      </AppText>
+      <AppText fontWeight="bold" size={10.5} style={{ color: t.ink, letterSpacing: 0.6, textTransform: "uppercase" }}>
+        {label}
+      </AppText>
     </Animated.View>
   );
 };
 
-/** Result phase — congrats / bad-luck with tokens earned */
-const ResultPhase = ({
-  resolvedStats,
-  lowPercent,
-  msg,
-  onShowStats,
-  onRetry,
-  onClose,
-  canRetry,
-}) => (
-  <View style={styles.phaseContainer}>
-    <FadeIn style={{ alignItems: "center" }}>
-      <LottieAnimator
-        name={lowPercent ? "person_float" : "congrats"}
-        loop={Boolean(lowPercent)}
-        style={styles.lottie}
-      />
-    </FadeIn>
+const ResultPhase = ({ resolvedStats, lowPercent, stars, msg, duration, onShowStats, onRetry, onClose, canRetry, topInset }) => {
+  const tokens = useCountUp(resolvedStats.pointsEarned, 1200, 600, 1);
 
-    <FadeIn delay={120} style={styles.resultTextBlock}>
-      <AppText style={styles.resultHeading} fontWeight="black" size={28}>
-        {lowPercent ? "Too Bad" : "Congratulations!"}
-      </AppText>
-      <AppText fontWeight="semibold" style={styles.resultMsg}>
-        {msg}
-      </AppText>
-    </FadeIn>
+  return (
+    <View style={[styles.phase, { paddingTop: topInset + 8 }]}>
+      {!lowPercent && <Confetti />}
 
-    <FadeIn delay={240} style={styles.tokenCard}>
-      <AppText fontWeight="semibold" size="small" style={styles.tokenLabel}>
-        TOKENS EARNED
-      </AppText>
-      <AppText fontWeight="black" size={36} style={styles.tokenValue}>
-        {resolvedStats.pointsEarned}
-        <AppText fontWeight="bold" size={16} style={{ color: colors.medium }}>
-          {" "}
-          GT
+      <ScrollView contentContainerStyle={styles.resultScroll} showsVerticalScrollIndicator={false}>
+        <LottieAnimator
+          name={lowPercent ? "person_float" : "congrats"}
+          loop={Boolean(lowPercent)}
+          style={{ width: width * 0.5, height: width * 0.5 }}
+        />
+
+        <Animated.View entering={FadeInDown.delay(100).springify().damping(16)} style={{ alignItems: "center" }}>
+          <AppText fontWeight="black" size={28} style={styles.heading}>
+            {lowPercent ? "Almost there! 💪" : "Congratulations! 🎉"}
+          </AppText>
+          <AppText fontWeight="semibold" size={14} style={styles.msg}>
+            {msg}
+          </AppText>
+        </Animated.View>
+
+        <View style={{ marginVertical: 14 }}>
+          <StarRow count={stars} />
+        </View>
+
+        <Animated.View entering={FadeInDown.delay(260).springify().damping(16)} style={styles.tokenCard}>
+          <AppText fontWeight="black" size={11} style={styles.tokenLabel}>
+            TOKENS EARNED
+          </AppText>
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            <AppText fontWeight="black" size={44} style={{ color: TONES.yellow.ink, lineHeight: 52 }}>
+              {tokens.toFixed(1)}
+            </AppText>
+            <AppText fontWeight="black" size={16} style={{ color: TONES.yellow.ink, marginBottom: 8, marginLeft: 4 }}>
+              GT
+            </AppText>
+          </View>
+        </Animated.View>
+
+        <View style={styles.miniRow}>
+          <MiniStat delay={380} tone="green" icon="checkmark-done" value={`${resolvedStats.correctAnswers}/${resolvedStats.totalQuestions}`} label="Correct" />
+          <MiniStat delay={460} tone="blue" icon="analytics" value={`${resolvedStats.accuracy}%`} label="Accuracy" />
+          <MiniStat delay={540} tone="purple" icon="stopwatch" value={formatDuration(duration)} label="Time" />
+        </View>
+      </ScrollView>
+
+      <FooterBar style={{ flexDirection: "column", alignItems: "stretch" }}>
+        <QuizButton title="View Stats" icon="stats-chart" variant="purple" onPress={onShowStats} />
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <QuizButton title="Close" icon="close" variant="ghost" small onPress={onClose} style={{ flex: 1 }} />
+          {canRetry && <QuizButton title="Retry" icon="refresh" variant="yellow" small onPress={onRetry} style={{ flex: 1 }} />}
+        </View>
+      </FooterBar>
+    </View>
+  );
+};
+
+// ─── Stats phase ─────────────────────────────────────────────────────────────
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "wrong", label: "Missed" },
+  { key: "right", label: "Correct" },
+];
+
+const ScoreCell = ({ value, sub, label, tone }) => (
+  <View style={styles.cell}>
+    <AppText fontWeight="black" size={22} style={{ color: TONES[tone].ink }}>
+      {value}
+      {Boolean(sub) && (
+        <AppText fontWeight="bold" size={13} style={{ color: Q.faint }}>
+          {sub}
         </AppText>
-      </AppText>
-    </FadeIn>
-
-    <FadeIn delay={320} style={styles.resultBtns}>
-      <AppButton title="Close" type="white" onPress={onClose} />
-      <AppButton title="View Stats" type="accent" onPress={onShowStats} />
-      {canRetry && <AppButton title="Retry" onPress={onRetry} />}
-    </FadeIn>
+      )}
+    </AppText>
+    <AppText fontWeight="bold" size={10.5} style={styles.cellLabel}>
+      {label}
+    </AppText>
   </View>
 );
 
-/**
- * Compact header rendered above QuizCorrections inside StatsPhase.
- * Replaces the previous stacked layout with a tight scorecard strip,
- * saving ~120px of vertical space.
- */
-const StatsHeader = ({ resolvedStats }) => (
-  <View style={styles.statsHeader}>
-    {/* Top row: title + points pill side by side */}
-    <View style={styles.statsHeaderTop}>
-      <AppText fontWeight="black" size={20} style={styles.statsTitle}>
+const StatsHeader = ({ resolvedStats, filter, setFilter }) => (
+  <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
+    <QuizCard animateIn={false} style={{ padding: 12 }}>
+      <View style={styles.cells}>
+        <ScoreCell value={resolvedStats.correctAnswers} sub={`/${resolvedStats.totalQuestions}`} label="CORRECT" tone="green" />
+        <View style={styles.cellDivider} />
+        <ScoreCell value={resolvedStats.accuracy} sub="%" label="ACCURACY" tone="blue" />
+        <View style={styles.cellDivider} />
+        <ScoreCell value={resolvedStats.pointsEarned.toFixed(1)} sub=" GT" label="POINTS" tone="yellow" />
+      </View>
+    </QuizCard>
+
+    <View style={styles.filters}>
+      {FILTERS.map((f) => {
+        const on = filter === f.key;
+        return (
+          <QuizPressable key={f.key} scaleTo={0.94} onPress={() => setFilter(f.key)}>
+            <Chip
+              label={f.label}
+              color={on ? "#fff" : Q.sub}
+              bg={on ? TONES.purple.face : Q.track}
+              style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 14 }}
+            />
+          </QuizPressable>
+        );
+      })}
+    </View>
+  </View>
+);
+
+const StatsPhase = ({ resolvedStats, session, onBack, onRetry, onClose, canRetry, topInset }) => {
+  const [filter, setFilter] = useState("all");
+
+  return (
+    <View style={[styles.phase, { paddingTop: topInset + 8 }]}>
+      <AppText fontWeight="black" size={22} style={styles.statsTitle}>
         Quiz Stats
       </AppText>
-      <View style={styles.pointsPill}>
-        <AppText fontWeight="black" size={18} style={styles.pointsPillValue}>
-          {resolvedStats.pointsEarned}
-          <AppText fontWeight="bold" size={12} style={styles.pointsPillUnit}>
-            {" "}
-            GT
-          </AppText>
-        </AppText>
-        <AppText
-          fontWeight="medium"
-          size="xsmall"
-          style={styles.pointsPillLabel}
-        >
-          points earned
-        </AppText>
-      </View>
+      <QuizCorrections
+        data={session?.questions}
+        filter={filter}
+        ListHeaderComponent={<StatsHeader resolvedStats={resolvedStats} filter={filter} setFilter={setFilter} />}
+        contentContainerStyle={{ paddingBottom: 12 }}
+      />
+      <FooterBar>
+        <QuizButton title="Close" icon="close" variant="ghost" small onPress={onClose} style={{ flex: 1 }} />
+        {Boolean(onBack) && <QuizButton title="Back" icon="arrow-back" variant="blue" small onPress={onBack} style={{ flex: 1 }} />}
+        {canRetry && <QuizButton title="Retry" icon="refresh" variant="yellow" small onPress={onRetry} style={{ flex: 1 }} />}
+      </FooterBar>
     </View>
+  );
+};
 
-    {/* Scorecard strip: correct answers + accuracy side by side */}
-    <View style={styles.scorecardStrip}>
-      <View style={styles.scorecardItem}>
-        <AppText fontWeight="black" size={22} style={styles.scorecardValue}>
-          {resolvedStats.correctAnswers}
-          <AppText fontWeight="semibold" size={13} style={styles.scorecardSub}>
-            /{resolvedStats.totalQuestions}
-          </AppText>
-        </AppText>
-        <AppText
-          fontWeight="medium"
-          size="xsmall"
-          style={styles.scorecardLabel}
-        >
-          Correct
-        </AppText>
-      </View>
-
-      <View style={styles.scorecardDivider} />
-
-      <View style={styles.scorecardItem}>
-        <AppText fontWeight="black" size={22} style={styles.scorecardValue}>
-          {resolvedStats.accuracy}
-          <AppText fontWeight="semibold" size={13} style={styles.scorecardSub}>
-            %
-          </AppText>
-        </AppText>
-        <AppText
-          fontWeight="medium"
-          size="xsmall"
-          style={styles.scorecardLabel}
-        >
-          Score
-        </AppText>
-      </View>
-    </View>
-
-    {/* Section divider */}
-    <View style={styles.reviewDivider}>
-      <View style={styles.reviewDividerLine} />
-      <AppText fontWeight="heavy" size="small" style={styles.reviewDividerText}>
-        QUESTIONS REVIEW
-      </AppText>
-      <View style={styles.reviewDividerLine} />
-    </View>
-  </View>
-);
-
-/** Stats phase — delegates all correction rendering to QuizCorrections */
-const StatsPhase = ({
-  resolvedStats,
-  session,
-  onBack,
-  onRetry,
-  onClose,
-  canRetry,
-}) => (
-  <View style={styles.statsPhaseContainer}>
-    <QuizCorrections
-      data={session?.questions}
-      ListHeaderComponent={<StatsHeader resolvedStats={resolvedStats} />}
-      contentContainerStyle={styles.correctionsList}
-    />
-
-    {/* Actions pinned at bottom */}
-    <View style={styles.statsBtns}>
-      <AppButton title="Close" type="white" onPress={onClose} />
-      <AppButton title="Back" type="accent" onPress={onBack} />
-      {canRetry && <AppButton title="Retry" onPress={onRetry} />}
-    </View>
-  </View>
-);
-
-/** Multiplayer waiting indicator */
 const WaitingBanner = () => (
   <View style={styles.waitingBanner}>
-    <LottieAnimator name="loading" loop style={{ width: 48, height: 48 }} />
-    <AppText fontWeight="semibold" style={{ marginLeft: 10 }}>
+    <LottieAnimator name="loading" loop style={{ width: 44, height: 44 }} />
+    <AppText fontWeight="bold" size={13.5} style={{ marginLeft: 10, color: Q.ink }}>
       Waiting for the remaining players…
     </AppText>
   </View>
 );
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main ────────────────────────────────────────────────────────────────────
 
-const FinishedQuiz = ({
-  hideModal,
-  data,
-  retried,
-  retry,
-  sessionId,
-  session,
-  duration,
-}) => {
+const FinishedQuiz = ({ hideModal, data, retried, retry, sessionId, session, duration }) => {
   const [phase, setPhase] = useState(PHASE.RESULT);
-  const [localStat, setLocalStat] = useState({
-    answeredCorrectly: 0,
-    point: 0,
-    total: 0,
-    isFinal: false,
-  });
+  const [localStat, setLocalStat] = useState({ answeredCorrectly: 0, point: 0, total: 0, isFinal: false });
   const [leaderboard, setLeaderboard] = useState(session?.leaderboard ?? []);
 
   const [submitQuiz] = useSubmitQuizMutation();
-  const [submitFreemiumQuiz, { data: freemiumResults }] =
-    useSubmitFreemiumQuizMutation();
+  const [submitFreemiumQuiz, { data: freemiumResults }] = useSubmitFreemiumQuizMutation();
   const [submitPremiumQuiz, { data: results }] = useSubmitPremiumQuizMutation();
-  const [submitCompetitionQuiz, { data: competitionResults }] =
-    useSubmitCompetitionQuizMutation();
+  const [submitCompetitionQuiz, { data: competitionResults }] = useSubmitCompetitionQuizMutation();
 
   const insets = useSafeAreaInsets();
   const user = useSelector(selectUser);
 
   const isMultiplayer = Boolean(sessionId);
-  const resolvedStats = useResolvedStats({
-    results,
-    freemiumResults,
-    competitionResults,
-    localStat,
-    session,
-  });
+  const resolvedStats = useResolvedStats({ results, freemiumResults, competitionResults, localStat, session });
 
-  const percentage = Math.round(
-    (localStat.point / (localStat.total || 1)) * 100,
-  );
+  const percentage = Math.max(Math.round((localStat.point / (localStat.total || 1)) * 100), 0);
   const lowPercent = percentage < 50;
+  const stars = percentage >= 80 ? 3 : percentage >= 50 ? 2 : percentage >= 20 ? 1 : 0;
   const competitionRank = competitionResults?.data?.rank;
   const canRetry = !isMultiplayer && data?.type !== "competition";
 
@@ -341,39 +272,25 @@ const FinishedQuiz = ({
         ? "Hard luck! Study more and come back for more practice!"
         : "You've done well — retake the quiz or move to the next topic.";
 
-  // ── Side effects ──────────────────────────────────────────────────────────
-
   useEffect(() => {
     socket.emit("quiz_end", { sessionId, user: getUserProfile(user) });
-
     const stats = computeLocalStats(session);
     setLocalStat((prev) => ({ ...prev, ...stats }));
-
     uploadQuizSession();
   }, [session]);
 
   useEffect(() => {
     socket.on("leaderboard_update", ({ leaderboard: lb, isFinal, stats }) => {
       setLeaderboard(lb);
-      if (isFinal) {
-        setLocalStat((prev) => ({ ...stats[user?._id], isFinal: true }));
-      }
+      if (isFinal) setLocalStat(() => ({ ...stats[user?._id], isFinal: true }));
     });
     return () => socket.off("leaderboard_update");
   }, []);
 
-  // ── Submission ────────────────────────────────────────────────────────────
-
   const uploadQuizSession = async () => {
     if (isMultiplayer) return;
 
-    const payload = {
-      ...data,
-      ...session,
-      retried,
-      ...(duration != null ? { duration } : {}),
-    };
-
+    const payload = { ...data, ...session, retried, ...(duration != null ? { duration } : {}) };
     const handlers = {
       school: () => submitQuiz(payload).unwrap(),
       freemium: () => submitFreemiumQuiz(payload).unwrap(),
@@ -393,80 +310,38 @@ const FinishedQuiz = ({
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  // MULTIPLAYER: show leaderboard until finals are in, then stats
+  // MULTIPLAYER: leaderboard until finals arrive, then stats
   if (isMultiplayer) {
     return (
       <View style={styles.container}>
         {!localStat.isFinal ? (
-          <View
-            style={[styles.leaderboardContainer, { paddingTop: insets.top }]}
-          >
-            <AppText
-              size="xlarge"
-              fontWeight="heavy"
-              style={styles.leaderboardTitle}
-            >
+          <View style={[styles.leaderboard, { paddingTop: insets.top }]}>
+            <AppText size="xlarge" fontWeight="heavy" style={styles.leaderboardTitle}>
               Quiz Leaderboard
             </AppText>
             <FlatList
               data={leaderboard}
-              keyExtractor={(item, index) =>
-                item?._id?.toString() ?? `lb-${index}`
-              }
+              keyExtractor={(item, index) => item?._id?.toString() ?? `lb-${index}`}
               showsVerticalScrollIndicator={false}
-              ListHeaderComponent={() => (
-                <LeaderboardWinners
-                  isPro={false}
-                  data={leaderboard?.slice(0, 3)}
-                />
-              )}
+              ListHeaderComponent={() => <LeaderboardWinners isPro={false} data={leaderboard?.slice(0, 3)} />}
               ListHeaderComponentStyle={{ backgroundColor: colors.accent }}
               ListFooterComponent={
-                <View
-                  style={
-                    leaderboard?.length < 4
-                      ? styles.leaderboardFooterSmall
-                      : styles.leaderboardFooter
-                  }
-                >
-                  <LottieAnimator
-                    name="congrats"
-                    loop={false}
-                    style={{ width: width * 0.8, height: width * 0.8 }}
-                  />
+                <View style={leaderboard?.length < 4 ? styles.lbFooterSmall : styles.lbFooter}>
+                  <LottieAnimator name="congrats" loop={false} style={{ width: width * 0.8, height: width * 0.8 }} />
                 </View>
               }
-              renderItem={({ item, index }) => (
-                <LeaderboardItem item={item} isPro={false} index={index} />
-              )}
+              renderItem={({ item, index }) => <LeaderboardItem item={item} isPro={false} index={index} />}
             />
             <WaitingBanner />
           </View>
         ) : (
-          // Finals are in — show stats
-          <View style={[styles.statsPhaseContainer, { marginTop: insets.top }]}>
-            <StatsPhase
-              resolvedStats={resolvedStats}
-              session={session}
-              onBack={() => {}}
-              onClose={hideModal}
-              canRetry={false}
-            />
-            <View style={styles.resultBtns}>
-              <AppButton title="Close" type="white" onPress={hideModal} />
-              <AppButton
-                title={`${phase === PHASE.STATS ? "Hide" : "View"} Corrections`}
-                type="accent"
-                onPress={() =>
-                  setPhase((p) =>
-                    p === PHASE.STATS ? PHASE.RESULT : PHASE.STATS,
-                  )
-                }
-              />
-            </View>
-          </View>
+          <StatsPhase
+            resolvedStats={resolvedStats}
+            session={session}
+            onClose={hideModal}
+            canRetry={false}
+            topInset={insets.top}
+          />
         )}
       </View>
     );
@@ -479,11 +354,14 @@ const FinishedQuiz = ({
         <ResultPhase
           resolvedStats={resolvedStats}
           lowPercent={lowPercent}
+          stars={stars}
           msg={msg}
+          duration={duration}
           onShowStats={() => setPhase(PHASE.STATS)}
           onRetry={retry}
           onClose={hideModal}
           canRetry={canRetry}
+          topInset={insets.top}
         />
       ) : (
         <StatsPhase
@@ -493,6 +371,7 @@ const FinishedQuiz = ({
           onRetry={retry}
           onClose={hideModal}
           canRetry={canRetry}
+          topInset={insets.top}
         />
       )}
     </View>
@@ -501,199 +380,35 @@ const FinishedQuiz = ({
 
 export default FinishedQuiz;
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  // Layout
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.unchange,
-  },
-  phaseContainer: {
-    flex: 1,
-    width,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  statsPhaseContainer: {
-    flex: 1,
-    width,
-    backgroundColor: colors.unchange,
-    borderRadius: 20,
-    marginVertical: 16,
-    boxShadow: `2px 8px 12px ${colors.primary}25`,
-    paddingTop: 16,
-  },
-
-  // Result phase
-  lottie: {
-    width: width * 0.72,
-    height: width * 0.72,
-  },
-  resultTextBlock: {
-    alignItems: "center",
-    marginBottom: 18,
-    paddingHorizontal: 24,
-  },
-  resultHeading: {
-    textAlign: "center",
-    color: colors.medium,
-    marginBottom: 8,
-  },
-  resultMsg: {
-    textAlign: "center",
-    color: colors.medium,
-    maxWidth: "80%",
-  },
+  container: { flex: 1, backgroundColor: Q.paper },
+  phase: { flex: 1, width, backgroundColor: Q.paper },
+  resultScroll: { flexGrow: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingBottom: 12 },
+  heading: { color: Q.ink, textAlign: "center" },
+  msg: { color: Q.sub, textAlign: "center", marginTop: 6, maxWidth: "85%", lineHeight: 20 },
   tokenCard: {
-    alignItems: "center",
-    backgroundColor: colors.warningLight + "45",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 36,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: colors.warning,
+    alignItems: "center", backgroundColor: TONES.yellow.soft, borderRadius: 22,
+    borderWidth: 2, borderBottomWidth: 6, borderColor: TONES.yellow.line,
+    paddingVertical: 12, paddingHorizontal: 40, marginBottom: 14,
   },
-  tokenLabel: {
-    letterSpacing: 1.2,
-    color: colors.medium,
-    marginBottom: 4,
-  },
-  tokenValue: {
-    color: colors.warning,
-  },
-  resultBtns: {
-    flexDirection: "row",
-    width: "100%",
-    justifyContent: "space-around",
-    paddingTop: 8,
-  },
-
-  // Stats phase
-  statsHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 4,
-  },
-  statsHeaderTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  statsTitle: {
-    color: colors.medium,
-  },
-  pointsPill: {
-    backgroundColor: colors.warningLight + "45",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.warning,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    alignItems: "center",
-  },
-  pointsPillValue: {
-    color: colors.warning,
-    lineHeight: 22,
-  },
-  pointsPillUnit: {
-    color: colors.medium,
-  },
-  pointsPillLabel: {
-    color: colors.medium,
-  },
-  scorecardStrip: {
-    flexDirection: "row",
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    marginBottom: 12,
-    boxShadow: `2px 8px 12px ${colors.primary}25`,
-  },
-  scorecardItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  scorecardValue: {
-    color: colors.medium,
-  },
-  scorecardSub: {
-    color: colors.lightly,
-  },
-  scorecardLabel: {
-    color: colors.medium,
-    marginTop: 2,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  scorecardDivider: {
-    width: 1,
-    backgroundColor: colors.lightly,
-    marginVertical: 4,
-  },
-  reviewDivider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    gap: 8,
-  },
-  reviewDividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.lightly,
-  },
-  reviewDividerText: {
-    color: colors.medium,
-    letterSpacing: 1,
-  },
-  correctionsList: {
-    paddingBottom: 12,
-  },
-  statsBtns: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.lightly,
-  },
-
-  // Multiplayer / leaderboard
-  leaderboardContainer: {
-    flex: 1,
-    backgroundColor: colors.accent,
-    width,
-  },
-  leaderboardTitle: {
-    textAlign: "left",
-    marginLeft: 15,
-    marginTop: 8,
-    marginBottom: 15,
-    color: "#fff",
-  },
-  leaderboardFooter: {
-    marginTop: 40,
-    height: height * 0.5,
-    backgroundColor: colors.unchange,
-    alignItems: "center",
-  },
-  leaderboardFooterSmall: {
-    height: height * 0.5,
-    borderTopRightRadius: 18,
-    borderTopLeftRadius: 18,
-    backgroundColor: colors.unchange,
-    alignItems: "center",
+  tokenLabel: { letterSpacing: 1.4, color: TONES.yellow.ink },
+  miniRow: { flexDirection: "row", gap: 10, width: "100%" },
+  mini: { flex: 1, alignItems: "center", borderRadius: 18, borderWidth: 2, borderBottomWidth: 4, paddingVertical: 12 },
+  statsTitle: { color: Q.ink, marginLeft: 16, marginBottom: 10 },
+  cells: { flexDirection: "row", alignItems: "center" },
+  cell: { flex: 1, alignItems: "center" },
+  cellLabel: { color: Q.sub, letterSpacing: 0.8, marginTop: 2 },
+  cellDivider: { width: 2, height: 34, borderRadius: 1, backgroundColor: Q.line },
+  filters: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  leaderboard: { flex: 1, backgroundColor: colors.accent, width },
+  leaderboardTitle: { textAlign: "left", marginLeft: 15, marginTop: 8, marginBottom: 15, color: "#fff" },
+  lbFooter: { marginTop: 40, height: height * 0.5, backgroundColor: Q.paper, alignItems: "center" },
+  lbFooterSmall: {
+    height: height * 0.5, borderTopRightRadius: 24, borderTopLeftRadius: 24,
+    backgroundColor: Q.paper, alignItems: "center",
   },
   waitingBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    backgroundColor: colors.unchange,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 12, backgroundColor: Q.paper, borderTopWidth: 2, borderTopColor: Q.line,
   },
 });

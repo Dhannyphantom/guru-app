@@ -11,6 +11,8 @@ import {
 
 import { nanoid } from "@reduxjs/toolkit";
 import Katex from "react-native-katex";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
 
 import AppText from "../components/AppText";
 import React, {
@@ -29,20 +31,16 @@ import {
   socket,
 } from "../helpers/helperFunctions";
 import Options from "./Options";
-import AppButton from "./AppButton";
 import PopMessage from "./PopMessage";
 import PopAlerts from "./PopAlerts";
-// import { useFormikContext } from "formik";
 import { FormikCover } from "./CoverImage";
 import AnimatedPressable from "./AnimatedPressable";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
+import { Q, TONES, TONE_CYCLE } from "./quiz/QuizTheme";
+import { AnimatedBar, Chip, FooterBar, QuizButton } from "./quiz/QuizUI";
 
 const { width, height } = Dimensions.get("screen");
-
-// const defaultAnswers = Array(4)
-//   .fill("")
-//   .map((_n) => ({ _id: nanoid(), name: "", correct: false }));
 
 const inlineStyle = `
 html, body {
@@ -79,7 +77,6 @@ const LatexText = ({ value, isLatex, style }) => {
       errorColor="#f00"
       macros={{}}
       colorIsTextColor={false}
-      // onLoad={() => setLoaded(true)}
       onError={() => console.error("Error")}
     />
   );
@@ -91,8 +88,8 @@ const QuestionDisplay = ({
   setQuizInfoView,
   hardReset,
   questionBank = [],
-  qColor = colors.black,
-  subjColor = colors.primaryDeep,
+  qColor, // optional override for the counter colour
+  subjColor, // optional override for the subject colour
   sessionId,
   penaltyRate = null, // JAMB: fraction of the question point lost on a wrong/skipped answer
 }) => {
@@ -192,7 +189,6 @@ const QuestionDisplay = ({
         current: p.current + 1,
         canProceed: false,
       }));
-      // timerRef.current?.play();
       return;
     }
 
@@ -203,7 +199,6 @@ const QuestionDisplay = ({
         current: p.current + 1,
         canProceed: false,
       }));
-      // timerRef.current?.play();
       return;
     }
 
@@ -222,28 +217,25 @@ const QuestionDisplay = ({
     if (!currentQuestion) return;
 
     if (hasAnswered && currentQuestion.answered?._id === correctAnswer?._id) {
-      setSession((p) => {
-        const row = p.row + 1;
-        setPopData({
-          vis: true,
-          msg: `Correct!${row > 1 ? `\n${row} in a row` : ""}`,
-          type: "success",
-          timer: 1000,
-          point: formatPoints("+" + currentQuestion.point),
-          popId: nanoid(),
-        });
-        if (isMultiplayer) {
-          socket.emit("answer_question", {
-            // answer: currentQuestion?.answered,
-            question: currentQuestion,
-            row,
-            // point: currentQuestion.point,
-            sessionId,
-            user: getUserProfile(user),
-          });
-        }
-        return { ...p, row, totalQuestions };
+      // side effects live outside the state updater so they can't fire twice
+      const row = session.row + 1;
+      setSession((p) => ({ ...p, row, totalQuestions }));
+      setPopData({
+        vis: true,
+        msg: `Correct!${row > 1 ? `\n${row} in a row` : ""}`,
+        type: "success",
+        timer: 1000,
+        point: formatPoints("+" + currentQuestion.point),
+        popId: nanoid(),
       });
+      if (isMultiplayer) {
+        socket.emit("answer_question", {
+          question: currentQuestion,
+          row,
+          sessionId,
+          user: getUserProfile(user),
+        });
+      }
     } else {
       setSession((p) => ({ ...p, row: 0 }));
       setPopData({
@@ -259,10 +251,8 @@ const QuestionDisplay = ({
       });
       if (isMultiplayer) {
         socket.emit("answer_question", {
-          // answer: currentQuestion?.answered,
           question: currentQuestion,
           row: 0,
-          // point: -2,
           sessionId,
           user: getUserProfile(user),
         });
@@ -274,13 +264,11 @@ const QuestionDisplay = ({
 
   useEffect(() => {
     socket.on("session_answers", ({ message, userId }) => {
-      // keep parent in sync
       setAlerts({
         vis: user?._id !== userId,
         msg: message,
         type: message?.includes("got") ? "success" : "failed",
         timer: 2000,
-        // point: formatPoints("+" + currentQuestion.point),
         popId: nanoid(),
       });
     });
@@ -288,7 +276,6 @@ const QuestionDisplay = ({
     return () => socket.off("session_answers");
   }, []);
 
-  // leaderboard_update
   useEffect(() => {
     socket.on("leaderboard_update", ({ leaderboard }) => {
       setSession((prev) => ({ ...prev, leaderboard }));
@@ -315,7 +302,6 @@ const QuestionDisplay = ({
         appState.current.match(/active|foreground/) &&
         nextAppState === "background"
       ) {
-        // App has gone to the background - trigger your function here
         handleNextQuestionRef.current?.();
       }
 
@@ -332,54 +318,116 @@ const QuestionDisplay = ({
     return (
       <View style={styles.avoidingView}>
         <LottieAnimator visible />
-        <AppText fontWeight="medium">Loading question…</AppText>
-        <AppButton
-          type="warn"
-          title={"Cancel"}
+        <AppText fontWeight="black" size={18} style={{ color: Q.ink }}>
+          Loading question…
+        </AppText>
+        <QuizButton
+          title="Cancel"
+          icon="close"
+          variant="coral"
+          small
           onPress={hardReset}
-          contStyle={{ marginTop: 50 }}
+          style={{ marginTop: 40, minWidth: 160 }}
         />
       </View>
     );
   }
 
+  const tone = TONES[TONE_CYCLE[(active.subject + 1) % TONE_CYCLE.length]];
+  const progress = totalQuestions
+    ? ((active.current - 1) / totalQuestions) * 100
+    : 0;
+
   return (
     <>
       <View style={styles.questions}>
+        {/* Header: counter • subject • timer */}
         <View style={styles.header}>
-          <AppText size="large" style={{ color: qColor }} fontWeight="heavy">
-            {active.current}/{totalQuestions}
-          </AppText>
+          <View style={styles.counter}>
+            <AppText
+              fontWeight="black"
+              size={15}
+              style={{ color: qColor ?? Q.ink }}
+            >
+              {active.current}
+              <AppText fontWeight="bold" size={12} style={{ color: Q.faint }}>
+                /{totalQuestions}
+              </AppText>
+            </AppText>
+          </View>
 
-          <AppText
-            style={{ ...styles.subjectTxt, color: subjColor }}
-            size="xxlarge"
-            fontWeight="black"
-          >
-            {questionStore?.[active.subject]?.subject?.name}
-          </AppText>
+          <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 8 }}>
+            <AppText
+              fontWeight="black"
+              size={19}
+              numberOfLines={1}
+              style={{
+                color: subjColor ?? tone.ink,
+                textTransform: "capitalize",
+              }}
+            >
+              {questionStore?.[active.subject]?.subject?.name}
+            </AppText>
+          </View>
 
-          <LottieAnimator
-            key={`${active.subject}-${active.question}`}
-            name="timer"
-            animRef={timerRef}
-            // speed={0.0005}
-            speed={10 / (currentQuestion.timer || 10)}
-            style={{ width: 50, height: 50 }}
-            loop={false}
-            onAnimationFinish={handleNextQuestion}
-          />
+          <View style={styles.timer}>
+            <LottieAnimator
+              key={`${active.subject}-${active.question}`}
+              name="timer"
+              animRef={timerRef}
+              speed={10 / (currentQuestion.timer || 10)}
+              style={{ width: 44, height: 44 }}
+              loop={false}
+              onAnimationFinish={handleNextQuestion}
+            />
+          </View>
         </View>
 
-        <View style={styles.question}>
-          <ScrollView contentContainerStyle={styles.scroll}>
-            {/* <AppText
-              size="xlarge"
-              fontWeight="bold"
-              style={{ textAlign: "center", lineHeight: 35 }}
+        {/* Progress + streak */}
+        <View style={styles.progressRow}>
+          <View style={{ flex: 1 }}>
+            <AnimatedBar
+              percent={progress}
+              color={tone.face}
+              height={10}
+              delay={0}
+            />
+          </View>
+          {session.row > 1 && (
+            <Animated.View
+              key={session.row}
+              entering={ZoomIn.springify().damping(12)}
+              style={{ marginLeft: 10 }}
             >
-              {capFirstLetter(currentQuestion.question)}
-            </AppText> */}
+              <Chip
+                icon="flame"
+                label={`${session.row} in a row`}
+                color={TONES.coral.ink}
+                bg={TONES.coral.soft}
+              />
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Question card */}
+        <Animated.View
+          key={`${active.subject}-${active.question}`}
+          entering={FadeIn.duration(260)}
+          style={[styles.question, { borderColor: tone.line }]}
+        >
+          <View style={[styles.qTag, { backgroundColor: tone.soft }]}>
+            <AppText
+              fontWeight="black"
+              size={10.5}
+              style={{ color: tone.ink, letterSpacing: 1 }}
+            >
+              QUESTION {active.current}
+            </AppText>
+          </View>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
             <LatexText
               value={
                 currentQuestion.isLatex
@@ -389,15 +437,20 @@ const QuestionDisplay = ({
               isLatex={currentQuestion.isLatex}
               style={{
                 textAlign: "center",
-                lineHeight: 35,
-                fontSize: 20,
+                lineHeight: 30,
+                fontSize: 19,
                 fontFamily: "sf-bold",
+                color: Q.ink,
               }}
             />
           </ScrollView>
-        </View>
+        </Animated.View>
 
-        <ScrollView style={{ flex: 1, marginTop: 25 }}>
+        {/* Options */}
+        <ScrollView
+          style={{ flex: 1, marginTop: 14 }}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.container}>
             {currentQuestion.answers.map((obj, idx) => (
               <Options
@@ -411,15 +464,24 @@ const QuestionDisplay = ({
           </View>
         </ScrollView>
 
-        <View style={styles.btns}>
-          <AppButton title="Quit" onPress={handleQuit} type="warn" />
-          <AppButton
-            title={noNextQuestion ? "Finish Quiz" : "Next Question"}
-            onPress={handleNextQuestion}
-            disabled={!hasAnswered || !active.canProceed}
-            type={noNextQuestion ? "accent" : "primary"}
+        <FooterBar style={styles.footer}>
+          <QuizButton
+            title="Quit"
+            icon="exit-outline"
+            variant="coral"
+            small
+            onPress={handleQuit}
+            style={{ flex: 1 }}
           />
-        </View>
+          <QuizButton
+            title={noNextQuestion ? "Finish" : "Next"}
+            icon={noNextQuestion ? "flag" : "arrow-forward"}
+            variant={noNextQuestion ? "yellow" : "primary"}
+            disabled={!hasAnswered || !active.canProceed}
+            onPress={handleNextQuestion}
+            style={{ flex: 1.6 }}
+          />
+        </FooterBar>
       </View>
 
       <PopMessage popData={popData} setPopData={setPopData} />
@@ -454,7 +516,6 @@ export const QuizQuestion = ({
     return createDefaultAnswers();
   }, [answersVal]);
 
-  // Handle question text change
   const handleQuestionChange = useCallback(
     (text) => {
       onUpdateQuestion?.({ question: text });
@@ -463,7 +524,6 @@ export const QuizQuestion = ({
     [onUpdateQuestion, onTouch],
   );
 
-  // Handle answer updates
   const handleUpdateAnswer = useCallback(
     (updatedAnswer) => {
       const newAnswers = answers?.map((answer) => {
@@ -483,19 +543,15 @@ export const QuizQuestion = ({
     [answers, onUpdateQuestion, onTouch],
   );
 
-  // Handle image toggle
   const handleImagePress = useCallback(() => {
     if (showImagePicker) {
-      // Remove image
       onUpdateQuestion?.({ image: {} });
       setShowImagePicker(false);
     } else {
-      // Show image picker
       setShowImagePicker(true);
     }
   }, [showImagePicker, onUpdateQuestion]);
 
-  // Handle image update
   const handleImageUpdate = useCallback(
     (imageData) => {
       onUpdateQuestion?.({ image: imageData });
@@ -505,7 +561,6 @@ export const QuizQuestion = ({
 
   return (
     <View onLayout={onLayout}>
-      {/* Question Input */}
       <View style={styles.question}>
         <View style={styles.main}>
           <TextInput
@@ -519,14 +574,23 @@ export const QuizQuestion = ({
         </View>
       </View>
 
-      {/* Image Toggle Button */}
       <AnimatedPressable onPress={handleImagePress} style={styles.coverImgBtn}>
-        <AppText style={{ color: colors.primaryDeep }} fontWeight="bold">
-          {showImagePicker ? "Remove" : "Add"} Image
-        </AppText>
+        <View style={styles.imgChip}>
+          <Ionicons
+            name={showImagePicker ? "close-circle" : "image"}
+            size={15}
+            color={TONES.blue.ink}
+          />
+          <AppText
+            style={{ color: TONES.blue.ink, marginLeft: 6 }}
+            fontWeight="bold"
+            size={12.5}
+          >
+            {showImagePicker ? "Remove" : "Add"} Image
+          </AppText>
+        </View>
       </AnimatedPressable>
 
-      {/* Image Picker */}
       {showImagePicker && (
         <View style={styles.cover}>
           <FormikCover
@@ -538,7 +602,6 @@ export const QuizQuestion = ({
         </View>
       )}
 
-      {/* Answer Options */}
       <View style={styles.container}>
         {answers?.map((answer, idx) => (
           <Options
@@ -563,29 +626,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  btnContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
-    // flexDirection: "row",
-  },
-  btns: {
-    width: width,
-    flexDirection: "row",
-    justifyContent: "space-around",
+    backgroundColor: Q.paper,
   },
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  cover: {
-    // width: Platform.OS == "web" ? 300 : null,
-    // alignItems: "center",
-    // justifyContent: "space-between",
-    // marginHorizontal: 10,
-  },
+  cover: {},
   coverImage: {
     height: height * 0.25,
     flexDirection: "row",
@@ -596,14 +644,50 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     paddingHorizontal: 20,
   },
-  coverBtn: {
-    padding: 20,
+  imgChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: TONES.blue.soft,
+    borderWidth: 2,
+    borderBottomWidth: 3,
+    borderColor: TONES.blue.line,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginHorizontal: 10,
+    marginTop: 2,
+  },
+  counter: {
+    minWidth: 62,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    backgroundColor: Q.card,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: Q.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timer: {
+    width: 56,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: Q.card,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: Q.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
   },
   main: {
     flex: 1,
@@ -611,41 +695,51 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingHorizontal: 10,
   },
-  subjectTxt: {
-    width: "60%",
-    color: colors.primaryDeep,
-    textAlign: "center",
-    textTransform: "capitalize",
-  },
   scroll: {
+    flexGrow: 1,
     justifyContent: "center",
-    flex: 1,
     alignItems: "center",
+    paddingTop: 14,
   },
   question: {
-    width: "98%",
-    minHeight: height * 0.3,
-    maxHeight: height * 0.4,
-    backgroundColor: colors.white,
+    width: "100%",
+    minHeight: height * 0.26,
+    maxHeight: height * 0.38,
+    backgroundColor: Q.card,
     alignSelf: "center",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 20,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderBottomWidth: 6,
+    borderColor: Q.line,
     overflow: Platform.OS === "web" ? null : "scroll",
-    marginBottom: 15,
+  },
+  qTag: {
+    position: "absolute",
+    top: 10,
+    left: 12,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    zIndex: 2,
   },
   questions: {
     flex: 1,
     width: "100%",
-    padding: 12,
+    paddingTop: 8,
+    paddingHorizontal: 12,
+  },
+  footer: {
+    marginHorizontal: -12,
+    marginTop: 6,
   },
   questionInput: {
     fontFamily: "sf-bold",
     width: "96%",
     height: "96%",
-    // backgroundColor: "red",
     textAlign: "center",
     fontSize: 20,
     flex: 1,

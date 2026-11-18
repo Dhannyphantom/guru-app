@@ -1,15 +1,18 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Dimensions, StyleSheet, TextInput, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import Katex from "react-native-katex";
+import Animated from "react-native-reanimated";
 
 import AppText from "../components/AppText";
 import colors from "../helpers/colors";
-import AnimatedPressable from "./AnimatedPressable";
 import { capFirstLetter } from "../helpers/helperFunctions";
 import AnimatedCheckBox from "./AnimatedCheckbox";
+import { Q, TONES } from "./quiz/QuizTheme";
+import { QuizPressable } from "./quiz/QuizUI";
+import { popIn, popOut } from "./quiz/QuizMotion";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const inlineStyle = `
 html, body {
@@ -26,7 +29,7 @@ html, body {
   margin: 0;
   font-weight: 800;
   display: flex;
-  color: ${colors.white};
+  color: ${Q.ink};
 }
 `;
 
@@ -35,7 +38,7 @@ const LatexOptionText = ({ value, isLatex }) => {
 
   if (!isLatex) {
     return (
-      <AppText fontWeight="semibold" style={styles.nonEditableText}>
+      <AppText fontWeight="bold" size={15.5} style={styles.nonEditableText}>
         {value}
       </AppText>
     );
@@ -55,20 +58,20 @@ const LatexOptionText = ({ value, isLatex }) => {
         throwOnError={false}
         errorColor={colors.primary}
         macros={{}}
-        // renderError
         colorIsTextColor={false}
-        // onLoad={() => setLoaded(true)}
         onError={() => console.error("Error")}
       />
-      {/* <Katex
-        expression={value}
-        throwOnError={false}
-        errorColor={colors.white}
-        style={{ backgroundColor: "transparent" }}
-      /> */}
     </View>
   );
 };
+
+// A / B / C / D each get their own colour
+const SCHEMES = [
+  { tone: TONES.blue, letter: "A" },
+  { tone: TONES.yellow, letter: "B" },
+  { tone: TONES.coral, letter: "C" },
+  { tone: TONES.green, letter: "D" },
+];
 
 const Options = ({
   idx = 0,
@@ -80,46 +83,16 @@ const Options = ({
 }) => {
   const [text, setText] = useState(data?.name || "");
 
-  // Color scheme based on index
-  const colorScheme = useMemo(() => {
-    switch (idx) {
-      case 1:
-        return {
-          bg: colors.warning,
-          overlay: colors.warningDark,
-          prefix: "B. ",
-        };
-      case 2:
-        return {
-          bg: colors.heartDark,
-          overlay: colors.heart,
-          prefix: "C. ",
-        };
-      case 3:
-        return {
-          bg: colors.green,
-          overlay: colors.greenDark,
-          prefix: "D. ",
-        };
-      default:
-        return {
-          bg: colors.accentDeeper,
-          overlay: colors.accent,
-          prefix: "A. ",
-        };
-    }
-  }, [idx]);
+  const scheme = useMemo(() => SCHEMES[idx] ?? SCHEMES[0], [idx]);
+  const { tone, letter } = scheme;
 
-  // Update local text when prop data changes
   useEffect(() => {
     setText(data?.name || "");
   }, [data]);
 
-  // Handle text change with debouncing
   const handleTextChange = useCallback(
     (newText) => {
       setText(newText);
-      // Update immediately for better UX
       handleUpdateAnswer?.({
         ...data,
         name: newText,
@@ -129,7 +102,6 @@ const Options = ({
     [data, handleUpdateAnswer],
   );
 
-  // Handle correct answer selection
   const handleSelection = useCallback(() => {
     handleUpdateAnswer?.({
       ...data,
@@ -138,25 +110,35 @@ const Options = ({
     });
   }, [data, text, handleUpdateAnswer]);
 
-  // Handle non-editable selection
   const handleNonEditableSelection = useCallback(() => {
     handleSelectAnswer?.(data);
   }, [data, handleSelectAnswer]);
 
+  const badgeFg = tone === TONES.yellow ? Q.ink : "#FFFFFF";
+
+  // ── Editor: solid coloured card so the checkbox stays visible ──────────────
   if (editable) {
     return (
-      <View style={[styles.container, { backgroundColor: colorScheme.bg }]}>
-        <View style={[styles.main, { backgroundColor: colorScheme.overlay }]}>
-          <AppText fontWeight="semibold" style={styles.prefixText}>
-            {colorScheme.prefix}
-          </AppText>
+      <View
+        style={[
+          styles.container,
+          styles.editCard,
+          { backgroundColor: tone.face, borderBottomColor: tone.lip },
+        ]}
+      >
+        <View style={styles.main}>
+          <View style={styles.editBadge}>
+            <AppText fontWeight="black" size={15} style={{ color: tone.ink }}>
+              {letter}
+            </AppText>
+          </View>
           <TextInput
             onChangeText={handleTextChange}
             multiline
-            style={styles.input}
+            style={[styles.input, { color: tone.text }]}
             value={text}
             placeholder="Enter answer option"
-            placeholderTextColor={colors.white + "90"}
+            placeholderTextColor={tone.text + "90"}
           />
           <AnimatedCheckBox
             isChecked={data?.correct || false}
@@ -167,25 +149,38 @@ const Options = ({
     );
   }
 
+  // ── Quiz: white chunky card, tinted + checked when selected ───────────────
   return (
-    <AnimatedPressable
+    <QuizPressable
       onPress={handleNonEditableSelection}
-      style={[
-        styles.container,
-        {
-          backgroundColor: colorScheme.bg,
-          borderWidth: isSelected ? 3 : 0,
-          borderColor: isSelected ? colors.white : null,
-          boxShadow: isSelected ? `2px 8px 18px ${colors.primary}40` : null,
+      scaleTo={0.97}
+      style={styles.container}
+      contentStyle={[
+        styles.card,
+        isSelected && {
+          backgroundColor: tone.soft,
+          borderColor: tone.face,
+          borderBottomColor: tone.lip,
         },
       ]}
     >
-      <View style={[styles.main, { backgroundColor: colorScheme.overlay }]}>
-        <View style={{ flexDirection: "row", flex: 1, alignItems: "center" }}>
-          <AppText fontWeight="semibold" style={styles.prefixText}>
-            {colorScheme.prefix}
+      <View style={styles.main}>
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: isSelected ? tone.face : tone.soft },
+          ]}
+        >
+          <AppText
+            fontWeight="black"
+            size={15}
+            style={{ color: isSelected ? badgeFg : tone.ink }}
+          >
+            {letter}
           </AppText>
+        </View>
 
+        <View style={{ flex: 1, justifyContent: "center", marginLeft: 12 }}>
           <LatexOptionText
             value={
               data?.isLatex
@@ -195,15 +190,20 @@ const Options = ({
             isLatex={data?.isLatex}
           />
         </View>
-        {isSelected && (
-          <MaterialCommunityIcons
-            name="check-bold"
-            size={26}
-            color={colors.white}
-          />
-        )}
+
+        <View style={styles.checkSlot}>
+          {isSelected && (
+            <Animated.View
+              entering={popIn}
+              exiting={popOut}
+              style={[styles.check, { backgroundColor: tone.face }]}
+            >
+              <Ionicons name="checkmark" size={16} color={badgeFg} />
+            </Animated.View>
+          )}
+        </View>
       </View>
-    </AnimatedPressable>
+    </QuizPressable>
   );
 };
 
@@ -212,35 +212,66 @@ export default Options;
 const styles = StyleSheet.create({
   container: {
     width: "96%",
-    borderRadius: 18,
     marginBottom: 12,
+  },
+  card: {
+    backgroundColor: Q.card,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: Q.line,
+  },
+  editCard: {
+    borderRadius: 20,
+    borderBottomWidth: 5,
+  },
+  main: {
+    width: "100%",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 62,
+  },
+  badge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  checkSlot: {
+    width: 30,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  check: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
   input: {
     flex: 1,
     height: "100%",
     fontFamily: "sf-bold",
-    color: colors.white,
     fontSize: 16,
     outlineStyle: "none",
-    paddingVertical: 20,
-    minHeight: 60,
-  },
-  main: {
-    width: "100%",
-    paddingHorizontal: 20,
-    borderRadius: 18,
-    marginBottom: 4,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: 60,
-  },
-  prefixText: {
-    color: colors.white,
+    paddingVertical: 18,
+    minHeight: 62,
   },
   nonEditableText: {
-    color: colors.white,
-    paddingVertical: 20,
-    flex: 1,
+    color: Q.ink,
+    paddingVertical: 16,
+    lineHeight: 21,
   },
 });
