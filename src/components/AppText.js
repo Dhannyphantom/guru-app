@@ -12,50 +12,50 @@ const AppText = ({
   animatedStyle,
   ...otherProps
 }) => {
+  // `style` can be an object, an array (nested, with falsy entries) or a
+  // registered StyleSheet style — flatten it into one plain object first.
+  const {
+    fontSize: styleFontSize,
+    fontWeight: styleFontWeight,
+    ...stylesObj
+  } = StyleSheet.flatten(style) || {};
+
   let fontSize,
     weight = fontWeight;
 
-  const stylesObj = { ...style };
-
-  if (style?.fontSize > 0) {
-    fontSize = scaleFont(style?.fontSize - 4);
+  if (styleFontSize > 0) {
+    fontSize = scaleFont(styleFontSize - 4);
   } else if (typeof size === "number") {
     fontSize = scaleFont(size);
   } else {
     fontSize = FONT_SIZES[size];
   }
 
-  if (style?.fontWeight === "600") {
-    weight = "semibold";
-  } else if (style?.fontWeight === "700") {
-    weight = "bold";
-  } else if (style?.fontWeight === "800") {
-    weight = "black";
+  // numeric weights are treated like their string equivalents
+  switch (String(styleFontWeight)) {
+    case "600":
+      weight = "semibold";
+      break;
+    case "700":
+      weight = "bold";
+      break;
+    case "800":
+      weight = "black";
+      break;
   }
 
-  delete stylesObj?.fontWeight;
-  delete stylesObj?.fontSize;
+  const baseStyle = [styles.text, { fontSize, fontFamily: `sf-${weight}` }];
 
   return animated ? (
     <Animated.Text
       animatedProps={animatedProps}
-      style={[
-        styles.text,
-        { fontSize, fontFamily: `sf-${weight}` },
-        stylesObj,
-        animatedStyle,
-      ]}
+      style={[...baseStyle, stylesObj, animatedStyle]}
       {...otherProps}
     >
       {children}
     </Animated.Text>
   ) : (
-    <Text
-      style={[styles.text, { fontSize, fontFamily: `sf-${weight}` }, stylesObj]}
-      // numberOfLines={2}
-      // ellipsizeMode="middle"
-      {...otherProps}
-    >
+    <Text style={[...baseStyle, stylesObj]} {...otherProps}>
       {children}
     </Text>
   );

@@ -41,6 +41,8 @@ import PayRecovery from "./payment/PayRecovery";
 import PayVerifying from "./payment/PayVerifying";
 import PayProfileGate from "./payment/PayProfileGate";
 import useTabBarOffset from "./payment/useTabBarOffset";
+import PendingTransactions from "./PendingTransactions";
+import { useMarkSubscriptionStartedMutation } from "../context/usersSlice";
 
 /**
  * Subscription / payment flow.
@@ -54,6 +56,7 @@ import useTabBarOffset from "./payment/useTabBarOffset";
  */
 const DisplayPayments = ({ hideModal, data }) => {
   const insets = useSafeAreaInsets();
+  const [markStarted] = useMarkSubscriptionStartedMutation();
   const router = useRouter();
   const tabOffset = useTabBarOffset();
   const user = useSelector(selectUser);
@@ -100,16 +103,32 @@ const DisplayPayments = ({ hideModal, data }) => {
     [],
   );
 
-  const { status, txRef, receipt, handleRedirect, retryVerify, startOver } =
-    usePaymentFlow({ plan, notify });
-
   const fullName = getFullName(user);
   const schoolId = isSchool ? (data?.schoolId ?? data?.data?._id) : "";
+
+  const {
+    status,
+    txRef,
+    ready,
+    intentError,
+    retryPrepare,
+    receipt,
+    message,
+    checking,
+    handleRedirect,
+    retryVerify,
+    startOver,
+  } = usePaymentFlow({
+    plan,
+    accountType: isSchool ? "school" : "student",
+    schoolId: schoolId || undefined,
+    notify,
+  });
 
   // Flutterwave reads these when the button is pressed. tx_ref is stable per
   // attempt (and re-issued by the hook after a cancel / failure).
   const options = useMemo(() => {
-    if (!plan) return null;
+    if (!plan || !txRef) return null;
     return {
       tx_ref: txRef,
       authorization: FLW_PUBLIC_KEY,
@@ -122,9 +141,10 @@ const DisplayPayments = ({ hideModal, data }) => {
         name: fullName,
         days: plan.days,
         schoolId: schoolId ?? "",
+        user_id: String(user?._id ?? user?.id ?? ""),
       },
     };
-  }, [plan, txRef, user?.email, fullName, data?.type, schoolId]);
+  }, [plan, txRef, user?.email, user?._id, user?.id, fullName, data?.type, schoolId]);
 
   // ─── Success ───────────────────────────────────────────────────────────────
   if (status === "success") {
@@ -156,6 +176,22 @@ const DisplayPayments = ({ hideModal, data }) => {
       >
         <PayHero title={copy.title} sub={copy.sub} pills={copy.pills} />
 
+        {!inRecovery && (
+          <PendingTransactions
+            kinds={["subscription"]}
+            compact
+            onResolved={(items) => {
+              if (items.some((i) => i.outcome === "completed")) {
+                notify(
+                  "info",
+                  "Your earlier payment was confirmed and your subscription is now active.",
+                );
+                setTimeout(() => hideModal?.(true), 1500);
+              }
+            }}
+          />
+        )}
+
         {!profileOk && !inRecovery && (
           <PayProfileGate
             message={profileMsg}
@@ -165,7 +201,12 @@ const DisplayPayments = ({ hideModal, data }) => {
         )}
 
         {inRecovery ? (
-          <PayRecovery onRetry={retryVerify} onStartOver={startOver} />
+          <PayRecovery
+            onRetry={retryVerify}
+            onStartOver={startOver}
+            message={message}
+            loading={checking}
+          />
         ) : (
           <View style={styles.section}>
             <SectionTitle
@@ -243,6 +284,13 @@ const DisplayPayments = ({ hideModal, data }) => {
               variant="brand"
               onPress={goCompleteProfile}
             />
+          ) : intentError ? (
+            <PayButton
+              title="Couldn't prepare payment — tap to retry"
+              icon="refresh"
+              variant="brand"
+              onPress={retryPrepare}
+            />
           ) : plan && options ? (
             <PayWithFlutterwave
               onRedirect={handleRedirect}
@@ -254,12 +302,21 @@ const DisplayPayments = ({ hideModal, data }) => {
                   shine
                   loading={props.isInitializing}
                   disabled={props.disabled}
-                  onPress={props.onPress}
+                  onPress={() => {
+                    // leave a server-side trace BEFORE Flutterwave opens
+                    markStarted({ tx_ref: txRef });
+                    props.onPress();
+                  }}
                 />
               )}
             />
           ) : (
-            <PayButton title="Pick a plan" icon={null} disabled />
+            <PayButton
+              title={plan ? "Preparing secure payment…" : "Pick a plan"}
+              icon={null}
+              loading={Boolean(plan) && !ready}
+              disabled
+            />
           )}
         </PayCheckoutBar>
       )}

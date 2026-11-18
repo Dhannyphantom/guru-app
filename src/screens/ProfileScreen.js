@@ -35,6 +35,7 @@ import {
 } from "../context/usersSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Points from "../components/Points";
+import colors from "../helpers/colors";
 import Constant from "expo-constants";
 import {
   capFirstLetter,
@@ -69,6 +70,12 @@ const SIGN_OUT_MODAL = {
   btn: "Leave",
   type: "sign_out",
 };
+
+// Hero tuning knobs
+const HERO_RADIUS = 36;
+const HERO_EDGE = 7; // thickness of the darker "3D" edge under the hero
+const STATS_OVERLAP = 30; // how far the stats card overlaps the hero edge
+const AVATAR_SIZE = Math.min(Math.round(width * 0.27), 108);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUB-COMPONENTS
@@ -370,6 +377,211 @@ export const ProfileLink = ({
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PROFILE HERO
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Small pill used for school / role / level / verified tags in the hero */
+const HeroChip = ({
+  icon,
+  label,
+  tone = "glass",
+  maxWidth,
+  transform = "capitalize",
+}) => {
+  const tones = {
+    glass: {
+      bg: "rgba(255,255,255,0.18)",
+      border: "rgba(255,255,255,0.32)",
+      fg: "#FFFFFF",
+    },
+    solid: { bg: "#fff", border: "#fff", fg: colors.accentDeeper },
+    success: { bg: colors.green, border: colors.greenDark, fg: "#FFFFFF" },
+  };
+  const c = tones[tone] ?? tones.glass;
+  return (
+    <View
+      style={[
+        s.heroChip,
+        { backgroundColor: c.bg, borderColor: c.border },
+        maxWidth ? { maxWidth } : null,
+      ]}
+    >
+      {icon ? <Ionicons name={icon} size={12} color={c.fg} /> : null}
+      <AppText
+        fontWeight="bold"
+        size="tiny"
+        numberOfLines={1}
+        style={{ ...s.heroChipText, color: c.fg, textTransform: transform }}
+      >
+        {label}
+      </AppText>
+    </View>
+  );
+};
+
+/**
+ * Profile hero
+ *  - calm, flat blue panel with a clean darker edge (outer layer + inner panel
+ *    share the same radius, so the curve is always even)
+ *  - identity row: avatar on the left, name / handle / school stacked on the right
+ *  - tags row (account type, level, gender, verified) underneath
+ *  - rank + points live in a floating card that straddles the hero edge
+ */
+const ProfileHero = ({
+  user,
+  school,
+  insets,
+  isPro,
+  isWaiting,
+  isProVerified,
+  onEditProfile,
+}) => {
+  const showStats = !isPro;
+  const level =
+    user?.accountType === "student" ? user?.class?.level?.toUpperCase() : null;
+  const fullName = `${user?.firstName ?? "Your"} ${user?.lastName ?? "Name"}`;
+  const hasTags =
+    Boolean(user?.accountType) ||
+    Boolean(level) ||
+    Boolean(user?.gender) ||
+    isProVerified;
+
+  return (
+    <View style={s.heroWrap}>
+      <View style={s.heroEdge}>
+        <View
+          style={[
+            s.hero,
+            {
+              paddingTop: insets.top + 20,
+              paddingBottom: showStats ? STATS_OVERLAP + 22 : 24,
+            },
+          ]}
+        >
+          {/* single, very quiet background shape */}
+          <View pointerEvents="none" style={s.heroBlob} />
+
+          {/* ── identity row ── */}
+          <View style={s.identityRow}>
+            <View style={s.avatarWrap}>
+              <Avatar
+                size={AVATAR_SIZE}
+                imageStyle={{ backgroundColor: "#fff" }}
+                data={{ user }}
+                source={user?.avatar?.image}
+                border={{ width: 4, color: "#fff" }}
+                onPress={onEditProfile}
+              />
+              <View pointerEvents="none" style={s.editBadge}>
+                <Ionicons name="pencil" size={12} color={T.ink} />
+              </View>
+            </View>
+
+            <View style={s.identityText}>
+              <AppText fontWeight="black" numberOfLines={2} style={s.heroName}>
+                {fullName}
+              </AppText>
+
+              {Boolean(user?.username) && (
+                <AppText
+                  fontWeight="semibold"
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                  style={s.heroHandle}
+                >
+                  @{user.username}
+                </AppText>
+              )}
+
+              {Boolean(school?.name) && (
+                <View style={s.schoolRow}>
+                  <Ionicons
+                    name="business"
+                    size={13}
+                    color="rgba(255,255,255,0.85)"
+                  />
+                  <AppText
+                    fontWeight="semibold"
+                    size="tiny"
+                    numberOfLines={1}
+                    style={s.schoolText}
+                  >
+                    {school.name}
+                  </AppText>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* ── tags ── */}
+          {hasTags && (
+            <View style={s.tagRow}>
+              {Boolean(user?.accountType) && (
+                <HeroChip
+                  tone="solid"
+                  icon={isPro ? "briefcase" : "school"}
+                  label={user.accountType}
+                  transform="capitalize"
+                />
+              )}
+              {Boolean(level) && (
+                <HeroChip label={level} icon="ribbon" transform="uppercase" />
+              )}
+              {Boolean(user?.gender) && (
+                <HeroChip
+                  label={user.gender}
+                  icon="person"
+                  transform="capitalize"
+                />
+              )}
+              {isProVerified && (
+                <HeroChip
+                  tone="success"
+                  icon="checkmark-circle"
+                  label="Verified"
+                />
+              )}
+            </View>
+          )}
+
+          {isWaiting && (
+            <View style={s.waitRow}>
+              <LottieAnimator visible name="waiting" size={26} />
+              <AppText
+                fontWeight="black"
+                size="small"
+                style={{ color: T.ink, marginLeft: 2 }}
+              >
+                Awaiting verification
+              </AppText>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* floating stats card — overlaps the hero edge */}
+      {showStats && (
+        <View style={s.statsCard}>
+          <View style={s.statsCell}>
+            <Points value={user?.rank} type="award" />
+            <AppText style={s.statsCaption} size="tiny" fontWeight="bold">
+              Rank
+            </AppText>
+          </View>
+          <View style={s.statsDivider} />
+          <View style={s.statsCell}>
+            <Points value={user?.points} />
+            <AppText style={s.statsCaption} size="tiny" fontWeight="bold">
+              Points
+            </AppText>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ANALYTICS BLOCK — isolated component for cleanliness & memoization
 // ─────────────────────────────────────────────────────────────────────────────
 const AnalyticsBlock = ({ analyticsResult }) => {
@@ -644,159 +856,16 @@ const ProfileScreen = () => {
           onRefresh,
         })}
       >
-        {/* ── Profile header ── */}
-        <View style={[s.hero, { paddingTop: insets.top + 10 }]}>
-          {/* playful background doodles */}
-          <View pointerEvents="none" style={s.heroDeco}>
-            <View
-              style={[
-                s.blob,
-                { width: 260, height: 260, top: -90, right: -80 },
-              ]}
-            />
-            <View
-              style={[
-                s.blob,
-                { width: 180, height: 180, bottom: -70, left: -60 },
-              ]}
-            />
-            <Ionicons
-              name="star"
-              size={22}
-              color="rgba(255,255,255,0.40)"
-              style={{ position: "absolute", top: insets.top + 24, left: 24 }}
-            />
-            <Ionicons
-              name="school"
-              size={30}
-              color="rgba(255,255,255,0.22)"
-              style={{ position: "absolute", top: insets.top + 20, right: 70 }}
-            />
-            <Ionicons
-              name="book"
-              size={26}
-              color="rgba(255,255,255,0.24)"
-              style={{
-                position: "absolute",
-                top: insets.top + 110,
-                right: 22,
-                transform: [{ rotate: "14deg" }],
-              }}
-            />
-            <Ionicons
-              name="pencil"
-              size={24}
-              color="rgba(255,255,255,0.26)"
-              style={{
-                position: "absolute",
-                top: insets.top + 120,
-                left: 22,
-                transform: [{ rotate: "-20deg" }],
-              }}
-            />
-            <View
-              style={[
-                s.confetti,
-                { top: insets.top + 60, left: 76, backgroundColor: T.yellow },
-              ]}
-            />
-            <View
-              style={[
-                s.confetti,
-                {
-                  top: insets.top + 56,
-                  right: 120,
-                  backgroundColor: "#fff",
-                  width: 6,
-                  height: 6,
-                },
-              ]}
-            />
-            <View
-              style={[
-                s.confetti,
-                { top: insets.top + 170, right: 56, backgroundColor: T.coral },
-              ]}
-            />
-          </View>
-
-          <View style={s.profileWrap}>
-            {/* Avatar draws the name under the picture - white so it reads on blue */}
-            <Avatar
-              size={width * 0.36}
-              name={`${user?.firstName ?? "Your"} ${user?.lastName ?? "Name"}`}
-              imageStyle={{ backgroundColor: "#fff" }}
-              data={{ user }}
-              source={user?.avatar?.image}
-              border={{ width: 4, color: T.ink }}
-              onPress={() => router.push("/profile/edit")}
-              textFontsize={20}
-              textStyle={{
-                color: "#fff",
-                width: width * 0.5,
-                textAlign: "center",
-              }}
-            />
-
-            <View style={s.handlePill}>
-              <AppText style={s.handle} fontWeight="black" size="small">
-                @{user?.username}
-              </AppText>
-            </View>
-
-            <View style={s.metaRow}>
-              {Boolean(school?.name) && (
-                <View style={s.metaChip}>
-                  <Ionicons name="business" size={12} color="#fff" />
-                  <AppText
-                    style={s.metaText}
-                    fontWeight="semibold"
-                    size="tiny"
-                    numberOfLines={1}
-                  >
-                    {school.name}
-                  </AppText>
-                </View>
-              )}
-
-              {user?.gender && (
-                <View style={s.metaChip}>
-                  <AppText fontWeight="black" style={s.badgeText} size="tiny">
-                    {[
-                      user.gender,
-                      user.accountType === "student"
-                        ? user.class?.level?.toUpperCase()
-                        : null,
-                      user.accountType?.toUpperCase(),
-                    ]
-                      .filter(Boolean)
-                      .join("  ·  ")}
-                  </AppText>
-                </View>
-              )}
-            </View>
-
-            {isWaiting && (
-              <View style={s.waitRow}>
-                <LottieAnimator visible name="waiting" size={28} />
-                <AppText fontWeight="black" style={{ color: T.ink }}>
-                  Awaiting Verification
-                </AppText>
-              </View>
-            )}
-
-            {!isPro && (
-              <View style={s.statsRow}>
-                <Points
-                  value={user?.rank}
-                  type="award"
-                  style={{ marginRight: 24 }}
-                />
-                <Points value={user?.points} />
-              </View>
-            )}
-          </View>
-        </View>
+        {/* ── Profile hero ── */}
+        <ProfileHero
+          user={user}
+          school={school}
+          insets={insets}
+          isPro={isPro}
+          isWaiting={isWaiting}
+          isProVerified={isProVerified}
+          onEditProfile={() => router.push("/profile/edit")}
+        />
 
         {/* ── Analytics (students only) ── */}
         {isStudent && user?.subscription?.isActive && (
@@ -887,80 +956,129 @@ export default ProfileScreen;
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.paper },
 
-  // header
+  // ── hero ──────────────────────────────────────────────────────────────────
+  heroWrap: { zIndex: 1 },
+  // darker layer that peeks out under the hero → clean chunky bottom edge
+  heroEdge: {
+    backgroundColor: colors.accentDeep,
+    borderBottomLeftRadius: HERO_RADIUS,
+    borderBottomRightRadius: HERO_RADIUS,
+    paddingBottom: HERO_EDGE,
+  },
   hero: {
-    backgroundColor: T.blue,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
-    borderBottomWidth: 7,
-    borderBottomColor: T.blueDark,
-    paddingBottom: 20,
+    backgroundColor: colors.accent,
+    borderBottomLeftRadius: HERO_RADIUS,
+    borderBottomRightRadius: HERO_RADIUS,
+    paddingHorizontal: 20,
     overflow: "hidden",
   },
-  heroDeco: { ...StyleSheet.absoluteFillObject },
-  blob: {
+  heroBlob: {
     position: "absolute",
-    borderRadius: 200,
-    backgroundColor: "rgba(255,255,255,0.10)",
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    top: -140,
+    right: -100,
+    backgroundColor: "rgba(255,255,255,0.07)",
   },
-  confetti: { position: "absolute", width: 8, height: 8, borderRadius: 4 },
-  profileWrap: {
-    alignItems: "center",
-    paddingTop: 18,
-    paddingHorizontal: 20,
-  },
-  handlePill: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+
+  // identity
+  identityRow: { flexDirection: "row", alignItems: "center" },
+  avatarWrap: { width: AVATAR_SIZE, height: AVATAR_SIZE },
+  editBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: T.yellow,
     borderWidth: 2,
     borderBottomWidth: 4,
-    borderColor: T.ink,
-    paddingHorizontal: 14,
-    paddingVertical: 3,
+    borderColor: T.yellowDark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  identityText: { flex: 1, marginLeft: 16, justifyContent: "center" },
+  heroName: {
+    fontSize: 22,
+    lineHeight: 27,
+    color: "#fff",
+    textTransform: "capitalize",
+  },
+  heroHandle: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.82)",
+    marginTop: 2,
+  },
+  schoolRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginTop: 8,
   },
-  handle: { color: T.ink },
-  metaRow: {
+  schoolText: {
+    flexShrink: 1,
+    color: "rgba(255,255,255,0.9)",
+    textTransform: "capitalize",
+  },
+
+  // tags
+  tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "center",
     gap: 8,
-    marginTop: 12,
+    marginTop: 18,
   },
-  metaChip: {
+  heroChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(255,255,255,0.22)",
     borderRadius: 10,
-    paddingHorizontal: 11,
+    borderWidth: 1.5,
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    maxWidth: width * 0.7,
   },
-  metaText: { color: "#fff", textTransform: "capitalize", flexShrink: 1 },
-  badgeText: { color: "#fff", letterSpacing: 0.8 },
+  heroChipText: { letterSpacing: 0.3, flexShrink: 1 },
+
   waitRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    backgroundColor: "#fff",
+    alignSelf: "flex-start",
+    marginTop: 14,
+    backgroundColor: T.yellowSoft ?? "#FFF6D6",
     borderRadius: 14,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: T.yellowDark,
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
-  statsRow: {
+
+  // floating stats card (straddles hero edge)
+  statsCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 14,
+    alignSelf: "stretch",
+    marginHorizontal: 20,
+    marginTop: -STATS_OVERLAP,
     backgroundColor: "#fff",
     borderRadius: 20,
     borderWidth: 2,
     borderBottomWidth: 5,
-    borderColor: T.ink,
-    paddingHorizontal: 22,
+    borderColor: colors.accentLight,
     paddingVertical: 10,
+    zIndex: 2,
   },
+  statsCell: { flex: 1, alignItems: "center", gap: 2 },
+  statsDivider: {
+    width: 2,
+    alignSelf: "stretch",
+    marginVertical: 4,
+    borderRadius: 1,
+    backgroundColor: colors.accentLighter,
+  },
+  statsCaption: { color: colors.medium },
 
   // analytics
   analyticsWrap: { paddingHorizontal: 14, marginTop: 16 },

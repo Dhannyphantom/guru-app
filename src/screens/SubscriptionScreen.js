@@ -69,6 +69,7 @@ import AppHeader from "../components/AppHeader";
 import TabSelector from "../components/TabSelector";
 import ListEmpty from "../components/ListEmpty";
 import { StatusBar } from "expo-status-bar";
+import PendingTransactions from "../components/PendingTransactions";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -79,6 +80,23 @@ const enterSpring = (delay = 0) =>
   FadeInDown.delay(delay).springify().damping(26).stiffness(220).mass(1);
 const PRESS_SPRING = { damping: 22, stiffness: 420, mass: 0.7 };
 const maxProgress = 295;
+
+// One key per payout ATTEMPT. If the network drops mid-request and the user
+// taps again, the same key makes the server return the SAME payout instead of
+// creating (and charging) a second one.
+const makeIdemKey = () =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+
+// True when we can't know whether the server received / finished the request.
+const isAmbiguousError = (err) =>
+  ["FETCH_ERROR", "TIMEOUT_ERROR", "PARSING_ERROR"].includes(err?.status) ||
+  (typeof err?.status === "number" && err.status >= 500) ||
+  (!err?.status && !err?.data);
+
+const PENDING_HINT =
+  "We couldn't confirm that yet. Go back and check “Pending transactions” before trying again. You won't be charged twice.";
 
 // Renewal payment source -> value sent to /renew-subscription as `payWith`
 const PAY_OPTIONS = {
@@ -321,6 +339,26 @@ export const WithdrawModal = ({
   // Renewal only: "points" | "subscriptionPoints" | "both"
   const [payWith, setPayWith] = useState("points");
 
+  // idempotency: key is tied to the exact request so editing the form starts fresh
+  const idem = useRef({ fp: null, key: null });
+  const idemKey = (fingerprint) => {
+    if (!idem.current.key || idem.current.fp !== fingerprint) {
+      idem.current = { fp: fingerprint, key: makeIdemKey() };
+    }
+    return idem.current.key;
+  };
+  const clearIdemKey = () => {
+    idem.current = { fp: null, key: null };
+  };
+
+  // Unclear result: the server may already have reserved points, so refresh
+  // the balance and point the user at Pending transactions.
+  const [refreshUser] = useLazyFetchUserQuery();
+  const onAmbiguous = () => {
+    refreshUser();
+    return setPopper({ vis: true, type: "info", timer: 4000, msg: PENDING_HINT });
+  };
+
   const subPoints = user?.subscriptionPoints || 0;
   const balance = calculatePointsAmount(user.points);
   // Renewals can also draw on subscription points, so the minimum-balance
@@ -410,11 +448,16 @@ export const WithdrawModal = ({
         pointsToConvert: calculatePointsAmount(amount).point,
         accountNumber: formValues.acct_number,
         accountBank: formValues?.bank?.code,
+        idempotencyKey: idemKey(
+          `wd|${amount}|${formValues.acct_number}|${formValues?.bank?.code}`,
+        ),
       }).unwrap();
 
       if (res.success === true) {
+        clearIdemKey();
         setState({ ...state, status: "success" });
       } else {
+        clearIdemKey();
         setPopper({
           vis: true,
           type: "failed",
@@ -423,6 +466,11 @@ export const WithdrawModal = ({
       }
     } catch (err) {
       console.log(err);
+      if (isAmbiguousError(err)) {
+        // keep the key: tapping again replays the SAME payout
+        return onAmbiguous();
+      }
+      clearIdemKey();
       setPopper({
         vis: true,
         type: "failed",
@@ -448,15 +496,21 @@ export const WithdrawModal = ({
           pointsToConvert: calculatePointsAmount(amount).point,
           phoneNumber: contact,
           network: tab,
+          idempotencyKey: idemKey(`air|${amount}|${contact}|${tab}`),
         };
 
         const res = await rechargeAirtime(reqData).unwrap();
 
         if (res?.success) {
+          clearIdemKey();
           setState({ ...state, status: "success" });
         }
       } catch (errr) {
         console.log(errr);
+        if (isAmbiguousError(errr)) {
+          return onAmbiguous();
+        }
+        clearIdemKey();
         const txt =
           ": Ensure good network connection and that the phone number and network you provided are correct";
         setPopper({
@@ -554,13 +608,21 @@ export const WithdrawModal = ({
         itemCode: fv?.bundle?.itemCode,
         bundleName: fv?.bundle?.name,
         bundleAmount: fv?.bundle?.amount,
+        idempotencyKey: idemKey(
+          `data|${fv?.bundle?.id}|${fv?.phoneNumber}|${fv?.network}`,
+        ),
       }).unwrap();
 
-      setAmount(fv?.amount?.name);
+      setAmount(fv?.bundle?.name);
       if (res?.success) {
+        clearIdemKey();
         setState({ ...state, status: "success" });
       }
     } catch (errr) {
+      if (isAmbiguousError(errr)) {
+        return onAmbiguous();
+      }
+      clearIdemKey();
       const txt =
         ": Ensure good network connection and that the phone number and network you provided are correct";
       setPopper({
@@ -1616,6 +1678,17 @@ const SubscriptionScreen = () => {
           />
         )}
       </View>
+
+      <PendingTransactions
+        onResolved={(items) => {
+          fetchUser();
+          refetch();
+          const first = items[0];
+          if (first?.message) {
+            setPopper({ vis: true, type: "info", timer: 3000, msg: first.message });
+          }
+        }}
+      />
 
       <View style={styles.historyHead}>
         <AppText fontWeight="black" size="xlarge">

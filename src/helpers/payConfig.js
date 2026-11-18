@@ -28,50 +28,50 @@ export const TAB_BAR_OFFSET = null;
 
 export const HERO = {
   student: {
-    title: "Unlock your full potential",
-    sub: "Pick a plan and get full access to everything in the app.",
-    pills: ["Pay once", "Instant access", "No auto-renewal"],
+    title: "Achieve more with Guru",
+    sub: "Unlock premium learning and exam practice features.",
+    pills: ["One-time payment", "Instant access", "No auto-renewal"],
   },
   school: {
-    title: "Power up your whole school",
-    sub: "Give your school full access with one simple plan.",
-    pills: ["Pay once", "Instant access", "No auto-renewal"],
+    title: "Better learning, school-wide",
+    sub: "Give your students and teachers access to Guru.",
+    pills: ["One-time payment", "School-wide access", "No auto-renewal"],
   },
 };
 
 export const PERKS = {
   student: [
     {
-      icon: "lock-open",
-      title: "Unlock premium content",
-      desc: "Full access to everything that's locked on your account.",
+      icon: "lock-open-outline",
+      title: "Full premium access",
+      desc: "Unlock all premium features on your account.",
     },
     {
-      icon: "ribbon",
-      title: "Study smarter for your exams",
-      desc: "WASSCE, NECO & JAMB prep, all in one place.",
+      icon: "school-outline",
+      title: "Exam preparation",
+      desc: "Practise for WAEC, NECO, JAMB and BECE.",
     },
     {
-      icon: "rocket",
-      title: "Learn at your own pace",
-      desc: "Practice anytime, as often as you like during your plan.",
+      icon: "stats-chart-outline",
+      title: "Track your progress",
+      desc: "Monitor performance and improve your results.",
     },
   ],
   school: [
     {
-      icon: "lock-open",
-      title: "Unlock premium for your school",
-      desc: "Full access for your school account.",
+      icon: "business-outline",
+      title: "School-wide access",
+      desc: "Connect your students and teachers on Guru.",
     },
     {
-      icon: "people",
-      title: "Built for every student",
-      desc: "Help your students prepare with confidence.",
+      icon: "people-outline",
+      title: "Student monitoring",
+      desc: "Track student participation and performance.",
     },
     {
-      icon: "rocket",
-      title: "Start right away",
-      desc: "Your plan activates the moment payment is confirmed.",
+      icon: "stats-chart-outline",
+      title: "Academic improvement",
+      desc: "Identify learning gaps and support better results.",
     },
   ],
 };

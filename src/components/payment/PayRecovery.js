@@ -11,7 +11,7 @@ import { PayButton, PayText } from "./PayUI";
  * The user might have been debited, so we never just say "failed" — we give
  * them a clear "check again" path, and a support route.
  */
-const PayRecovery = ({ onRetry, onStartOver }) => (
+const PayRecovery = ({ onRetry, onStartOver, message, loading }) => (
   <Animated.View entering={enter(0)} style={styles.card}>
     <View style={styles.iconWrap}>
       <Ionicons name="shield-half" size={28} color={P.coralDark} />
@@ -31,14 +31,16 @@ const PayRecovery = ({ onRetry, onStartOver }) => (
         lineHeight: 19,
       }}
     >
-      We couldn't confirm it just yet. If money left your account, don't worry
-      — tap the button below to check again.
+      {message ||
+        "We couldn't confirm it just yet. If money left your account, don't worry — we keep checking, or tap the button below to check again."}
     </PayText>
 
     <PayButton
       title="Check payment status"
       icon="refresh"
       variant="brand"
+      loading={loading}
+      disabled={loading}
       onPress={onRetry}
     />
 
@@ -49,7 +51,7 @@ const PayRecovery = ({ onRetry, onStartOver }) => (
         size={11.5}
         style={{ color: P.goldInk, flex: 1, marginLeft: 8, lineHeight: 17 }}
       >
-        Still not showing? Go to Profile → Settings & More → Contact Us and
+        Please don't pay again. If it's still not showing, go to Profile → Settings & More → Contact Us and
         open a Payment & Billing ticket. We'll get back to you within minutes.
       </PayText>
     </View>

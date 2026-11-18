@@ -287,6 +287,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         // url: "/payments/withdraw",
         method: "POST",
         body: data,
+        timeout: 60000,
       }),
       invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
@@ -307,11 +308,50 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
       }),
     }),
 
+    createSubscriptionIntent: builder.mutation({
+      query: (body) => ({
+        url: "/payouts/subscription/intent",
+        method: "POST",
+        body,
+        timeout: 20000,
+      }),
+    }),
+
+    // Everything unresolved (also makes the server re-check Flutterwave first).
+    fetchPending: builder.query({
+      // the server re-checks Flutterwave before answering, so allow longer
+      query: () => ({ url: "/payouts/pending", timeout: 45000 }),
+      keepUnusedDataFor: 0,
+      // refetch automatically after any withdraw / airtime / data / verify / renew
+      providesTags: ["FETCH_TRANSACTIONS"],
+    }),
+
+    // "Check status" button. Never charges / debits again.
+    retryPending: builder.mutation({
+      // action: "retry" (default) | "dismiss"  ("I didn't pay")
+      query: ({ entity, id, action = "retry" }) => ({
+        url: `/payouts/pending/${entity}/${id}/${action}`,
+        method: "POST",
+        timeout: 45000,
+      }),
+    }),
+
+    // Tell the server the user tapped Pay, so the attempt gets a visible trace.
+    markSubscriptionStarted: builder.mutation({
+      query: (body) => ({
+        url: "/payouts/subscription/started",
+        method: "POST",
+        body,
+        timeout: 15000,
+      }),
+    }),
+
     verifySubscription: builder.mutation({
       query: (data) => ({
         url: "/payouts/verify-subscription",
         method: "POST",
         body: data,
+        timeout: 60000,
       }),
       invalidatesTags: ["USER", "SCHOOL", "FETCH_TRANSACTIONS"],
     }),
@@ -328,6 +368,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: "/payouts/recharge",
         method: "POST",
         body: data,
+        timeout: 60000,
       }),
       invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
@@ -336,6 +377,7 @@ export const extendedUserApiSlice = apiSlice.injectEndpoints({
         url: "/payouts/data",
         method: "POST",
         body: data,
+        timeout: 60000,
       }),
       invalidatesTags: ["USER", "FETCH_TRANSACTIONS"],
     }),
@@ -930,6 +972,10 @@ export const {
   useFetchUserStatsQuery,
   useLazySearchStudentsQuery,
   useFetchUserInfoQuery,
+  useCreateSubscriptionIntentMutation,
+  useFetchPendingQuery,
+  useRetryPendingMutation,
+  useMarkSubscriptionStartedMutation,
   useFindMoreFriendsQuery,
   useLazyFetchUserInfoQuery,
   useFetchUserQuery,
