@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Clipboard from "expo-clipboard";
 
 import AppButton, { FormikButton } from "../components/AppButton";
 import colors from "../helpers/colors";
@@ -509,7 +510,7 @@ export const WithdrawModal = ({
     } else if (type === "airtime") {
       ask({
         title: "Confirm airtime",
-        msg: `Send ${getCurrencyAmount(amount)} airtime (${tab}) to ${contact}? ${
+        msg: `Send ${fmtNaira(Number(amount))} airtime (${tab}) to ${contact}? ${
           calculatePointsAmount(amount).pointFormat
         } will be deducted from your points.`,
         btn: "Send airtime",
@@ -695,7 +696,7 @@ export const WithdrawModal = ({
     if (isVerified) {
       ask({
         title: "Confirm withdrawal",
-        msg: `Withdraw ${getCurrencyAmount(amount)} to ${state?.bankName ?? "this account"} (${
+        msg: `Withdraw ${fmtNaira(Number(amount))} to ${state?.bankName ?? "this account"} (${
           formValues?.acct_number
         })? ${calculatePointsAmount(amount).pointFormat} will be deducted from your points.`,
         btn: "Withdraw",
@@ -1178,6 +1179,20 @@ const safeDate = (value, format = "fullDate") => {
   }
 };
 
+/** ₦1,000 — grouped by hand so it never depends on the device's locale data. */
+const fmtNaira = (n) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return null;
+  const [int, dec] = v.toFixed(2).split(".");
+  return `₦${int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${dec === "00" ? "" : "." + dec}`;
+};
+
+const ISO = /^\d{4}-\d{2}-\d{2}T/;
+const niceValue = (v) =>
+  typeof v === "string" && ISO.test(v)
+    ? (safeDate(v, "fullDate") ?? v)
+    : String(v);
+
 // tone → colours (border / icon badge / amount text)
 const HISTORY_TONES = {
   accent: {
@@ -1250,6 +1265,44 @@ const STATUS_STYLES = {
   reversed: { label: "Reversed", color: "#D32F2F" },
 };
 
+const txIds = (tx, meta) => {
+  const out = [];
+  const add = (label, value) => {
+    if (value === undefined || value === null || value === "") return;
+    const v = String(value);
+    if (!out.some((o) => o.value === v)) out.push({ label, value: v });
+  };
+  add("Transaction reference", tx?.reference);
+  add("Payment reference", meta?.txRef ?? meta?.tx_ref);
+  add("Flutterwave ID", tx?.flutterwaveReference ?? meta?.flutterwaveReference);
+  add("Flutterwave ref", meta?.flwRef);
+  return out;
+};
+
+const txDetails = ({ tx, meta, kind, cash, days, spent }) => {
+  const out = [];
+  const add = (label, value) => {
+    if (value === undefined || value === null || value === "") return;
+    out.push({ label, value: String(value) });
+  };
+  add("Type", toTitle(tx?.transactionType));
+  add("Category", toTitle(tx?.category));
+  if (cash !== null && cash > 0 && kind !== "prize" && kind !== "other") {
+    add("Amount", fmtNaira(cash));
+  }
+  if (days !== null && days > 0) add("Days added", days);
+  if (spent !== null && spent > 0) add("Points used", formatPoints(spent));
+  const fromSub = toNum(meta?.fromSubscriptionPoints);
+  if (fromSub) add("Subscription points used", fromSub.toLocaleString());
+  add("Valid until", safeDate(meta?.newExpiry));
+  add("Network", meta?.network);
+  add("Phone number", meta?.phoneNumber);
+  add("Bundle", meta?.bundleName);
+  add("Customer", meta?.customerName);
+  add("Details", tx?.description);
+  return out;
+};
+
 /** Turn a raw WalletTransaction into everything the history card needs. */
 const describeTransaction = (tx) => {
   const meta = tx?.metadata ?? {};
@@ -1304,10 +1357,10 @@ const describeTransaction = (tx) => {
           ? `-${fromSub.toLocaleString()} sub pts`
           : `-${formatPoints(total)}`;
     } else if (cash !== null && cash > 0) {
-      amountText = getCurrencyAmount(cash);
+      amountText = fmtNaira(cash);
     }
   } else if (cash !== null && cash > 0) {
-    amountText = `${kind === "refund" ? "+" : ""}${getCurrencyAmount(cash)}`;
+    amountText = `${kind === "refund" ? "+" : ""}${fmtNaira(cash)}`;
   } else if (spent !== null && spent > 0) {
     amountText = `-${formatPoints(spent)}`;
   }
@@ -1369,7 +1422,9 @@ const describeTransaction = (tx) => {
     description,
     lines,
     status: STATUS_STYLES[status] ?? null,
-    reference: meta.flutterwaveReference || tx?.reference || null,
+    reference: tx?.reference || meta.flutterwaveReference || null,
+    details: txDetails({ tx, meta, kind, cash, days, spent }),
+    ids: txIds(tx, meta),
     date: safeDate(tx?.createdAt),
     fullDate: safeDate(tx?.createdAt, "fullDate"),
     ts: tx?.createdAt ?? null,
@@ -1406,10 +1461,7 @@ const describeAttempt = (a) => {
     title: a.title,
     icon: base.icon,
     tone: HISTORY_TONES[ATTEMPT_TONE[a.tone] ?? base.tone],
-    amountText:
-      amount !== null && amount > 0
-        ? `₦${amount.toLocaleString("en-NG")}`
-        : null,
+    amountText: amount !== null && amount > 0 ? fmtNaira(amount) : null,
     detail: null,
     description: a.description || null,
     lines: [],
@@ -1418,6 +1470,11 @@ const describeAttempt = (a) => {
       color: ATTEMPT_COLOR[a.tone] ?? colors.medium,
     },
     reference: a.reference || null,
+    details: (a.details ?? []).map((d) => ({
+      ...d,
+      value: niceValue(d.value),
+    })),
+    ids: a.ids ?? [],
     date: safeDate(a.createdAt),
     fullDate: safeDate(a.createdAt, "fullDate"),
     ts: a.createdAt ?? null,
@@ -1431,6 +1488,14 @@ const HistoryDetailModal = ({ view, onClose, onResolved, refetchPending }) => {
     onResolved,
     refetch: refetchPending,
   });
+  const [copied, setCopied] = useState(null);
+  const copy = async (text, key) => {
+    try {
+      await Clipboard.setStringAsync(String(text));
+      setCopied(key);
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
+    } catch (_) {}
+  };
   if (!view) return null;
   const { tone, attempt } = view;
 
@@ -1448,120 +1513,200 @@ const HistoryDetailModal = ({ view, onClose, onResolved, refetchPending }) => {
 
   return (
     <Modal transparent animationType="slide" visible onRequestClose={onClose}>
-      <Pressable style={styles.dBackdrop} onPress={onClose} />
-      <View style={styles.dSheet}>
-        <View style={styles.dGrab} />
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.dHead}>
-            <MaterialCommunityIcons
-              name={view.icon}
-              color={tone.icon}
-              size={22}
-              style={{
-                backgroundColor: tone.badge,
-                borderRadius: 50,
-                padding: 10,
-              }}
-            />
-            <View style={{ flex: 1 }}>
+      <View style={styles.dBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.dSheet}>
+          <View style={styles.dGrab} />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.dHead}>
+              <MaterialCommunityIcons
+                name={view.icon}
+                color={tone.icon}
+                size={22}
+                style={{
+                  backgroundColor: tone.badge,
+                  borderRadius: 50,
+                  padding: 10,
+                }}
+              />
+              <View style={{ flex: 1 }}>
+                <AppText
+                  fontWeight="black"
+                  size={16}
+                  style={{ color: colors.primaryDeep }}
+                >
+                  {view.title}
+                </AppText>
+                {view.status ? (
+                  <AppText
+                    fontWeight="bold"
+                    size={12}
+                    style={{ color: view.status.color, marginTop: 2 }}
+                  >
+                    {view.status.label}
+                  </AppText>
+                ) : null}
+              </View>
+            </View>
+
+            {view.amountText ? (
+              <AppText
+                fontWeight="heavy"
+                size={"xlarge"}
+                style={{ color: tone.text, marginTop: 14 }}
+              >
+                {view.amountText}
+              </AppText>
+            ) : null}
+            {view.detail ? (
+              <AppText
+                fontWeight="bold"
+                size={13}
+                style={{ color: colors.medium }}
+              >
+                {view.detail}
+              </AppText>
+            ) : null}
+
+            {view.description ? (
+              <AppText
+                fontWeight="medium"
+                size={13}
+                style={{ color: colors.medium, marginTop: 12, lineHeight: 19 }}
+              >
+                {view.description}
+              </AppText>
+            ) : null}
+
+            {Boolean(attempt && notes[attempt.id]) && (
+              <AppText
+                fontWeight="bold"
+                size={12}
+                style={{ color: colors.primaryDeep, marginTop: 10 }}
+              >
+                {notes[attempt.id]}
+              </AppText>
+            )}
+
+            {view.details?.length ? (
+              <View style={styles.dBox}>
+                {view.details.map((d, i) => (
+                  <React.Fragment key={`${d.label}-${i}`}>
+                    {Row({ label: d.label, children: d.value })}
+                  </React.Fragment>
+                ))}
+                {Row({ label: "Date", children: view.fullDate })}
+              </View>
+            ) : (
+              <View style={styles.dBox}>
+                {Row({ label: "Date", children: view.fullDate })}
+              </View>
+            )}
+
+            {view.ids?.length ? (
+              <View style={styles.dBox}>
+                <AppText
+                  fontWeight="black"
+                  size={12}
+                  style={{ color: colors.primaryDeep }}
+                >
+                  Reference IDs
+                </AppText>
+                {view.ids.map((d) => (
+                  <View key={d.label + d.value} style={styles.dIdRow}>
+                    <View style={{ flex: 1 }}>
+                      <AppText
+                        size={11}
+                        fontWeight="bold"
+                        style={{ color: colors.medium }}
+                      >
+                        {d.label}
+                      </AppText>
+                      <AppText
+                        size={13}
+                        fontWeight="black"
+                        selectable
+                        style={styles.dValue}
+                      >
+                        {d.value}
+                      </AppText>
+                    </View>
+                    <Pressable
+                      onPress={() => copy(d.value, d.label)}
+                      hitSlop={10}
+                      style={styles.dCopy}
+                    >
+                      <MaterialCommunityIcons
+                        name={copied === d.label ? "check" : "content-copy"}
+                        size={18}
+                        color={
+                          copied === d.label
+                            ? colors.greenDark
+                            : colors.primaryDeep
+                        }
+                      />
+                    </Pressable>
+                  </View>
+                ))}
+                {view.ids.length > 1 ? (
+                  <Pressable
+                    onPress={() =>
+                      copy(
+                        view.ids
+                          .map((d) => `${d.label}: ${d.value}`)
+                          .join("\n"),
+                        "all",
+                      )
+                    }
+                    style={({ pressed }) => [
+                      styles.dCopyAll,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="content-copy"
+                      size={14}
+                      color={colors.primaryDeep}
+                    />
+                    <AppText
+                      fontWeight="black"
+                      size={12}
+                      style={{ color: colors.primaryDeep }}
+                    >
+                      {copied === "all" ? "Copied" : "Copy all references"}
+                    </AppText>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+
+            {attempt ? (
+              <AttemptButtons
+                item={attempt}
+                busy={busy}
+                act={act}
+                askDismiss={askDismiss}
+              />
+            ) : null}
+
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.dClose,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
               <AppText
                 fontWeight="black"
-                size={16}
+                size={13}
                 style={{ color: colors.primaryDeep }}
               >
-                {view.title}
+                Close
               </AppText>
-              {view.status ? (
-                <AppText
-                  fontWeight="bold"
-                  size={12}
-                  style={{ color: view.status.color, marginTop: 2 }}
-                >
-                  {view.status.label}
-                </AppText>
-              ) : null}
-            </View>
-          </View>
-
-          {view.amountText ? (
-            <AppText
-              fontWeight="heavy"
-              size={"xlarge"}
-              style={{ color: tone.text, marginTop: 14 }}
-            >
-              {view.amountText}
-            </AppText>
-          ) : null}
-          {view.detail ? (
-            <AppText
-              fontWeight="bold"
-              size={13}
-              style={{ color: colors.medium }}
-            >
-              {view.detail}
-            </AppText>
-          ) : null}
-
-          {view.description ? (
-            <AppText
-              fontWeight="medium"
-              size={13}
-              style={{ color: colors.medium, marginTop: 12, lineHeight: 19 }}
-            >
-              {view.description}
-            </AppText>
-          ) : null}
-
-          {Boolean(attempt && notes[attempt.id]) && (
-            <AppText
-              fontWeight="bold"
-              size={12}
-              style={{ color: colors.primaryDeep, marginTop: 10 }}
-            >
-              {notes[attempt.id]}
-            </AppText>
-          )}
-
-          <View style={styles.dBox}>
-            {view.lines.map((l, i) => (
-              <AppText
-                key={i}
-                size={12}
-                style={{ color: colors.medium, marginBottom: 4 }}
-              >
-                {l}
-              </AppText>
-            ))}
-            {Row({ label: "Date", children: view.fullDate })}
-            {Row({ label: "Reference", children: view.reference })}
-          </View>
-
-          {attempt ? (
-            <AttemptButtons
-              item={attempt}
-              busy={busy}
-              act={act}
-              askDismiss={askDismiss}
-            />
-          ) : null}
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [
-              styles.dClose,
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <AppText
-              fontWeight="black"
-              size={13}
-              style={{ color: colors.primaryDeep }}
-            >
-              Close
-            </AppText>
-          </Pressable>
-        </ScrollView>
-        {promptEl}
+            </Pressable>
+          </ScrollView>
+          {promptEl}
+        </View>
       </View>
     </Modal>
   );
@@ -2590,7 +2735,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  dBackdrop: { flex: 1, backgroundColor: "#00000066" },
+  dBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "#00000066",
+  },
   dSheet: {
     maxHeight: "80%",
     backgroundColor: colors.white,
@@ -2615,6 +2764,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lightly + "88",
   },
   dRow: { marginTop: 6 },
+  dIdRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    columnGap: 10,
+  },
+  dCopy: { padding: 8, borderRadius: 10, backgroundColor: colors.white },
+  dCopyAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    columnGap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+  },
   dValue: { color: colors.primaryDeep, marginTop: 2 },
   dClose: {
     alignSelf: "stretch",
