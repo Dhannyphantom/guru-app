@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Modal,
@@ -23,6 +24,7 @@ import {
   useFetchPendingQuery,
   useFetchTransactionsQuery,
   useLazyFetchBanksQuery,
+  useLazyFetchTransactionsQuery,
   useLazyFetchUserQuery,
   useRechargeAirtimeMutation,
   useRenewSubscriptionMutation,
@@ -1258,6 +1260,8 @@ const HISTORY_FILTERS = [
   },
 ];
 
+const HISTORY_PAGE = 20;
+
 const STATUS_STYLES = {
   pending: { label: "Pending", color: colors.warningDark },
   processing: { label: "Processing", color: colors.warningDark },
@@ -1475,6 +1479,7 @@ const describeAttempt = (a) => {
       value: niceValue(d.value),
     })),
     ids: a.ids ?? [],
+    needsAction: Boolean(a.canRetry || a.canDismiss),
     date: safeDate(a.createdAt),
     fullDate: safeDate(a.createdAt, "fullDate"),
     ts: a.createdAt ?? null,
@@ -1722,6 +1727,7 @@ const SubHistory = ({ view, onPress }) => {
       style={({ pressed }) => [
         styles.subHistory,
         { borderWidth: 2, borderColor: tone.border },
+        view.needsAction && styles.subHistoryAction,
         pressed && { opacity: 0.75 },
       ]}
     >
@@ -1773,6 +1779,22 @@ const SubHistory = ({ view, onPress }) => {
           >
             {view.amountText}
           </AppText>
+        ) : null}
+        {view.needsAction ? (
+          <View style={styles.actionPill}>
+            <MaterialCommunityIcons
+              name="gesture-tap"
+              size={14}
+              color={colors.warningDark}
+            />
+            <AppText
+              fontWeight="black"
+              size={11}
+              style={{ color: colors.warningDark }}
+            >
+              Action needed · Tap to resolve
+            </AppText>
+          </View>
         ) : null}
       </View>
       <View style={styles.subHistoryDetail}>
@@ -1861,7 +1883,22 @@ const SubscriptionScreen = () => {
     ? school?.subscription
     : user.subscription;
   const [fetchUser] = useLazyFetchUserQuery();
-  const { data, isLoading, refetch } = useFetchTransactionsQuery();
+  // ── paginated history: page 1 is a normal query (so tag invalidation keeps
+  // it fresh); further pages are fetched on demand while scrolling ──────────
+  const { data, isLoading, refetch } = useFetchTransactionsQuery({
+    limit: HISTORY_PAGE,
+    page: 1,
+  });
+  const [loadPage] = useLazyFetchTransactionsQuery();
+  const [more, setMore] = useState({
+    txs: [],
+    pages: 0, // extra pages loaded after page 1
+    done: false,
+    loading: false,
+    error: false,
+  });
+  const moreRef = useRef(more);
+  moreRef.current = more;
 
   const [popper, setPopper] = useState({ vis: false });
   const [refreshing, setRefreshing] = useState(false);
@@ -1875,8 +1912,51 @@ const SubscriptionScreen = () => {
   );
   const [selectedKey, setSelectedKey] = useState(null);
 
+  const firstTxs = history?.transactions ?? [];
+  const loadedCount = firstTxs.length + more.txs.length;
+  // /users/transactions answers { transactions, pagination: { total, hasNextPage } }
+  const totalCount = toNum(history?.pagination?.total, history?.total);
+  const hasMore =
+    !more.done &&
+    (totalCount !== null
+      ? loadedCount < totalCount
+      : firstTxs.length >= HISTORY_PAGE);
+
+  // page 1 changed (refresh / invalidation): start paging again from there
+  useEffect(() => {
+    setMore({ txs: [], pages: 0, done: false, loading: false, error: false });
+  }, [data]);
+
+  const loadMore = async () => {
+    const cur = moreRef.current;
+    if (cur.loading || cur.done || !hasMore) return;
+    setMore((m) => ({ ...m, loading: true, error: false }));
+    try {
+      const res = await loadPage(
+        { limit: HISTORY_PAGE, page: cur.pages + 2 },
+        false,
+      ).unwrap();
+      const got = res?.data?.transactions ?? [];
+      setMore((m) => ({
+        txs: [...m.txs, ...got],
+        pages: m.pages + 1,
+        done: got.length === 0 || res?.data?.pagination?.hasNextPage === false,
+        loading: false,
+        error: false,
+      }));
+    } catch (_) {
+      setMore((m) => ({ ...m, loading: false, error: true }));
+    }
+  };
+
   const historyItems = useMemo(() => {
-    const txs = history?.transactions ?? [];
+    const txs = [...firstTxs, ...more.txs].filter(
+      (tx, i, arr) =>
+        arr.findIndex(
+          (o) =>
+            String(o?._id ?? o?.reference) === String(tx?._id ?? tx?.reference),
+        ) === i,
+    );
     const seen = new Set();
     txs.forEach((tx) =>
       [
@@ -1888,24 +1968,49 @@ const SubscriptionScreen = () => {
         .filter(Boolean)
         .forEach((r) => seen.add(String(r))),
     );
-    const fromTx = txs.map((tx) => ({
-      key: String(tx?._id ?? tx?.reference),
-      view: describeTransaction(tx),
-    }));
-    // finished attempts that the ledger doesn't already show
-    const fromAttempts = (pend?.data?.recent ?? [])
-      .filter((a) => !seen.has(String(a.reference)))
-      .map((a) => ({
-        key: `att-${a.entity}-${a.id}`,
-        view: describeAttempt(a),
+    // attempts still open always show (and win over a half-written ledger row)
+    const open = pend?.data?.items ?? [];
+    const openRefs = new Set(open.map((a) => String(a.reference)));
+    const fromTx = txs
+      .filter((tx) => !openRefs.has(String(tx?.reference)))
+      .map((tx) => ({
+        key: String(tx?._id ?? tx?.reference),
+        view: describeTransaction(tx),
       }));
+    // finished attempts that the ledger doesn't already show
+    const fromAttempts = [
+      ...open,
+      ...(pend?.data?.recent ?? []).filter(
+        (a) => !seen.has(String(a.reference)),
+      ),
+    ].map((a) => ({
+      key: `att-${a.entity}-${a.id}`,
+      view: describeAttempt(a),
+    }));
+    // items that need the user come first, then newest first
     const all = [...fromTx, ...fromAttempts].sort(
-      (x, y) => new Date(y.view.ts || 0) - new Date(x.view.ts || 0),
+      (x, y) =>
+        Number(Boolean(y.view.needsAction)) -
+          Number(Boolean(x.view.needsAction)) ||
+        new Date(y.view.ts || 0) - new Date(x.view.ts || 0),
     );
     const active = HISTORY_FILTERS.find((f) => f.label === historyFilter);
     if (!active?.kinds) return all;
     return all.filter((item) => active.kinds.includes(item.view.kind));
-  }, [history, pend, historyFilter]);
+  }, [history, more.txs, pend, historyFilter]);
+
+  // a filter can leave too little on screen for onEndReached to fire
+  useEffect(() => {
+    if (
+      hasMore &&
+      !more.loading &&
+      !more.error &&
+      !isLoading &&
+      historyItems.length < 8
+    ) {
+      loadMore();
+    }
+  }, [historyItems.length, hasMore, more.loading, more.error, isLoading]);
 
   const { sub, total, terms } = dateFormatter(expiry, "sub", { current });
   const isTeacher = user?.accountType === "teacher";
@@ -2121,7 +2226,7 @@ const SubscriptionScreen = () => {
       </View>
 
       <PendingTransactions
-        section="pending"
+        section="watch"
         onResolved={(items) => {
           fetchUser();
           refetch();
@@ -2143,7 +2248,9 @@ const SubscriptionScreen = () => {
         </AppText>
         <AppText fontWeight="medium" size={12} style={{ color: colors.medium }}>
           {historyItems.length
-            ? `${historyItems.length} record${historyItems.length === 1 ? "" : "s"}`
+            ? `${historyItems.length}${hasMore ? "+" : ""} record${
+                historyItems.length === 1 && !hasMore ? "" : "s"
+              }`
             : ""}
         </AppText>
       </View>
@@ -2192,6 +2299,26 @@ const SubscriptionScreen = () => {
           refreshControl={getRefresher({ refreshing, onRefresh })}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: PAD_BOTTOM }}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            more.loading ? (
+              <ActivityIndicator
+                style={{ marginVertical: 18 }}
+                color={colors.primary}
+              />
+            ) : more.error ? (
+              <Pressable onPress={loadMore} style={styles.footerRetry}>
+                <AppText
+                  fontWeight="black"
+                  size={12}
+                  style={{ color: colors.primaryDeep }}
+                >
+                  Couldn't load more. Tap to retry
+                </AppText>
+              </Pressable>
+            ) : null
+          }
           ListHeaderComponent={header}
           ListEmptyComponent={() => (
             <ListEmpty
@@ -2791,6 +2918,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary + "44",
   },
+  subHistoryAction: {
+    borderStyle: "dashed",
+    borderColor: colors.warning,
+    backgroundColor: colors.warning + "14",
+  },
+  actionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    columnGap: 4,
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: colors.warning + "33",
+  },
+  footerRetry: { alignSelf: "center", paddingVertical: 16 },
   filterRow: {
     paddingHorizontal: 18,
     paddingVertical: 10,

@@ -995,6 +995,7 @@ export const {
   useSubscribeUserMutation,
   useFetchProLeaderboardQuery,
   useFetchTransactionsQuery,
+  useLazyFetchTransactionsQuery,
   useWithdrawFromWalletMutation,
   useVerifyAccountMutation,
   useVerifySubscriptionMutation,

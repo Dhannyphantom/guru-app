@@ -164,7 +164,7 @@ export const AttemptButtons = ({ item, busy, act, askDismiss }) => {
 const PendingTransactions = ({
   kinds,
   compact = false,
-  section = "both", // "pending" | "recent" | "both"
+  section = "both", // "pending" | "recent" | "both" | "watch"
   onResolved,
 }) => {
   const [poll, setPoll] = useState(60000);
@@ -188,8 +188,9 @@ const PendingTransactions = ({
   const [showAll, setShowAll] = useState(false);
 
   const allow = (x) => !kinds || kinds.includes(x.kind);
-  const showPending = section !== "recent";
-  const showRecent = section !== "pending";
+  // "watch" renders nothing but keeps polling / reporting resolved items
+  const showPending = section === "pending" || section === "both";
+  const showRecent = section === "recent" || section === "both";
   const items = showPending ? (data?.data?.items ?? []).filter(allow) : [];
   const recent = showRecent ? (data?.data?.recent ?? []).filter(allow) : [];
   const recentShown = showAll ? recent : recent.slice(0, RECENT_PREVIEW);
