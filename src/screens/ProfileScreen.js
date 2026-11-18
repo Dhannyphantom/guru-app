@@ -75,7 +75,7 @@ const SIGN_OUT_MODAL = {
 const HERO_RADIUS = 36;
 const HERO_EDGE = 7; // thickness of the darker "3D" edge under the hero
 const STATS_OVERLAP = 30; // how far the stats card overlaps the hero edge
-const AVATAR_SIZE = Math.min(Math.round(width * 0.27), 108);
+const AVATAR_SIZE = Math.min(Math.round(width * 0.24), 96);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUB-COMPONENTS
@@ -380,7 +380,7 @@ export const ProfileLink = ({
 // PROFILE HERO
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Small pill used for school / role / level / verified tags in the hero */
+/** Small pill used for role / level / gender / verified tags in the hero */
 const HeroChip = ({
   icon,
   label,
@@ -394,7 +394,7 @@ const HeroChip = ({
       border: "rgba(255,255,255,0.32)",
       fg: "#FFFFFF",
     },
-    solid: { bg: "#fff", border: "#fff", fg: colors.accentDeeper },
+    solid: { bg: "#FFFFFF", border: "#FFFFFF", fg: colors.accentDeeper },
     success: { bg: colors.green, border: colors.greenDark, fg: "#FFFFFF" },
   };
   const c = tones[tone] ?? tones.glass;
@@ -411,7 +411,7 @@ const HeroChip = ({
         fontWeight="bold"
         size="tiny"
         numberOfLines={1}
-        style={{ ...s.heroChipText, color: c.fg, textTransform: transform }}
+        style={[s.heroChipText, { color: c.fg, textTransform: transform }]}
       >
         {label}
       </AppText>
@@ -419,12 +419,116 @@ const HeroChip = ({
   );
 };
 
+// ── subscription helpers ────────────────────────────────────────────────────
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const formatDate = (d) =>
+  `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+
+/** Derive plan info from user.subscription { current, expiry, isActive } */
+const getPlan = (subscription) => {
+  const expiry = subscription?.expiry ? new Date(subscription.expiry) : null;
+  const start = subscription?.current ? new Date(subscription.current) : null;
+  const hasExpiry = Boolean(expiry) && !isNaN(expiry.getTime());
+  const msLeft = hasExpiry ? expiry.getTime() - Date.now() : 0;
+  const isPremium =
+    Boolean(subscription?.isActive) && (!hasExpiry || msLeft > 0);
+
+  if (!isPremium) return { isPremium: false };
+
+  const daysLeft = hasExpiry ? Math.max(1, Math.ceil(msLeft / DAY_MS)) : null;
+  const span =
+    hasExpiry && start && !isNaN(start.getTime())
+      ? expiry.getTime() - start.getTime()
+      : 0;
+  const total = span > 0 ? span : 30 * DAY_MS; // fallback: assume a 30-day window
+  const pct = hasExpiry ? Math.min(Math.max(msLeft / total, 0), 1) : 1;
+
+  return {
+    isPremium: true,
+    daysLeft,
+    pct,
+    expiryLabel: hasExpiry ? formatDate(expiry) : null,
+    ending: daysLeft != null && daysLeft <= 3,
+  };
+};
+
+/** Compact one-line Freemium / Premium status pill shown inside the hero */
+const PlanCard = ({ subscription, onPress }) => {
+  const plan = getPlan(subscription);
+  const premium = plan.isPremium;
+  const daysText =
+    plan.daysLeft == null
+      ? "Active"
+      : plan.daysLeft === 1
+        ? "Last day"
+        : `${plan.daysLeft} days left`;
+  const accent = plan.ending ? "#FFB4A8" : T.yellow;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={[s.planPill, premium && s.planPillPremium]}
+    >
+      <Ionicons
+        name={premium ? "diamond" : "flash-outline"}
+        size={15}
+        color={premium ? T.yellow : "#fff"}
+      />
+      <AppText fontWeight="black" size={13} style={s.planTitle}>
+        {premium ? "Premium" : "Freemium"}
+      </AppText>
+      <View style={{ flex: 1 }} />
+      {premium ? (
+        <AppText fontWeight="black" size={12.5} style={{ color: accent }}>
+          {daysText}
+        </AppText>
+      ) : (
+        <View style={s.planUpgrade}>
+          <AppText fontWeight="black" size={12.5} style={{ color: T.yellow }}>
+            Upgrade
+          </AppText>
+          <Ionicons name="chevron-forward" size={14} color={T.yellow} />
+        </View>
+      )}
+
+      {premium && (
+        <View style={s.planTrack}>
+          <View
+            style={[
+              s.planFill,
+              {
+                width: `${Math.max(plan.pct * 100, 6)}%`,
+                backgroundColor: accent,
+              },
+            ]}
+          />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
 /**
  * Profile hero
- *  - calm, flat blue panel with a clean darker edge (outer layer + inner panel
- *    share the same radius, so the curve is always even)
- *  - identity row: avatar on the left, name / handle / school stacked on the right
- *  - tags row (account type, level, gender, verified) underneath
+ *  - accent panel with a clean darker edge (outer layer + inner panel share
+ *    the same radius, so the curve is always even)
+ *  - identity row: avatar left, name / handle / school stacked on the right
+ *  - tags row, then the Freemium / Premium plan card
  *  - rank + points live in a floating card that straddles the hero edge
  */
 const ProfileHero = ({
@@ -435,6 +539,7 @@ const ProfileHero = ({
   isWaiting,
   isProVerified,
   onEditProfile,
+  onPlanPress,
 }) => {
   const showStats = !isPro;
   const level =
@@ -453,8 +558,8 @@ const ProfileHero = ({
           style={[
             s.hero,
             {
-              paddingTop: insets.top + 20,
-              paddingBottom: showStats ? STATS_OVERLAP + 22 : 24,
+              paddingTop: insets.top + 14,
+              paddingBottom: showStats ? STATS_OVERLAP + 14 : 18,
             },
           ]}
         >
@@ -542,6 +647,11 @@ const ProfileHero = ({
                 />
               )}
             </View>
+          )}
+
+          {/* ── plan (freemium / premium) ── */}
+          {!isPro && (
+            <PlanCard subscription={user?.subscription} onPress={onPlanPress} />
           )}
 
           {isWaiting && (
@@ -865,6 +975,7 @@ const ProfileScreen = () => {
           isWaiting={isWaiting}
           isProVerified={isProVerified}
           onEditProfile={() => router.push("/profile/edit")}
+          onPlanPress={() => router.push("/profile/subscription")}
         />
 
         {/* ── Analytics (students only) ── */}
@@ -999,15 +1110,15 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  identityText: { flex: 1, marginLeft: 16, justifyContent: "center" },
+  identityText: { flex: 1, marginLeft: 14, justifyContent: "center" },
   heroName: {
-    fontSize: 22,
+    fontSize: 25,
     lineHeight: 27,
     color: "#fff",
     textTransform: "capitalize",
   },
   heroHandle: {
-    fontSize: 13,
+    fontSize: 16,
     color: "rgba(255,255,255,0.82)",
     marginTop: 2,
   },
@@ -1015,7 +1126,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   schoolText: {
     flexShrink: 1,
@@ -1027,8 +1138,8 @@ const s = StyleSheet.create({
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 18,
+    gap: 6,
+    marginTop: 14,
   },
   heroChip: {
     flexDirection: "row",
@@ -1036,10 +1147,39 @@ const s = StyleSheet.create({
     gap: 5,
     borderRadius: 10,
     borderWidth: 1.5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
   heroChipText: { letterSpacing: 0.3, flexShrink: 1 },
+
+  // plan pill (freemium / premium)
+  planPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderBottomWidth: 3,
+    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  planPillPremium: { paddingBottom: 15 },
+  planTitle: { color: "#fff" },
+  planUpgrade: { flexDirection: "row", alignItems: "center", gap: 2 },
+  planTrack: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 6,
+    height: 4,
+    borderRadius: 4,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  planFill: { height: 4, borderRadius: 4 },
 
   waitRow: {
     flexDirection: "row",
@@ -1067,7 +1207,7 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderBottomWidth: 5,
     borderColor: colors.accentLight,
-    paddingVertical: 10,
+    paddingVertical: 8,
     zIndex: 2,
   },
   statsCell: { flex: 1, alignItems: "center", gap: 2 },
