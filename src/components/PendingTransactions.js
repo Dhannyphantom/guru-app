@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import AppText from "./AppText";
+import PromptModal from "./PromptModal";
 import colors from "../helpers/colors";
 import { dateFormatter } from "../helpers/helperFunctions";
 import {
@@ -50,49 +51,17 @@ const safeDate = (v) => {
  *   compact     hide the explanatory sentence
  *   onResolved  called with [{ id, kind, outcome: "completed"|"failed", message }]
  */
-const PendingTransactions = ({ kinds, compact = false, onResolved }) => {
-  const [poll, setPoll] = useState(60000);
-  const { data, refetch } = useFetchPendingQuery(undefined, {
-    pollingInterval: poll,
-    refetchOnMountOrArgChange: true,
-  });
+/**
+ * Retry / dismiss logic shared by this card and the history detail modal.
+ * Retrying only ever asks the server to RE-CHECK; it never charges again.
+ * Render `promptEl` once next to wherever you use the buttons.
+ */
+export function useAttemptActions({ onResolved, refetch } = {}) {
   const [retryPending] = useRetryPendingMutation();
-
-  // re-check every time the screen is shown again
-  useFocusEffect(
-    useCallback(() => {
-      try {
-        refetch();
-      } catch (_) {}
-    }, [refetch]),
-  );
-
   const [busy, setBusy] = useState(null); // `${id}:${action}`
   const [notes, setNotes] = useState({});
-  const [open, setOpen] = useState({});
-  const [showAll, setShowAll] = useState(false);
+  const [prompt, setPrompt] = useState({ vis: false, data: null });
   const reported = useRef(new Set());
-
-  const allow = (x) => !kinds || kinds.includes(x.kind);
-  const items = (data?.data?.items ?? []).filter(allow);
-  const recent = (data?.data?.recent ?? []).filter(allow);
-  const recentShown = showAll ? recent : recent.slice(0, RECENT_PREVIEW);
-
-  // check often while something is open, rarely otherwise
-  useEffect(() => {
-    setPoll((data?.data?.items?.length ?? 0) > 0 ? 20000 : 60000);
-  }, [data]);
-
-  // Items the server healed by itself while we were away / polling.
-  useEffect(() => {
-    const fresh = (data?.data?.resolved ?? [])
-      .filter(allow)
-      .filter((r) => !reported.current.has(r.id));
-    if (fresh.length) {
-      fresh.forEach((r) => reported.current.add(r.id));
-      onResolved?.(fresh);
-    }
-  }, [data]);
 
   const act = async (item, action) => {
     setBusy(`${item.id}:${action}`);
@@ -111,11 +80,16 @@ const PendingTransactions = ({ kinds, compact = false, onResolved }) => {
         if (r?.resolved) {
           reported.current.add(item.id);
           onResolved?.([
-            { id: item.id, kind: item.kind, outcome: r.outcome, message: r.message },
+            {
+              id: item.id,
+              kind: item.kind,
+              outcome: r.outcome,
+              message: r.message,
+            },
           ]);
         }
       }
-      await refetch();
+      await refetch?.();
     } catch (e) {
       setNotes((n) => ({
         ...n,
@@ -127,6 +101,114 @@ const PendingTransactions = ({ kinds, compact = false, onResolved }) => {
       setBusy(null);
     }
   };
+
+  const askDismiss = (item) =>
+    setPrompt({
+      vis: true,
+      data: {
+        title: "Dismiss this payment?",
+        msg: "Only dismiss if you did NOT pay. If you were debited, tap Check status instead.",
+        btn: "I didn't pay",
+      },
+      cb: () => act(item, "dismiss"),
+    });
+
+  const promptEl = (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <PromptModal prompt={prompt} setPrompt={setPrompt} />
+    </View>
+  );
+
+  return { busy, notes, act, askDismiss, promptEl, reported };
+}
+
+/** "Check status" / "I didn't pay" buttons for one attempt. */
+export const AttemptButtons = ({ item, busy, act, askDismiss }) => {
+  if (!item?.canRetry && !item?.canDismiss) return null;
+  return (
+    <View style={styles.actions}>
+      {item.canRetry && (
+        <Pressable
+          disabled={Boolean(busy)}
+          onPress={() => act(item, "retry")}
+          style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}
+        >
+          {busy === `${item.id}:retry` ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <AppText fontWeight="black" size={11} style={styles.btnText}>
+              Check status
+            </AppText>
+          )}
+        </Pressable>
+      )}
+      {item.canDismiss && (
+        <Pressable
+          disabled={Boolean(busy)}
+          onPress={() => askDismiss(item)}
+          style={({ pressed }) => [styles.ghost, pressed && { opacity: 0.7 }]}
+        >
+          {busy === `${item.id}:dismiss` ? (
+            <ActivityIndicator size="small" color={colors.medium} />
+          ) : (
+            <AppText fontWeight="bold" size={11} style={styles.ghostText}>
+              I didn't pay
+            </AppText>
+          )}
+        </Pressable>
+      )}
+    </View>
+  );
+};
+
+const PendingTransactions = ({
+  kinds,
+  compact = false,
+  section = "both", // "pending" | "recent" | "both"
+  onResolved,
+}) => {
+  const [poll, setPoll] = useState(60000);
+  const { data, refetch } = useFetchPendingQuery(undefined, {
+    pollingInterval: poll,
+    refetchOnMountOrArgChange: true,
+  });
+
+  // re-check every time the screen is shown again
+  useFocusEffect(
+    useCallback(() => {
+      try {
+        refetch();
+      } catch (_) {}
+    }, [refetch]),
+  );
+
+  const { busy, notes, act, askDismiss, promptEl, reported } =
+    useAttemptActions({ onResolved, refetch });
+  const [open, setOpen] = useState({});
+  const [showAll, setShowAll] = useState(false);
+
+  const allow = (x) => !kinds || kinds.includes(x.kind);
+  const showPending = section !== "recent";
+  const showRecent = section !== "pending";
+  const items = showPending ? (data?.data?.items ?? []).filter(allow) : [];
+  const recent = showRecent ? (data?.data?.recent ?? []).filter(allow) : [];
+  const recentShown = showAll ? recent : recent.slice(0, RECENT_PREVIEW);
+
+  // check often while something is open, rarely otherwise
+  useEffect(() => {
+    setPoll((data?.data?.items?.length ?? 0) > 0 ? 20000 : 60000);
+  }, [data]);
+
+  // Items the server healed by itself while we were away / polling.
+  useEffect(() => {
+    const fresh = (data?.data?.resolved ?? [])
+      .filter(allow)
+      .filter((r) => !reported.current.has(r.id));
+    if (fresh.length) {
+      fresh.forEach((r) => reported.current.add(r.id));
+      onResolved?.(fresh);
+    }
+  }, [data]);
 
   if (!items.length && !recent.length) return null;
 
@@ -185,40 +267,12 @@ const PendingTransactions = ({ kinds, compact = false, onResolved }) => {
               Ref: {item.reference}
             </AppText>
 
-            {(item.canRetry || item.canDismiss) && (
-              <View style={styles.actions}>
-                {item.canRetry && (
-                  <Pressable
-                    disabled={Boolean(busy)}
-                    onPress={() => act(item, "retry")}
-                    style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}
-                  >
-                    {busy === `${item.id}:retry` ? (
-                      <ActivityIndicator size="small" color={colors.white} />
-                    ) : (
-                      <AppText fontWeight="black" size={11} style={styles.btnText}>
-                        Check status
-                      </AppText>
-                    )}
-                  </Pressable>
-                )}
-                {item.canDismiss && (
-                  <Pressable
-                    disabled={Boolean(busy)}
-                    onPress={() => act(item, "dismiss")}
-                    style={({ pressed }) => [styles.ghost, pressed && { opacity: 0.7 }]}
-                  >
-                    {busy === `${item.id}:dismiss` ? (
-                      <ActivityIndicator size="small" color={colors.medium} />
-                    ) : (
-                      <AppText fontWeight="bold" size={11} style={styles.ghostText}>
-                        I didn't pay
-                      </AppText>
-                    )}
-                  </Pressable>
-                )}
-              </View>
-            )}
+            <AttemptButtons
+              item={item}
+              busy={busy}
+              act={act}
+              askDismiss={askDismiss}
+            />
           </View>
         )}
       </Pressable>
@@ -227,6 +281,7 @@ const PendingTransactions = ({ kinds, compact = false, onResolved }) => {
 
   return (
     <Animated.View entering={FadeIn.duration(200)}>
+      {promptEl}
       {items.length > 0 && (
         <View style={[styles.card, styles.cardWarn]}>
           <View style={styles.head}>
@@ -271,7 +326,10 @@ const PendingTransactions = ({ kinds, compact = false, onResolved }) => {
             </React.Fragment>
           ))}
           {recent.length > RECENT_PREVIEW && (
-            <Pressable onPress={() => setShowAll((v) => !v)} style={styles.more}>
+            <Pressable
+              onPress={() => setShowAll((v) => !v)}
+              style={styles.more}
+            >
               <AppText fontWeight="bold" size={12} style={styles.moreText}>
                 {showAll ? "Show fewer" : `Show all (${recent.length})`}
               </AppText>
@@ -322,7 +380,12 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1 },
   title: { color: colors.primaryDeep },
-  meta: { flexDirection: "row", alignItems: "center", columnGap: 8, marginTop: 4 },
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 8,
+    marginTop: 4,
+  },
   chip: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 10 },
   date: { color: colors.medium },
   details: { marginTop: 8 },

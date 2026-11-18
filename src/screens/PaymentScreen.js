@@ -20,6 +20,8 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { WithdrawModal } from "./SubscriptionScreen";
+import PendingTransactions from "../components/PendingTransactions";
+import { useLazyFetchUserQuery } from "../context/usersSlice";
 import AppText from "../components/AppText";
 import AppHeader from "../components/AppHeader";
 import PopMessage from "../components/PopMessage";
@@ -161,6 +163,18 @@ export default function PaymentScreen() {
 
   const { width } = useWindowDimensions();
   const router = useRouter();
+  const [refreshUser] = useLazyFetchUserQuery();
+
+  // Leaving a flow must also forget the verified account name, otherwise the
+  // next transfer opens as "already verified" for the previous account.
+  const resetFlow = () => {
+    setType(null);
+    setState((prev) => ({
+      status: "pending",
+      banks: prev.banks,
+      bankName: "",
+    }));
+  };
 
   const headerText = type ? (HEADERS[type] ?? "Back") : "Withdraw";
   const fullWidth = Math.min(width, 700) - SIDE * 2;
@@ -172,9 +186,9 @@ export default function PaymentScreen() {
       return;
     }
     if (state.status === "details") {
-      setState((prev) => ({ ...prev, status: "pending" }));
+      setState((prev) => ({ ...prev, status: "pending", bankName: "" }));
     } else {
-      setType(null);
+      resetFlow();
     }
   };
 
@@ -198,6 +212,20 @@ export default function PaymentScreen() {
               <AppText fontWeight="medium" style={styles.introSub}>
                 Pick how you want to use your earnings.
               </AppText>
+            </View>
+
+            {/* anything still being confirmed (e.g. after a network drop) */}
+            <View style={{ marginHorizontal: -12 }}>
+              <PendingTransactions
+                section="pending"
+                onResolved={(items) => {
+                  refreshUser();
+                  const msg = items[0]?.message;
+                  if (msg) {
+                    setPopper({ vis: true, type: "info", timer: 3000, msg });
+                  }
+                }}
+              />
             </View>
 
             <View style={styles.grid}>
@@ -238,7 +266,7 @@ export default function PaymentScreen() {
         <WithdrawModal
           state={state}
           type={type}
-          closeModal={() => setType(null)}
+          closeModal={resetFlow}
           setPopper={setPopper}
           setState={setState}
         />

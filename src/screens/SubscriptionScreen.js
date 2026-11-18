@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +19,7 @@ import {
   selectUser,
   useBuyDataMutation,
   useFetchDataBundlesQuery,
+  useFetchPendingQuery,
   useFetchTransactionsQuery,
   useLazyFetchBanksQuery,
   useLazyFetchUserQuery,
@@ -69,7 +71,11 @@ import AppHeader from "../components/AppHeader";
 import TabSelector from "../components/TabSelector";
 import ListEmpty from "../components/ListEmpty";
 import { StatusBar } from "expo-status-bar";
-import PendingTransactions from "../components/PendingTransactions";
+import PendingTransactions, {
+  AttemptButtons,
+  useAttemptActions,
+} from "../components/PendingTransactions";
+import PromptModal from "../components/PromptModal";
 
 const { width, height } = Dimensions.get("screen");
 
@@ -339,6 +345,11 @@ export const WithdrawModal = ({
   // Renewal only: "points" | "subscriptionPoints" | "both"
   const [payWith, setPayWith] = useState("points");
 
+  // confirm prompt (PromptModal)
+  const [prompt, setPrompt] = useState({ vis: false, data: null });
+  const ask = ({ title, msg, btn, run }) =>
+    setPrompt({ vis: true, data: { title, msg, btn }, cb: run });
+
   // idempotency: key is tied to the exact request so editing the form starts fresh
   const idem = useRef({ fp: null, key: null });
   const idemKey = (fingerprint) => {
@@ -356,7 +367,12 @@ export const WithdrawModal = ({
   const [refreshUser] = useLazyFetchUserQuery();
   const onAmbiguous = () => {
     refreshUser();
-    return setPopper({ vis: true, type: "info", timer: 4000, msg: PENDING_HINT });
+    return setPopper({
+      vis: true,
+      type: "info",
+      timer: 4000,
+      msg: PENDING_HINT,
+    });
   };
 
   const subPoints = user?.subscriptionPoints || 0;
@@ -491,6 +507,19 @@ export const WithdrawModal = ({
     if (type === "transfer") {
       await onBankFetch(false);
     } else if (type === "airtime") {
+      ask({
+        title: "Confirm airtime",
+        msg: `Send ${getCurrencyAmount(amount)} airtime (${tab}) to ${contact}? ${
+          calculatePointsAmount(amount).pointFormat
+        } will be deducted from your points.`,
+        btn: "Send airtime",
+        run: doAirtime,
+      });
+    }
+  };
+
+  const doAirtime = async () => {
+    {
       try {
         const reqData = {
           pointsToConvert: calculatePointsAmount(amount).point,
@@ -569,6 +598,21 @@ export const WithdrawModal = ({
               : "You don't have enough points (Guru Tokens + subscription points)",
       });
     }
+    ask({
+      title: "Confirm renewal",
+      msg: `Renew ${fv?.amount?.days} days for ${formatPoints(cost)}? This will be deducted from your ${
+        payWith === "points"
+          ? "Guru Tokens"
+          : payWith === "subscriptionPoints"
+            ? "subscription points"
+            : "points"
+      }.`,
+      btn: "Renew",
+      run: () => doRenew(fv),
+    });
+  };
+
+  const doRenew = async (fv) => {
     try {
       const res = await renewSubscription({
         ...fv?.amount,
@@ -598,6 +642,17 @@ export const WithdrawModal = ({
       });
     }
 
+    ask({
+      title: "Confirm data purchase",
+      msg: `Buy ${fv?.bundle?.name} for ${fv?.phoneNumber} (${fv?.network})? ${formatPoints(
+        fv?.bundle?.value,
+      )} will be deducted from your points.`,
+      btn: "Buy data",
+      run: () => doBuy(fv),
+    });
+  };
+
+  const doBuy = async (fv) => {
     try {
       const res = await buyData({
         pointsToConvert: fv?.bundle?.value,
@@ -638,7 +693,14 @@ export const WithdrawModal = ({
     // console.log({ formValues });
     // return;
     if (isVerified) {
-      await handleCashOut(formValues);
+      ask({
+        title: "Confirm withdrawal",
+        msg: `Withdraw ${getCurrencyAmount(amount)} to ${state?.bankName ?? "this account"} (${
+          formValues?.acct_number
+        })? ${calculatePointsAmount(amount).pointFormat} will be deducted from your points.`,
+        btn: "Withdraw",
+        run: () => handleCashOut(formValues),
+      });
     } else {
       try {
         const res = await verifyAcct(formValues).unwrap();
@@ -1074,6 +1136,9 @@ export const WithdrawModal = ({
           wTransparent
         />
       </ScrollView>
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <PromptModal prompt={prompt} setPrompt={setPrompt} />
+      </View>
     </Animated.View>
   );
 };
@@ -1144,6 +1209,12 @@ const HISTORY_TONES = {
     icon: "#fff",
     badge: colors.medium,
     text: colors.medium,
+  },
+  red: {
+    border: "#D32F2F55",
+    icon: "#fff",
+    badge: "#D32F2F",
+    text: "#D32F2F",
   },
 };
 
@@ -1298,18 +1369,216 @@ const describeTransaction = (tx) => {
     description,
     lines,
     status: STATUS_STYLES[status] ?? null,
-    reference: meta.flutterwaveReference || null,
+    reference: meta.flutterwaveReference || tx?.reference || null,
     date: safeDate(tx?.createdAt),
+    fullDate: safeDate(tx?.createdAt, "fullDate"),
+    ts: tx?.createdAt ?? null,
+    attempt: null,
   };
 };
 
-const SubHistory = ({ view }) => {
+const ATTEMPT_KIND = {
+  subscription: "renewal",
+  withdrawal: "withdrawal",
+  airtime: "airtime",
+  data: "data",
+};
+const ATTEMPT_TONE = {
+  ok: "green",
+  warn: "gold",
+  bad: "red",
+  neutral: "neutral",
+};
+const ATTEMPT_COLOR = {
+  ok: colors.greenDark,
+  warn: colors.warningDark,
+  bad: "#D32F2F",
+  neutral: colors.medium,
+};
+
+/** A payment / payout attempt (from the pending endpoint) shaped like a history item. */
+const describeAttempt = (a) => {
+  const kind = ATTEMPT_KIND[a?.kind] ?? "other";
+  const base = HISTORY_KINDS[kind];
+  const amount = toNum(a?.amount);
+  return {
+    kind,
+    title: a.title,
+    icon: base.icon,
+    tone: HISTORY_TONES[ATTEMPT_TONE[a.tone] ?? base.tone],
+    amountText:
+      amount !== null && amount > 0
+        ? `₦${amount.toLocaleString("en-NG")}`
+        : null,
+    detail: null,
+    description: a.description || null,
+    lines: [],
+    status: {
+      label: a.statusLabel,
+      color: ATTEMPT_COLOR[a.tone] ?? colors.medium,
+    },
+    reference: a.reference || null,
+    date: safeDate(a.createdAt),
+    fullDate: safeDate(a.createdAt, "fullDate"),
+    ts: a.createdAt ?? null,
+    attempt: a,
+  };
+};
+
+/** Full details of ONE history item (transaction or attempt) + its actions. */
+const HistoryDetailModal = ({ view, onClose, onResolved, refetchPending }) => {
+  const { busy, notes, act, askDismiss, promptEl } = useAttemptActions({
+    onResolved,
+    refetch: refetchPending,
+  });
+  if (!view) return null;
+  const { tone, attempt } = view;
+
+  const Row = ({ label, children }) =>
+    children ? (
+      <View style={styles.dRow}>
+        <AppText size={11} fontWeight="bold" style={{ color: colors.medium }}>
+          {label}
+        </AppText>
+        <AppText size={13} fontWeight="black" selectable style={styles.dValue}>
+          {children}
+        </AppText>
+      </View>
+    ) : null;
+
+  return (
+    <Modal transparent animationType="slide" visible onRequestClose={onClose}>
+      <Pressable style={styles.dBackdrop} onPress={onClose} />
+      <View style={styles.dSheet}>
+        <View style={styles.dGrab} />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.dHead}>
+            <MaterialCommunityIcons
+              name={view.icon}
+              color={tone.icon}
+              size={22}
+              style={{
+                backgroundColor: tone.badge,
+                borderRadius: 50,
+                padding: 10,
+              }}
+            />
+            <View style={{ flex: 1 }}>
+              <AppText
+                fontWeight="black"
+                size={16}
+                style={{ color: colors.primaryDeep }}
+              >
+                {view.title}
+              </AppText>
+              {view.status ? (
+                <AppText
+                  fontWeight="bold"
+                  size={12}
+                  style={{ color: view.status.color, marginTop: 2 }}
+                >
+                  {view.status.label}
+                </AppText>
+              ) : null}
+            </View>
+          </View>
+
+          {view.amountText ? (
+            <AppText
+              fontWeight="heavy"
+              size={"xlarge"}
+              style={{ color: tone.text, marginTop: 14 }}
+            >
+              {view.amountText}
+            </AppText>
+          ) : null}
+          {view.detail ? (
+            <AppText
+              fontWeight="bold"
+              size={13}
+              style={{ color: colors.medium }}
+            >
+              {view.detail}
+            </AppText>
+          ) : null}
+
+          {view.description ? (
+            <AppText
+              fontWeight="medium"
+              size={13}
+              style={{ color: colors.medium, marginTop: 12, lineHeight: 19 }}
+            >
+              {view.description}
+            </AppText>
+          ) : null}
+
+          {Boolean(attempt && notes[attempt.id]) && (
+            <AppText
+              fontWeight="bold"
+              size={12}
+              style={{ color: colors.primaryDeep, marginTop: 10 }}
+            >
+              {notes[attempt.id]}
+            </AppText>
+          )}
+
+          <View style={styles.dBox}>
+            {view.lines.map((l, i) => (
+              <AppText
+                key={i}
+                size={12}
+                style={{ color: colors.medium, marginBottom: 4 }}
+              >
+                {l}
+              </AppText>
+            ))}
+            {Row({ label: "Date", children: view.fullDate })}
+            {Row({ label: "Reference", children: view.reference })}
+          </View>
+
+          {attempt ? (
+            <AttemptButtons
+              item={attempt}
+              busy={busy}
+              act={act}
+              askDismiss={askDismiss}
+            />
+          ) : null}
+
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [
+              styles.dClose,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <AppText
+              fontWeight="black"
+              size={13}
+              style={{ color: colors.primaryDeep }}
+            >
+              Close
+            </AppText>
+          </Pressable>
+        </ScrollView>
+        {promptEl}
+      </View>
+    </Modal>
+  );
+};
+
+const SubHistory = ({ view, onPress }) => {
   if (!view) return null;
   const { tone } = view;
 
   return (
-    <View
-      style={[styles.subHistory, { borderWidth: 2, borderColor: tone.border }]}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.subHistory,
+        { borderWidth: 2, borderColor: tone.border },
+        pressed && { opacity: 0.75 },
+      ]}
     >
       <View style={styles.subHistoryIcon}>
         <MaterialCommunityIcons
@@ -1393,7 +1662,7 @@ const SubHistory = ({ view }) => {
           </AppText>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 };
 
@@ -1455,16 +1724,43 @@ const SubscriptionScreen = () => {
 
   const lottieRef = useRef(null);
   const history = data?.data;
+  const { data: pend, refetch: refetchPending } = useFetchPendingQuery(
+    undefined,
+    { refetchOnMountOrArgChange: true },
+  );
+  const [selectedKey, setSelectedKey] = useState(null);
 
   const historyItems = useMemo(() => {
-    const all = (history?.transactions ?? []).map((tx) => ({
+    const txs = history?.transactions ?? [];
+    const seen = new Set();
+    txs.forEach((tx) =>
+      [
+        tx?.reference,
+        tx?.metadata?.flutterwaveReference,
+        tx?.metadata?.txRef,
+        tx?.metadata?.tx_ref,
+      ]
+        .filter(Boolean)
+        .forEach((r) => seen.add(String(r))),
+    );
+    const fromTx = txs.map((tx) => ({
       key: String(tx?._id ?? tx?.reference),
       view: describeTransaction(tx),
     }));
+    // finished attempts that the ledger doesn't already show
+    const fromAttempts = (pend?.data?.recent ?? [])
+      .filter((a) => !seen.has(String(a.reference)))
+      .map((a) => ({
+        key: `att-${a.entity}-${a.id}`,
+        view: describeAttempt(a),
+      }));
+    const all = [...fromTx, ...fromAttempts].sort(
+      (x, y) => new Date(y.view.ts || 0) - new Date(x.view.ts || 0),
+    );
     const active = HISTORY_FILTERS.find((f) => f.label === historyFilter);
     if (!active?.kinds) return all;
     return all.filter((item) => active.kinds.includes(item.view.kind));
-  }, [history, historyFilter]);
+  }, [history, pend, historyFilter]);
 
   const { sub, total, terms } = dateFormatter(expiry, "sub", { current });
   const isTeacher = user?.accountType === "teacher";
@@ -1680,12 +1976,18 @@ const SubscriptionScreen = () => {
       </View>
 
       <PendingTransactions
+        section="pending"
         onResolved={(items) => {
           fetchUser();
           refetch();
           const first = items[0];
           if (first?.message) {
-            setPopper({ vis: true, type: "info", timer: 3000, msg: first.message });
+            setPopper({
+              vis: true,
+              type: "info",
+              timer: 3000,
+              msg: first.message,
+            });
           }
         }}
       />
@@ -1700,10 +2002,37 @@ const SubscriptionScreen = () => {
             : ""}
         </AppText>
       </View>
-      <TabSelector
-        options={HISTORY_FILTERS.map(({ label, color }) => ({ label, color }))}
-        onChange={(item) => setHistoryFilter(item?.label ?? "All")}
-      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
+        {HISTORY_FILTERS.map((f) => {
+          const on = f.label === historyFilter;
+          return (
+            <Pressable
+              key={f.label}
+              onPress={() => setHistoryFilter(f.label)}
+              style={[
+                styles.filterPill,
+                {
+                  backgroundColor: on ? f.color : f.color + "1A",
+                  borderColor: on ? f.color : f.color + "55",
+                },
+              ]}
+            >
+              <AppText
+                fontWeight="black"
+                size={12}
+                numberOfLines={1}
+                style={{ color: on ? colors.white : f.color }}
+              >
+                {f.label}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </>
   );
 
@@ -1729,7 +2058,12 @@ const SubscriptionScreen = () => {
               }
             />
           )}
-          renderItem={({ item }) => <SubHistory view={item.view} />}
+          renderItem={({ item }) => (
+            <SubHistory
+              view={item.view}
+              onPress={() => setSelectedKey(item.key)}
+            />
+          )}
         />
       ) : (
         <ScrollView
@@ -1765,6 +2099,29 @@ const SubscriptionScreen = () => {
         </ScrollView>
       )}
 
+      <HistoryDetailModal
+        key={selectedKey ?? "none"}
+        view={
+          selectedKey
+            ? historyItems.find((i) => i.key === selectedKey)?.view
+            : null
+        }
+        onClose={() => setSelectedKey(null)}
+        refetchPending={refetchPending}
+        onResolved={(items) => {
+          fetchUser();
+          refetch();
+          const first = items[0];
+          if (first?.message) {
+            setPopper({
+              vis: true,
+              type: "info",
+              timer: 3000,
+              msg: first.message,
+            });
+          }
+        }}
+      />
       <PopMessage popData={popper} setPopData={setPopper} />
       <StatusBar style="dark" />
     </View>
@@ -2233,6 +2590,56 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
+  dBackdrop: { flex: 1, backgroundColor: "#00000066" },
+  dSheet: {
+    maxHeight: "80%",
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    paddingBottom: 28,
+  },
+  dGrab: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.lightly,
+    marginBottom: 14,
+  },
+  dHead: { flexDirection: "row", alignItems: "center", columnGap: 12 },
+  dBox: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: colors.lightly + "88",
+  },
+  dRow: { marginTop: 6 },
+  dValue: { color: colors.primaryDeep, marginTop: 2 },
+  dClose: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    marginTop: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.primary + "44",
+  },
+  filterRow: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    columnGap: 8,
+    alignItems: "center",
+  },
+  filterPill: {
+    flexShrink: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   historyHead: {
     flexDirection: "row",
     alignItems: "baseline",

@@ -144,7 +144,16 @@ const DisplayPayments = ({ hideModal, data }) => {
         user_id: String(user?._id ?? user?.id ?? ""),
       },
     };
-  }, [plan, txRef, user?.email, user?._id, user?.id, fullName, data?.type, schoolId]);
+  }, [
+    plan,
+    txRef,
+    user?.email,
+    user?._id,
+    user?.id,
+    fullName,
+    data?.type,
+    schoolId,
+  ]);
 
   // ─── Success ───────────────────────────────────────────────────────────────
   if (status === "success") {
@@ -179,6 +188,7 @@ const DisplayPayments = ({ hideModal, data }) => {
         {!inRecovery && (
           <PendingTransactions
             kinds={["subscription"]}
+            section="pending"
             compact
             onResolved={(items) => {
               if (items.some((i) => i.outcome === "completed")) {
