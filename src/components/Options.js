@@ -1,69 +1,16 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Dimensions, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Katex from "react-native-katex";
 import Animated from "react-native-reanimated";
 
 import AppText from "../components/AppText";
-import colors from "../helpers/colors";
-import { capFirstLetter } from "../helpers/helperFunctions";
 import AnimatedCheckBox from "./AnimatedCheckbox";
 import { Q, TONES } from "./quiz/QuizTheme";
 import { QuizPressable } from "./quiz/QuizUI";
 import { popIn, popOut } from "./quiz/QuizMotion";
+import { RichView, optionRt } from "./quiz/RichText";
 
 const { width } = Dimensions.get("screen");
-
-const inlineStyle = `
-html, body {
-  display: flex;
-  background-color: transparent;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-.katex {
-  font-size: 4em;
-  margin: 0;
-  font-weight: 800;
-  display: flex;
-  color: ${Q.ink};
-}
-`;
-
-const LatexOptionText = ({ value, isLatex }) => {
-  if (!value) return null;
-
-  if (!isLatex) {
-    return (
-      <AppText fontWeight="bold" size={15.5} style={styles.nonEditableText}>
-        {value}
-      </AppText>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Katex
-        expression={value?.replace(/\$/g, "")}
-        style={{
-          width: width * 0.8,
-          height: 10,
-          backgroundColor: "transparent",
-        }}
-        inlineStyle={inlineStyle}
-        displayMode={false}
-        throwOnError={false}
-        errorColor={colors.primary}
-        macros={{}}
-        colorIsTextColor={false}
-        onError={() => console.error("Error")}
-      />
-    </View>
-  );
-};
 
 // A / B / C / D each get their own colour
 const SCHEMES = [
@@ -113,6 +60,8 @@ const Options = ({
   const handleNonEditableSelection = useCallback(() => {
     handleSelectAnswer?.(data);
   }, [data, handleSelectAnswer]);
+
+  const richRt = useMemo(() => optionRt(data), [data]);
 
   const badgeFg = tone === TONES.yellow ? Q.ink : "#FFFFFF";
 
@@ -181,13 +130,13 @@ const Options = ({
         </View>
 
         <View style={{ flex: 1, justifyContent: "center", marginLeft: 12 }}>
-          <LatexOptionText
-            value={
-              data?.isLatex
-                ? data?.latex
-                : capFirstLetter(data?.name) || "______"
-            }
-            isLatex={data?.isLatex}
+          <RichView
+            rt={richRt}
+            size={15.5}
+            weight="bold"
+            color={Q.ink}
+            maxWidth={width * 0.58}
+            style={{ paddingVertical: 14 }}
           />
         </View>
 
@@ -268,10 +217,5 @@ const styles = StyleSheet.create({
     outlineStyle: "none",
     paddingVertical: 18,
     minHeight: 62,
-  },
-  nonEditableText: {
-    color: Q.ink,
-    paddingVertical: 16,
-    lineHeight: 21,
   },
 });

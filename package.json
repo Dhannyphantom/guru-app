@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@native-html/render": "^1.0.4",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@reduxjs/toolkit": "^2.9.0",
     "@sentry/react-native": "~7.11.0",
@@ -58,6 +59,7 @@
     "react-native-purchases": "^10.2.0",
     "react-native-purchases-ui": "^10.2.0",
     "react-native-reanimated": "4.5.1",
+    "react-native-render-html": "^6.3.4",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",

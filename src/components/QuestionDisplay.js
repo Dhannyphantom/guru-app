@@ -10,7 +10,6 @@ import {
 } from "react-native";
 
 import { nanoid } from "@reduxjs/toolkit";
-import Katex from "react-native-katex";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
 
@@ -25,7 +24,6 @@ import React, {
 import colors from "../helpers/colors";
 import LottieAnimator from "./LottieAnimator";
 import {
-  capFirstLetter,
   formatPoints,
   getUserProfile,
   socket,
@@ -38,49 +36,15 @@ import AnimatedPressable from "./AnimatedPressable";
 import { useSelector } from "react-redux";
 import { selectUser } from "../context/usersSlice";
 import { Q, TONES, TONE_CYCLE } from "./quiz/QuizTheme";
+import {
+  RichView,
+  attachRich,
+  stemRt,
+  stripRichQuestion,
+} from "./quiz/RichText";
 import { AnimatedBar, Chip, FooterBar, QuizButton } from "./quiz/QuizUI";
 
 const { width, height } = Dimensions.get("screen");
-
-const inlineStyle = `
-html, body {
-  display: flex;
-  background-color: transparent;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-.katex {
-  font-size: 4em;
-  font-weight: 800;
-  margin: 0;
-  display: flex;
-}
-`;
-
-const LatexText = ({ value, isLatex, style }) => {
-  if (!value) return null;
-
-  if (!isLatex) {
-    return <AppText style={style}>{value}</AppText>;
-  }
-
-  return (
-    <Katex
-      expression={value?.replace(/\$/g, "")}
-      style={{ width: width * 0.8, height: height * 0.3 }}
-      inlineStyle={inlineStyle}
-      displayMode={false}
-      throwOnError={false}
-      errorColor="#f00"
-      macros={{}}
-      colorIsTextColor={false}
-      onError={() => console.error("Error")}
-    />
-  );
-};
 
 const QuestionDisplay = ({
   handleQuit,
@@ -105,10 +69,13 @@ const QuestionDisplay = ({
     return questionBank.map((subject) => ({
       ...subject,
       questions: Array.isArray(subject.questions)
-        ? subject.questions.map((q) => ({
-            ...q,
-            answers: Array.isArray(q.answers) ? q.answers : [],
-          }))
+        ? subject.questions.map((q) =>
+            // new-style questions: pair each answer with its rich body now
+            attachRich({
+              ...q,
+              answers: Array.isArray(q.answers) ? q.answers : [],
+            }),
+          )
         : [],
     }));
   }, [questionBank]);
@@ -230,7 +197,7 @@ const QuestionDisplay = ({
       });
       if (isMultiplayer) {
         socket.emit("answer_question", {
-          question: currentQuestion,
+          question: stripRichQuestion(currentQuestion),
           row,
           sessionId,
           user: getUserProfile(user),
@@ -251,7 +218,7 @@ const QuestionDisplay = ({
       });
       if (isMultiplayer) {
         socket.emit("answer_question", {
-          question: currentQuestion,
+          question: stripRichQuestion(currentQuestion),
           row: 0,
           sessionId,
           user: getUserProfile(user),
@@ -376,7 +343,7 @@ const QuestionDisplay = ({
               name="timer"
               animRef={timerRef}
               speed={10 / (currentQuestion.timer || 10)}
-              style={{ width: 44, height: 44 }}
+              style={{ width: 56, height: 56 }}
               loop={false}
               onAnimationFinish={handleNextQuestion}
             />
@@ -428,20 +395,13 @@ const QuestionDisplay = ({
             contentContainerStyle={styles.scroll}
             showsVerticalScrollIndicator={false}
           >
-            <LatexText
-              value={
-                currentQuestion.isLatex
-                  ? currentQuestion.questionLatex
-                  : capFirstLetter(currentQuestion.question)
-              }
-              isLatex={currentQuestion.isLatex}
-              style={{
-                textAlign: "center",
-                lineHeight: 30,
-                fontSize: 19,
-                fontFamily: "sf-bold",
-                color: Q.ink,
-              }}
+            <RichView
+              rt={stemRt(currentQuestion)}
+              size={19}
+              weight="bold"
+              align="center"
+              color={Q.ink}
+              maxWidth={width * 0.82}
             />
           </ScrollView>
         </Animated.View>
@@ -674,13 +634,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   timer: {
-    width: 56,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: Q.card,
-    borderWidth: 2,
-    borderBottomWidth: 4,
-    borderColor: Q.line,
+    // width: 56,
+    // height: 48,
+    // borderRadius: 16,
+    // backgroundColor: Q.card,
+    // borderWidth: 2,
+    // borderBottomWidth: 4,
+    // borderColor: Q.line,
     alignItems: "center",
     justifyContent: "center",
   },

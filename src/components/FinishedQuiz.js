@@ -18,6 +18,7 @@ import { LeaderboardItem, LeaderboardWinners } from "../screens/LeaderboardScree
 import { getUserProfile, socket } from "../helpers/helperFunctions";
 import { selectUser } from "../context/usersSlice";
 import { Q, TONES } from "./quiz/QuizTheme";
+import { stripRichGroups } from "./quiz/RichText";
 import {
   Chip,
   Confetti,
@@ -290,14 +291,16 @@ const FinishedQuiz = ({ hideModal, data, retried, retry, sessionId, session, dur
   const uploadQuizSession = async () => {
     if (isMultiplayer) return;
 
-    const payload = { ...data, ...session, retried, ...(duration != null ? { duration } : {}) };
+    // rich bodies are display-only; keep them out of what we upload
+    const cleanQuestions = stripRichGroups(session?.questions);
+    const payload = { ...data, ...session, questions: cleanQuestions, retried, ...(duration != null ? { duration } : {}) };
     const handlers = {
       school: () => submitQuiz(payload).unwrap(),
       freemium: () => submitFreemiumQuiz(payload).unwrap(),
       competition: () =>
         submitCompetitionQuiz({
           competitionId: data.competitionId,
-          questions: session?.questions,
+          questions: cleanQuestions,
           ...(duration != null ? { duration } : {}),
         }).unwrap(),
       premium: () => submitPremiumQuiz(payload).unwrap(),

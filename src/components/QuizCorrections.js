@@ -1,8 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react/display-name */
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Katex from "react-native-katex";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -13,20 +12,19 @@ import Animated, {
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import AppText from "../components/AppText";
-import colors from "../helpers/colors";
-import { capFirstLetter } from "../helpers/helperFunctions";
 import { Q, TONES } from "./quiz/QuizTheme";
 import { LAYOUT } from "./quiz/QuizMotion";
 import { Chip, QuizButton, QuizPressable, QuizSheet } from "./quiz/QuizUI";
+import {
+  RichView,
+  explanationRt,
+  hasExplanation,
+  isRichQuestion,
+  optionRt,
+  stemRt,
+} from "./quiz/RichText";
 
-const inlineExpStyle = `
-html, body { display:flex; background-color:transparent; justify-content:flex-start; align-items:center; height:100%; margin:0; padding:0; }
-.katex { font-size:4em; margin-left:40px; font-weight:600; display:flex; color:${colors.black}; }
-`;
-const inlineStyle = `
-html, body { display:flex; background-color:transparent; justify-content:flex-start; align-items:center; height:100%; margin:0; padding:0; }
-.katex { font-size:3em; margin-left:40px; font-weight:600; display:flex; color:${colors.black}; }
-`;
+const { width } = Dimensions.get("screen");
 
 /** "right" | "wrong" | "skipped" for one question. */
 export const getQuestionStatus = (question) => {
@@ -43,87 +41,60 @@ const STATUS = {
   skipped: { tone: { ...TONES.ink, face: Q.faint, lip: Q.lineDark, soft: "#F1EEE4", line: "#DDD6C0", ink: Q.sub }, label: "Skipped", icon: "remove-circle" },
 };
 
-const LatexOptionText = ({ value, isExp, isLatex, minHeight }) => {
-  if (!value) return null;
-
-  if (!isLatex) {
-    return (
-      <AppText fontWeight="semibold" size={14.5} style={{ color: Q.ink, lineHeight: 22 }}>
-        {capFirstLetter(value)}
-      </AppText>
-    );
-  }
+const ExplanationSheet = ({ visible, question, onClose }) => {
+  const exp = explanationRt(question);
+  // legacy LaTeX explanations keep their plain-text twin underneath
+  const legacyPlain =
+    !isRichQuestion(question) && question?.isLatex && question?.explanationLatex && question?.explanation;
 
   return (
-    <View style={{ flex: 1, minHeight }}>
-      <Katex
-        expression={value?.replace(/\$/g, "")}
-        style={{ width: "100%", backgroundColor: "transparent" }}
-        inlineStyle={isExp ? inlineExpStyle : inlineStyle}
-        displayMode={false}
-        throwOnError={false}
-        errorColor={colors.primary}
-        macros={{}}
-        colorIsTextColor={false}
-        onError={() => console.error("Error")}
-      />
-    </View>
+    <QuizSheet
+      visible={visible}
+      onClose={onClose}
+      tone="yellow"
+      icon="bulb"
+      title="Explanation"
+      subtitle="Learn from every question"
+      footer={<QuizButton title="Got it!" icon="checkmark" variant="primary" onPress={onClose} />}
+    >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, gap: 12 }}>
+        <View style={styles.sheetBox}>
+          <AppText fontWeight="black" size={10.5} style={styles.sheetLabel}>
+            QUESTION
+          </AppText>
+          <RichView rt={stemRt(question)} size={14.5} weight="semibold" maxWidth={width * 0.78} />
+        </View>
+        <View style={[styles.sheetBox, { backgroundColor: TONES.yellow.soft, borderColor: TONES.yellow.line }]}>
+          <AppText fontWeight="black" size={10.5} style={[styles.sheetLabel, { color: TONES.yellow.ink }]}>
+            WHY
+          </AppText>
+          <RichView rt={exp} size={14.5} weight="medium" maxWidth={width * 0.78} />
+          {Boolean(legacyPlain) && (
+            <AppText fontWeight="medium" size={13.5} style={{ color: Q.sub, marginTop: 10, lineHeight: 20 }}>
+              {question.explanation}
+            </AppText>
+          )}
+        </View>
+      </ScrollView>
+    </QuizSheet>
   );
 };
 
-const ExplanationSheet = ({ visible, data, onClose }) => (
-  <QuizSheet
-    visible={visible}
-    onClose={onClose}
-    tone="yellow"
-    icon="bulb"
-    title="Explanation"
-    subtitle="Learn from every question"
-    footer={<QuizButton title="Got it!" icon="checkmark" variant="primary" onPress={onClose} />}
-  >
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, gap: 12 }}>
-      <View style={styles.sheetBox}>
-        <AppText fontWeight="black" size={10.5} style={styles.sheetLabel}>
-          QUESTION
-        </AppText>
-        <LatexOptionText
-          value={data?.isLatex ? data?.questionLatex : capFirstLetter(data?.question)}
-          isLatex={data?.isLatex}
-          minHeight={data?.isLatex ? 56 : undefined}
-        />
-      </View>
-      <View style={[styles.sheetBox, { backgroundColor: TONES.yellow.soft, borderColor: TONES.yellow.line }]}>
-        <AppText fontWeight="black" size={10.5} style={[styles.sheetLabel, { color: TONES.yellow.ink }]}>
-          WHY
-        </AppText>
-        <LatexOptionText
-          value={data?.isLatex ? data?.explanationLatex + "\n\nPlain Text: " + data?.explanation : data?.explanation}
-          isLatex={data?.isLatex}
-          isExp
-          minHeight={data?.isLatex ? 220 : undefined}
-        />
-      </View>
-    </ScrollView>
-  </QuizSheet>
-);
-
-const AnswerRow = ({ label, name, tone, icon }) => (
+const AnswerRow = ({ label, rt, tone, icon }) => (
   <View style={[styles.answerRow, { backgroundColor: tone.soft, borderColor: tone.line }]}>
     <Ionicons name={icon} size={20} color={tone.face} />
     <View style={{ flex: 1, marginLeft: 10 }}>
-      <AppText fontWeight="black" size={10.5} style={{ color: tone.ink, letterSpacing: 0.8 }}>
+      <AppText fontWeight="black" size={10.5} style={{ color: tone.ink, letterSpacing: 0.8, marginBottom: 2 }}>
         {label}
       </AppText>
-      <AppText fontWeight="bold" size={13.5} style={{ color: Q.ink, marginTop: 1 }}>
-        {capFirstLetter(name)}
-      </AppText>
+      <RichView rt={rt} size={13.5} weight="bold" maxWidth={width * 0.62} />
     </View>
   </View>
 );
 
 export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [modal, setModal] = useState({ vis: false, data: null });
+  const [modal, setModal] = useState({ vis: false });
   const rotation = useSharedValue(0);
 
   const correctAnswer = useMemo(() => question?.answers?.find((item) => item.correct), [question?.answers]);
@@ -149,11 +120,7 @@ export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
           </AppText>
         </View>
         <View style={{ flex: 1, paddingRight: 8 }}>
-          <LatexOptionText
-            value={question?.isLatex ? question?.questionLatex : capFirstLetter(question?.question)}
-            isLatex={question?.isLatex}
-            minHeight={question?.isLatex ? 56 : undefined}
-          />
+          <RichView rt={stemRt(question)} size={14.5} weight="semibold" maxWidth={width * 0.62} />
         </View>
         <Pressable onPress={toggleExpand} hitSlop={10} style={[styles.arrow, { backgroundColor: s.tone.soft }]}>
           <Animated.View style={arrowStyle}>
@@ -164,22 +131,11 @@ export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
 
       <View style={styles.meta}>
         <Chip label={s.label} icon={s.icon} color={s.tone.ink} bg={s.tone.soft} />
-        {Boolean(question?.explanation) && (
+        {hasExplanation(question) && (
           <QuizPressable
             scaleTo={0.94}
             contentStyle={styles.explain}
-            onPress={() =>
-              setModal({
-                vis: true,
-                data: {
-                  question: question?.question,
-                  questionLatex: question?.questionLatex,
-                  explanation: question?.explanation,
-                  explanationLatex: question?.explanationLatex,
-                  isLatex: question?.isLatex,
-                },
-              })
-            }
+            onPress={() => setModal({ vis: true })}
           >
             <Ionicons name="bulb" size={13} color={TONES.yellow.ink} />
             <AppText fontWeight="bold" size={11.5} style={{ color: TONES.yellow.ink, marginLeft: 5 }}>
@@ -191,9 +147,9 @@ export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
 
       {isExpanded && (
         <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(120)} style={styles.answers}>
-          <AnswerRow label="CORRECT ANSWER" name={correctAnswer?.name ?? ""} tone={TONES.green} icon="checkmark-circle" />
+          <AnswerRow label="CORRECT ANSWER" rt={optionRt(correctAnswer, question)} tone={TONES.green} icon="checkmark-circle" />
           {status === "wrong" && (
-            <AnswerRow label="YOUR ANSWER" name={question?.answered?.name ?? ""} tone={TONES.coral} icon="close-circle" />
+            <AnswerRow label="YOUR ANSWER" rt={optionRt(question?.answered, question)} tone={TONES.coral} icon="close-circle" />
           )}
           {status === "skipped" && (
             <AppText fontWeight="medium" size={12} style={{ color: Q.sub }}>
@@ -205,8 +161,8 @@ export const RenderQuestion = memo(({ question, isSingle, itemNum }) => {
 
       <ExplanationSheet
         visible={modal.vis}
-        data={modal.data}
-        onClose={() => setModal((m) => ({ ...m, vis: false }))}
+        question={question}
+        onClose={() => setModal({ vis: false })}
       />
     </Animated.View>
   );
