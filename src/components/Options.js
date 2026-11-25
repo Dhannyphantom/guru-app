@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { Dimensions, StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated from "react-native-reanimated";
 
@@ -10,8 +10,6 @@ import { QuizPressable } from "./quiz/QuizUI";
 import { popIn, popOut } from "./quiz/QuizMotion";
 import { RichView, optionRt } from "./quiz/RichText";
 
-const { width } = Dimensions.get("screen");
-
 // A / B / C / D each get their own colour
 const SCHEMES = [
   { tone: TONES.blue, letter: "A" },
@@ -19,6 +17,10 @@ const SCHEMES = [
   { tone: TONES.coral, letter: "C" },
   { tone: TONES.green, letter: "D" },
 ];
+
+// Horizontal space the card spends on things other than the option text:
+// card is 96% wide; inside it: padding 28 + border 4 + badge 36 + gap 12 + check slot 30.
+const CARD_CHROME = 110;
 
 const Options = ({
   idx = 0,
@@ -28,6 +30,9 @@ const Options = ({
   data = {},
   handleUpdateAnswer,
 }) => {
+  // live window size (the old module-level Dimensions.get("screen") never updated and
+  // included the system bars on Android, so the width budget was wrong)
+  const { width: winW } = useWindowDimensions();
   const [text, setText] = useState(data?.name || "");
 
   const scheme = useMemo(() => SCHEMES[idx] ?? SCHEMES[0], [idx]);
@@ -64,6 +69,7 @@ const Options = ({
   const richRt = useMemo(() => optionRt(data), [data]);
 
   const badgeFg = tone === TONES.yellow ? Q.ink : "#FFFFFF";
+  const textMaxWidth = Math.max(120, winW * 0.96 - CARD_CHROME);
 
   // ── Editor: solid coloured card so the checkbox stays visible ──────────────
   if (editable) {
@@ -129,14 +135,15 @@ const Options = ({
           </AppText>
         </View>
 
-        <View style={{ flex: 1, justifyContent: "center", marginLeft: 12 }}>
+        {/* minWidth:0 + flexShrink:1 lets long answers wrap instead of overflowing the card */}
+        <View style={styles.textWrap}>
           <RichView
             rt={richRt}
             size={15.5}
             weight="bold"
             color={Q.ink}
-            maxWidth={width * 0.58}
-            style={{ paddingVertical: 14 }}
+            maxWidth={textMaxWidth}
+            style={styles.richText}
           />
         </View>
 
@@ -196,6 +203,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
+  },
+  textWrap: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+  richText: {
+    paddingVertical: 14,
   },
   checkSlot: {
     width: 30,

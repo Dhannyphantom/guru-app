@@ -42,10 +42,15 @@ const JambPredictorScreen = () => {
   const isPremium = Boolean(user?.subscription?.isActive) && !premiumDenied;
 
   // "jamb" -> server returns ONLY subjects flagged jambEligible: true
-  const { data: subjectsData, isLoading: loadingSubjects } =
-    useFetchSubjectsQuery("jamb");
+  const {
+    data: subjectsData,
+    isLoading: loadingSubjects,
+    error: jSError,
+  } = useFetchSubjectsQuery("jamb");
   const subjects = subjectsData?.data ?? [];
   const { summary, refresh, error: summaryError } = useJambSummary();
+
+  console.log({ jSError });
 
   const [nav, setNav] = useState({ step: "intro", dir: 1 });
   const [selected, setSelected] = useState([]); // the 4 JAMB subjects

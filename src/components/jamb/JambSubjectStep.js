@@ -44,7 +44,8 @@ const NAME_H = 30; // room for up to 2 lines of name
 const NAME_GAP = 6; // space between icon and name
 
 const getIconSize = (size) => Math.round(size * 0.5);
-const getBoxHeight = (size) => getIconSize(size) + BOX_PAD * 2 + NAME_GAP + NAME_H;
+const getBoxHeight = (size) =>
+  getIconSize(size) + BOX_PAD * 2 + NAME_GAP + NAME_H;
 
 const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
   const sel = useSharedValue(selected ? 1 : 0);
@@ -55,7 +56,11 @@ const SubjectTile = ({ subject, selected, required, size, index, onPress }) => {
   }, [selected]);
 
   const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(sel.value, [0, 1], ["#FFFFFF", T.greenSoft]),
+    backgroundColor: interpolateColor(
+      sel.value,
+      [0, 1],
+      ["#FFFFFF", T.greenSoft],
+    ),
     borderColor: interpolateColor(sel.value, [0, 1], [T.line, T.green]),
     transform: [{ scale: scale.value }],
   }));
@@ -266,11 +271,20 @@ const JambSubjectStep = ({
 
           {roundProgress > 0 && (
             <Animated.View entering={FadeIn} style={styles.warn}>
-              <Ionicons name="information-circle" size={16} color={T.yellowInk} />
+              <Ionicons
+                name="information-circle"
+                size={16}
+                color={T.yellowInk}
+              />
               <AppText
                 fontWeight="medium"
                 size={11.5}
-                style={{ color: "#5C4B10", marginLeft: 6, flex: 1, lineHeight: 16 }}
+                style={{
+                  color: "#5C4B10",
+                  marginLeft: 6,
+                  flex: 1,
+                  lineHeight: 16,
+                }}
               >
                 A round is in progress. Changing your subjects will restart it.
               </AppText>
@@ -278,19 +292,25 @@ const JambSubjectStep = ({
           )}
 
           <View style={styles.grid}>
-            {loading
-              ? <Loader size={72} label="Loading subjects…" style={{ width: "100%", paddingVertical: 36 }} />
-              : subjects.map((s, i) => (
-                  <SubjectTile
-                    key={s._id}
-                    subject={s}
-                    index={i}
-                    size={tile}
-                    selected={ids.includes(s._id)}
-                    required={isEnglish(s)}
-                    onPress={toggle}
-                  />
-                ))}
+            {loading ? (
+              <Loader
+                size={72}
+                label="Loading subjects…"
+                style={{ width: "100%", paddingVertical: 36 }}
+              />
+            ) : (
+              subjects.map((s, i) => (
+                <SubjectTile
+                  key={s._id}
+                  subject={s}
+                  index={i}
+                  size={tile}
+                  selected={ids.includes(s._id)}
+                  required={isEnglish(s)}
+                  onPress={toggle}
+                />
+              ))
+            )}
           </View>
         </Card>
 
@@ -298,10 +318,9 @@ const JambSubjectStep = ({
         <Note index={2} base={80} title="Important Note" icon="bulb">
           <AppText fontWeight="medium" size={12.5} style={styles.noteText}>
             Once you select your 4 subjects, the JAMB Score Predictor will
-            estimate your potential score range based purely on your
-            performance within the Guru App. This is not a guarantee of your
-            actual JAMB result and should be used as a guide for effective
-            study.
+            estimate your potential score range based purely on your performance
+            within the Guru App. This is not a guarantee of your actual JAMB
+            result and should be used as a guide for effective study.
           </AppText>
         </Note>
       </ScrollView>
@@ -349,7 +368,12 @@ const styles = StyleSheet.create({
   pips: { flexDirection: "row", gap: 6, marginBottom: 14 },
   pip: { flex: 1, height: 6, borderRadius: 3, backgroundColor: T.track },
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: GAP },
-  tile: { borderRadius: 18, borderWidth: 2, borderBottomWidth: 4, overflow: "hidden" },
+  tile: {
+    borderRadius: 18,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    overflow: "hidden",
+  },
   pressFill: { flex: 1 },
   tileInner: {
     flex: 1,
