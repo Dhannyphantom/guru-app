@@ -7,7 +7,6 @@ import {
   AppState,
   TextInput,
   View,
-  useWindowDimensions,
 } from "react-native";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -44,9 +43,10 @@ import {
   stripRichQuestion,
 } from "./quiz/RichText";
 import { AnimatedBar, Chip, FooterBar, QuizButton } from "./quiz/QuizUI";
+import { useScale } from "./quiz/useScale";
 
 // Only the QuizQuestion *editor* styles below still use these static values.
-// The quiz screen itself reads the live window size via useWindowDimensions.
+// The quiz screen itself sizes from useScale() (live window size).
 const { width, height } = Dimensions.get("screen");
 
 // Long questions get a slightly smaller font so more of the stem is visible
@@ -64,7 +64,8 @@ const QuestionDisplay = ({
   sessionId,
   penaltyRate = null, // JAMB: fraction of the question point lost on a wrong/skipped answer
 }) => {
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { ms, compact, maxContent } = useScale();
+  const scrollRef = useRef(null);
   const timerRef = useRef(null);
   const isMultiplayer = Boolean(sessionId);
   const user = useSelector(selectUser);
@@ -263,6 +264,11 @@ const QuestionDisplay = ({
     handleNextQuestionRef.current = handleNextQuestion;
   }, [handleNextQuestion]);
 
+  /* ---------- new question: start at the top ---------- */
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [active.subject, active.question]);
+
   /* ---------- proceed delay ---------- */
   useEffect(() => {
     const t = setTimeout(() => {
@@ -313,11 +319,10 @@ const QuestionDisplay = ({
     ? ((active.current - 1) / totalQuestions) * 100
     : 0;
 
-  // question card: grows with its text between a min and max height (from the LIVE
-  // window), and scrolls inside once the text no longer fits.
+  // The question card has NO fixed height: it grows to fit its text, and the question +
+  // options scroll together, so nothing can ever be cut off on any screen size.
   const stem = stemRt(currentQuestion);
-  const stemSize = stemFontSize(String(stem?.value ?? "").length);
-  const cardSize = { minHeight: winH * 0.2, maxHeight: winH * 0.38 };
+  const stemSize = ms(stemFontSize(String(stem?.value ?? "").length));
 
   return (
     <>
@@ -327,11 +332,11 @@ const QuestionDisplay = ({
           <View style={styles.counter}>
             <AppText
               fontWeight="black"
-              size={15}
+              size={ms(15)}
               style={{ color: qColor ?? Q.ink }}
             >
               {active.current}
-              <AppText fontWeight="bold" size={12} style={{ color: Q.faint }}>
+              <AppText fontWeight="bold" size={ms(12)} style={{ color: Q.faint }}>
                 /{totalQuestions}
               </AppText>
             </AppText>
@@ -340,7 +345,7 @@ const QuestionDisplay = ({
           <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 8 }}>
             <AppText
               fontWeight="black"
-              size={19}
+              size={ms(19)}
               numberOfLines={1}
               style={{
                 color: subjColor ?? tone.ink,
@@ -390,60 +395,60 @@ const QuestionDisplay = ({
           )}
         </View>
 
-        {/* Question card */}
-        <Animated.View
-          key={`${active.subject}-${active.question}`}
-          entering={FadeIn.duration(260)}
-          style={[styles.qCard, cardSize, { borderColor: tone.line }]}
-        >
-          <View style={[styles.qTag, { backgroundColor: tone.soft }]}>
-            <AppText
-              fontWeight="black"
-              size={10.5}
-              style={{ color: tone.ink, letterSpacing: 1 }}
-            >
-              QUESTION {active.current}
-            </AppText>
-          </View>
-          {/* alignSelf:"stretch" gives the ScrollView a real width. Without it the card's
-              alignItems:"center" shrink-wraps the ScrollView and the text can collapse
-              to a sliver (empty / cut-off question). */}
-          <ScrollView
-            style={styles.qScroll}
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            nestedScrollEnabled
-          >
-            <RichView
-              rt={stem}
-              size={stemSize}
-              weight="bold"
-              align="center"
-              color={Q.ink}
-              maxWidth={winW - 64}
-              style={styles.stemText}
-            />
-          </ScrollView>
-        </Animated.View>
-
-        {/* Options */}
+        {/* Question + options scroll TOGETHER, so nothing is ever cut off */}
         <ScrollView
-          style={styles.optionsScroll}
-          contentContainerStyle={styles.optionsContent}
-          showsVerticalScrollIndicator={false}
+          ref={scrollRef}
+          style={styles.body}
+          contentContainerStyle={styles.bodyContent}
+          showsVerticalScrollIndicator
+          persistentScrollbar
           bounces={false}
           nestedScrollEnabled
         >
-          {currentQuestion.answers.map((obj, idx) => (
-            <Options
-              key={obj._id}
-              idx={idx}
-              data={obj}
-              handleSelectAnswer={handleSelectAnswer}
-              isSelected={currentQuestion.answered?._id === obj._id}
-            />
-          ))}
+          <View style={[styles.column, { maxWidth: maxContent }]}>
+            <Animated.View
+              key={`${active.subject}-${active.question}`}
+              entering={FadeIn.duration(260)}
+              style={[
+                styles.qCard,
+                {
+                  borderColor: tone.line,
+                  minHeight: compact ? 90 : 120,
+                  padding: compact ? 10 : 12,
+                },
+              ]}
+            >
+              <View style={[styles.qTag, { backgroundColor: tone.soft }]}>
+                <AppText
+                  fontWeight="black"
+                  size={ms(10.5)}
+                  style={{ color: tone.ink, letterSpacing: 1 }}
+                >
+                  QUESTION {active.current}
+                </AppText>
+              </View>
+              <RichView
+                rt={stem}
+                size={stemSize}
+                weight="bold"
+                align="center"
+                color={Q.ink}
+                style={styles.stemText}
+              />
+            </Animated.View>
+
+            <View style={styles.optionsList}>
+              {currentQuestion.answers.map((obj, idx) => (
+                <Options
+                  key={obj._id}
+                  idx={idx}
+                  data={obj}
+                  handleSelectAnswer={handleSelectAnswer}
+                  isSelected={currentQuestion.answered?._id === obj._id}
+                />
+              ))}
+            </View>
+          </View>
         </ScrollView>
 
         <FooterBar style={styles.footer}>
@@ -646,55 +651,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
   },
-  // min/max height are applied inline from the live window size
+  body: {
+    flex: 1,
+    minHeight: 0,
+  },
+  bodyContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingBottom: 16,
+  },
+  column: {
+    width: "100%",
+  },
+  // no height limits: the card grows with the question
   qCard: {
     width: "100%",
     backgroundColor: Q.card,
-    alignSelf: "center",
+    alignItems: "center",
     justifyContent: "center",
     marginTop: 14,
-    padding: 12,
     borderRadius: 24,
     borderWidth: 2,
     borderBottomWidth: 6,
     borderColor: Q.line,
-    overflow: "hidden",
   },
   qTag: {
-    position: "absolute",
-    top: 10,
-    left: 12,
+    alignSelf: "flex-start",
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    zIndex: 2,
-  },
-  qScroll: {
-    alignSelf: "stretch",
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 14,
-    paddingBottom: 4,
+    marginBottom: 8,
   },
   stemText: {
     alignSelf: "stretch",
+    paddingHorizontal: 4,
+    paddingBottom: 6,
   },
-  optionsScroll: {
-    flex: 1,
-    minHeight: 0,
+  optionsList: {
     marginTop: 14,
-  },
-  // NOTE: the old wrapper View used flex:1 inside the ScrollView, which collapses to ~0
-  // height (options drawn but unreachable / "90% cut off"). The content container now
-  // just lays the cards out and the ScrollView measures their real height.
-  optionsContent: {
     alignItems: "center",
-    paddingBottom: 16,
   },
   footer: {
     marginHorizontal: -12,

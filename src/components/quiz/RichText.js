@@ -1,12 +1,14 @@
 /* eslint-disable react/display-name */
 import { memo, useMemo } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import Katex from "react-native-katex";
 
 import AppText from "../AppText";
 import { capFirstLetter } from "../../helpers/helperFunctions";
 import { Q } from "./QuizTheme";
-import { decode, estimateMath, looksLikeHtml, parseRich } from "./richParse";
+import { decode, looksLikeHtml, parseRich } from "./richParse";
+import { mathToText } from "./mathToText";
+import { needsMath } from "./mathHtml";
+import MathBlock from "./MathBlock";
 
 /**
  * Rich content for the student app.
@@ -16,7 +18,10 @@ import { decode, estimateMath, looksLikeHtml, parseRich } from "./richParse";
  * - html fields are rendered by a small built-in native renderer
  *   (strong/b, em/i, u, s/strike/del, br, p, <tex>/<texd>) as nested <Text>
  * - plain text renders as one native <Text> (no WebView)
- * - only math is drawn with KaTeX, one small WebView per formula
+ * - any field that contains maths is drawn by <MathBlock> with real KaTeX: ONE WebView
+ *   for the whole field (text + formulas together), which measures its own height.
+ *   Until that is measured — or if the WebView ever fails — readable plain-text maths
+ *   (mathToText) is shown, so a field is never blank.
  * - legacy questions (no `content`) go through the same component via the
  *   *Rt() helpers below
  */
@@ -25,7 +30,20 @@ import { decode, estimateMath, looksLikeHtml, parseRich } from "./richParse";
 const DEBUG_RICH = false;
 // const DEBUG_RICH = __DEV__;
 
-const MATH_EM_PER_DP = 0.16;
+const FONT = {
+  medium: "sf-medium",
+  semibold: "sf-semibold",
+  bold: "sf-bold",
+  black: "sf-black",
+  heavy: "sf-heavy",
+};
+const BUMP = {
+  medium: "bold",
+  semibold: "black",
+  bold: "black",
+  black: "heavy",
+  heavy: "heavy",
+};
 
 // ─── Question-shape helpers ──────────────────────────────────────────────────
 
@@ -156,90 +174,79 @@ export const stripRichGroups = (groups) =>
 
 // ─── Math ────────────────────────────────────────────────────────────────────
 
-const katexCss = (em, color, justify) => `
-html, body {
-  display: flex;
-  background-color: transparent;
-  justify-content: ${justify};
-  align-items: center;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-.katex {
-  font-size: ${em}em;
-  font-weight: 600;
-  margin: 0;
-  display: flex;
-  color: ${color};
-}
-`;
+const safeDecode = (v) => {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
+};
 
+/** Readable plain-text version of any parsed field that contains maths. */
+const fallbackText = (parsed) => {
+  if (parsed.type === "latex") return mathToText(parsed.value);
+  if (parsed.type === "html") {
+    return decode(
+      parsed.html
+        .replace(/<texd?\s+data-v="([^"]*)"><\/texd?>/g, (m, v) =>
+          mathToText(safeDecode(v)),
+        )
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]*>/g, ""),
+    );
+  }
+  return (parsed.runs ?? [])
+    .map((r) => {
+      if (r.k !== "m") return r.s;
+      const t = mathToText(r.v);
+      return r.d ? `\n${t}\n` : t;
+    })
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
+/** One formula (LaTeX, no delimiters) — kept for callers that used MathView directly. */
 export const MathView = memo(
   ({
     value,
     display = false,
     size = 16,
+    weight = "bold",
     color = Q.ink,
-    maxWidth,
     align = "left",
+    style,
   }) => {
-    const { width: screenW } = useWindowDimensions();
-    const cap = maxWidth ?? screenW * 0.8;
-
-    const box = useMemo(
-      () => estimateMath(value, size, display),
-      [value, size, display],
-    );
-    const w = display ? cap : Math.min(box.width, cap);
-    const css = useMemo(
-      () =>
-        katexCss(
-          (size * MATH_EM_PER_DP).toFixed(2),
-          color,
-          display || align === "center" ? "center" : "flex-start",
-        ),
-      [size, color, display, align],
-    );
-
+    const parsed = useMemo(() => ({ type: "latex", value: String(value ?? "") }), [value]);
+    const al = display ? "center" : align;
     return (
-      <View style={{ width: w, height: box.height }}>
-        <Katex
-          expression={value}
-          style={{
-            width: w,
-            height: box.height,
-            backgroundColor: "transparent",
-          }}
-          inlineStyle={css}
-          displayMode={display}
-          throwOnError={false}
-          errorColor="#E5484D"
-          macros={{}}
-          colorIsTextColor={false}
-          onError={(e) => console.warn("[katex]", value, e)}
-        />
-      </View>
+      <MathBlock
+        parsed={parsed}
+        size={size}
+        weight={weight}
+        color={color}
+        align={al}
+        style={style}
+        fallback={
+          <Text
+            allowFontScaling={false}
+            style={{
+              fontFamily: FONT[weight] ?? FONT.bold,
+              fontSize: size,
+              lineHeight: Math.round(size * 1.5),
+              color,
+              textAlign: al,
+            }}
+          >
+            {mathToText(value)}
+          </Text>
+        }
+      />
     );
   },
 );
 
 // ─── HTML (built-in native renderer) ─────────────────────────────────────────
-
-const FONT = {
-  medium: "sf-medium",
-  semibold: "sf-semibold",
-  bold: "sf-bold",
-  black: "sf-black",
-  heavy: "sf-heavy",
-};
-const BUMP = {
-  medium: "bold",
-  semibold: "black",
-  bold: "black",
-  black: "heavy",
-  heavy: "heavy",
-};
 
 const TAG_RE = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*?)(\/?)>|([^<]+)/g;
 
@@ -267,7 +274,6 @@ const htmlToLines = (html) => {
       continue;
     }
     const closing = m[1] === "/";
-    const selfClose = m[4] === "/";
     const tag = m[2].toLowerCase();
 
     switch (tag) {
@@ -325,7 +331,6 @@ const htmlToLines = (html) => {
       default:
         break; // unknown tags: ignore the tag, keep its text
     }
-    void selfClose;
   }
 
   // drop trailing empty lines
@@ -333,98 +338,59 @@ const htmlToLines = (html) => {
   return lines;
 };
 
-const HtmlView = memo(
-  ({ html, size, weight, color, align, maxWidth, style }) => {
-    const { width: screenW } = useWindowDimensions();
-    const contentWidth = maxWidth ?? screenW * 0.8;
-    const lineHeight = Math.round(size * 1.45);
-    const justify = align === "center" ? "center" : "flex-start";
+const HtmlView = memo(({ html, size, weight, color, align, style }) => {
+  const lineHeight = Math.round(size * 1.5);
 
-    const lines = useMemo(() => htmlToLines(html), [html]);
+  const lines = useMemo(() => htmlToLines(html), [html]);
 
-    const spanStyle = (f) => {
-      const deco = [f.u ? "underline" : "", f.s ? "line-through" : ""]
-        .filter(Boolean)
-        .join(" ");
-      return {
-        fontFamily: f.b
-          ? FONT[BUMP[weight] ?? "black"]
-          : (FONT[weight] ?? FONT.semibold),
-        fontSize: size,
-        lineHeight,
-        color,
-        ...(f.i ? { fontStyle: "italic" } : null),
-        ...(deco ? { textDecorationLine: deco } : null),
-      };
+  const spanStyle = (f) => {
+    const deco = [f.u ? "underline" : "", f.s ? "line-through" : ""]
+      .filter(Boolean)
+      .join(" ");
+    return {
+      fontFamily: f.b
+        ? FONT[BUMP[weight] ?? "black"]
+        : (FONT[weight] ?? FONT.semibold),
+      fontSize: size,
+      lineHeight,
+      color,
+      ...(f.i ? { fontStyle: "italic" } : null),
+      ...(deco ? { textDecorationLine: deco } : null),
     };
+  };
 
-    return (
-      <View style={[{ width: "100%" }, style]}>
-        {lines.map((line, li) => {
-          if (!line.length) {
-            return <View key={li} style={{ height: lineHeight * 0.5 }} />;
-          }
+  return (
+    <View style={[{ width: "100%" }, style]}>
+      {lines.map((line, li) => {
+        if (!line.length) {
+          return <View key={li} style={{ height: lineHeight * 0.5 }} />;
+        }
 
-          const hasMath = line.some((it) => it.k === "m");
-
-          // text only: one native <Text> with nested styled spans
-          if (!hasMath) {
-            return (
-              <Text
-                key={li}
-                allowFontScaling={false}
-                style={{ textAlign: align, color, fontSize: size, lineHeight }}
-              >
-                {line.map((it, ii) => (
-                  <Text key={ii} style={spanStyle(it.f)}>
-                    {it.s}
-                  </Text>
-                ))}
-              </Text>
-            );
-          }
-
-          // text + math: words and formulas flow together
-          return (
-            <View
-              key={li}
-              style={[
-                styles.flow,
-                { justifyContent: justify },
-                line.length === 1 && line[0].d ? styles.display : null,
-              ]}
-            >
-              {line.map((it, ii) => {
-                if (it.k === "m") {
-                  return (
-                    <MathView
-                      key={ii}
-                      value={it.v}
-                      display={it.d}
-                      size={size}
-                      color={color}
-                      maxWidth={contentWidth}
-                      align={align}
-                    />
-                  );
-                }
-                return (it.s.match(/\S+\s*|\s+/g) ?? []).map((word, wi) => (
-                  <Text
-                    key={`${ii}-${wi}`}
-                    allowFontScaling={false}
-                    style={spanStyle(it.f)}
-                  >
-                    {word}
-                  </Text>
-                ));
-              })}
-            </View>
-          );
-        })}
-      </View>
-    );
-  },
-);
+        // Everything (text AND math) is now native text, so a whole line is one <Text>
+        // with nested styled spans — it wraps naturally and can never be clipped.
+        return (
+          <Text
+            key={li}
+            allowFontScaling={false}
+            style={{ textAlign: align, color, fontSize: size, lineHeight }}
+          >
+            {line.map((it, ii) =>
+              it.k === "m" ? (
+                <Text key={ii} style={spanStyle({ b: 1 })}>
+                  {mathToText(it.v)}
+                </Text>
+              ) : (
+                <Text key={ii} style={spanStyle(it.f)}>
+                  {it.s}
+                </Text>
+              ),
+            )}
+          </Text>
+        );
+      })}
+    </View>
+  );
+});
 
 // ─── Text ────────────────────────────────────────────────────────────────────
 
@@ -439,7 +405,6 @@ export const RichView = memo(
     weight = "semibold",
     color = Q.ink,
     align = "left",
-    maxWidth,
     style,
   }) => {
     const field =
@@ -450,29 +415,44 @@ export const RichView = memo(
       () => parseRich(field),
       [field?.format, field?.value, field?.hasMath],
     );
-    const lineHeight = Math.round(size * 1.45);
+    const lineHeight = Math.round(size * 1.5);
 
     if (DEBUG_RICH) {
       console.log("[RichView]", field?.format, "->", parsed.type);
     }
 
-    if (parsed.type === "latex") {
+    const plain = (text) => (
+      <AppText
+        fontWeight={weight}
+        size={size}
+        maxFontSizeMultiplier={1.3}
+        style={[{ color, textAlign: align, lineHeight }, style]}
+      >
+        {text}
+      </AppText>
+    );
+
+    // Maths -> real KaTeX (measured WebView), with plain-text maths as the stand-in.
+    if (needsMath(parsed)) {
       return (
-        <View
-          style={[
-            { alignItems: align === "center" ? "center" : "flex-start" },
-            style,
-          ]}
-        >
-          <MathView
-            value={parsed.value}
-            size={size}
-            color={color}
-            maxWidth={maxWidth}
-            display={align === "center"}
-            align={align}
-          />
-        </View>
+        <MathBlock
+          parsed={parsed}
+          size={size}
+          weight={weight}
+          color={color}
+          align={align}
+          style={style}
+          fallback={
+            <AppText
+              fontWeight={weight}
+              size={size}
+              maxFontSizeMultiplier={1.3}
+              style={{ color, textAlign: align, lineHeight }}
+            >
+              {fallbackText(parsed)}
+            </AppText>
+          }
+        />
       );
     }
 
@@ -484,7 +464,6 @@ export const RichView = memo(
           weight={weight}
           color={color}
           align={align}
-          maxWidth={maxWidth}
           style={style}
         />
       );
@@ -492,82 +471,9 @@ export const RichView = memo(
 
     if (!parsed.runs.length) return null;
 
-    // Plain text, no math: one native <Text>, zero WebViews.
-    if (!parsed.hasMath) {
-      return (
-        <AppText
-          fontWeight={weight}
-          size={size}
-          style={[{ color, textAlign: align, lineHeight }, style]}
-        >
-          {parsed.runs.map((r) => r.s).join("")}
-        </AppText>
-      );
-    }
-
-    // Plain text + math: words and formulas flow together on wrapped lines.
-    const parts = [];
-    parsed.runs.forEach((run, ri) => {
-      if (run.k === "m") {
-        parts.push(
-          run.d ? (
-            <View key={`d${ri}`} style={styles.display}>
-              <MathView
-                value={run.v}
-                display
-                size={size}
-                color={color}
-                maxWidth={maxWidth}
-              />
-            </View>
-          ) : (
-            <MathView
-              key={`m${ri}`}
-              value={run.v}
-              size={size}
-              color={color}
-              maxWidth={maxWidth}
-            />
-          ),
-        );
-        return;
-      }
-      run.s.split("\n").forEach((line, li) => {
-        if (li > 0)
-          parts.push(<View key={`n${ri}-${li}`} style={styles.lineBreak} />);
-        (line.match(/\S+\s*|\s+/g) ?? []).forEach((word, wi) => {
-          parts.push(
-            <AppText
-              key={`w${ri}-${li}-${wi}`}
-              fontWeight={weight}
-              size={size}
-              style={{ color, lineHeight }}
-            >
-              {word}
-            </AppText>,
-          );
-        });
-      });
-    });
-
-    return (
-      <View
-        style={[
-          styles.flow,
-          { justifyContent: align === "center" ? "center" : "flex-start" },
-          style,
-        ]}
-      >
-        {parts}
-      </View>
-    );
+    // Plain text, no maths: one native <Text>, zero WebViews.
+    return plain(parsed.runs.map((r) => r.s).join(""));
   },
 );
-
-const styles = StyleSheet.create({
-  flow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center" },
-  lineBreak: { width: "100%", height: 0 },
-  display: { width: "100%", alignItems: "center", marginVertical: 4 },
-});
 
 export default RichView;
