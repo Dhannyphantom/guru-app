@@ -1,32 +1,130 @@
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  Dimensions,
   Platform,
   Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Animated, {
+  Easing,
+  Extrapolation,
+  cancelAnimation,
+  interpolate,
   useAnimatedStyle,
-  withSpring,
+  useReducedMotion,
   useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import colors from "@/src/helpers/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AnimatedPressable from "@/src/components/AnimatedPressable";
-const { width } = Dimensions.get("window");
-const TAB_BAR_HEIGHT = 65;
-const CIRCLE_SIZE = 60;
-// Extra height above the bar for the floating button.
-// Must be >= (CIRCLE_SIZE / 2) + border + shadow so the button clears the curve top.
-const DIP_DEPTH = 40;
-// Half-width of the notch opening.
-// Rule of thumb: (CIRCLE_SIZE / 2) + ~26px padding so the shoulders clear the button edges.
-const NOTCH_HALF_WIDTH = 60;
+import colors from "@/src/helpers/colors";
+import { T } from "@/src/components/jamb/JambTheme";
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Curved tab bar
+ *
+ * Layout model (everything is measured, nothing is hard-wired to one screen):
+ *
+ *   y = 0 ┌──────────────────────────────┐  ← room for the floating button,
+ *         │   (transparent, touch-through)│    its pulse ring and the soft shadow
+ *   y = TOP ─── bar edge ───╮  ╭─── bar edge ───
+ *         │  tab · tab ·    ╰──╯   · tab · tab │  ← BAR_H of icons + labels
+ *         ├──────────────────────────────┤
+ *         │  safe-area / gesture-nav pad  │  ← bar colour reaches the very bottom
+ *   y = H └──────────────────────────────┘
+ *
+ * Why the old bar lost its icons on some phones
+ *  1. The curve layer had `elevation: 12`. On Android, elevation re-orders
+ *     siblings, so that white layer could be drawn ON TOP of the icon row.
+ *     Now the curve has no elevation, and the icon row / button have explicit
+ *     zIndex + elevation so they always sit above it.
+ *  2. Width was read once at import time (`Dimensions.get`) and the 5 slots
+ *     were width / 5. On narrow screens the side icons landed inside the notch.
+ *     Now width is reactive, the centre slot has its own width and the notch is
+ *     derived from it, so the side icons always clear the curve.
+ *  3. Bottom padding relied only on the reported inset, which some Android
+ *     devices report as 0 under edge-to-edge. There is now a minimum pad.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+const CENTER_ROUTE = "dashboard";
+
+const BAR_H = 64; // icon + label area
+const TOP = 46; // y of the flat top edge of the bar inside the container
+const MAX_ROW_W = 560; // keep tabs tidy on tablets / landscape
+
+// Centre button
+const BTN = 58;
+const LIP = 5; // chunky "lip" under the button
+const BTN_TOP = TOP - 35; // face top → face centre sits 6px above the bar edge
+
+// Notch (cradle) shape — tuned numerically so the button always keeps
+// a 3–8px gap to the curve for every centre-slot width we produce.
+const NOTCH_DEPTH = 36;
+const CP_A = 0.65;
+const CP_B = 0.6;
+
+const INACTIVE = "#7C869B";
+const BAR_FILL = "#FFFFFF";
+
+// Soft upward shadow made from a few translucent copies of the bar shape.
+const SHADOW_LAYERS: [number, number][] = [
+  [-2, 0.035],
+  [-4, 0.03],
+  [-6, 0.02],
+  [-8, 0.012],
+];
+
+const TAB_META: Record<string, any> = {
+  "(home)": {
+    label: "Home",
+    icon: "book",
+    outline: "book-outline",
+    tint: {
+      bg: colors.primaryLighter,
+      line: colors.primaryLight,
+      lip: "#AED581",
+      ink: colors.primaryDeeper,
+    },
+  },
+  leaderboard: {
+    label: "Ranks",
+    icon: "trophy",
+    outline: "trophy-outline",
+    tint: { bg: T.yellowSoft, line: T.yellowLine, lip: "#EBC85A", ink: "#8A6200" },
+  },
+  school: {
+    label: "School",
+    icon: "school",
+    outline: "school-outline",
+    tint: { bg: T.blueSoft, line: T.blueLine, lip: "#9DBFF5", ink: T.blueDark },
+  },
+  profile: {
+    label: "Profile",
+    icon: "person",
+    outline: "person-outline",
+    tint: { bg: T.purpleSoft, line: T.purpleLine, lip: "#BBA6F7", ink: T.purpleDark },
+  },
+};
+
+const FALLBACK_META = {
+  label: "",
+  icon: "ellipse",
+  outline: "ellipse-outline",
+  tint: TAB_META["(home)"].tint,
+};
+
+const r2 = (v: number) => Math.round(v * 100) / 100;
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(Math.max(v, lo), hi);
 
 export default function TabLayout() {
   return (
@@ -55,300 +153,428 @@ export default function TabLayout() {
   );
 }
 
+/** Bar outline with a smooth cradle for the centre button. */
+function buildPath(
+  w: number,
+  cx: number,
+  notchW: number,
+  h: number,
+  dy = 0,
+  closed = true,
+) {
+  const y = r2(TOP + dy);
+  const yb = r2(TOP + NOTCH_DEPTH + dy);
+  const edge =
+    notchW > 0
+      ? [
+          `M 0 ${y}`,
+          `L ${r2(cx - notchW)} ${y}`,
+          `C ${r2(cx - CP_A * notchW)} ${y} ${r2(cx - CP_B * notchW)} ${yb} ${r2(cx)} ${yb}`,
+          `C ${r2(cx + CP_B * notchW)} ${yb} ${r2(cx + CP_A * notchW)} ${y} ${r2(cx + notchW)} ${y}`,
+          `L ${r2(w)} ${y}`,
+        ]
+      : [`M 0 ${y}`, `L ${r2(w)} ${y}`];
+  return closed
+    ? [...edge, `L ${r2(w)} ${r2(h)}`, `L 0 ${r2(h)}`, "Z"].join(" ")
+    : edge.join(" ");
+}
+
 function CurvedTabBar({ state, descriptors, navigation }: any) {
-  const centerIndex = 2;
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
 
-  const svgHeight = TAB_BAR_HEIGHT + DIP_DEPTH;
-  const cx = width / 2; // center x
+  // Never let the bar sit flush with the system nav area, even if the
+  // device reports a 0 inset (happens on some Android edge-to-edge builds).
+  const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 10 : 6);
+  const height = TOP + BAR_H + bottomPad;
 
-  //
-  // Fully smooth 4-segment cubic-bezier notch.
-  //
-  // The flat bar sits at y = DIP_DEPTH.
-  // The notch bottom sits at y = notchBottom.
-  //
-  // We break the curve into 4 segments so every transition —
-  // flat→dip entry AND dip→flat exit — is tangentially smooth
-  // (no kink / sharp corner at the shoulder).
-  //
-  //  Segment layout (left-to-right):
-  //
-  //   [flat] ──► A ──(entry curve)──► B ──(descent)──► C ──(ascent)──► D ──(exit curve)──► [flat]
-  //
-  //   A = shoulder start  (cx - shoulderW - entryW,  DIP_DEPTH)
-  //   B = shoulder end    (cx - shoulderW,            DIP_DEPTH)   ← still on the flat line
-  //   C = mirror of B     (cx + shoulderW,            DIP_DEPTH)
-  //   D = mirror of A     (cx + shoulderW + entryW,   DIP_DEPTH)
-  //
-  //   The notch floor sits at notchBottom.
-  //
-  const notchBottom = svgHeight - 10;
+  // Hidden routes (href: null) are skipped, except the centre action.
+  const routes = state.routes.filter(
+    (r: any) =>
+      r.name === CENTER_ROUTE || descriptors[r.key]?.options?.href !== null,
+  );
+  const centerPos = routes.findIndex((r: any) => r.name === CENTER_ROUTE);
+  const hasCenter = centerPos >= 0;
 
-  // Half-width of the rounded "shelf" either side before it dips
-  const shoulderW = NOTCH_HALF_WIDTH * 0.58;
-  // How far the flat line bends before it starts descending
-  const entryW = NOTCH_HALF_WIDTH * 0.65;
-  // Vertical control-point pull — how aggressively the curve descends
-  const vPull = (notchBottom - DIP_DEPTH) * 0.85;
+  const rowW = Math.min(width, MAX_ROW_W);
+  const rowLeft = (width - rowW) / 2;
+  const centerSlot = hasCenter ? clamp(rowW * 0.24, 77, 100) : 0;
+  const sideCount = routes.length - (hasCenter ? 1 : 0);
+  const slot = (rowW - centerSlot) / Math.max(sideCount, 1);
+  const leftCount = hasCenter ? centerPos : sideCount;
+  const cx = hasCenter ? rowLeft + leftCount * slot + centerSlot / 2 : width / 2;
+  const notchW = hasCenter ? centerSlot / 2 + 6 : 0;
 
-  // Key x positions
-  const Ax = cx - shoulderW - entryW;
-  const Bx = cx - shoulderW;
-  const midX = cx;
-  const Cx = cx + shoulderW;
-  const Dx = cx + shoulderW + entryW;
-
-  // Entry ends at (Bx, DIP_DEPTH + vPull * 0.6) with a steep downward tangent.
-  // Each segment's first control point must continue that same direction
-  // so there's no kink at the join.
-  const entryEndY = DIP_DEPTH + vPull * 0.6;
-  // How far the descent still has to travel after the entry lands
-  const remainingDescent = notchBottom - entryEndY;
-
-  const floorDepth = remainingDescent * 3.5; // adjust 0.3–0.9 to taste
-
-  // Control points for smooth transition from entry → valley → exit
-  const cp1X = Bx + (midX - Bx) * 0.3;
-  const cp1Y = entryEndY + (notchBottom + floorDepth - entryEndY) * 0.3;
-
-  const cp2X = Cx - (Cx - midX) * 0.3;
-  const cp2Y = entryEndY + (notchBottom + floorDepth - entryEndY) * 0.3;
-
-  const path = [
-    `M 0 ${DIP_DEPTH}`,
-    `L ${Ax} ${DIP_DEPTH}`,
-
-    // ① Entry: flat → left shoulder
-    `C ${Ax + entryW * 0.6} ${DIP_DEPTH} ${Bx - entryW * 0.1} ${
-      DIP_DEPTH + vPull * 0.4
-    } ${Bx} ${entryEndY}`,
-
-    // ② Single symmetric cubic valley with tangent alignment
-    `C ${cp1X} ${cp1Y} ${cp2X} ${cp2Y} ${Cx} ${entryEndY}`,
-
-    // ③ Exit: steep → flat
-    `C ${Cx + entryW * 0.1} ${DIP_DEPTH + vPull * 0.4} ${
-      Dx - entryW * 0.6
-    } ${DIP_DEPTH} ${Dx} ${DIP_DEPTH}`,
-
-    `L ${width} ${DIP_DEPTH}`,
-    `L ${width} ${svgHeight}`,
-    `L 0 ${svgHeight}`,
-    `Z`,
-  ].join(" ");
+  const makeHandlers = (route: any, isFocused: boolean) => ({
+    onPress: () => {
+      const event = navigation.emit({
+        type: "tabPress",
+        target: route.key,
+        canPreventDefault: true,
+      });
+      if (!isFocused && !event.defaultPrevented) {
+        navigation.navigate(route.name);
+      }
+    },
+    onLongPress: () => {
+      navigation.emit({ type: "tabLongPress", target: route.key });
+    },
+  });
 
   return (
     <View
-      style={[styles.tabBarContainer, { height: svgHeight + insets.bottom }]}
+      pointerEvents="box-none"
+      style={[styles.container, { height }]}
     >
-      {/* Drop-shadow wrapper (elevation for Android) */}
-      <View style={styles.shadowWrapper}>
-        <Svg width={width} height={svgHeight} style={styles.svgContainer}>
-          <Path d={path} fill="white" />
+      {/* Bar shape + shadow (purely decorative, no elevation → can't cover icons) */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Svg width={width} height={height}>
+          {SHADOW_LAYERS.map(([dy, opacity]) => (
+            <Path
+              key={dy}
+              d={buildPath(width, cx, notchW, height, dy)}
+              fill="#1E2A4A"
+              fillOpacity={opacity}
+            />
+          ))}
+          <Path d={buildPath(width, cx, notchW, height)} fill={BAR_FILL} />
+          <Path
+            d={buildPath(width, cx, notchW, height, 0, false)}
+            fill="none"
+            stroke={T.line}
+            strokeWidth={1.5}
+          />
         </Svg>
       </View>
 
-      {/* Tab button row — aligned to the flat portion of the bar */}
+      {/* Tab row */}
       <View
+        pointerEvents="box-none"
         style={[
-          styles.tabItemsContainer,
-          {
-            top: DIP_DEPTH,
-            height: TAB_BAR_HEIGHT,
-            paddingBottom: Platform.OS === "ios" ? 14 : 8,
-          },
+          styles.row,
+          { top: TOP, height: BAR_H, width: rowW, left: rowLeft },
         ]}
       >
-        {state.routes.map((route: any, index: number) => {
-          const isFocused = state.index === index;
-          const isCenter = index === centerIndex;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
+        {routes.map((route: any, index: number) => {
+          if (index === centerPos) {
+            return <View key={route.key} style={{ width: centerSlot }} />;
+          }
+          const isFocused = state.routes[state.index]?.key === route.key;
+          const options = descriptors[route.key]?.options ?? {};
+          const meta = TAB_META[route.name] ?? {
+            ...FALLBACK_META,
+            label: options.tabBarLabel ?? route.name,
           };
-
-          let iconName = "";
-          switch (route.name) {
-            case "(home)":
-              iconName = isFocused ? "book" : "book-outline";
-              break;
-            case "leaderboard":
-              iconName = isFocused ? "trophy" : "trophy-outline";
-              break;
-            case "dashboard":
-              iconName = "rocket-sharp";
-              break;
-            case "profile":
-              iconName = isFocused ? "person" : "person-outline";
-              break;
-            case "school":
-              iconName = isFocused ? "school" : "school-outline";
-              break;
-          }
-
-          if (isCenter) {
-            return (
-              <View key={index} style={styles.centerTabWrapper}>
-                <AnimatedPressable
-                  onPress={onPress}
-                  style={styles.centerButton}
-                >
-                  <View style={styles.centerButtonInner}>
-                    <Ionicons name={iconName as any} size={26} color="white" />
-                  </View>
-                </AnimatedPressable>
-              </View>
-            );
-          }
-
+          const { onPress, onLongPress } = makeHandlers(route, isFocused);
           return (
-            <TabBarItem
-              key={index}
+            <TabItem
+              key={route.key}
+              meta={meta}
               isFocused={isFocused}
+              width={slot}
               onPress={onPress}
-              iconName={iconName}
-              index={index}
-              centerIndex={centerIndex}
+              onLongPress={onLongPress}
+              accessibilityLabel={options.tabBarAccessibilityLabel ?? meta.label}
+              reduceMotion={reduceMotion}
             />
           );
         })}
       </View>
 
-      {/* White fill under safe-area so the bar colour extends to the physical bottom */}
-      {insets.bottom > 0 && (
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: insets.bottom,
-            backgroundColor: "white",
-          }}
+      {/* Floating action button */}
+      {hasCenter && (
+        <CenterButton
+          left={cx - BTN / 2}
+          reduceMotion={reduceMotion}
+          {...makeHandlers(
+            routes[centerPos],
+            state.routes[state.index]?.key === routes[centerPos].key,
+          )}
         />
       )}
     </View>
   );
 }
 
-function TabBarItem({ isFocused, onPress, iconName, index, centerIndex }: any) {
-  const scale = useSharedValue(1);
+function TabItem({
+  meta,
+  isFocused,
+  width,
+  onPress,
+  onLongPress,
+  accessibilityLabel,
+  reduceMotion,
+}: any) {
+  const focus = useSharedValue(isFocused ? 1 : 0);
+  const wiggle = useSharedValue(0);
+  const press = useSharedValue(0);
+  const mounted = useRef(false);
+  const { tint } = meta;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+  useEffect(() => {
+    focus.value = withSpring(isFocused ? 1 : 0, {
+      damping: 11,
+      stiffness: 190,
+      mass: 0.7,
+    });
+    if (mounted.current && isFocused && !reduceMotion) {
+      // tiny playful wobble when a tab becomes active
+      wiggle.value = withSequence(
+        withTiming(-1, { duration: 80 }),
+        withTiming(1, { duration: 120 }),
+        withTiming(-0.5, { duration: 100 }),
+        withSpring(0, { damping: 10, stiffness: 200 }),
+      );
+    }
+    mounted.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused]);
+
+  const itemStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - press.value * 0.08 }],
   }));
 
-  const handlePress = () => {
-    scale.value = withSpring(0.85, {}, () => {
-      scale.value = withSpring(1);
-    });
-    onPress();
-  };
+  const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(focus.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(focus.value, [0, 1], [0.6, 1]) }],
+  }));
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(focus.value, [0, 1], [0, -1]) },
+      { scale: interpolate(focus.value, [0, 1], [1, 1.1]) },
+      { rotate: `${wiggle.value * 12}deg` },
+    ],
+  }));
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={handlePress}
-      style={styles.tabItem}
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      onPressIn={() => {
+        press.value = withSpring(1, { damping: 14, stiffness: 400 });
+      }}
+      onPressOut={() => {
+        press.value = withSpring(0, { damping: 12, stiffness: 300 });
+      }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.tabItem, { width }]}
     >
-      <Animated.View style={[animatedStyle, styles.iconContainer]}>
-        <Ionicons
-          name={iconName as any}
-          size={24}
-          color={isFocused ? colors.primary : "#8E8E93"}
-        />
-        {isFocused && <View style={styles.activeIndicator} />}
+      <Animated.View style={[styles.tabContent, itemStyle]}>
+        <View style={styles.bubbleBox}>
+          <Animated.View
+            style={[
+              styles.bubble,
+              {
+                backgroundColor: tint.bg,
+                borderColor: tint.line,
+                borderBottomColor: tint.lip,
+              },
+              bubbleStyle,
+            ]}
+          />
+          <Animated.View style={iconStyle}>
+            <Ionicons
+              name={(isFocused ? meta.icon : meta.outline) as any}
+              size={22}
+              color={isFocused ? tint.ink : INACTIVE}
+            />
+          </Animated.View>
+        </View>
+        <Text
+          numberOfLines={1}
+          allowFontScaling={false}
+          style={[
+            styles.label,
+            {
+              color: isFocused ? tint.ink : INACTIVE,
+              fontFamily: isFocused ? "sf-bold" : "sf-semibold",
+            },
+          ]}
+        >
+          {meta.label}
+        </Text>
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
+  );
+}
+
+function CenterButton({ left, onPress, onLongPress, reduceMotion }: any) {
+  const press = useSharedValue(0);
+  const bob = useSharedValue(0);
+  const ring = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    bob.value = withRepeat(
+      withSequence(
+        withTiming(-2, { duration: 1300, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 1300, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+    ring.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1800, easing: Easing.out(Easing.quad) }),
+        withDelay(1100, withTiming(0, { duration: 0 })),
+      ),
+      -1,
+      false,
+    );
+    return () => {
+      cancelAnimation(bob);
+      cancelAnimation(ring);
+    };
+  }, [reduceMotion, bob, ring]);
+
+  const faceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: bob.value * (1 - press.value) + press.value * (LIP - 1) }],
+  }));
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - press.value * 0.08 }],
+  }));
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(ring.value, [0, 1], [0.26, 0]),
+    transform: [{ scale: interpolate(ring.value, [0, 1], [1, 1.4]) }],
+  }));
+
+  return (
+    <View pointerEvents="box-none" style={[styles.centerWrap, { left }]}>
+      <Animated.View pointerEvents="none" style={[styles.ring, ringStyle]} />
+      <View pointerEvents="none" style={styles.lip} />
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onPressIn={() => {
+          press.value = withSpring(1, { damping: 15, stiffness: 420 });
+        }}
+        onPressOut={() => {
+          press.value = withSpring(0, { damping: 11, stiffness: 320 });
+        }}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel="Start a quiz"
+        style={styles.centerPress}
+      >
+        <Animated.View style={[styles.face, faceStyle]}>
+          <LinearGradient
+            colors={["#86C24B", colors.primary]}
+            start={{ x: 0.3, y: 0 }}
+            end={{ x: 0.7, y: 1 }}
+            style={styles.faceGradient}
+          >
+            <View style={styles.shine} />
+            <Animated.View style={iconStyle}>
+              <Ionicons name="rocket" size={26} color="white" />
+            </Animated.View>
+          </LinearGradient>
+        </Animated.View>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBarContainer: {
+  container: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
   },
-  // Wraps the SVG so Android elevation shadow works
-  shadowWrapper: {
+  row: {
+    position: "absolute",
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 2,
+    elevation: 2,
+  },
+  tabItem: {
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabContent: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bubbleBox: {
+    width: 46,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bubble: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+  },
+  label: {
+    marginTop: 3,
+    fontSize: 10.5,
+    lineHeight: 13,
+    includeFontPadding: false,
+    textAlign: "center",
+  },
+  centerWrap: {
+    position: "absolute",
+    top: BTN_TOP,
+    width: BTN,
+    height: BTN + LIP,
+    zIndex: 3,
+    elevation: 3,
+  },
+  ring: {
     position: "absolute",
     top: 0,
     left: 0,
-    right: 0,
-    elevation: 12,
+    width: BTN,
+    height: BTN,
+    borderRadius: BTN / 2,
+    backgroundColor: colors.primary,
   },
-  svgContainer: {
-    // iOS shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  },
-  tabItemsContainer: {
+  lip: {
     position: "absolute",
+    top: LIP,
     left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "flex-end",
+    width: BTN,
+    height: BTN,
+    borderRadius: BTN / 2,
+    backgroundColor: colors.primaryDeeper,
+    boxShadow: "0px 6px 14px rgba(51, 105, 30, 0.30)",
   },
-  tabItem: {
+  centerPress: {
+    width: BTN,
+    height: BTN + LIP,
+  },
+  face: {
+    width: BTN,
+    height: BTN,
+    borderRadius: BTN / 2,
+    overflow: "hidden",
+  },
+  faceGradient: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    height: "100%",
-  },
-  iconContainer: {
     justifyContent: "center",
-    alignItems: "center",
-    width: 50,
-    height: 50,
+    borderRadius: BTN / 2,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.32)",
   },
-  activeIndicator: {
+  shine: {
     position: "absolute",
-    bottom: -2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  centerTabWrapper: {
-    flex: 1,
-    // Pull upward so the button floats above the bar
-    marginTop: -(CIRCLE_SIZE / 2 + DIP_DEPTH / 2),
-    justifyContent: "flex-start",
-    alignItems: "center",
-  },
-  centerButton: {
-    width: CIRCLE_SIZE + 12,
-    height: CIRCLE_SIZE + 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  centerButtonInner: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderBottomWidth: 7,
-    borderColor: colors.primaryDeeper + 40,
-    boxShadow: `2px 8px 18px ${colors.primary}25`,
-
-    // shadowColor: colors.primary,
-    // shadowOffset: { width: 0, height: 6 },
-    // shadowOpacity: 0.45,
-    // shadowRadius: 8,
-    // elevation: 10,
+    top: 6,
+    left: 11,
+    width: 20,
+    height: 9,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    transform: [{ rotate: "-24deg" }],
   },
 });
