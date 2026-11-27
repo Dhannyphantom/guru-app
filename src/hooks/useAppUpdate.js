@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Platform, Linking, AppState, Alert } from "react-native";
+import { Platform, Linking, AppState } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import * as ExpoInAppUpdates from "expo-in-app-updates";
@@ -8,9 +9,14 @@ import * as ExpoInAppUpdates from "expo-in-app-updates";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** "1.10.0" vs "1.9.2" -> positive / negative / 0. Tolerates "1.2.0-beta". */
 const compareVersions = (v1, v2) => {
-  const a = String(v1).split(".").map(Number);
-  const b = String(v2).split(".").map(Number);
+  const parse = (v) =>
+    String(v ?? "0")
+      .split(".")
+      .map((n) => parseInt(n, 10) || 0);
+  const a = parse(v1);
+  const b = parse(v2);
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const diff = (a[i] || 0) - (b[i] || 0);
     if (diff !== 0) return diff;
@@ -20,6 +26,30 @@ const compareVersions = (v1, v2) => {
 
 const isRunningInDevOrExpoGo = __DEV__ || Constants.appOwnership === "expo";
 
+// "Maybe later" hides the friendly prompt for this long (per latest version).
+const SNOOZE_MS = 24 * 60 * 60 * 1000;
+const SNOOZE_KEY = "guru_update_snooze_v1";
+const FETCH_TIMEOUT_MS = 10000;
+
+const isSnoozed = async (version) => {
+  try {
+    const raw = await AsyncStorage.getItem(SNOOZE_KEY);
+    if (!raw) return false;
+    const { version: v, until } = JSON.parse(raw);
+    return v === version && Number(until) > Date.now();
+  } catch {
+    return false;
+  }
+};
+
+const INITIAL = {
+  status: "idle",
+  message: "",
+  forceUpdate: false,
+  latestVersion: null,
+  softSnoozed: false,
+};
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -27,55 +57,44 @@ const isRunningInDevOrExpoGo = __DEV__ || Constants.appOwnership === "expo";
 /**
  * useAppUpdate
  *
- * Combines two update strategies:
- *  1. Native store update (expo-in-app-updates)
- *     - Force / immediate: version is below minimumSupportedVersion
- *     - Soft / flexible:   version is below latestVersion
- *  2. OTA JS-bundle update (expo-updates)
- *     - Applied silently when otaEnabled === true and no store update needed
+ *  1. FORCE  – installed version < minimumSupportedVersion
+ *              -> render <ForceUpdateScreen/> (cannot be dismissed)
+ *  2. SOFT   – installed version < latestVersion
+ *              -> render <UpdateModal visible={promptVisible}/> ("Later" snoozes 24h)
+ *  3. OTA    – JS-bundle update applied silently when otaEnabled
  *
- * @param {object} options
- * @param {string}  options.endpoint            - URL returning the version JSON (see shape below)
- * @param {string}  options.androidPackageName  - e.g. "com.yourapp"
- * @param {string}  options.iosAppId            - numeric App Store ID, e.g. "1234567890"
- * @param {boolean} [options.checkOnResume=true] - re-check every time the app is foregrounded
+ * Endpoint JSON:
+ * { latestVersion, minimumSupportedVersion, otaEnabled, updateMessage, forceMessage }
  *
- * Expected endpoint JSON shape:
- * {
- *   "latestVersion":           "2.1.0",
- *   "minimumSupportedVersion": "1.5.0",
- *   "otaEnabled":              true,
- *   "updateMessage":           "A new version is available!",
- *   "forceMessage":            "You must update to continue using this app."
- * }
+ * Returned:
+ *   status, message, forceUpdate, latestVersion, currentVersion
+ *   promptVisible  – true when the friendly modal should be on screen
+ *   dismissPrompt  – "Maybe later": hides the modal and snoozes it
+ *   startUpdate    – "Update now": in-app update on Android (force) or store
+ *   openStore      – opens the store listing
+ *   recheck        – re-runs the whole check
  *
- * Returned state:
- *   status      – "idle" | "checking" | "upToDate" | "soft" | "force"
- *   message     – human-readable string from the endpoint
- *   forceUpdate – boolean, true when a hard update is required
- *   openStore   – function: manually opens the appropriate store listing
- *   recheck     – function: manually re-triggers the full check
+ * Dev preview: the real check is skipped in dev / Expo Go. Pass
+ * `previewStatus: "soft" | "force"` (only honoured when __DEV__) to see the UI.
  */
 export const useAppUpdate = ({
   endpoint,
   androidPackageName,
   iosAppId,
   checkOnResume = true,
+  previewStatus,
 }) => {
-  const [state, setState] = useState({
-    status: "idle",
-    message: "",
-    forceUpdate: false,
-  });
+  const [state, setState] = useState(INITIAL);
 
-  // Prevent concurrent checks
   const isChecking = useRef(false);
+  const modeRef = useRef("none"); // "none" | "soft" | "force"
+  const autoLaunched = useRef(false); // auto in-app update: once per session
 
   const currentVersion =
     Constants.expoConfig?.version ?? Constants.manifest?.version ?? "0.0.0";
 
   // ------------------------------------------------------------------
-  // Open the appropriate store listing
+  // Store listing
   // ------------------------------------------------------------------
   const openStore = useCallback(() => {
     const url =
@@ -88,9 +107,43 @@ export const useAppUpdate = ({
     );
   }, [androidPackageName, iosAppId]);
 
+  // Android Play "immediate" in-app update. Resolves true if it was started.
+  const tryInAppImmediate = useCallback(async () => {
+    if (Platform.OS !== "android" || isRunningInDevOrExpoGo) return false;
+    try {
+      const result = await ExpoInAppUpdates.checkForUpdate();
+      if (result?.updateAvailable && result?.immediateAllowed) {
+        await ExpoInAppUpdates.startUpdate(true);
+        return true;
+      }
+    } catch (err) {
+      console.warn("[useAppUpdate] Android immediate update error:", err);
+    }
+    return false;
+  }, []);
+
+  // "Update now" button (modal + force screen)
+  const startUpdate = useCallback(async () => {
+    if (modeRef.current === "force" && (await tryInAppImmediate())) return;
+    openStore();
+  }, [openStore, tryInAppImmediate]);
+
+  // "Maybe later"
+  const dismissPrompt = useCallback(() => {
+    setState((s) => ({ ...s, softSnoozed: true }));
+    if (state.latestVersion) {
+      AsyncStorage.setItem(
+        SNOOZE_KEY,
+        JSON.stringify({
+          version: state.latestVersion,
+          until: Date.now() + SNOOZE_MS,
+        }),
+      ).catch(() => {});
+    }
+  }, [state.latestVersion]);
+
   // ------------------------------------------------------------------
-  // Silent OTA update via expo-updates
-  // Only runs in release builds; expo-updates throws in dev / Expo Go.
+  // Silent OTA update (release builds only)
   // ------------------------------------------------------------------
   const runOTAUpdate = useCallback(async () => {
     if (isRunningInDevOrExpoGo) return;
@@ -99,29 +152,51 @@ export const useAppUpdate = ({
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
         await Updates.fetchUpdateAsync();
-        // reloadAsync() should be the very last call – nothing meaningful
-        // should run after it (per Expo docs).
-        await Updates.reloadAsync();
+        await Updates.reloadAsync(); // must be the last call
       }
     } catch (err) {
-      // Silently swallow: common in dev builds or when updates are disabled
       console.warn("[useAppUpdate] OTA check skipped:", err?.message);
     }
   }, []);
 
   // ------------------------------------------------------------------
-  // Main update check
+  // Main check
   // ------------------------------------------------------------------
   const checkForUpdates = useCallback(async () => {
     if (isChecking.current) return;
     isChecking.current = true;
 
     try {
-      setState((s) => ({ ...s, status: "checking" }));
+      // Dev-only UI preview
+      if (__DEV__ && previewStatus) {
+        modeRef.current = previewStatus;
+        setState({
+          status: previewStatus,
+          message:
+            previewStatus === "force"
+              ? "Your app version is no longer supported. Please update to continue."
+              : "A new version of the app is available.",
+          forceUpdate: previewStatus === "force",
+          latestVersion: "9.9.9",
+          softSnoozed: false,
+        });
+        return;
+      }
 
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      // Only show "checking" the first time, so resume checks never flicker
+      // an already-visible prompt / force screen.
+      setState((s) => (s.status === "idle" ? { ...s, status: "checking" } : s));
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      let data;
+      try {
+        const res = await fetch(endpoint, { signal: controller.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+      } finally {
+        clearTimeout(timeout);
+      }
 
       const {
         latestVersion,
@@ -131,139 +206,88 @@ export const useAppUpdate = ({
         forceMessage,
       } = data;
 
-      // Skip in Expo Go / dev mode – store APIs won't work anyway
-      if (isRunningInDevOrExpoGo) {
-        console.info(
-          "[useAppUpdate] Skipping store update check in dev/Expo Go.",
-        );
-        setState({ status: "upToDate", message: "", forceUpdate: false });
+      if (isRunningInDevOrExpoGo || Platform.OS === "web") {
+        modeRef.current = "none";
+        setState({ ...INITIAL, status: "upToDate" });
         return;
       }
 
-      // Skip on web
-      if (Platform.OS === "web") {
-        setState({ status: "upToDate", message: "", forceUpdate: false });
-        return;
-      }
-
-      // ----------------------------------------------------------------
-      // 1. FORCE / IMMEDIATE update
-      //    The running version is below the minimum supported version.
-      // ----------------------------------------------------------------
-      if (compareVersions(currentVersion, minimumSupportedVersion) < 0) {
-        setState({ status: "force", message: forceMessage, forceUpdate: true });
-
-        if (Platform.OS === "android") {
-          try {
-            // checkForUpdate() tells us whether the Play Store has an update
-            const result = await ExpoInAppUpdates.checkForUpdate();
-            if (result.updateAvailable && result.immediateAllowed) {
-              await ExpoInAppUpdates.startUpdate(true); // true = IMMEDIATE
-            } else {
-              // Play Store not yet propagated – fall back to manual store open
-              openStore();
-            }
-          } catch (err) {
-            console.warn("[useAppUpdate] Android immediate update error:", err);
-            openStore();
-          }
-        } else {
-          // iOS: show an alert then redirect to the App Store
-          Alert.alert(
-            "Update Required",
-            forceMessage ||
-              "A required update is available. Please update to continue using the app.",
-            [{ text: "Update Now", onPress: openStore }],
-            { cancelable: false },
-          );
-        }
-
-        return; // Do NOT run OTA after a force update
-      }
-
-      // ----------------------------------------------------------------
-      // 2. SOFT / FLEXIBLE update
-      //    The running version is below the latest version but still
-      //    above the minimum – update is optional / recommended.
-      // ----------------------------------------------------------------
-      if (compareVersions(currentVersion, latestVersion) < 0) {
+      // 1. FORCE
+      if (
+        minimumSupportedVersion &&
+        compareVersions(currentVersion, minimumSupportedVersion) < 0
+      ) {
+        modeRef.current = "force";
         setState({
+          status: "force",
+          message: forceMessage,
+          forceUpdate: true,
+          latestVersion: latestVersion || minimumSupportedVersion,
+          softSnoozed: false,
+        });
+
+        // Kick off Play's in-app flow once; the screen's button works anyway.
+        if (!autoLaunched.current) {
+          autoLaunched.current = true;
+          await tryInAppImmediate();
+        }
+        return; // never run OTA after a force update
+      }
+
+      // 2. SOFT: a newer version exists, current one still works
+      if (latestVersion && compareVersions(currentVersion, latestVersion) < 0) {
+        modeRef.current = "soft";
+        const snoozed = await isSnoozed(latestVersion);
+        setState((s) => ({
           status: "soft",
           message: updateMessage,
           forceUpdate: false,
-        });
+          latestVersion,
+          // keep a dismissal made this session even if storage failed
+          softSnoozed: snoozed || (s.latestVersion === latestVersion && s.softSnoozed),
+        }));
 
-        if (Platform.OS === "android") {
-          try {
-            const result = await ExpoInAppUpdates.checkForUpdate();
-            if (result.updateAvailable && result.flexibleAllowed) {
-              await ExpoInAppUpdates.startUpdate(false); // false = FLEXIBLE
-            }
-            // If the Play Store doesn't yet have the update, we rely on
-            // the UI to surface the `soft` status for the user to act on.
-          } catch (err) {
-            console.warn("[useAppUpdate] Android flexible update error:", err);
-          }
-        } else {
-          // iOS: surface an alert (startUpdate() opens the App Store sheet)
-          Alert.alert(
-            "Update Available",
-            updateMessage ||
-              "A new version is available with improvements and bug fixes.",
-            [
-              { text: "Update", onPress: () => ExpoInAppUpdates.startUpdate() },
-              { text: "Later", style: "cancel" },
-            ],
-          );
-        }
-
-        // Still run OTA in case there are JS-only fixes on the current
-        // version branch (e.g. a hotfix published before the store update
-        // has been installed).
+        // JS-only hotfixes can still land on this version.
         if (otaEnabled) await runOTAUpdate();
         return;
       }
 
-      // ----------------------------------------------------------------
-      // 3. App is up-to-date on the store; try OTA anyway
-      // ----------------------------------------------------------------
-      setState({ status: "upToDate", message: "", forceUpdate: false });
-
+      // 3. Up to date
+      modeRef.current = "none";
+      setState({ ...INITIAL, status: "upToDate" });
       if (otaEnabled) await runOTAUpdate();
     } catch (err) {
       console.warn("[useAppUpdate] Update check failed:", err?.message);
-      // Don't block the user on a network / parsing error
-      setState((s) => ({ ...s, status: "upToDate" }));
+      // Never block the user on a network / parsing error. If a force screen
+      // is already up, leave it up.
+      setState((s) => (s.forceUpdate ? s : { ...s, status: "upToDate" }));
     } finally {
       isChecking.current = false;
     }
-  }, [endpoint, currentVersion, openStore, runOTAUpdate]);
+  }, [endpoint, currentVersion, previewStatus, runOTAUpdate, tryInAppImmediate]);
 
-  // ------------------------------------------------------------------
-  // Run on mount
-  // ------------------------------------------------------------------
   useEffect(() => {
     checkForUpdates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ------------------------------------------------------------------
-  // Re-check when app is foregrounded (optional)
-  // ------------------------------------------------------------------
   useEffect(() => {
     if (!checkOnResume) return;
-
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        checkForUpdates();
-      }
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") checkForUpdates();
     });
-
     return () => subscription.remove();
   }, [checkOnResume, checkForUpdates]);
 
   return {
-    ...state,
+    status: state.status,
+    message: state.message,
+    forceUpdate: state.forceUpdate,
+    latestVersion: state.latestVersion,
+    currentVersion,
+    promptVisible: state.status === "soft" && !state.softSnoozed,
+    dismissPrompt,
+    startUpdate,
     openStore,
     recheck: checkForUpdates,
   };

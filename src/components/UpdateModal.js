@@ -1,74 +1,138 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
-  Animated,
-  Dimensions,
+  View,
+  useWindowDimensions,
 } from "react-native";
+import Animated from "react-native-reanimated";
 
-const { width } = Dimensions.get("window");
+import AppText from "./jamb/JambText";
+import { T } from "./jamb/JambTheme";
+import { JambButton, enter } from "./jamb/JambUI";
+import { popIn, popOut } from "./jamb/JambMotion";
+import UpdateBoard from "./update/UpdateBoard";
+import { UpdatePerks, VersionRow } from "./update/UpdateParts";
 
+const FALLBACK_MESSAGE =
+  "A fresh version of Guru just landed, and it is better than ever. Grab it now!";
+
+/**
+ * Friendly (skippable) "a new version is out" prompt.
+ *
+ * The big green button is the star; "Maybe later" is deliberately quiet.
+ * The forced flow lives in ForceUpdateScreen, not here.
+ *
+ *   <UpdateModal
+ *     visible={promptVisible}
+ *     message={message}
+ *     currentVersion={currentVersion}
+ *     latestVersion={latestVersion}
+ *     onUpdate={startUpdate}
+ *     onLater={dismissPrompt}
+ *   />
+ */
 export default function UpdateModal({
   visible,
-  forceUpdate,
   message,
+  currentVersion,
+  latestVersion,
   onUpdate,
   onLater,
 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.96)).current;
+  const { width, height } = useWindowDimensions();
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef(null);
 
   useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          damping: 18,
-          stiffness: 160,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
+    if (visible) setLeaving(false);
   }, [visible]);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   if (!visible) return null;
 
+  const handleLater = () => {
+    if (leaving) return;
+    setLeaving(true); // play the pop-out, then actually close
+    timer.current = setTimeout(() => onLater && onLater(), 170);
+  };
+
+  const cardWidth = Math.min(width - 36, 420);
+
   return (
-    <Modal transparent visible animationType="none">
+    <Modal
+      transparent
+      visible
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={handleLater}
+    >
       <View style={styles.overlay}>
-        <Animated.View
-          style={[styles.card, { opacity, transform: [{ scale }] }]}
-        >
-          <Text style={styles.title}>Update available</Text>
+        {!leaving && (
+          <Animated.View
+            entering={popIn}
+            exiting={popOut}
+            style={[styles.card, { width: cardWidth, maxHeight: height * 0.9 }]}
+          >
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scroll}
+            >
+              <UpdateBoard
+                animateIn={false}
+                version={latestVersion}
+                title="New stuff just dropped!"
+                subtitle={message || FALLBACK_MESSAGE}
+              />
 
-          <Text style={styles.message}>{message}</Text>
+              <Animated.View entering={enter(1, 120)}>
+                <VersionRow
+                  currentVersion={currentVersion}
+                  latestVersion={latestVersion}
+                  style={{ marginTop: 14 }}
+                />
+              </Animated.View>
 
-          <View style={styles.actions}>
-            {!forceUpdate && (
-              <Pressable onPress={onLater}>
-                <Text style={styles.later}>Later</Text>
+              <Animated.View entering={enter(2, 120)} style={styles.perks}>
+                <UpdatePerks />
+              </Animated.View>
+
+              <Animated.View entering={enter(3, 120)} style={{ marginTop: 18 }}>
+                <JambButton
+                  title="Update now"
+                  icon="rocket"
+                  onPress={onUpdate}
+                  style={{ alignSelf: "stretch" }}
+                />
+                <AppText
+                  fontWeight="medium"
+                  size={11.5}
+                  style={styles.reassure}
+                >
+                  Free and quick. Your progress stays safe.
+                </AppText>
+              </Animated.View>
+
+              <Pressable
+                onPress={handleLater}
+                hitSlop={10}
+                style={styles.later}
+              >
+                <AppText
+                  fontWeight="semibold"
+                  size={12}
+                  style={{ color: T.faint }}
+                >
+                  Maybe later
+                </AppText>
               </Pressable>
-            )}
-
-            <Pressable style={styles.updateBtn} onPress={onUpdate}>
-              <Text style={styles.updateText}>Update now</Text>
-            </Pressable>
-          </View>
-
-          {forceUpdate && (
-            <Text style={styles.footer}>
-              This update is required to continue.
-            </Text>
-          )}
-        </Animated.View>
+            </ScrollView>
+          </Animated.View>
+        )}
       </View>
     </Modal>
   );
@@ -77,75 +141,28 @@ export default function UpdateModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(30,42,74,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
   card: {
-    width: width * 0.86,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
+    backgroundColor: T.paper,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderBottomWidth: 6,
+    borderColor: T.lineDark,
+    overflow: "hidden",
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#111",
+  scroll: { padding: 12 },
+  perks: {
+    marginTop: 16,
+    backgroundColor: T.card,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: T.line,
+    padding: 14,
   },
-  message: {
-    fontSize: 14.5,
-    color: "#555",
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 14,
-  },
-  later: {
-    fontSize: 14,
-    color: "#666",
-  },
-  updateBtn: {
-    backgroundColor: "#7c3aed",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  updateText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  footer: {
-    marginTop: 14,
-    fontSize: 12,
-    color: "#888",
-    textAlign: "center",
-  },
+  reassure: { color: T.sub, textAlign: "center", marginTop: 8 },
+  later: { alignSelf: "center", paddingVertical: 8, marginTop: 4 },
 });
-
-/**
- * 
- * const {
-  status,
-  message,
-  forceUpdate,
-  openStore,
-} = useAppUpdate({
-  endpoint: "https://api.guruedutech.com/app/version",
-  androidPackageName: "com.guru.app",
-  iosAppId: "1234567890",
-});
-
-<UpdateModal
-  visible={status === "soft" || status === "force"}
-  forceUpdate={forceUpdate}
-  message={message}
-  onUpdate={openStore}
-  onLater={() => {}}
-/>;
-
- */

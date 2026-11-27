@@ -10,6 +10,7 @@ import mobileAds, { MaxAdContentRating } from "react-native-google-mobile-ads";
 import { useAppUpdate } from "../hooks/useAppUpdate";
 import { baseUrl } from "../context/apiSlice";
 import ForceUpdateScreen from "../screens/ForceUpdateScreen";
+import UpdateModal from "../components/UpdateModal";
 import { ExitConfirmProvider } from "@/src/components/Exitconfirmprovider";
 
 import * as Sentry from "@sentry/react-native";
@@ -60,11 +61,20 @@ const Main = () => {
   const [appIsReady, setAppIsReady] = useState<boolean>(false);
 
   const dispatch = useDispatch();
-  const { status, message, forceUpdate, openStore } = useAppUpdate({
+  const {
+    message,
+    forceUpdate,
+    latestVersion,
+    currentVersion,
+    promptVisible,
+    dismissPrompt,
+    startUpdate,
+  } = useAppUpdate({
     endpoint: `${baseUrl}/admin/app_version`,
     androidPackageName: "com.phantom.guruedutech",
     iosAppId: "6XXXXXXXXX",
     checkOnResume: true,
+    // previewStatus: "soft", // dev only: "soft" | "force" to preview the UI
   });
 
   useEffect(() => {
@@ -105,18 +115,35 @@ const Main = () => {
   }
 
   if (forceUpdate) {
-    return <ForceUpdateScreen onUpdate={openStore} message={message} />;
+    return (
+      <ForceUpdateScreen
+        onUpdate={startUpdate}
+        message={message}
+        version={latestVersion}
+        currentVersion={currentVersion}
+      />
+    );
   }
 
   return (
-    <Stack>
-      <Stack.Protected guard={isLoggedIn}>
-        <Stack.Screen name="(protected)" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Protected guard={!isLoggedIn}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      </Stack.Protected>
-    </Stack>
+    <>
+      <Stack>
+        <Stack.Protected guard={isLoggedIn}>
+          <Stack.Screen name="(protected)" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!isLoggedIn}>
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        </Stack.Protected>
+      </Stack>
+      <UpdateModal
+        visible={promptVisible}
+        message={message}
+        currentVersion={currentVersion}
+        latestVersion={latestVersion}
+        onUpdate={startUpdate}
+        onLater={dismissPrompt}
+      />
+    </>
   );
 };
 
